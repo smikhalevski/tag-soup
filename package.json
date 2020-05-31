@@ -1,0 +1,59 @@
+{
+  "name": "tag-soup",
+  "version": "0.0.1",
+  "description": "Forgiving JS SAX/DOM parser",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "files": [
+    "./lib",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "set -e; npm run tsc; npm run rollup; npm run terser",
+    "tsc": "tsc --module commonjs",
+    "rollup": "for p in ./src/main/{index,html}.ts; do rollup --input $p --dir ./lib --format cjs --plugin @rollup/plugin-typescript; done",
+    "terser": "for p in ./lib/{index,html}.js; do terser --compress --mangle toplevel --output $p -- $p; done",
+    "clean": "rm -rf ./lib",
+    "test": "jest",
+    "perf": "node ./src/test/perf.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smikhalevski/tag-soup.git"
+  },
+  "keywords": [
+    "small",
+    "forgiving",
+    "stream",
+    "fast",
+    "sax",
+    "dom",
+    "html",
+    "xml",
+    "parser"
+  ],
+  "author": "Savva Mikhalevski <smikhalevski@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/smikhalevski/tag-soup/issues"
+  },
+  "homepage": "https://github.com/smikhalevski/tag-soup#readme",
+  "jest": {
+    "preset": "ts-jest"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^4.1.2",
+    "@types/jest": "^25.2.3",
+    "jest": "^26.0.1",
+    "rollup": "^2.12.0",
+    "terser": "^4.7.0",
+    "ts-jest": "^26.1.0",
+    "tslib": "^2.0.0",
+    "typescript": "^3.9.3"
+  },
+  "dependencies": {},
+  "optionalDependencies": {
+    "benchmark": "^2.1.4",
+    "htmlparser2": "^4.1.0"
+  }
+}
