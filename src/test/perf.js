@@ -3,8 +3,7 @@ const path = require('path');
 const Benchmark = require('benchmark');
 const htmlparser2 = require('htmlparser2');
 const {padEnd, padStart} = require('lodash');
-const {createHtmlSaxParser} = require('../../lib/html');
-const {createTagSoupDomParser} = require('../../lib');
+const {createHtmlSaxParser, createHtmlTagSoupDomParser} = require('../../lib/html');
 
 const html = fs.readFileSync(path.join(__dirname, './test.html'), {encoding: 'utf8'});
 
@@ -46,7 +45,7 @@ suite.add('htmlparser2 DOM', () => {
   htmlparser2DomParser.write(html);
 });
 
-const tagSoupParser = createTagSoupDomParser();
+const tagSoupParser = createHtmlTagSoupDomParser();
 suite.add('tag-soup DOM', () => {
   tagSoupParser.commit(html);
 });
