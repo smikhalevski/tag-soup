@@ -134,7 +134,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('omitted tags are not output', () => {
-    const parser = createTagSoupDomParser({isOmittedTag: (tagName) => tagName === 'a'});
+    const parser = createTagSoupDomParser({isRemovedTag: (tagName) => tagName === 'a'});
 
     expect(parser.commit('<b><a></a></b>')).toEqual([
       el('b', 0, 14),
@@ -142,7 +142,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('implicitly closes current tag', () => {
-    const parser = createTagSoupDomParser({isImplicitClose: (parentElement, element) => element.tagName === 'p' && parentElement.tagName === element.tagName});
+    const parser = createTagSoupDomParser({isImplicitEnd: (parentElement, element) => element.tagName === 'p' && parentElement.tagName === element.tagName});
 
     expect(parser.commit('<p>foo<p>bar')).toEqual([
       el('p', 0, 6, {}, [
@@ -151,6 +151,18 @@ describe('createTagSoupDomParser', () => {
       el('p', 6, 12, {}, [
           text('bar', 9, 12),
       ]),
+    ]);
+  });
+
+  it('implicitly closes current tag with nesting', () => {
+    const parser = createTagSoupDomParser({isImplicitEnd: (parentElement, element) => element.tagName === 'p' && parentElement.tagName === element.tagName});
+
+    expect(parser.commit('<p><p>aaa</p></p>')).toEqual([
+      el('p', 0, 3),
+      el('p', 3, 13, {}, [
+          text('aaa', 6, 9),
+      ]),
+      el('p', 0, 6),
     ]);
   });
 });

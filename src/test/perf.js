@@ -17,8 +17,8 @@ suite.on('complete', () => {
     console.log(padEnd(bench.name, 20) + padStart(ms.toFixed(2), 8) + 'ms ± ' + bench.stats.rme.toFixed() + '%');
   }
 
-  console.log('Ratio SAX =', (benches[0].stats.mean / benches[1].stats.mean).toFixed(2));
-  console.log('Ratio DOM =', (benches[2].stats.mean / benches[3].stats.mean).toFixed(2));
+  console.log('SAX perf ratio = ' + (benches[0].stats.mean / benches[1].stats.mean).toFixed(2));
+  console.log('DOM perf ratio = ' + (benches[2].stats.mean / benches[3].stats.mean).toFixed(2));
 });
 
 const htmlparser2SaxParser = new htmlparser2.Parser({});
@@ -26,7 +26,7 @@ suite.add('htmlparser2 SAX', () => {
   htmlparser2SaxParser.write(html);
 });
 
-const saxParser = createHtmlSaxParser({
+const htmlSaxParser = createHtmlSaxParser({
   onStartTag: () => undefined,
   onAttribute: () => undefined,
   onEndTag: () => undefined,
@@ -37,7 +37,7 @@ const saxParser = createHtmlSaxParser({
   onDtd: () => undefined,
 });
 suite.add('tag-soup SAX', () => {
-  saxParser.commit(html);
+  htmlSaxParser.commit(html);
 });
 
 const htmlparser2DomParser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
@@ -45,9 +45,9 @@ suite.add('htmlparser2 DOM', () => {
   htmlparser2DomParser.write(html);
 });
 
-const tagSoupParser = createHtmlTagSoupDomParser();
+const htmlTagSoupDomParser = createHtmlTagSoupDomParser();
 suite.add('tag-soup DOM', () => {
-  tagSoupParser.commit(html);
+  htmlTagSoupDomParser.commit(html);
 });
 
 suite.run();

@@ -53,10 +53,10 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameAttr,
     selfClosingEnabled,
     isRawTag,
-    isOmittedTag,
+    isRemovedTag,
     isIgnoredTag,
     isVoidElement,
-    isImplicitClose,
+    isImplicitEnd,
   } = options;
 
   return createDomParser<TagSoupNode, TagSoupElement, TagSoupText>({
@@ -67,10 +67,10 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameAttr,
     selfClosingEnabled,
     isRawTag,
-    isOmittedTag,
+    isRemovedTag,
     isIgnoredTag,
     isVoidElement,
-    isImplicitClose,
+    isImplicitEnd,
 
     createElement(tagName, start, end) {
       return createTagSoupElement(tagName, {}, start, end, []);
@@ -94,10 +94,8 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
       return createTagSoupNode(TagSoupNodeType.COMMENT, data, start, end);
     },
 
-    cloneElement(element, childNode, start, end) {
-      const el = createTagSoupElement(element.tagName, Object.assign({}, element.attrs), start, end, [childNode]);
-      childNode.parent = el;
-      return el;
+    cloneElement(element, start, end) {
+      return createTagSoupElement(element.tagName, Object.assign({}, element.attrs), start, end, []);
     },
 
     setAttribute(element, name, value, start, end) {
@@ -111,14 +109,6 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
 
     appendData(textNode, value): void {
       textNode.data += value;
-    },
-
-    getParentElement(node) {
-      return node.parent;
-    },
-
-    getTagName(element) {
-      return element.tagName;
     },
 
     setEndOffset(node, end) {

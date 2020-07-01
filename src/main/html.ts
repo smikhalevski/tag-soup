@@ -24,7 +24,7 @@ const htmlTestDecoder = createEntitiesDecoder({
 });
 
 function isRawTag(tagName: string): boolean {
-  return rawTags.has(tagName.toLowerCase());
+  return rawTags.includes(tagName);
 }
 
 export function createHtmlSaxParser(options: SaxParserOptions): SaxParser {
@@ -38,30 +38,30 @@ export function createHtmlSaxParser(options: SaxParserOptions): SaxParser {
   return createSaxParser(Object.assign(saxParserOptions, options));
 }
 
-export function createHtmlTagSoupDomParser(options: TagSoupDomParserOptions): DomParser<TagSoupNode, TagSoupElement, TagSoupText> {
+export function createHtmlTagSoupDomParser(options: TagSoupDomParserOptions = {}): DomParser<TagSoupNode, TagSoupElement, TagSoupText> {
   const domParserOptions: TagSoupDomParserOptions = {
     xmlEnabled: false,
     selfClosingEnabled: false,
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTestDecoder,
     isRawTag,
-    isImplicitClose(parentEl, el) {
-      return implicitCloseMap[parentEl.tagName.toLowerCase()]?.has(el.tagName.toLowerCase()) ?? false;
+    isImplicitEnd(parentEl, el) {
+      return implicitCloseMap[parentEl.tagName]?.includes(el.tagName);
     },
     isVoidElement(el) {
-      return voidTags.has(el.tagName.toLowerCase());
+      return voidTags.includes(el.tagName);
     },
   };
   return createTagSoupDomParser(Object.assign(domParserOptions, options));
 }
 
-const rawTags = new Set([
+const rawTags = [
   'script',
   'style',
   'textarea',
-]);
+];
 
-const voidTags = new Set([
+const voidTags = [
   'area',
   'base',
   'basefont',
@@ -81,9 +81,9 @@ const voidTags = new Set([
   'source',
   'track',
   'wbr',
-]);
+];
 
-const formTags = new Set([
+const formTags = [
   'input',
   'option',
   'optgroup',
@@ -91,16 +91,16 @@ const formTags = new Set([
   'button',
   'datalist',
   'textarea',
-]);
+];
 
-const pTag = new Set(['p']);
+const pTag = ['p'];
 
-const implicitCloseMap: Record<string, Set<string>> = {
-  tr: new Set(['tr', 'th', 'td']),
-  th: new Set(['th']),
-  td: new Set(['thead', 'th', 'td']),
-  body: new Set(['head', 'link', 'script']),
-  li: new Set(['li']),
+const implicitCloseMap: Record<string, Array<string>> = {
+  tr: ['tr', 'th', 'td'],
+  th: ['th'],
+  td: ['thead', 'th', 'td'],
+  body: ['head', 'link', 'script'],
+  li: ['li'],
   p: pTag,
   h1: pTag,
   h2: pTag,
@@ -114,10 +114,10 @@ const implicitCloseMap: Record<string, Set<string>> = {
   button: formTags,
   datalist: formTags,
   textarea: formTags,
-  option: new Set(['option']),
-  optgroup: new Set(['optgroup', 'option']),
-  dd: new Set(['dt', 'dd']),
-  dt: new Set(['dt', 'dd']),
+  option: ['option'],
+  optgroup: ['optgroup', 'option'],
+  dd: ['dt', 'dd'],
+  dt: ['dt', 'dd'],
   address: pTag,
   article: pTag,
   aside: pTag,
@@ -139,8 +139,8 @@ const implicitCloseMap: Record<string, Set<string>> = {
   section: pTag,
   table: pTag,
   ul: pTag,
-  rt: new Set(['rt', 'rp']),
-  rp: new Set(['rt', 'rp']),
-  tbody: new Set(['thead', 'tbody']),
-  tfoot: new Set(['thead', 'tbody']),
+  rt: ['rt', 'rp'],
+  rp: ['rt', 'rp'],
+  tbody: ['thead', 'tbody'],
+  tfoot: ['thead', 'tbody'],
 };

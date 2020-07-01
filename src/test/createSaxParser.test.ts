@@ -528,7 +528,7 @@ describe('parseSax', () => {
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<foo aaa=111>', 8, 21);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'SCRIPT', false, 21, 30);
+      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'script', false, 21, 30);
     });
 
     it('CDATA tags are case-sensitive in XML mode', () => {

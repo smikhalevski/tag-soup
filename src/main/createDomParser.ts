@@ -3,25 +3,17 @@ import {createSaxParser, SaxParserDialectOptions, SaxParserOptions} from './crea
 export interface DomParserDialectOptions<Element> extends SaxParserDialectOptions {
 
   /**
-   * If returns `true` then tag with given name is rendered as text while its children are left intact.
+   * Source of ignored tag is rendered as a text node. Children of the ignored tag are left intact.
    */
   isIgnoredTag?: (tagName: string) => boolean;
-
-  /**
-   * If returns `true` then tag with given name is replaced with its children.
-   */
-  isOmittedTag?: (tagName: string) => boolean;
-
-  /**
-   * If returns `true` then element cannot have children and if it does they are rendered as its siblings.
-   */
+  isRemovedTag?: (tagName: string) => boolean;
   isVoidElement?: (element: Element) => boolean;
 
   /**
-   * If returns `true` then `element` is rendered as sibling of `parentElement` instead of being added as a child to
-   * `parentElement`.
+   * If `true` then `element` is rendered as a sibling of the `hostElement`, otherwise `element` is appended as a child
+   * to `hostElement`.
    */
-  isImplicitClose?: (parentElement: Element, element: Element) => boolean;
+  isImplicitEnd?: (hostElement: Element, element: Element) => boolean;
 }
 
 export type ElementFactory<Element> = (tagName: string, start: number, end: number) => Element;
@@ -33,20 +25,19 @@ export type DataNodeFactory<Node> = (data: string, start: number, end: number) =
 export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
   createElement: ElementFactory<Element>;
   createTextNode: TextNodeFactory<Text>;
+  appendChild: (element: Element, childNode: Node) => void;
+  appendData: (textNode: Text, data: string) => void;
+
   createProcessingInstruction?: DataNodeFactory<Node>;
   createCdataSection?: DataNodeFactory<Node>;
   createDocumentType?: DataNodeFactory<Node>;
   createComment?: DataNodeFactory<Node>;
 
   /**
-   * Clones an element with a single child.
+   * Clones an element without children.
    */
-  cloneElement?: (element: Element, childNode: Node, start: number, end: number) => Element;
+  cloneElement?: (element: Element, start: number, end: number) => Element;
   setAttribute?: (element: Element, name: string, value: string, start: number, end: number) => void;
-  appendChild: (element: Element, childNode: Node) => void;
-  appendData: (textNode: Text, data: string) => void;
-  getParentElement: (node: Node) => Element | null;
-  getTagName: (element: Element) => string;
   setEndOffset?: (node: Node, end: number) => void;
 }
 
@@ -73,12 +64,15 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     isRawTag,
 
     isIgnoredTag,
-    isOmittedTag,
+    isRemovedTag,
     isVoidElement,
-    isImplicitClose,
+    isImplicitEnd,
 
     createElement,
     createTextNode,
+    appendChild,
+    appendData,
+
     createProcessingInstruction,
     createCdataSection,
     createDocumentType,
@@ -86,194 +80,122 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
 
     cloneElement,
     setAttribute,
-    appendChild,
-    appendData,
-    getParentElement,
-    getTagName,
     setEndOffset,
   } = options;
 
-  let str: string;
-  let offset = 0;
-  let nodeList: Array<Node> = [];
-  let hostEl: Element | null;
-  let orphanEl: Element | null;
-  let textNode: Text | null;
-  let treeStarted = false;
+  const tagNameStack: Array<string> = [];
+  const elementStack: Array<Element> = [];
 
-  const pushChild = (node: Node, closeImplied: boolean, start: number): void => {
-    if (cloneElement != null) {
-      for (let el = orphanEl, parentEl; el != null && (parentEl = getParentElement(el)) !== hostEl; el = parentEl) {
-        if (closeImplied && parentEl != null && isImplicitClose?.(parentEl, node as Element)) {
-          break;
-        }
-        node = cloneElement(el, node, start, start);
-      }
-      orphanEl = null;
-    }
-    if (hostEl != null) {
-      appendChild(hostEl, node);
-    } else {
-      nodeList.push(node);
-    }
-    treeStarted = true;
+  let lastIndex = -1;
+  let index = -1;
+  let textNode: Text | undefined;
+  let nodes: Array<Node> = [];
+
+  const reset = () => {
+    tagNameStack.length = elementStack.length = 0;
+    lastIndex = index = -1;
+    textNode = undefined;
+    nodes = [];
   };
 
-  const pushData = (data: string, start: number, end: number): void => {
-    if (textNode != null && orphanEl == null) {
-      appendData(textNode, data);
-      setEndOffset?.(textNode, end);
-      return;
+  const appendNode = (node: Node): void => {
+    if (index !== lastIndex) {
+      const orphanElement = elementStack[index + 1];
+      if (index === -1) {
+        nodes.push(orphanElement);
+      } else {
+        appendChild(elementStack[index], orphanElement);
+      }
+      index = lastIndex;
     }
-
-    textNode = createTextNode(data, start, end);
-    pushChild(textNode, false, start);
-
-    hostEl = getParentElement(textNode);
+    if (index === -1) {
+      nodes.push(node);
+    } else {
+      appendChild(elementStack[index], node);
+    }
   };
 
   const saxParserOptions: SaxParserOptions = {
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    isRawTag,
 
     onStartTag(tagName, selfClosing, start, end) {
-      if (isOmittedTag?.(tagName)) {
-        return;
-      }
-      if (isIgnoredTag?.(tagName)) {
-        pushData(str.substring(start - offset, end - offset), start, end);
-        return;
-      }
+      textNode = undefined;
+      const element = createElement(tagName, start, end);
+      appendNode(element);
 
-      const el = createElement(tagName, start, end);
-      if (hostEl != null && isImplicitClose?.(hostEl, el)) {
-        setEndOffset?.(hostEl, start);
-        hostEl = getParentElement(hostEl);
+      if (!isVoidElement?.(element)) {
+        lastIndex = ++index;
+        tagNameStack[index] = tagName;
+        elementStack[index] = element;
       }
-      pushChild(el, true, start);
-
-      hostEl = selfClosing || isVoidElement?.(el) ? getParentElement(el) : el;
-      textNode = null;
     },
 
     onAttribute(name, value, start, end) {
-      if (hostEl) {
-        setAttribute?.(hostEl, name, value, start, end);
-      }
+      setAttribute?.(elementStack[index], name, value, start, end);
     },
 
     onEndTag(tagName, selfClosing, start, end) {
-      if (isOmittedTag?.(tagName)) {
+      let i = lastIndex;
+      for (; i >= 0 && tagNameStack[i] !== tagName; i--) {
+      }
+      if (i === -1) {
+        // No start tag
         return;
       }
-      if (isIgnoredTag?.(tagName)) {
-        pushData(str.substring(start - offset, end - offset), start, end);
-        return;
-      }
-      if (selfClosing || hostEl == null) {
-        return;
-      }
+      textNode = undefined;
+      setEndOffset?.(elementStack[i], end);
 
-      for (let el: Element | null = hostEl; el != null; el = getParentElement(el)) {
-        if (getTagName(el) === tagName) {
-          if (el !== hostEl) {
+      if (cloneElement) {
+        for (let j = i; j < lastIndex; j++) {
+          const element = elementStack[j + 1];
+          setEndOffset?.(element, start);
+          elementStack[j] = cloneElement(element, end, end);
 
-            if (cloneElement != null) {
-              orphanEl = hostEl;
-            }
-
-            if (setEndOffset != null) {
-              for (let orphanEl: Node | null = hostEl; orphanEl != null && orphanEl !== el; orphanEl = getParentElement(orphanEl)) {
-                setEndOffset(orphanEl, start);
-              }
-            }
+          if (j !== i) {
+            appendChild(elementStack[j - 1], elementStack[j]);
           }
-
-          setEndOffset?.(el, end);
-
-          hostEl = getParentElement(el);
-          textNode = null;
-          break;
         }
+        index = i - 1;
+        lastIndex--;
+      } else {
+        index = lastIndex = i - 1;
       }
     },
 
-    onText: pushData,
-  };
-
-  if (createProcessingInstruction) {
-    saxParserOptions.onProcessingInstruction = (value, start, end) => {
-      pushChild(createProcessingInstruction(value, start, end), false, start);
-    };
-  }
-
-  if (createCdataSection) {
-    saxParserOptions.onCdataSection = (value, start, end) => {
-      pushChild(createCdataSection(value, start, end), false, start);
-    };
-  }
-
-  if (createDocumentType) {
-    saxParserOptions.onDocumentType = (value, start, end) => {
-      if (!treeStarted) {
-        nodeList.push(createDocumentType(value, start, end));
+    onText(data, start, end) {
+      if (textNode) {
+        appendData(textNode, data);
+        setEndOffset?.(textNode, end);
+      } else {
+        appendNode(createTextNode(data, start, end));
       }
-    };
-  }
-
-  if (createComment) {
-    saxParserOptions.onComment = (value, start, end) => {
-      pushChild(createComment(value, start, end), false, start);
-    };
-  }
+    },
+  };
 
   const saxParser = createSaxParser(saxParserOptions);
-
-  const reset = () => {
-    str = '';
-    offset = 0;
-    nodeList = [];
-    hostEl = null;
-    orphanEl = null;
-    textNode = null;
-    treeStarted = false;
-  };
 
   return {
     resetStream() {
       saxParser.resetStream();
       reset();
     },
-
-    writeStream(s) {
-      str = saxParser.tail + s;
-      offset = saxParser.offset;
-
+    writeStream(str) {
       saxParser.writeStream(str);
-      return nodeList;
+      return nodes;
     },
-
-    commit(s = '') {
-      str = saxParser.tail + s;
-      offset = saxParser.offset;
+    commit(str = '') {
+      const end = saxParser.offset + str.length;
 
       saxParser.commit(str);
 
-      if (setEndOffset != null) {
-        const charCount = offset + str.length;
-        for (let el: Element | null = hostEl; el != null; el = getParentElement(el)) {
-          setEndOffset(el, charCount);
+      if (setEndOffset) {
+        for (let i = index; i >= 0; i--) {
+          setEndOffset(elementStack[i], end);
         }
       }
 
-      const result = nodeList;
+      const outputNodes = nodes;
       reset();
-      return result;
+      return outputNodes;
     },
   };
 }
