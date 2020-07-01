@@ -6,6 +6,10 @@ import {Rewriter} from './shared-types';
 
 const xmlDecoder = createEntitiesDecoder();
 
+export function lowerCase(str: string): string {
+  return str.toLowerCase();
+}
+
 export function identity<T>(value: T): T {
   return value;
 }
@@ -188,8 +192,21 @@ export interface SaxParserDialectOptions {
    * Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.
    */
   decodeText?: Rewriter;
+
+  /**
+   * Rewrites tag name. By default, in XML mode tags are not rewritten while in non-XML mode tags are converted to
+   * lower case.
+   */
   renameTag?: Rewriter;
+
+  /**
+   * Rewrites attribute name. By default there's no rewriting.
+   */
   renameAttr?: Rewriter;
+
+  /**
+   * Enables self-closing tags recognition. In XML mode this is always enabled.
+   */
   selfClosingEnabled?: boolean;
 
   /**
@@ -214,8 +231,15 @@ export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCall
 
 export interface SaxParser {
 
-  readonly tail: string;
-  readonly offset: number;
+  /**
+   * Tail that was not parsed during last `writeStream` invocation.
+   */
+  tail: string;
+
+  /**
+   * Offset of the `tail` in current stream.
+   */
+  offset: number;
 
   resetStream(): void;
 
@@ -227,30 +251,23 @@ export interface SaxParser {
 export function createSaxParser(options: SaxParserOptions): SaxParser {
   const attrPool = createObjectPool(createAttr);
 
-  let tail = '';
-  let offset = 0;
-
   return {
-    get tail() {
-      return tail;
-    },
-    get offset() {
-      return offset;
-    },
+    tail: '',
+    offset: 0,
 
     resetStream() {
-      tail = '';
-      offset = 0;
+      this.tail = '';
+      this.offset = 0;
     },
     writeStream(str) {
-      const i = parseSax(tail + str, attrPool, true, offset, options);
-      tail = str.substr(i);
-      offset += i;
+      const i = parseSax(this.tail + str, attrPool, true, this.offset, options);
+      this.tail = str.substr(i);
+      this.offset += i;
     },
     commit(str = '') {
-      parseSax(tail + str, attrPool, false, offset, options);
-      tail = '';
-      offset = 0;
+      parseSax(this.tail + str, attrPool, false, this.offset, options);
+      this.tail = '';
+      this.offset = 0;
     },
   };
 }
@@ -260,8 +277,8 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
     xmlEnabled = false,
     decodeAttr = xmlDecoder,
     decodeText = xmlDecoder,
-    renameTag = identity,
-    renameAttr = identity,
+    renameTag = xmlEnabled ? identity : lowerCase,
+    renameAttr = xmlEnabled ? identity : lowerCase,
     selfClosingEnabled = false,
     isRawTag,
 
@@ -353,9 +370,9 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
           onEndTag?.(tagName, true, offset + k - 2, offset + k);
         } else {
 
-          // Enforce CDATA context only for non self-closing tags
+          // Enable raw context only for non self-closing tags
           if (isRawTag?.(tagName)) {
-            rawTagName = xmlEnabled ? tagName : tagName.toLowerCase();
+            rawTagName = tagName;
           }
         }
 
@@ -369,7 +386,7 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
     if (j !== -1) {
       const tagName = renameTag(str.substring(i + 2, j));
 
-      if (!rawTagName || (xmlEnabled ? tagName : tagName.toLowerCase()) === rawTagName) {
+      if (!rawTagName || rawTagName === tagName) {
         rawTagName = null;
 
         // Skip malformed content and excessive whitespaces
