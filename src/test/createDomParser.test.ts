@@ -35,6 +35,12 @@ describe('createDomParser', () => {
     parser = createDomParser(domParserOptions);
   });
 
+  it('parses text', () => {
+    expect(parser.commit('okay')).toEqual([
+      {data: 'okay', start: 0, end: 4},
+    ]);
+  });
+
   it('parses tag with text', () => {
     expect(parser.commit('<a>okay</a>')).toEqual([
       {
@@ -107,6 +113,61 @@ describe('createDomParser', () => {
               {tagName: 'd', start: 13, end: 16, attrs: {}, children: []},
             ],
           },
+        ],
+      },
+    ]);
+  });
+
+  it('does not emit orphan elements if there is no content', () => {
+    expect(parser.commit('<a><b><c></a>')).toEqual([
+      {
+        tagName: 'a', start: 0, end: 13, attrs: {}, children: [
+          {
+            tagName: 'b', start: 3, end: 9, attrs: {}, children: [
+              {tagName: 'c', start: 6, end: 9, attrs: {}, children: []},
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('removes elements', () => {
+    parser = createDomParser({...domParserOptions, isRemovedTag: (tagName) => tagName === 'b'});
+
+    expect(parser.commit('<a><b><c></a>')).toEqual([
+      {
+        tagName: 'a', start: 0, end: 13, attrs: {}, children: [
+          {tagName: 'c', start: 6, end: 9, attrs: {}, children: []},
+        ],
+      },
+    ]);
+  });
+
+  it('renders ignored tags as text', () => {
+    parser = createDomParser({...domParserOptions, isIgnoredTag: (tagName) => tagName === 'b'});
+
+    expect(parser.commit('<a><b><c></b></a>')).toEqual([
+      {
+        tagName: 'a', start: 0, end: 17, attrs: {}, children: [
+          {data: '<b>', start: 3, end: 6},
+          {
+            tagName: 'c', start: 6, end: 13, attrs: {}, children: [
+              {data: '</b>', start: 9, end: 13},
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('ignored unmatched closing tags', () => {
+    parser = createDomParser(domParserOptions);
+
+    expect(parser.commit('<a></b>eee')).toEqual([
+      {
+        tagName: 'a', start: 0, end: 10, attrs: {}, children: [
+          {data: 'eee', start: 7, end: 10},
         ],
       },
     ]);

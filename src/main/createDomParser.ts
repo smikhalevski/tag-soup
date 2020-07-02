@@ -86,6 +86,8 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
   const tagNameStack: Array<string> = [];
   const elementStack: Array<Element> = [];
 
+  let tail = '';
+  let offset = 0;
   let lastIndex = -1;
   let index = -1;
   let textNode: Text | undefined;
@@ -115,9 +117,33 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     }
   };
 
+  const appendText = (data: string, start: number, end: number): void => {
+    if (textNode) {
+      appendData(textNode, data);
+      setEndOffset?.(textNode, end);
+    } else {
+      appendNode(createTextNode(data, start, end));
+    }
+  };
+
   const saxParserOptions: SaxParserOptions = {
+    xmlEnabled,
+    decodeAttr,
+    decodeText,
+    renameTag,
+    renameAttr,
+    selfClosingEnabled,
+    isRawTag,
 
     onStartTag(tagName, selfClosing, start, end) {
+      if (isRemovedTag?.(tagName)) {
+        return;
+      }
+      if (isIgnoredTag?.(tagName)) {
+        appendText(tail.substring(start - offset, end - offset), start, end);
+        return;
+      }
+
       textNode = undefined;
       const element = createElement(tagName, start, end);
       appendNode(element);
@@ -134,6 +160,14 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     },
 
     onEndTag(tagName, selfClosing, start, end) {
+      if (isRemovedTag?.(tagName)) {
+        return;
+      }
+      if (isIgnoredTag?.(tagName)) {
+        appendText(tail.substring(start - offset, end - offset), start, end);
+        return;
+      }
+
       let i = lastIndex;
       for (; i >= 0 && tagNameStack[i] !== tagName; i--) {
       }
@@ -161,14 +195,7 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
       }
     },
 
-    onText(data, start, end) {
-      if (textNode) {
-        appendData(textNode, data);
-        setEndOffset?.(textNode, end);
-      } else {
-        appendNode(createTextNode(data, start, end));
-      }
-    },
+    onText: appendText,
   };
 
   const saxParser = createSaxParser(saxParserOptions);
@@ -178,16 +205,25 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
       saxParser.resetStream();
       reset();
     },
+
     writeStream(str) {
+      tail = saxParser.tail + str;
+      offset = saxParser.offset;
+
       saxParser.writeStream(str);
+
       return nodes;
     },
+
     commit(str = '') {
-      const end = saxParser.offset + str.length;
+      tail = saxParser.tail + str;
+      offset = saxParser.offset;
 
       saxParser.commit(str);
 
       if (setEndOffset) {
+        const end = offset + tail.length;
+
         for (let i = index; i >= 0; i--) {
           setEndOffset(elementStack[i], end);
         }
