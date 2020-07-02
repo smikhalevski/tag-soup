@@ -102,11 +102,12 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
 
   const appendNode = (node: Node): void => {
     if (index !== lastIndex) {
-      const orphanElement = elementStack[index + 1];
       if (index === -1) {
-        nodes.push(orphanElement);
-      } else {
-        appendChild(elementStack[index], orphanElement);
+        nodes.push(elementStack[0]);
+        index = 0;
+      }
+      for (let i = index; i < lastIndex; i++) {
+        appendChild(elementStack[i], elementStack[i + 1]);
       }
       index = lastIndex;
     }
@@ -135,7 +136,7 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     selfClosingEnabled,
     isRawTag,
 
-    onStartTag(tagName, selfClosing, start, end) {
+    onStartTag(tagName, selfClosing, start, end) {console.log(nodes)
       if (isRemovedTag?.(tagName)) {
         return;
       }
@@ -146,6 +147,14 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
 
       textNode = undefined;
       const element = createElement(tagName, start, end);
+
+      // if (lastIndex > 0 && isImplicitEnd?.(elementStack[lastIndex - 1], element)) {
+      //   if (index !== lastIndex) {
+      //     lastIndex--;
+      //   }
+      // }
+
+
       appendNode(element);
 
       if (!isVoidElement?.(element)) {
@@ -182,13 +191,12 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
         for (let j = i; j < lastIndex; j++) {
           const element = elementStack[j + 1];
           setEndOffset?.(element, start);
+          tagNameStack[j] = tagNameStack[j + 1];
           elementStack[j] = cloneElement(element, end, end);
-
-          if (j !== i) {
-            appendChild(elementStack[j - 1], elementStack[j]);
-          }
         }
-        index = i - 1;
+        if (i <= index) {
+          index = i - 1;
+        }
         lastIndex--;
       } else {
         index = lastIndex = i - 1;

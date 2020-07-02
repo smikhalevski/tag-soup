@@ -95,7 +95,7 @@ describe('createDomParser', () => {
     ]);
   });
 
-  it('restores orphan elements', () => {
+  it('restores orphan elements at root', () => {
     expect(parser.commit('<a><b><c></a><d>')).toEqual([
       {
         tagName: 'a', start: 0, end: 13, attrs: {}, children: [
@@ -113,6 +113,44 @@ describe('createDomParser', () => {
               {tagName: 'd', start: 13, end: 16, attrs: {}, children: []},
             ],
           },
+        ],
+      },
+    ]);
+  });
+
+  it('restores nested orphan elements', () => {
+    expect(parser.commit('<a><b><c></b><d>')).toEqual([
+      {
+        tagName: 'a', start: 0, end: 16, attrs: {}, children: [
+          {
+            tagName: 'b', start: 3, end: 13, attrs: {}, children: [
+              {tagName: 'c', start: 6, end: 9, attrs: {}, children: []},
+            ],
+          },
+          {
+            tagName: 'c', start: 13, end: 16, attrs: {}, children: [
+              {tagName: 'd', start: 13, end: 16, attrs: {}, children: []},
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('closes orphan elements', () => {
+    expect(parser.commit('<a><b><c></a></b><d>')).toEqual([
+      {
+        tagName: 'a', start: 0, end: 13, attrs: {}, children: [
+          {
+            tagName: 'b', start: 3, end: 9, attrs: {}, children: [
+              {tagName: 'c', start: 6, end: 9, attrs: {}, children: []},
+            ],
+          },
+        ],
+      },
+      {
+        tagName: 'c', start: 17, end: 20, attrs: {}, children: [
+          {tagName: 'd', start: 17, end: 20, attrs: {}, children: []},
         ],
       },
     ]);
