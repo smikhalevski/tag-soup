@@ -33,7 +33,7 @@ export function createHtmlSaxParser(options: SaxParserOptions): SaxParser {
     selfClosingEnabled: false,
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTestDecoder,
-    isRawTag,
+    // isRawTag,
   };
   return createSaxParser(Object.assign(saxParserOptions, options));
 }
@@ -44,13 +44,13 @@ export function createHtmlTagSoupDomParser(options: TagSoupDomParserOptions = {}
     selfClosingEnabled: false,
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTestDecoder,
-    isRawTag,
-    isImplicitEnd(parentEl, el) {
-      return implicitCloseMap[parentEl.tagName]?.includes(el.tagName);
-    },
-    isVoidElement(el) {
-      return voidTags.includes(el.tagName);
-    },
+    // isRawTag,
+    // isImplicitEnd(parentEl, el) {
+    //   return implicitCloseMap[parentEl.tagName]?.includes(el.tagName);
+    // },
+    // isVoidElement(el) {
+    //   return voidTags.includes(el.tagName);
+    // },
   };
   return createTagSoupDomParser(Object.assign(domParserOptions, options));
 }

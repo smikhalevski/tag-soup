@@ -52,10 +52,11 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameTag,
     renameAttr,
     selfClosingEnabled,
-    isRawTag,
-    isRemovedTag,
-    isIgnoredTag,
-    isVoidElement,
+    getTagType,
+    // isRawTag,
+    // isRemovedTag,
+    // isIgnoredTag,
+    // isVoidElement,
     isImplicitEnd,
   } = options;
 
@@ -66,10 +67,11 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameTag,
     renameAttr,
     selfClosingEnabled,
-    isRawTag,
-    isRemovedTag,
-    isIgnoredTag,
-    isVoidElement,
+    getTagType,
+    // isRawTag,
+    // isRemovedTag,
+    // isIgnoredTag,
+    // isVoidElement,
     isImplicitEnd,
 
     createElement(tagName, start, end) {

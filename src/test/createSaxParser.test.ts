@@ -3,11 +3,13 @@ import {
   createAttr,
   createSaxParser,
   identity,
-  parseSax, SaxParser,
+  parseSax,
+  SaxParser,
   SaxParserOptions,
   traverseAttrs,
 } from '../main/createSaxParser';
 import {createObjectPool, ObjectPool} from '../main/createObjectPool';
+import {TagType} from '../main/TagType';
 
 describe('traverseAttrs', () => {
 
@@ -519,7 +521,10 @@ describe('parseSax', () => {
     });
 
     it('can enforce case-insensitive CDATA tags in HTML mode', () => {
-      parseSax('<script><foo aaa=111></SCRIPT>', attrPool, false, 0,{...saxParserOptionsMock, isRawTag: (name) => name === 'script'});
+      parseSax('<script><foo aaa=111></SCRIPT>', attrPool, false, 0, {
+        ...saxParserOptionsMock,
+        getTagType: (name) => name === 'script' ? TagType.TEXT : undefined,
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', false, 0, 8);
@@ -532,7 +537,11 @@ describe('parseSax', () => {
     });
 
     it('CDATA tags are case-sensitive in XML mode', () => {
-      parseSax('<script><foo aaa=111></SCRIPT>', attrPool, false, 0,{...saxParserOptionsMock, isRawTag: (name) => name === 'script', xmlEnabled: true});
+      parseSax('<script><foo aaa=111></SCRIPT>', attrPool, false, 0,{
+        ...saxParserOptionsMock,
+        xmlEnabled: true,
+        getTagType: (name) => name === 'script' ? TagType.TEXT : undefined,
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', false, 0, 8);
@@ -542,7 +551,11 @@ describe('parseSax', () => {
     });
 
     it('can enforce CDATA in self-closing tags', () => {
-      parseSax('<script/><foo>', attrPool, false, 0,{...saxParserOptionsMock, isRawTag: (name) => name === 'script', selfClosingEnabled: true});
+      parseSax('<script/><foo>', attrPool, false, 0,{
+        ...saxParserOptionsMock,
+        selfClosingEnabled: true,
+        getTagType: (name) => name === 'script' ? TagType.TEXT : undefined,
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', true, 0, 9);

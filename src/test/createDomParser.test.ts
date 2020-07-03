@@ -57,23 +57,23 @@ describe('createDomParser', () => {
     ]);
   });
 
-  it('recognizes void elements', () => {
-    parser = createDomParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
-
-    expect(parser.commit('<a><a>')).toEqual([
-      {tagName: 'a', start: 0, end: 3, attrs: {}, children: []},
-      {tagName: 'a', start: 3, end: 6, attrs: {}, children: []},
-    ]);
-  });
-
-  it('renders children of void elements as siblings', () => {
-    parser = createDomParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
-
-    expect(parser.commit('<a><b></b></a>')).toEqual([
-      {tagName: 'a', start: 0, end: 3, attrs: {}, children: []},
-      {tagName: 'b', start: 3, end: 10, attrs: {}, children: []},
-    ]);
-  });
+  // it('recognizes void elements', () => {
+  //   parser = createDomParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
+  //
+  //   expect(parser.commit('<a><a>')).toEqual([
+  //     {tagName: 'a', start: 0, end: 3, attrs: {}, children: []},
+  //     {tagName: 'a', start: 3, end: 6, attrs: {}, children: []},
+  //   ]);
+  // });
+  //
+  // it('renders children of void elements as siblings', () => {
+  //   parser = createDomParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
+  //
+  //   expect(parser.commit('<a><b></b></a>')).toEqual([
+  //     {tagName: 'a', start: 0, end: 3, attrs: {}, children: []},
+  //     {tagName: 'b', start: 3, end: 10, attrs: {}, children: []},
+  //   ]);
+  // });
 
   it('parses nested tags', () => {
     expect(parser.commit('<a><b></b></a>')).toEqual([
@@ -170,34 +170,34 @@ describe('createDomParser', () => {
     ]);
   });
 
-  it('removes elements', () => {
-    parser = createDomParser({...domParserOptions, isRemovedTag: (tagName) => tagName === 'b'});
-
-    expect(parser.commit('<a><b><c></a>')).toEqual([
-      {
-        tagName: 'a', start: 0, end: 13, attrs: {}, children: [
-          {tagName: 'c', start: 6, end: 9, attrs: {}, children: []},
-        ],
-      },
-    ]);
-  });
-
-  it('renders ignored tags as text', () => {
-    parser = createDomParser({...domParserOptions, isIgnoredTag: (tagName) => tagName === 'b'});
-
-    expect(parser.commit('<a><b><c></b></a>')).toEqual([
-      {
-        tagName: 'a', start: 0, end: 17, attrs: {}, children: [
-          {data: '<b>', start: 3, end: 6},
-          {
-            tagName: 'c', start: 6, end: 13, attrs: {}, children: [
-              {data: '</b>', start: 9, end: 13},
-            ],
-          },
-        ],
-      },
-    ]);
-  });
+  // it('removes elements', () => {
+  //   parser = createDomParser({...domParserOptions, isRemovedTag: (tagName) => tagName === 'b'});
+  //
+  //   expect(parser.commit('<a><b><c></a>')).toEqual([
+  //     {
+  //       tagName: 'a', start: 0, end: 13, attrs: {}, children: [
+  //         {tagName: 'c', start: 6, end: 9, attrs: {}, children: []},
+  //       ],
+  //     },
+  //   ]);
+  // });
+  //
+  // it('renders ignored tags as text', () => {
+  //   parser = createDomParser({...domParserOptions, isIgnoredTag: (tagName) => tagName === 'b'});
+  //
+  //   expect(parser.commit('<a><b><c></b></a>')).toEqual([
+  //     {
+  //       tagName: 'a', start: 0, end: 17, attrs: {}, children: [
+  //         {data: '<b>', start: 3, end: 6},
+  //         {
+  //           tagName: 'c', start: 6, end: 13, attrs: {}, children: [
+  //             {data: '</b>', start: 9, end: 13},
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   ]);
+  // });
 
   it('ignored unmatched closing tags', () => {
     parser = createDomParser(domParserOptions);

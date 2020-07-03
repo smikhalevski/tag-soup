@@ -1,13 +1,14 @@
 import {createSaxParser, SaxParserDialectOptions, SaxParserOptions} from './createSaxParser';
+import {TagType} from './TagType';
 
 export interface DomParserDialectOptions<Element> extends SaxParserDialectOptions {
 
   /**
    * Source of ignored tag is rendered as a text node. Children of the ignored tag are left intact.
    */
-  isIgnoredTag?: (tagName: string) => boolean;
-  isRemovedTag?: (tagName: string) => boolean;
-  isVoidElement?: (element: Element) => boolean;
+  // isIgnoredTag?: (tagName: string) => boolean;
+  // isRemovedTag?: (tagName: string) => boolean;
+  // isVoidElement?: (element: Element) => boolean;
 
   /**
    * If `true` then `element` is rendered as a sibling of the `hostElement`, otherwise `element` is appended as a child
@@ -61,11 +62,11 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     renameTag,
     renameAttr,
     selfClosingEnabled,
-    isRawTag,
+    getTagType,
 
-    isIgnoredTag,
-    isRemovedTag,
-    isVoidElement,
+    // isIgnoredTag,
+    // isRemovedTag,
+    // isVoidElement,
     isImplicitEnd,
 
     createElement,
@@ -134,16 +135,16 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     renameTag,
     renameAttr,
     selfClosingEnabled,
-    isRawTag,
+    getTagType,
 
-    onStartTag(tagName, selfClosing, start, end) {console.log(nodes)
-      if (isRemovedTag?.(tagName)) {
-        return;
-      }
-      if (isIgnoredTag?.(tagName)) {
-        appendText(tail.substring(start - offset, end - offset), start, end);
-        return;
-      }
+    onStartTag(tagName, selfClosing, tagType, start, end) {
+      // if (isRemovedTag?.(tagName)) {
+      //   return;
+      // }
+      // if (isIgnoredTag?.(tagName)) {
+      //   appendText(tail.substring(start - offset, end - offset), start, end);
+      //   return;
+      // }
 
       textNode = undefined;
       const element = createElement(tagName, start, end);
@@ -154,14 +155,14 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
       //   }
       // }
 
-
       appendNode(element);
 
-      if (!isVoidElement?.(element)) {
-        lastIndex = ++index;
-        tagNameStack[index] = tagName;
-        elementStack[index] = element;
+      if (selfClosing || tagType === TagType.VOID) {
+        return;
       }
+      lastIndex = ++index;
+      tagNameStack[index] = tagName;
+      elementStack[index] = element;
     },
 
     onAttribute(name, value, start, end) {
@@ -169,13 +170,13 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     },
 
     onEndTag(tagName, selfClosing, start, end) {
-      if (isRemovedTag?.(tagName)) {
+      if (selfClosing) {
         return;
       }
-      if (isIgnoredTag?.(tagName)) {
-        appendText(tail.substring(start - offset, end - offset), start, end);
-        return;
-      }
+      // if (isIgnoredTag?.(tagName)) {
+      //   appendText(tail.substring(start - offset, end - offset), start, end);
+      //   return;
+      // }
 
       let i = lastIndex;
       for (; i >= 0 && tagNameStack[i] !== tagName; i--) {

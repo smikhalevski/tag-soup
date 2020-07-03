@@ -3,6 +3,7 @@ import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, unti
 import {CharCode} from './CharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {Rewriter} from './shared-types';
+import {TagType} from './TagType';
 
 const xmlDecoder = createEntitiesDecoder();
 
@@ -164,7 +165,7 @@ export interface Attribute {
   end: number;
 }
 
-export type StartTagCallback = (tagName: string, selfClosing: boolean, start: number, end: number) => void;
+export type StartTagCallback = (tagName: string, selfClosing: boolean, tagType: TagType | -1, start: number, end: number) => void;
 
 export type AttributeCallback = (name: string, value: string, start: number, end: number) => void;
 
@@ -209,10 +210,7 @@ export interface SaxParserDialectOptions {
    */
   selfClosingEnabled?: boolean;
 
-  /**
-   * If returns `true` then contents of the tag are treated as plain text.
-   */
-  isRawTag?: (tagName: string) => boolean;
+  getTagType?: (tagName: string) => TagType | undefined;
 }
 
 export interface SaxParserCallbacks {
@@ -280,7 +278,7 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
     renameTag = xmlEnabled ? identity : lowerCase,
     renameAttr = xmlEnabled ? identity : lowerCase,
     selfClosingEnabled = false,
-    isRawTag,
+    getTagType,
 
     onStartTag,
     onAttribute,
@@ -294,7 +292,8 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
 
   let textStart = -1;
   let textEnd = -1;
-  let rawTagName: string | null = null;
+  let startTagType: TagType | -1 = -1;
+  let startTagName: string | undefined;
 
   // Emits text chunk if any
   const emitText = () => {
@@ -333,13 +332,13 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
       }
     }
 
-    // Outside of the raw context
-    if (!rawTagName) {
+    if (startTagType !== TagType.TEXT) {
 
       // Start tag
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
+        const tagType = getTagType?.(tagName) || -1;
 
         attrPool.reset();
         j = traverseAttrs(str, j, attrPool, decodeAttr, renameAttr);
@@ -355,7 +354,7 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
         const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode.SLASH;
 
         emitText();
-        onStartTag?.(tagName, selfClosing, offset + i, offset + k);
+        onStartTag?.(tagName, selfClosing, tagType, offset + i, offset + k);
 
         if (onAttribute) {
           for (let i = 0, n = attrPool.countAllocations(); i < n; i++) {
@@ -365,15 +364,10 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
         }
 
         if (selfClosing) {
-
-          // Emit self-closing start tag
           onEndTag?.(tagName, true, offset + k - 2, offset + k);
         } else {
-
-          // Enable raw context only for non self-closing tags
-          if (isRawTag?.(tagName)) {
-            rawTagName = tagName;
-          }
+          startTagName = tagName;
+          startTagType = getTagType?.(tagName) || -1;
         }
 
         i = k;
@@ -381,13 +375,12 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
       }
     }
 
-    // End tag (can be inside the raw context)
+    // End tag
     j = takeEndTagOpening(str, i);
     if (j !== -1) {
       const tagName = renameTag(str.substring(i + 2, j));
 
-      if (!rawTagName || rawTagName === tagName) {
-        rawTagName = null;
+      if (startTagType !== TagType.TEXT || startTagName === tagName) {
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -405,8 +398,7 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
       }
     }
 
-    // Outside of the raw context
-    if (!rawTagName) {
+    if (startTagType !== TagType.TEXT) {
       let k;
 
       // Comment
