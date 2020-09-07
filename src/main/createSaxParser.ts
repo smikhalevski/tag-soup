@@ -3,7 +3,7 @@ import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, unti
 import {CharCode} from './CharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {Rewriter} from './shared-types';
-import {ContentModel} from './ContentModel';
+import {TagType} from './TagType';
 
 const xmlDecoder = createEntitiesDecoder();
 
@@ -169,7 +169,7 @@ export interface Attribute {
   end: number;
 }
 
-export type StartTagCallback = (tagName: string, selfClosing: boolean, tagType: ContentModel, start: number, end: number) => void;
+export type StartTagCallback = (tagName: string, selfClosing: boolean, tagType: TagType, start: number, end: number) => void;
 
 export type AttributeCallback = (name: string, value: string, start: number, end: number) => void;
 
@@ -214,7 +214,12 @@ export interface SaxParserDialectOptions {
    */
   selfClosingEnabled?: boolean;
 
-  getContentModel?: (tagName: string) => ContentModel | undefined;
+  /**
+   * Returns content model of the given tag. If omitted then all tags are considered to have {@link TagType.FLOW}.
+   *
+   * @param tagName The rewritten tag name.
+   */
+  getTagType?: (tagName: string) => TagType | undefined;
 }
 
 export interface SaxParserCallbacks {
@@ -240,6 +245,9 @@ export interface SaxParser {
   commit(str?: string): void;
 }
 
+/**
+ * Creates a streaming SAX parser that doesn't validate correctness of emitted tag sequence.
+ */
 export function createSaxParser(options: SaxParserOptions): SaxParser {
   const attrPoolPool = createObjectPool(createAttrPool);
   const attrPool = createAttrPool();
@@ -255,9 +263,10 @@ export function createSaxParser(options: SaxParserOptions): SaxParser {
       offset = 0;
     },
     writeStream(str) {
-      const i = parseSax(tail + str, attrPoolPool, true, offset, options);
-      tail = str.substr(i);
-      offset += i;
+      tail += str;
+      const l = parseSax(tail, attrPoolPool, true, offset, options);
+      tail = tail.substr(l);
+      offset += l;
     },
     commit(str = '') {
       parseSax(tail + str, attrPoolPool, false, offset, options);
@@ -275,7 +284,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
     renameTag = xmlEnabled ? identity : lowerCase,
     renameAttr = xmlEnabled ? identity : lowerCase,
     selfClosingEnabled = false,
-    getContentModel,
+    getTagType,
 
     onStartTag,
     onAttribute,
@@ -289,7 +298,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
 
   let textStart = -1;
   let textEnd = -1;
-  let startContentModel: number = ContentModel.FLOW;
+  let startTagType: number = TagType.FLOW;
   let startTagName: string | undefined;
 
   // Emits text chunk if any
@@ -329,13 +338,13 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
       }
     }
 
-    if (startContentModel !== ContentModel.TEXT) {
+    if (startTagType !== TagType.TEXT) {
 
       // Start tag
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
-        const contentModel = getContentModel?.(tagName) || ContentModel.FLOW;
+        const tagType = getTagType?.(tagName) || TagType.FLOW;
 
         const attrPool = attrPoolPool.allocate();
 
@@ -353,7 +362,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
         const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode.SLASH;
 
         emitText();
-        onStartTag?.(tagName, selfClosing, contentModel, offset + i, offset + k);
+        onStartTag?.(tagName, selfClosing, tagType, offset + i, offset + k);
 
         if (onAttribute) {
           for (let i = 0, n = attrPool.size(); i < n; i++) {
@@ -364,7 +373,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
 
         if (!selfClosing) {
           startTagName = tagName;
-          startContentModel = contentModel;
+          startTagType = tagType;
         }
 
         i = k;
@@ -377,7 +386,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
     if (j !== -1) {
       const tagName = renameTag(str.substring(i + 2, j));
 
-      if (startContentModel !== ContentModel.TEXT || startTagName === tagName) {
+      if (startTagType !== TagType.TEXT || startTagName === tagName) {
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -395,7 +404,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
       }
     }
 
-    if (startContentModel !== ContentModel.TEXT) {
+    if (startTagType !== TagType.TEXT) {
       let k;
 
       // Comment

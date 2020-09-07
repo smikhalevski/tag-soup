@@ -1,5 +1,5 @@
-import {createDomParser, DomParserOptions} from '../main';
-import {DomParser} from '../main/createDomParser';
+import {createNormalizedSaxParser, NormalizedSaxParserOptions} from '../main';
+import {DomParser} from '../main/createNormalizedSaxParser';
 
 describe('createDomParser', () => {
 
@@ -11,7 +11,7 @@ describe('createDomParser', () => {
   const setAttributeMock = jest.fn((element, name, value, start, end) => element.attrs[name] = value);
   const setEndOffsetMock = jest.fn((node, end) => node.end = end);
 
-  let domParserOptions: DomParserOptions<any, any, any> = {
+  let domParserOptions: NormalizedSaxParserOptions<any, any, any> = {
     createElement: createElementMock,
     createTextNode: createTextNodeMock,
     appendChild: appendChildMock,
@@ -32,7 +32,7 @@ describe('createDomParser', () => {
     setAttributeMock.mockClear();
     setEndOffsetMock.mockClear();
 
-    parser = createDomParser(domParserOptions);
+    parser = createNormalizedSaxParser(domParserOptions);
   });
 
   it('parses text', () => {
@@ -58,7 +58,7 @@ describe('createDomParser', () => {
   });
 
   // it('recognizes void elements', () => {
-  //   parser = createDomParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
+  //   parser = createNormalizedSaxParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
   //
   //   expect(parser.commit('<a><a>')).toEqual([
   //     {tagName: 'a', start: 0, end: 3, attrs: {}, children: []},
@@ -67,7 +67,7 @@ describe('createDomParser', () => {
   // });
   //
   // it('renders children of void elements as siblings', () => {
-  //   parser = createDomParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
+  //   parser = createNormalizedSaxParser({...domParserOptions, isVoidElement: (element) => element.tagName === 'a'});
   //
   //   expect(parser.commit('<a><b></b></a>')).toEqual([
   //     {tagName: 'a', start: 0, end: 3, attrs: {}, children: []},
@@ -171,7 +171,7 @@ describe('createDomParser', () => {
   });
 
   // it('removes elements', () => {
-  //   parser = createDomParser({...domParserOptions, isRemovedTag: (tagName) => tagName === 'b'});
+  //   parser = createNormalizedSaxParser({...domParserOptions, isRemovedTag: (tagName) => tagName === 'b'});
   //
   //   expect(parser.commit('<a><b><c></a>')).toEqual([
   //     {
@@ -183,7 +183,7 @@ describe('createDomParser', () => {
   // });
   //
   // it('renders ignored tags as text', () => {
-  //   parser = createDomParser({...domParserOptions, isIgnoredTag: (tagName) => tagName === 'b'});
+  //   parser = createNormalizedSaxParser({...domParserOptions, isIgnoredTag: (tagName) => tagName === 'b'});
   //
   //   expect(parser.commit('<a><b><c></b></a>')).toEqual([
   //     {
@@ -200,7 +200,7 @@ describe('createDomParser', () => {
   // });
 
   it('ignored unmatched closing tags', () => {
-    parser = createDomParser(domParserOptions);
+    parser = createNormalizedSaxParser(domParserOptions);
 
     expect(parser.commit('<a></b>eee')).toEqual([
       {

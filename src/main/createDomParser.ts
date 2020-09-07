@@ -1,20 +1,8 @@
 import {createSaxParser, SaxParserDialectOptions, SaxParserOptions} from './createSaxParser';
 import {TagType} from './TagType';
+import {NormalizedSaxParserDialectOptions} from './createNormalizedSaxParser';
 
-export interface DomParserDialectOptions<Element> extends SaxParserDialectOptions {
-
-  /**
-   * Source of ignored tag is rendered as a text node. Children of the ignored tag are left intact.
-   */
-  // isIgnoredTag?: (tagName: string) => boolean;
-  // isRemovedTag?: (tagName: string) => boolean;
-  // isVoidElement?: (element: Element) => boolean;
-
-  /**
-   * If `true` then `element` is rendered as a sibling of the `hostElement`, otherwise `element` is appended as a child
-   * to `hostElement`.
-   */
-  isImplicitEnd?: (hostElement: Element, element: Element) => boolean;
+export interface DomParserDialectOptions<Element> extends NormalizedSaxParserDialectOptions {
 }
 
 export type ElementFactory<Element> = (tagName: string, start: number, end: number) => Element;
@@ -25,22 +13,23 @@ export type DataNodeFactory<Node> = (data: string, start: number, end: number) =
 
 export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
   createElement: ElementFactory<Element>;
-  createTextNode: TextNodeFactory<Text>;
+  setAttribute?: (element: Element, name: string, value: string, start: number, end: number) => void;
+  setEndOffset?: (node: Node, end: number) => void;
   appendChild: (element: Element, childNode: Node) => void;
-  appendData: (textNode: Text, data: string) => void;
 
+  createTextNode: TextNodeFactory<Text>;
   createProcessingInstruction?: DataNodeFactory<Node>;
   createCdataSection?: DataNodeFactory<Node>;
   createDocumentType?: DataNodeFactory<Node>;
   createComment?: DataNodeFactory<Node>;
-
-  /**
-   * Clones an element without children.
-   */
-  cloneElement?: (element: Element, start: number, end: number) => Element;
-  setAttribute?: (element: Element, name: string, value: string, start: number, end: number) => void;
-  setEndOffset?: (node: Node, end: number) => void;
 }
+
+
+
+
+
+
+
 
 export interface DomParserOptions<Node, Element extends Node, Text extends Node> extends DomParserDialectOptions<Element>, DomParserFactoryCallbacks<Node, Element, Text> {
 }
@@ -169,10 +158,7 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
       setAttribute?.(elementStack[index], name, value, start, end);
     },
 
-    onEndTag(tagName, selfClosing, start, end) {
-      if (selfClosing) {
-        return;
-      }
+    onEndTag(tagName, start, end) {
       // if (isIgnoredTag?.(tagName)) {
       //   appendText(tail.substring(start - offset, end - offset), start, end);
       //   return;

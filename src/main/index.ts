@@ -1,5 +1,5 @@
 export {createSaxParser, SaxParserOptions} from './createSaxParser';
-export {createDomParser, DomParserOptions} from './createDomParser';
+export {createNormalizedSaxParser, NormalizedSaxParserOptions} from './createNormalizedSaxParser';
 export {
   createTagSoupDomParser,
   TagSoupDomParserOptions,

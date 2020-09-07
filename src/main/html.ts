@@ -2,7 +2,7 @@ import {createSaxParser, SaxParser, SaxParserOptions} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createFromCharCode} from './createFromCharCode';
-import {DomParser} from './createDomParser';
+import {DomParser} from './createNormalizedSaxParser';
 import {
   createTagSoupDomParser,
   TagSoupDomParserOptions,
