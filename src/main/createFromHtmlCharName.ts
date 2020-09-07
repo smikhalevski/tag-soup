@@ -1,16 +1,30 @@
 import {FromCharName} from './shared-types';
 
 export interface FromHtmlCharNameOptions {
+
+  /**
+   * If set to `true` then non-terminated entities (those that don't end with a semicolon) aren't decoded. If set to
+   * `false` then known legacy entities are decoded.
+   *
+   * @default false
+   */
   strict?: boolean;
 }
 
+/**
+ * Creates a decoder that converts HTML entity name to a corresponding char.
+ */
 export function createFromHtmlCharName(options: FromHtmlCharNameOptions = {}): FromCharName {
   const {strict = false} = options;
   return (name, terminated) => terminated ? htmlEntities[name] : strict ? undefined : legacyHtmlEntities[name];
 }
 
-// https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
-const legacyHtmlEntities: Record<string, string> = {
+/**
+ * Legacy HTML entities that don't require a trailing semicolon.
+ *
+ * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
+ */
+export const legacyHtmlEntities: Record<string, string> = {
   aacute: '\u00e1',
   Aacute: '\u00c1',
   acirc: '\u00e2',
@@ -119,8 +133,12 @@ const legacyHtmlEntities: Record<string, string> = {
   yuml: '\u00ff',
 };
 
-// https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
-const htmlEntities: Record<string, string> = {
+/**
+ * Known HTML entities.
+ *
+ * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
+ */
+export const htmlEntities: Record<string, string> = {
   abreve: '\u0103',
   Abreve: '\u0102',
   ac: '\u223e',

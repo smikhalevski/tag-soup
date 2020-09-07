@@ -10,7 +10,7 @@ describe('createObjectPool', () => {
     const v1 = pool.allocate();
     const v2 = pool.allocate();
 
-    expect(pool.countAllocations()).toBe(2);
+    expect(pool.size()).toBe(2);
 
     expect(v1).toBe(1);
     expect(v2).toBe(2);
@@ -29,7 +29,7 @@ describe('createObjectPool', () => {
 
     pool.reset();
 
-    expect(pool.countAllocations()).toBe(0);
+    expect(pool.size()).toBe(0);
 
     expect(v).toBe(3);
 

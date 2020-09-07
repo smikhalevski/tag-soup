@@ -1,10 +1,26 @@
 import {FromCharCode} from './shared-types';
 
 export interface FromCharCodeOptions {
+
+  /**
+   * If set to `true` then an error is thrown if decoder meets a prohibited code point. Using this option may slow
+   * decoding because additional checks are made.
+   *
+   * @default false
+   */
   strict?: boolean;
+
+  /**
+   * This char is returned for invalid code points in non-strict mode.
+   *
+   * @default "\ufffd"
+   */
   replacementChar?: string;
 }
 
+/**
+ * Creates decoder for numeric-encoded XML entities.
+ */
 export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharCode {
   const {
     strict = false,
@@ -35,8 +51,12 @@ export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharC
   };
 }
 
-// https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
-const replacementCodePoints: Record<number, string> = {
+/**
+ * Disallowed character references are replaced with chars from this map.
+ *
+ * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
+ */
+export const replacementCodePoints: Record<number, string> = {
   0: '\ufffd',
   128: '\u20ac',
   130: '\u201a',
@@ -67,8 +87,12 @@ const replacementCodePoints: Record<number, string> = {
   159: '\u0178',
 };
 
-// https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
-const errorCodePoints = [
+/**
+ * Disallowed character references that are replaced with {@link FromCharCodeOptions.replacementChar}.
+ *
+ * @see https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
+ */
+export const errorCodePoints = [
   1,
   2,
   3,

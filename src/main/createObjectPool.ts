@@ -3,19 +3,19 @@ export interface ObjectPool<T> {
   cache: Array<T>;
 
   /**
-   * Returns the cached value or allocates a new value.
+   * Returns the cached value or creates a new value using factory.
    */
   allocate(): T;
 
   /**
-   * Returns all allocated value to the pool.
+   * Returns all allocated values to the pool.
    */
   reset(): void;
 
   /**
    * Returns the number of allocations since the last reset.
    */
-  countAllocations(): number;
+  size(): number;
 }
 
 export function createObjectPool<T>(objectFactory: () => T): ObjectPool<T> {
@@ -31,7 +31,7 @@ export function createObjectPool<T>(objectFactory: () => T): ObjectPool<T> {
     reset() {
       count = 0;
     },
-    countAllocations() {
+    size() {
       return count;
     },
   };

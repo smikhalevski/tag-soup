@@ -1,4 +1,4 @@
-export const enum TagType {
+export const enum ContentModel {
   FLOW = 1, // div, etc.
   TEXT = 2, // script, style, textarea
   VOID = 3, // hr, br, etc.
