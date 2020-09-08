@@ -1,6 +1,15 @@
+export interface ArrayLike<T> {
+  length: number;
+
+  [index: number]: T;
+}
+
 export interface ObjectPool<T> {
 
-  cache: Array<T>;
+  /**
+   * Returns the list of all allocated values.
+   */
+  getUsed(): Readonly<ArrayLike<T>>;
 
   /**
    * Returns the cached value or creates a new value using factory.
@@ -8,31 +17,75 @@ export interface ObjectPool<T> {
   allocate(): T;
 
   /**
-   * Returns all allocated values to the pool.
+   * Returns value back to the pool.
+   *
+   * @returns `true` if value was returned to the pool, `false` is value was not allocated by this pool.
    */
-  reset(): void;
+  free(value: T): boolean;
 
   /**
-   * Returns the number of allocations since the last reset.
+   * Returns all allocated values to the pool.
    */
-  size(): number;
+  freeAll(): void;
 }
 
-export function createObjectPool<T>(objectFactory: () => T): ObjectPool<T> {
-  let cache: Array<T> = [];
-  let count = 0;
+/**
+ * Creates an object pool that caches instances produced by `objectFactory`.
+ *
+ * @param objectFactory The factory that creates new instances on demand.
+ * @param resetValue The callback that is invoked when value is returned to the pool using `free` of `freeAll`.
+ */
+export function createObjectPool<T>(objectFactory: () => T, resetValue?: (value: T) => void): ObjectPool<T> {
+  const free = new Array<T>(50);
+  const used: ArrayLike<T> = {length: 0};
+
+  let freeCount = 0;
+  let usedCount = 0;
 
   return {
-    cache,
+
+    getUsed() {
+      return used;
+    },
 
     allocate() {
-      return cache[count] = cache[count++] || objectFactory();
+      if (freeCount === 0) {
+        const value = used[usedCount++] = objectFactory();
+        used.length = usedCount;
+        return value;
+      }
+      const value = used[usedCount++] = free[0];
+      free[0] = free[--freeCount];
+      used.length = usedCount;
+      return value;
     },
-    reset() {
-      count = 0;
+
+    free(value) {
+      let i = -1;
+      for (let j = 0; j < usedCount; j++) {
+        if (used[j] === value) {
+          i = j;
+          break;
+        }
+      }
+      if (i === -1) {
+        return false;
+      }
+      resetValue?.(value);
+      used[i] = used[--usedCount];
+      used.length = usedCount;
+      free[freeCount++] = value;
+      return true;
     },
-    size() {
-      return count;
+
+    freeAll() {
+      for (let i = 0; i < usedCount; i++) {
+        const value = used[i];
+        resetValue?.(value);
+        free[freeCount + i] = value;
+      }
+      freeCount += usedCount;
+      used.length = usedCount = 0;
     },
   };
 }

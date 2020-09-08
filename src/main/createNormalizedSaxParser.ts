@@ -1,5 +1,5 @@
 import {
-  createAttrPool,
+  createAttr,
   parseSax,
   SaxParser,
   SaxParserCallbacks,
@@ -32,7 +32,7 @@ export function createNormalizedSaxParser(options: NormalizedSaxParserOptions): 
     isContinuousAfterEnd,
   } = options;
 
-  const attrPoolPool = createObjectPool(createAttrPool);
+  const attrPool = createObjectPool(createAttr);
 
   let tail = '';
   let offset = 0;
@@ -122,6 +122,10 @@ export function createNormalizedSaxParser(options: NormalizedSaxParserOptions): 
       }
     },
 
+    onAttribute(name, value, start, end) {
+
+    },
+
     onEndTag(tagName, start, end) {
       if (isDiscarded?.(tagName)) {
         return;
@@ -173,13 +177,13 @@ export function createNormalizedSaxParser(options: NormalizedSaxParserOptions): 
     },
     writeStream(str) {
       tail += str;
-      const l = parseSax(tail, attrPoolPool, true, offset, options);
+      const l = parseSax(tail, attrPool, true, offset, options);
       tail = str.substr(l);
       offset += l;
     },
     commit(str = '') {
       tail += str;
-      const l = parseSax(tail, attrPoolPool, false, offset, options);
+      const l = parseSax(tail, attrPool, false, offset, options);
       tail = '';
       offset += l;
 

@@ -104,10 +104,6 @@ export function createAttr(): Attribute {
   };
 }
 
-export function createAttrPool(): ObjectPool<Attribute> {
-  return createObjectPool(createAttr);
-}
-
 export function traverseAttrs(str: string, i: number, attrPool: ObjectPool<Attribute>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
 
@@ -249,10 +245,7 @@ export interface SaxParser {
  * Creates a streaming SAX parser that doesn't validate correctness of emitted tag sequence.
  */
 export function createSaxParser(options: SaxParserOptions): SaxParser {
-  const attrPoolPool = createObjectPool(createAttrPool);
-  const attrPool = createAttrPool();
-
-  attrPoolPool.allocate = () => attrPool;
+  const attrPool = createObjectPool(createAttr);
 
   let tail = '';
   let offset = 0;
@@ -264,19 +257,19 @@ export function createSaxParser(options: SaxParserOptions): SaxParser {
     },
     writeStream(str) {
       tail += str;
-      const l = parseSax(tail, attrPoolPool, true, offset, options);
+      const l = parseSax(tail, attrPool, true, offset, options);
       tail = tail.substr(l);
       offset += l;
     },
     commit(str = '') {
-      parseSax(tail + str, attrPoolPool, false, offset, options);
+      parseSax(tail + str, attrPool, false, offset, options);
       tail = '';
       offset = 0;
     },
   };
 }
 
-export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attribute>>, streaming: boolean, offset: number, options: SaxParserOptions): number {
+export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming: boolean, offset: number, options: SaxParserOptions): number {
   const {
     xmlEnabled = false,
     decodeAttr = xmlDecoder,
@@ -346,9 +339,7 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
         const tagName = renameTag(str.substring(i + 1, j));
         const tagType = getTagType?.(tagName) || TagType.FLOW;
 
-        const attrPool = attrPoolPool.allocate();
-
-        attrPool.reset();
+        attrPool.freeAll();
         j = traverseAttrs(str, j, attrPool, decodeAttr, renameAttr);
 
         // Skip malformed content and excessive whitespaces
@@ -365,8 +356,10 @@ export function parseSax(str: string, attrPoolPool: ObjectPool<ObjectPool<Attrib
         onStartTag?.(tagName, selfClosing, tagType, offset + i, offset + k);
 
         if (onAttribute) {
-          for (let i = 0, n = attrPool.size(); i < n; i++) {
-            const attr = attrPool.cache[i];
+          const attrs = attrPool.getUsed();
+
+          for (let i = 0; i < attrs.length; i++) {
+            const attr = attrs[i];
             onAttribute(attr.name, attr.value, offset + attr.start, offset + attr.end);
           }
         }
