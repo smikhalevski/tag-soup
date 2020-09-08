@@ -1,5 +1,5 @@
 import {SaxParser} from '../main/createSaxParser';
-import {TagType} from '../main/TagType';
+import {ContentMode} from '../main/ContentMode';
 import {createForgivingSaxParser, ForgivingSaxParserOptions} from '../main/createForgivingSaxParser';
 
 describe('createForgivingSaxParser', () => {
@@ -51,7 +51,7 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, TagType.FLOW, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
       expect(onTextMock).not.toHaveBeenCalled();
     });
 
@@ -59,7 +59,7 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, TagType.FLOW, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 3, 7);
@@ -77,8 +77,8 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, TagType.FLOW, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, TagType.FLOW, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, ContentMode.FLOW, 3, 6);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 3, 3);
@@ -89,9 +89,9 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b><c>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, TagType.FLOW, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, TagType.FLOW, 3, 6);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(3, 'c', [], false, TagType.FLOW, 6, 9);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, ContentMode.FLOW, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(3, 'c', [], false, ContentMode.FLOW, 6, 9);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 6);
@@ -103,7 +103,7 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, TagType.FLOW, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
 
       expect(onTextMock).not.toHaveBeenCalled();
 
@@ -118,19 +118,19 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, TagType.FLOW, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 10, 14);
     });
 
     it('recognizes void tags', () => {
-      parser = createParser({getTagType: (tagName) => tagName === 'a' ? TagType.VOID : TagType.FLOW});
+      parser = createParser({getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : ContentMode.FLOW});
       parser.writeStream('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], true, TagType.VOID, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, TagType.FLOW, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], true, ContentMode.VOID, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, ContentMode.FLOW, 3, 6);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 10);
@@ -148,7 +148,7 @@ describe('createForgivingSaxParser', () => {
       expect(onTextMock).toHaveBeenNthCalledWith(2, '</a>', 10, 14);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', [], false, TagType.FLOW, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', [], false, ContentMode.FLOW, 3, 6);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 10);

@@ -3,8 +3,8 @@ import {FromCharName} from './shared-types';
 export interface FromHtmlCharNameOptions {
 
   /**
-   * If set to `true` then non-terminated entities (those that don't end with a semicolon) aren't decoded. If set to
-   * `false` then known legacy entities are decoded.
+   * If set to `true` then entities that are not terminated with a semicolon are not decoded. If set to `false` then
+   * legacy HTML entities are decoded even if they are not terminated with a semicolon.
    *
    * @default false
    */
@@ -136,8 +136,6 @@ export const legacyHtmlEntities: Record<string, string> = {
 };
 
 /**
- * Known HTML entities.
- *
  * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
  */
 export const htmlEntities: Record<string, string> = {

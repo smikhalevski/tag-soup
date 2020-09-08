@@ -1,5 +1,5 @@
 /**
- * Decodes known XML entity names to corresponding chars.
+ * Decoder that converts an XML entity name to a corresponding char.
  *
  * @see createEntitiesDecoder
  */

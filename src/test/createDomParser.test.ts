@@ -1,5 +1,5 @@
 import {createDomParser, DomParser, DomParserOptions} from '../main/createDomParser';
-import {TagType} from '../main/TagType';
+import {ContentMode} from '../main/ContentMode';
 
 describe('createDomParser', () => {
 
@@ -57,7 +57,7 @@ describe('createDomParser', () => {
   it('recognizes void elements', () => {
     parser = createDomParser({
       ...domParserOptions,
-      getTagType: (tagName) => tagName === 'a' ? TagType.VOID : TagType.FLOW,
+      getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : ContentMode.FLOW,
     });
 
     expect(parser.commit('<a><a>')).toEqual([
@@ -69,7 +69,7 @@ describe('createDomParser', () => {
   it('renders children of void elements as siblings', () => {
     parser = createDomParser({
       ...domParserOptions,
-      getTagType: (tagName) => tagName === 'a' ? TagType.VOID : TagType.FLOW,
+      getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : ContentMode.FLOW,
     });
 
     expect(parser.commit('<a><b></b></a>')).toEqual([

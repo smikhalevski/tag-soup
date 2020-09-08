@@ -11,7 +11,7 @@ import {
 } from './createTagSoupDomParser';
 import {DomParser} from './createDomParser';
 import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
-import {TagType} from './TagType';
+import {ContentMode} from './ContentMode';
 
 const fromCharCode = createFromCharCode();
 
@@ -33,7 +33,7 @@ export function createHtmlSaxParser(options: ForgivingSaxParserOptions): SaxPars
     decodeText: htmlTestDecoder,
     // isEmittedAsText,
     // isImplicitEnd,
-    getTagType,
+    getContentMode: getTagType,
   };
   return createForgivingSaxParser(Object.assign(saxParserOptions, options));
 }
@@ -46,7 +46,7 @@ export function createHtmlTagSoupDomParser(options: TagSoupDomParserOptions = {}
     decodeText: htmlTestDecoder,
     isEmittedAsText,
     isImplicitEnd,
-    getTagType,
+    getContentMode: getTagType,
   };
   return createTagSoupDomParser(Object.assign(domParserOptions, options));
 }
@@ -107,7 +107,7 @@ function getTagType(t:string) {
   //   case 'style':
   //     return TagType.TEXT;
   // }
-  return TagType.FLOW;
+  return ContentMode.FLOW;
 }
 
 function isEmittedAsText(t: string) {

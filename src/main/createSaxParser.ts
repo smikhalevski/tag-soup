@@ -1,17 +1,123 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, untilSubstr} from './dsl-utils';
 import {CharCode} from './CharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {Rewriter} from './shared-types';
-import {TagType} from './TagType';
+import {Maybe, Rewriter} from './shared-types';
+import {ContentMode} from './ContentMode';
 
-const xmlDecoder = createEntitiesDecoder();
+export interface Attribute {
 
-function lowerCase(str: string): string {
-  return str.toLowerCase();
+  /**
+   * The rewritten name of the attribute.
+   */
+  name: string;
+
+  /**
+   * The decoded value of the attribute. If attribute didn't have a value then an empty string.
+   */
+  value: string;
+  start: number;
+  end: number;
 }
 
-export function identity<T>(value: T): T {
-  return value;
+export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, tagType: ContentMode, start: number, end: number) => void;
+
+export type EndTagCallback = (tagName: string, start: number, end: number) => void;
+
+export type DataCallback = (data: string, start: number, end: number) => void;
+
+export interface SaxParserDialectOptions {
+
+  /**
+   * If set to `true` then CDATA sections and processing instructions are recognized, self-closing tags are enabled and
+   * tag names are case-sensitive. Otherwise, CDATA sections and processing instructions are emitted as comments,
+   * self-closing tags are treated as start tags and tag names are case-insensitive.
+   *
+   * @default false
+   */
+  xmlEnabled?: boolean;
+
+  /**
+   * Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.
+   */
+  decodeAttr?: Rewriter;
+
+  /**
+   * Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.
+   */
+  decodeText?: Rewriter;
+
+  /**
+   * Rewrites tag name. By default, in XML mode tags are not rewritten while in non-XML mode tags are converted to
+   * lower case.
+   */
+  renameTag?: Rewriter;
+
+  /**
+   * Rewrites attribute name. By default there's no rewriting.
+   */
+  renameAttr?: Rewriter;
+
+  /**
+   * Enables self-closing tags recognition. In XML mode this is always enabled.
+   */
+  selfClosingEnabled?: boolean;
+
+  /**
+   * Returns mode that defines how content of the tag is interpreted. If omitted then all tags are considered to have
+   * {@link ContentMode.FLOW} which has no constraints.
+   *
+   * @param tagName The tag name, rewritten with {@link renameTag}.
+   * @returns The content mode for the tag with `tagName`.
+   */
+  getContentMode?: (tagName: string) => Maybe<ContentMode>;
+}
+
+export interface SaxParserCallbacks {
+  onStartTag?: StartTagCallback;
+  onEndTag?: EndTagCallback;
+  onText?: DataCallback;
+  onComment?: DataCallback;
+  onProcessingInstruction?: DataCallback;
+  onCdataSection?: DataCallback;
+  onDocumentType?: DataCallback;
+}
+
+export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
+}
+
+export interface SaxParser {
+
+  resetStream(): void;
+
+  writeStream(str: string): void;
+
+  commit(str?: string): void;
+}
+
+/**
+ * Creates a streaming SAX parser that emits tags as is.
+ */
+export function createSaxParser(options: SaxParserOptions): SaxParser {
+  let tail = '';
+  let offset = 0;
+
+  return {
+    resetStream() {
+      tail = '';
+      offset = 0;
+    },
+    writeStream(str) {
+      tail += str;
+      const l = parseSax(tail, true, offset, options);
+      tail = tail.substr(l);
+      offset += l;
+    },
+    commit(str = '') {
+      parseSax(tail + str, false, offset, options);
+      tail = '';
+      offset = 0;
+    },
+  };
 }
 
 // https://www.w3.org/TR/xml/#NT-S
@@ -94,7 +200,16 @@ const takeCdataSection = seq(substr('<![CDATA['), untilSubstr(']]>', true, true)
 // <!DOCTYPE html>
 const takeDocumentType = seq(substr('<!DOCTYPE', true), untilSubstr('>', true, true));
 
-export function traverseAttrs(str: string, i: number, attrs: Array<Attribute>, decode: Rewriter, rename: Rewriter): number {
+/**
+ * Parses attributes from string starting from given position.
+ *
+ * @param str The string to read attributes from.
+ * @param i The initial index where attributes' definitions are expected to start.
+ * @param attrs An array to which {@link Attribute} objects are added.
+ * @param decode The decoder of HTML/XML entities.
+ * @param rename The callback that receives an attribute name and returns a new name.
+ */
+export function parseAttrs(str: string, i: number, attrs: Array<Attribute>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
 
   while (i < charCount) {
@@ -144,111 +259,15 @@ export function traverseAttrs(str: string, i: number, attrs: Array<Attribute>, d
   return i;
 }
 
-export interface Attribute {
-  name: string;
-  value: string;
-  start: number;
-  end: number;
+// Default decoder used by SAX parser
+const xmlDecoder = createEntitiesDecoder();
+
+function lowerCase(str: string): string {
+  return str.toLowerCase();
 }
 
-export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, tagType: TagType, start: number, end: number) => void;
-
-export type EndTagCallback = (tagName: string, start: number, end: number) => void;
-
-export type DataCallback = (data: string, start: number, end: number) => void;
-
-export interface SaxParserDialectOptions {
-
-  /**
-   * If set to `true` then CDATA sections and processing instructions are recognized, self-closing tags are enabled and
-   * tag names are case-sensitive. Otherwise, CDATA sections and processing instructions are emitted as comments,
-   * self-closing tags are treated as start tags and tag names are case-insensitive.
-   *
-   * @default false
-   */
-  xmlEnabled?: boolean;
-
-  /**
-   * Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.
-   */
-  decodeAttr?: Rewriter;
-
-  /**
-   * Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.
-   */
-  decodeText?: Rewriter;
-
-  /**
-   * Rewrites tag name. By default, in XML mode tags are not rewritten while in non-XML mode tags are converted to
-   * lower case.
-   */
-  renameTag?: Rewriter;
-
-  /**
-   * Rewrites attribute name. By default there's no rewriting.
-   */
-  renameAttr?: Rewriter;
-
-  /**
-   * Enables self-closing tags recognition. In XML mode this is always enabled.
-   */
-  selfClosingEnabled?: boolean;
-
-  /**
-   * Returns type of the given tag that affect the way tag is parsed. If omitted then all tags are considered to have
-   * {@link TagType.FLOW}.
-   *
-   * @param tagName The rewritten tag name.
-   */
-  getTagType?: (tagName: string) => TagType | undefined;
-}
-
-export interface SaxParserCallbacks {
-  onStartTag?: StartTagCallback;
-  onEndTag?: EndTagCallback;
-  onText?: DataCallback;
-  onComment?: DataCallback;
-  onProcessingInstruction?: DataCallback;
-  onCdataSection?: DataCallback;
-  onDocumentType?: DataCallback;
-}
-
-export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
-}
-
-export interface SaxParser {
-
-  resetStream(): void;
-
-  writeStream(str: string): void;
-
-  commit(str?: string): void;
-}
-
-/**
- * Creates a streaming SAX parser that emits tags as is.
- */
-export function createSaxParser(options: SaxParserOptions): SaxParser {
-  let tail = '';
-  let offset = 0;
-
-  return {
-    resetStream() {
-      tail = '';
-      offset = 0;
-    },
-    writeStream(str) {
-      tail += str;
-      const l = parseSax(tail, true, offset, options);
-      tail = tail.substr(l);
-      offset += l;
-    },
-    commit(str = '') {
-      parseSax(tail + str, false, offset, options);
-      tail = '';
-      offset = 0;
-    },
-  };
+export function identity<T>(value: T): T {
+  return value;
 }
 
 export function parseSax(str: string, streaming: boolean, offset: number, options: SaxParserOptions): number {
@@ -259,7 +278,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
     renameTag = xmlEnabled ? identity : lowerCase,
     renameAttr = xmlEnabled ? identity : lowerCase,
     selfClosingEnabled = false,
-    getTagType,
+    getContentMode,
 
     onStartTag,
     onEndTag,
@@ -272,7 +291,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
 
   let textStart = -1;
   let textEnd = -1;
-  let startTagType: number = TagType.FLOW;
+  let startTagMode: number = ContentMode.FLOW;
   let startTagName: string | undefined;
 
   // Emits text chunk if any
@@ -312,16 +331,16 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       }
     }
 
-    if (startTagType !== TagType.TEXT) {
+    if (startTagMode !== ContentMode.TEXT) {
 
       // Start tag
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
-        const tagType = getTagType?.(tagName) || TagType.FLOW;
+        const tagMode = getContentMode?.(tagName) || ContentMode.FLOW;
 
         const attrs: Array<Attribute> = [];
-        j = traverseAttrs(str, j, attrs, decodeAttr, renameAttr);
+        j = parseAttrs(str, j, attrs, decodeAttr, renameAttr);
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -334,11 +353,11 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
         const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode.SLASH;
 
         emitText();
-        onStartTag?.(tagName, attrs, selfClosing, tagType, offset + i, offset + k);
+        onStartTag?.(tagName, attrs, selfClosing, tagMode, offset + i, offset + k);
 
         if (!selfClosing) {
           startTagName = tagName;
-          startTagType = tagType;
+          startTagMode = tagMode;
         }
 
         i = k;
@@ -351,7 +370,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
     if (j !== -1) {
       const tagName = renameTag(str.substring(i + 2, j));
 
-      if (startTagType !== TagType.TEXT || startTagName === tagName) {
+      if (startTagMode !== ContentMode.TEXT || startTagName === tagName) {
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -369,7 +388,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       }
     }
 
-    if (startTagType !== TagType.TEXT) {
+    if (startTagMode !== ContentMode.TEXT) {
       let k;
 
       // Comment

@@ -5,7 +5,7 @@ import {
   TagSoupElement,
   TagSoupNode,
 } from '../main/createTagSoupDomParser';
-import {TagType} from '../main/TagType';
+import {ContentMode} from '../main/ContentMode';
 
 function el(tagName: string, start: number, end: number, attrs: Record<string, string> = {}, children: Array<TagSoupNode> = []): TagSoupElement {
   const el = createTagSoupElement(tagName, attrs, start, end, children);
@@ -114,7 +114,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('closes void tags', () => {
-    const parser = createTagSoupDomParser({getTagType: (tagName) => tagName === 'a' ? TagType.VOID : TagType.FLOW});
+    const parser = createTagSoupDomParser({getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : ContentMode.FLOW});
 
     expect(parser.commit('<a><a><a>')).toEqual([
       el('a', 0, 3),

@@ -1,5 +1,5 @@
 import {parseSax, SaxParser, SaxParserCallbacks, SaxParserDialectOptions, SaxParserOptions} from './createSaxParser';
-import {TagType} from './TagType';
+import {ContentMode} from './ContentMode';
 
 export interface ForgivingSaxParserDialectOptions extends SaxParserDialectOptions {
 
@@ -75,7 +75,7 @@ export function createForgivingSaxParser(options: ForgivingSaxParserOptions): Sa
       }
 
       emitText();
-      selfClosing ||= tagType === TagType.VOID;
+      selfClosing ||= tagType === ContentMode.VOID;
 
       if (isImplicitEnd && onEndTag) {
         for (let i = depth - 1; i >= 0; i--) {

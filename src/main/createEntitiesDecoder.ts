@@ -19,7 +19,7 @@ const takeHexNumber = allCharBy(isHexNumberChar);
 export interface EntitiesDecoderOptions {
 
   /**
-   * Receives an entity name ("lt", "gt", etc.) and should return a string replacement for it.
+   * Receives an entity name ("lt", "gt", etc.) and returns a string replacement for it.
    *
    * @default {@link fromXmlCharName}
    * @see createFromHtmlCharName
@@ -27,7 +27,7 @@ export interface EntitiesDecoderOptions {
   fromCharName?: FromCharName;
 
   /**
-   * Receives a numeric char code and should return a string replacement for it.
+   * Receives a numeric code point and should return a string replacement for it.
    *
    * @default String.fromCharCode
    */
@@ -35,16 +35,11 @@ export interface EntitiesDecoderOptions {
 }
 
 /**
- * Creates {@link Rewriter} that maps a encoded HTML entity into a corresponding char.
+ * Creates a {@link Rewriter} that maps an encoded HTML entity into a corresponding char.
  *
  * @example
  * createEntitiesDecoder()("&#60;") // → "<"
- *
- * @example
- * const decode = createEntitiesDecoder({
- *   fromCharName: createFromHtmlCharName(),
- * });
- * decode("&AMP") // → "&"
+ * createEntitiesDecoder({fromCharName: createFromHtmlCharName()})("&AMP") // → "&"
  */
 export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rewriter {
   const {

@@ -3,15 +3,15 @@ import {FromCharCode} from './shared-types';
 export interface FromCharCodeOptions {
 
   /**
-   * If set to `true` then an error is thrown if decoder meets a prohibited code point. Using this option may slow
-   * decoding because additional checks are made.
+   * If set to `true` then an error is thrown if decoder meets a disallowed character reference. Using this option may
+   * slow decoding because additional checks are involved.
    *
    * @default false
    */
   strict?: boolean;
 
   /**
-   * This char is returned for invalid code points in non-strict mode.
+   * This char is returned for disallowed character references in non-strict mode.
    *
    * @default "\ufffd"
    */

@@ -11,3 +11,5 @@ export {
 } from './createSaxParser';
 export * from './createForgivingSaxParser';
 export * from './createDomParser';
+export * from './createEntitiesDecoder';
+export * from './fromXmlCharName';
