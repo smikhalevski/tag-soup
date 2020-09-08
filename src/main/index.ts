@@ -1,9 +1,13 @@
-export {createSaxParser, SaxParserOptions} from './createSaxParser';
-export {createNormalizedSaxParser, NormalizedSaxParserOptions} from './createNormalizedSaxParser';
 export {
-  createTagSoupDomParser,
-  TagSoupDomParserOptions,
-  TagSoupNode,
-  TagSoupElement,
-  TagSoupText,
-} from './createTagSoupDomParser';
+  Attribute,
+  StartTagCallback,
+  EndTagCallback,
+  DataCallback,
+  SaxParserDialectOptions,
+  SaxParserCallbacks,
+  SaxParserOptions,
+  SaxParser,
+  createSaxParser,
+} from './createSaxParser';
+export * from './createForgivingSaxParser';
+export * from './createDomParser';

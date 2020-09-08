@@ -611,39 +611,39 @@ describe('parseSax', () => {
 
 describe('createSaxParser', () => {
 
-  describe('in streaming mode', () => {
+  let parser: SaxParser;
 
-    let parser: SaxParser;
+  const onStartTagMock = jest.fn();
+  const onEndTagMock = jest.fn();
+  const onTextMock = jest.fn();
+  const onCommentMock = jest.fn();
+  const onProcessingInstructionMock = jest.fn();
+  const onCdataSectionMock = jest.fn();
+  const onDocumentTypeMock = jest.fn();
 
-    const onStartTagMock = jest.fn();
-    const onEndTagMock = jest.fn();
-    const onTextMock = jest.fn();
-    const onCommentMock = jest.fn();
-    const onProcessingInstructionMock = jest.fn();
-    const onCdataSectionMock = jest.fn();
-    const onDocumentTypeMock = jest.fn();
+  beforeEach(() => {
+    parser = createSaxParser({
+      selfClosingEnabled: true,
 
-    beforeEach(() => {
-      parser = createSaxParser({
-        selfClosingEnabled: true,
-
-        onStartTag: onStartTagMock,
-        onEndTag: onEndTagMock,
-        onText: onTextMock,
-        onComment: onCommentMock,
-        onProcessingInstruction: onProcessingInstructionMock,
-        onCdataSection: onCdataSectionMock,
-        onDocumentType: onDocumentTypeMock,
-      });
-
-      onStartTagMock.mockReset();
-      onEndTagMock.mockReset();
-      onTextMock.mockReset();
-      onCommentMock.mockReset();
-      onProcessingInstructionMock.mockReset();
-      onCdataSectionMock.mockReset();
-      onDocumentTypeMock.mockReset();
+      onStartTag: onStartTagMock,
+      onEndTag: onEndTagMock,
+      onText: onTextMock,
+      onComment: onCommentMock,
+      onProcessingInstruction: onProcessingInstructionMock,
+      onCdataSection: onCdataSectionMock,
+      onDocumentType: onDocumentTypeMock,
     });
+
+    onStartTagMock.mockReset();
+    onEndTagMock.mockReset();
+    onTextMock.mockReset();
+    onCommentMock.mockReset();
+    onProcessingInstructionMock.mockReset();
+    onCdataSectionMock.mockReset();
+    onDocumentTypeMock.mockReset();
+  });
+
+  describe('in streaming mode', () => {
 
     it('defers text emit', () => {
       parser.writeStream('<a>foo');

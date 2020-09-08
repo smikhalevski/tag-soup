@@ -1,4 +1,5 @@
 import {createDomParser, DomParser, DomParserDialectOptions} from './createDomParser';
+import {Attribute} from './createSaxParser';
 
 export const enum TagSoupNodeType {
   ELEMENT = 1,
@@ -20,7 +21,7 @@ export interface TagSoupNode {
 export interface TagSoupElement extends TagSoupNode {
   nodeType: TagSoupNodeType.ELEMENT;
   tagName: string;
-  attrs: Record<string, string>;
+  attrs: Array<Attribute>;
   children: Array<TagSoupNode>;
 }
 
@@ -29,7 +30,7 @@ export interface TagSoupText extends TagSoupNode {
   data: string;
 }
 
-export function createTagSoupElement(tagName: string, attrs: Record<string, string>, start: number, end: number, children: Array<TagSoupNode>): TagSoupElement {
+export function createTagSoupElement(tagName: string, attrs: Array<Attribute>, start: number, end: number, children: Array<TagSoupNode>): TagSoupElement {
   return {nodeType: 1, parent: null, children, tagName, attrs, start, end};
 }
 
@@ -53,10 +54,8 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameAttr,
     selfClosingEnabled,
     getTagType,
-    // isRawTag,
-    // isRemovedTag,
-    // isIgnoredTag,
-    // isVoidElement,
+    isEmittedAsText,
+    isIgnored,
     isImplicitEnd,
   } = options;
 
@@ -68,14 +67,21 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameAttr,
     selfClosingEnabled,
     getTagType,
-    // isRawTag,
-    // isRemovedTag,
-    // isIgnoredTag,
-    // isVoidElement,
+    isEmittedAsText,
+    isIgnored,
     isImplicitEnd,
 
-    createElement(tagName, start, end) {
-      return createTagSoupElement(tagName, {}, start, end, []);
+    createElement(tagName, attrs, selfClosing, start, end) {
+      return createTagSoupElement(tagName, attrs, start, end, []);
+    },
+
+    appendChild(element, childNode) {
+      childNode.parent = element;
+      element.children.push(childNode);
+    },
+
+    setEndOffsets(node, start, end) {
+      node.end = end;
     },
 
     createTextNode: createTagSoupText,
@@ -94,27 +100,6 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
 
     createComment(data, start, end) {
       return createTagSoupNode(TagSoupNodeType.COMMENT, data, start, end);
-    },
-
-    cloneElement(element, start, end) {
-      return createTagSoupElement(element.tagName, Object.assign({}, element.attrs), start, end, []);
-    },
-
-    setAttribute(element, name, value, start, end) {
-      element.attrs[name] = value;
-    },
-
-    appendChild(element, childNode): void {
-      childNode.parent = element;
-      element.children.push(childNode);
-    },
-
-    appendData(textNode, value): void {
-      textNode.data += value;
-    },
-
-    setEndOffset(node, end) {
-      node.end = end;
     },
   });
 }

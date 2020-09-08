@@ -13,6 +13,8 @@ export interface FromHtmlCharNameOptions {
 
 /**
  * Creates a decoder that converts HTML entity name to a corresponding char.
+ *
+ * @see createEntitiesDecoder
  */
 export function createFromHtmlCharName(options: FromHtmlCharNameOptions = {}): FromCharName {
   const {strict = false} = options;

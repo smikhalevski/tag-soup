@@ -195,7 +195,8 @@ export interface SaxParserDialectOptions {
   selfClosingEnabled?: boolean;
 
   /**
-   * Returns content model of the given tag. If omitted then all tags are considered to have {@link TagType.FLOW}.
+   * Returns type of the given tag that affect the way tag is parsed. If omitted then all tags are considered to have
+   * {@link TagType.FLOW}.
    *
    * @param tagName The rewritten tag name.
    */

@@ -39,6 +39,12 @@ export interface EntitiesDecoderOptions {
  *
  * @example
  * createEntitiesDecoder()("&#60;") // → "<"
+ *
+ * @example
+ * const decode = createEntitiesDecoder({
+ *   fromCharName: createFromHtmlCharName(),
+ * });
+ * decode("&AMP") // → "&"
  */
 export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rewriter {
   const {

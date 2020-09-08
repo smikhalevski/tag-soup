@@ -20,6 +20,8 @@ export interface FromCharCodeOptions {
 
 /**
  * Creates decoder for numeric-encoded XML entities.
+ *
+ * @see createEntitiesDecoder
  */
 export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharCode {
   const {

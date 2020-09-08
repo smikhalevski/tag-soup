@@ -1,8 +1,7 @@
-import {createSaxParser, SaxParser, SaxParserOptions} from './createSaxParser';
+import {SaxParser} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createFromCharCode} from './createFromCharCode';
-import {DomParser} from './createNormalizedSaxParser';
 import {
   createTagSoupDomParser,
   TagSoupDomParserOptions,
@@ -10,6 +9,9 @@ import {
   TagSoupNode,
   TagSoupText,
 } from './createTagSoupDomParser';
+import {DomParser} from './createDomParser';
+import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
+import {TagType} from './TagType';
 
 const fromCharCode = createFromCharCode();
 
@@ -23,19 +25,17 @@ const htmlTestDecoder = createEntitiesDecoder({
   fromCharCode,
 });
 
-function isRawTag(tagName: string): boolean {
-  return rawTags.includes(tagName);
-}
-
-export function createHtmlSaxParser(options: SaxParserOptions): SaxParser {
-  const saxParserOptions: SaxParserOptions = {
+export function createHtmlSaxParser(options: ForgivingSaxParserOptions): SaxParser {
+  const saxParserOptions: ForgivingSaxParserOptions = {
     xmlEnabled: false,
     selfClosingEnabled: false,
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTestDecoder,
-    // isRawTag,
+    // isEmittedAsText,
+    // isImplicitEnd,
+    getTagType,
   };
-  return createSaxParser(Object.assign(saxParserOptions, options));
+  return createForgivingSaxParser(Object.assign(saxParserOptions, options));
 }
 
 export function createHtmlTagSoupDomParser(options: TagSoupDomParserOptions = {}): DomParser<TagSoupNode, TagSoupElement, TagSoupText> {
@@ -44,24 +44,14 @@ export function createHtmlTagSoupDomParser(options: TagSoupDomParserOptions = {}
     selfClosingEnabled: false,
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTestDecoder,
-    // isRawTag,
-    // isImplicitEnd(parentEl, el) {
-    //   return implicitCloseMap[parentEl.tagName]?.includes(el.tagName);
-    // },
-    // isVoidElement(el) {
-    //   return voidTags.includes(el.tagName);
-    // },
+    isEmittedAsText,
+    isImplicitEnd,
+    getTagType,
   };
   return createTagSoupDomParser(Object.assign(domParserOptions, options));
 }
 
-const rawTags = [
-  'script',
-  'style',
-  'textarea',
-];
-
-const voidTags = [
+const voidSet = new Set([
   'area',
   'base',
   'basefont',
@@ -81,66 +71,106 @@ const voidTags = [
   'source',
   'track',
   'wbr',
-];
+])
 
-const formTags = [
-  'input',
-  'option',
-  'optgroup',
-  'select',
-  'button',
-  'datalist',
-  'textarea',
-];
+function getTagType(t:string) {
+  // if (voidSet.has(t)) {
+  //   return TagType.VOID;
+  // }
+  // if (t === 'script' || t === 'style') {
+  //   return TagType.TEXT;
+  // }
 
-const pTag = ['p'];
+  // switch (t) {
+  //   case 'area':
+  //   case 'base':
+  //   case 'basefont':
+  //   case 'br':
+  //   case 'col':
+  //   case 'command':
+  //   case 'embed':
+  //   case 'frame':
+  //   case 'hr':
+  //   case 'img':
+  //   case 'input':
+  //   case 'isindex':
+  //   case 'keygen':
+  //   case 'link':
+  //   case 'meta':
+  //   case 'param':
+  //   case 'source':
+  //   case 'track':
+  //   case 'wbr':
+  //     return TagType.VOID;
+  //
+  //   case 'script':
+  //   case 'style':
+  //     return TagType.TEXT;
+  // }
+  return TagType.FLOW;
+}
 
-const implicitCloseMap: Record<string, Array<string>> = {
-  tr: ['tr', 'th', 'td'],
-  th: ['th'],
-  td: ['thead', 'th', 'td'],
-  body: ['head', 'link', 'script'],
-  li: ['li'],
-  p: pTag,
-  h1: pTag,
-  h2: pTag,
-  h3: pTag,
-  h4: pTag,
-  h5: pTag,
-  h6: pTag,
-  select: formTags,
-  input: formTags,
-  output: formTags,
-  button: formTags,
-  datalist: formTags,
-  textarea: formTags,
-  option: ['option'],
-  optgroup: ['optgroup', 'option'],
-  dd: ['dt', 'dd'],
-  dt: ['dt', 'dd'],
-  address: pTag,
-  article: pTag,
-  aside: pTag,
-  blockquote: pTag,
-  details: pTag,
-  div: pTag,
-  dl: pTag,
-  fieldset: pTag,
-  figcaption: pTag,
-  figure: pTag,
-  footer: pTag,
-  form: pTag,
-  header: pTag,
-  hr: pTag,
-  main: pTag,
-  nav: pTag,
-  ol: pTag,
-  pre: pTag,
-  section: pTag,
-  table: pTag,
-  ul: pTag,
-  rt: ['rt', 'rp'],
-  rp: ['rt', 'rp'],
-  tbody: ['thead', 'tbody'],
-  tfoot: ['thead', 'tbody'],
-};
+function isEmittedAsText(t: string) {
+  return t === 'script' || t === 'style' || t === 'textarea';
+}
+
+function isImplicitEnd(t1: string, t2: string) {
+  switch (t1) {
+    case 'tr':return t2 === 'tr' || t2 === 'th' || t2 === 'td'
+    case 'th': return t2 === 'th';
+    case 'td':return  t2 === 'thead' || t2 === 'th' || t2 === 'td'
+    case 'body':return t2 === 'head' || t2 === 'link' || t2 === 'script'
+    case 'li': return t2 === 'li'
+    case 'option': return t2 === 'option'
+    case 'optgroup':return t2 === 'optgroup' || t2 === 'option'
+    case 'dd': return  t2 === 'dt' || t2 === 'dd'
+    case 'dt': return  t2 === 'dt' || t2 === 'dd'
+    case 'select':
+    case 'input':
+    case 'output':
+    case 'button':
+    case 'datalist':
+    case 'textarea':
+      return t2 === 'input'
+      || t2 === 'option'
+      || t2 === 'optgroup'
+      || t2 === 'select'
+      || t2 === 'button'
+      || t2 === 'datalist'
+      || t2 === 'textarea';
+
+    case 'p':
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
+    case 'address':
+    case 'article':
+    case 'aside':
+    case 'blockquote':
+    case 'details':
+    case 'div':
+    case 'dl':
+    case 'fieldset':
+    case 'figcaption':
+    case 'figure':
+    case 'footer':
+    case 'form':
+    case 'header':
+    case 'hr':
+    case 'main':
+    case 'nav':
+    case 'ol':
+    case 'pre':
+    case 'section':
+    case 'table':
+    case 'ul':return t2 === 'p';
+    case 'rt': return t2 === 'rt' || t2 === 'rp'
+    case 'rp': return t2 === 'rt' || t2 === 'rp'
+    case 'tbody': return t2 === 'thead' || t2 === 'tbody'
+    case 'tfoot': return t2 === 'thead' || t2 === 'tbody'
+  }
+  return false;
+}

@@ -5,6 +5,7 @@ import {
   TagSoupElement,
   TagSoupNode,
 } from '../main/createTagSoupDomParser';
+import {TagType} from '../main/TagType';
 
 function el(tagName: string, start: number, end: number, attrs: Record<string, string> = {}, children: Array<TagSoupNode> = []): TagSoupElement {
   const el = createTagSoupElement(tagName, attrs, start, end, children);
@@ -113,7 +114,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('closes void tags', () => {
-    const parser = createTagSoupDomParser({isVoidElement: (el) => el.tagName === 'a'});
+    const parser = createTagSoupDomParser({getTagType: (tagName) => tagName === 'a' ? TagType.VOID : TagType.FLOW});
 
     expect(parser.commit('<a><a><a>')).toEqual([
       el('a', 0, 3),
@@ -123,7 +124,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('source of ignored tags is appended as text', () => {
-    const parser = createTagSoupDomParser({isIgnoredTag: (tagName) => tagName === 'a'});
+    const parser = createTagSoupDomParser({isEmittedAsText: (tagName) => tagName === 'a'});
 
     expect(parser.commit('<b><a></b></a>')).toEqual([
       el('b', 0, 10, {}, [
@@ -134,7 +135,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('omitted tags are not output', () => {
-    const parser = createTagSoupDomParser({isRemovedTag: (tagName) => tagName === 'a'});
+    const parser = createTagSoupDomParser({isIgnored: (tagName) => tagName === 'a'});
 
     expect(parser.commit('<b><a></a></b>')).toEqual([
       el('b', 0, 14),
@@ -142,7 +143,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('implicitly closes current tag', () => {
-    const parser = createTagSoupDomParser({isImplicitEnd: (parentElement, element) => element.tagName === 'p' && parentElement.tagName === element.tagName});
+    const parser = createTagSoupDomParser({isImplicitEnd: (t1, t2) => t1 === 'p' && t2 === 'p'});
 
     expect(parser.commit('<p>foo<p>bar')).toEqual([
       el('p', 0, 6, {}, [
@@ -155,7 +156,7 @@ describe('createTagSoupDomParser', () => {
   });
 
   it('implicitly closes current tag with nesting', () => {
-    const parser = createTagSoupDomParser({isImplicitEnd: (parentElement, element) => element.tagName === 'p' && parentElement.tagName === element.tagName});
+    const parser = createTagSoupDomParser({isImplicitEnd: (t1, t2) => t1 === 'p' && t2 === 'p'});
 
     expect(parser.commit('<p><p>aaa</p></p>')).toEqual([
       el('p', 0, 3),

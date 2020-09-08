@@ -15,7 +15,7 @@
     "terser": "for p in ./lib/{index,html}.js; do terser --compress --mangle toplevel --output $p -- $p; done",
     "clean": "rm -rf ./lib",
     "test": "jest",
-    "perf": "node ./src/test/perf.js"
+    "perf": "node --max-old-space-size=4096 ./src/test/perf.js"
   },
   "repository": {
     "type": "git",

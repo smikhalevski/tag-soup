@@ -1,11 +1,10 @@
-import {createSaxParser, SaxParserDialectOptions, SaxParserOptions} from './createSaxParser';
-import {TagType} from './TagType';
-import {NormalizedSaxParserDialectOptions} from './createNormalizedSaxParser';
+import {Attribute, SaxParserCallbacks} from './createSaxParser';
+import {createForgivingSaxParser, ForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
-export interface DomParserDialectOptions<Element> extends NormalizedSaxParserDialectOptions {
+export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDialectOptions {
 }
 
-export type ElementFactory<Element> = (tagName: string, start: number, end: number) => Element;
+export type ElementFactory<Element> = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, start: number, end: number) => Element;
 
 export type TextNodeFactory<Text> = (data: string, start: number, end: number) => Text;
 
@@ -13,8 +12,7 @@ export type DataNodeFactory<Node> = (data: string, start: number, end: number) =
 
 export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
   createElement: ElementFactory<Element>;
-  setAttribute?: (element: Element, name: string, value: string, start: number, end: number) => void;
-  setEndOffset?: (node: Node, end: number) => void;
+  setEndOffsets?: (node: Node, start: number, end: number) => void;
   appendChild: (element: Element, childNode: Node) => void;
 
   createTextNode: TextNodeFactory<Text>;
@@ -23,13 +21,6 @@ export interface DomParserFactoryCallbacks<Node, Element extends Node, Text exte
   createDocumentType?: DataNodeFactory<Node>;
   createComment?: DataNodeFactory<Node>;
 }
-
-
-
-
-
-
-
 
 export interface DomParserOptions<Node, Element extends Node, Text extends Node> extends DomParserDialectOptions<Element>, DomParserFactoryCallbacks<Node, Element, Text> {
 }
@@ -45,188 +36,75 @@ export interface DomParser<Node, Element extends Node = Node, Text extends Node 
 
 export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: DomParserOptions<Node, Element, Text>): DomParser<Node, Element, Text> {
   const {
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    getTagType,
-
-    // isIgnoredTag,
-    // isRemovedTag,
-    // isVoidElement,
-    isImplicitEnd,
-
     createElement,
-    createTextNode,
+    setEndOffsets,
     appendChild,
-    appendData,
-
+    createTextNode,
     createProcessingInstruction,
     createCdataSection,
     createDocumentType,
     createComment,
-
-    cloneElement,
-    setAttribute,
-    setEndOffset,
   } = options;
 
-  const tagNameStack: Array<string> = [];
-  const elementStack: Array<Element> = [];
-
-  let tail = '';
-  let offset = 0;
-  let lastIndex = -1;
-  let index = -1;
-  let textNode: Text | undefined;
   let nodes: Array<Node> = [];
 
-  const reset = () => {
-    tagNameStack.length = elementStack.length = 0;
-    lastIndex = index = -1;
-    textNode = undefined;
-    nodes = [];
-  };
+  const elementStack: Array<Element> = [];
+  let depth = 0;
 
-  const appendNode = (node: Node): void => {
-    if (index !== lastIndex) {
-      if (index === -1) {
-        nodes.push(elementStack[0]);
-        index = 0;
-      }
-      for (let i = index; i < lastIndex; i++) {
-        appendChild(elementStack[i], elementStack[i + 1]);
-      }
-      index = lastIndex;
-    }
-    if (index === -1) {
+  const pushChild = (node: Node) => {
+    if (depth !== 0) {
+      appendChild(elementStack[depth - 1], node);
+    } else {
       nodes.push(node);
-    } else {
-      appendChild(elementStack[index], node);
     }
   };
 
-  const appendText = (data: string, start: number, end: number): void => {
-    if (textNode) {
-      appendData(textNode, data);
-      setEndOffset?.(textNode, end);
-    } else {
-      appendNode(createTextNode(data, start, end));
-    }
-  };
+  const overrides: SaxParserCallbacks = {
+    onStartTag(tagName, attrs, selfClosing, tagType, start, end) {
+      const element = createElement(tagName, attrs, selfClosing, start, end);
+      pushChild(element);
 
-  const saxParserOptions: SaxParserOptions = {
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    getTagType,
-
-    onStartTag(tagName, selfClosing, tagType, start, end) {
-      // if (isRemovedTag?.(tagName)) {
-      //   return;
-      // }
-      // if (isIgnoredTag?.(tagName)) {
-      //   appendText(tail.substring(start - offset, end - offset), start, end);
-      //   return;
-      // }
-
-      textNode = undefined;
-      const element = createElement(tagName, start, end);
-
-      // if (lastIndex > 0 && isImplicitEnd?.(elementStack[lastIndex - 1], element)) {
-      //   if (index !== lastIndex) {
-      //     lastIndex--;
-      //   }
-      // }
-
-      appendNode(element);
-
-      if (selfClosing || tagType === TagType.VOID) {
-        return;
+      if (!selfClosing) {
+        elementStack[depth++] = element;
       }
-      lastIndex = ++index;
-      tagNameStack[index] = tagName;
-      elementStack[index] = element;
     },
-
-    onAttribute(name, value, start, end) {
-      setAttribute?.(elementStack[index], name, value, start, end);
-    },
-
     onEndTag(tagName, start, end) {
-      // if (isIgnoredTag?.(tagName)) {
-      //   appendText(tail.substring(start - offset, end - offset), start, end);
-      //   return;
-      // }
-
-      let i = lastIndex;
-      for (; i >= 0 && tagNameStack[i] !== tagName; i--) {
-      }
-      if (i === -1) {
-        // No start tag
-        return;
-      }
-      textNode = undefined;
-      setEndOffset?.(elementStack[i], end);
-
-      if (cloneElement) {
-        for (let j = i; j < lastIndex; j++) {
-          const element = elementStack[j + 1];
-          setEndOffset?.(element, start);
-          tagNameStack[j] = tagNameStack[j + 1];
-          elementStack[j] = cloneElement(element, end, end);
-        }
-        if (i <= index) {
-          index = i - 1;
-        }
-        lastIndex--;
-      } else {
-        index = lastIndex = i - 1;
-      }
+      setEndOffsets?.(elementStack[depth - 1], start, end);
+      depth--;
     },
-
-    onText: appendText,
   };
 
-  const saxParser = createSaxParser(saxParserOptions);
+  if (createTextNode) {
+    overrides.onText = (data, start, end) => pushChild(createTextNode(data, start, end));
+  }
+  if (createProcessingInstruction) {
+    overrides.onProcessingInstruction = (data, start, end) => pushChild(createProcessingInstruction(data, start, end));
+  }
+  if (createCdataSection) {
+    overrides.onCdataSection = (data, start, end) => pushChild(createCdataSection(data, start, end));
+  }
+  if (createDocumentType) {
+    overrides.onDocumentType = (data, start, end) => pushChild(createDocumentType(data, start, end));
+  }
+  if (createComment) {
+    overrides.onComment = (data, start, end) => pushChild(createComment(data, start, end));
+  }
+
+  const saxParser = createForgivingSaxParser(Object.assign({}, options, overrides));
 
   return {
     resetStream() {
       saxParser.resetStream();
-      reset();
+      depth = 0;
+      nodes = [];
     },
-
     writeStream(str) {
-      tail = saxParser.tail + str;
-      offset = saxParser.offset;
-
-      saxParser.writeStream(str);
-
+      saxParser.commit(str);
       return nodes;
     },
-
-    commit(str = '') {
-      tail = saxParser.tail + str;
-      offset = saxParser.offset;
-
+    commit(str) {
       saxParser.commit(str);
-
-      if (setEndOffset) {
-        const end = offset + tail.length;
-
-        for (let i = index; i >= 0; i--) {
-          setEndOffset(elementStack[i], end);
-        }
-      }
-
-      const outputNodes = nodes;
-      reset();
-      return outputNodes;
+      return nodes;
     },
   };
 }
