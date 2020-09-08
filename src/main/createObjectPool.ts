@@ -1,15 +1,11 @@
-export interface ArrayLike<T> {
-  length: number;
-
-  [index: number]: T;
-}
-
 export interface ObjectPool<T> {
 
   /**
    * Returns the list of all allocated values.
    */
-  getUsed(): Readonly<ArrayLike<T>>;
+  getAll(): ArrayLike<T>;
+
+  detachAll(): Array<T>;
 
   /**
    * Returns the cached value or creates a new value using factory.
@@ -29,6 +25,10 @@ export interface ObjectPool<T> {
   freeAll(): void;
 }
 
+type Mutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+
 /**
  * Creates an object pool that caches instances produced by `objectFactory`.
  *
@@ -37,15 +37,20 @@ export interface ObjectPool<T> {
  */
 export function createObjectPool<T>(objectFactory: () => T, resetValue?: (value: T) => void): ObjectPool<T> {
   const free = new Array<T>(50);
-  const used: ArrayLike<T> = {length: 0};
+  const used: Mutable<ArrayLike<T>> = {length: 0};
 
   let freeCount = 0;
   let usedCount = 0;
 
   return {
 
-    getUsed() {
+    getAll() {
       return used;
+    },
+
+    detachAll() {
+      usedCount = 0;
+      return Array.from(used);
     },
 
     allocate() {

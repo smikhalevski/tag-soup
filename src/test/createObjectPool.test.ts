@@ -10,13 +10,13 @@ describe('createObjectPool', () => {
     const v1 = pool.allocate();
     const v2 = pool.allocate();
 
-    expect(pool.getUsed().length).toBe(2);
+    expect(pool.getAll().length).toBe(2);
 
     expect(v1).toBe(1);
     expect(v2).toBe(2);
 
-    expect(pool.getUsed()[0]).toBe(1);
-    expect(pool.getUsed()[1]).toBe(2);
+    expect(pool.getAll()[0]).toBe(1);
+    expect(pool.getAll()[1]).toBe(2);
   });
 
   it('reuses existing values after the reset', () => {
@@ -29,7 +29,7 @@ describe('createObjectPool', () => {
 
     pool.freeAll();
 
-    expect(pool.getUsed().length).toBe(0);
+    expect(pool.getAll().length).toBe(0);
 
     expect(v).toBe(3);
 
