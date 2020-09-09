@@ -1,7 +1,6 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, untilSubstr} from './dsl-utils';
-import {CharCode} from './CharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {Rewriter} from './shared-types';
+import {CharCode, Mutable, pure, Rewriter} from './parser-utils';
 
 export interface Attribute {
 
@@ -18,7 +17,7 @@ export interface Attribute {
   end: number;
 }
 
-export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, start: number, end: number) => void;
+export type StartTagCallback = (tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number) => void;
 
 export type EndTagCallback = (tagName: string, start: number, end: number) => void;
 
@@ -68,6 +67,14 @@ export interface SaxParserDialectOptions {
 }
 
 export interface SaxParserCallbacks {
+
+  /**
+   * Triggered when a start tag and its attributes were read.
+   *
+   * Note: `attrs` argument is an array-like object that holds pooled objects that would be revoked after this callback
+   * finishes. To preserve parsed attributes make a deep copy of `attrs`. This is done to reduce memory consumption
+   * during parsing by avoiding excessive object allocation.
+   */
   onStartTag?: StartTagCallback;
   onEndTag?: EndTagCallback;
   onText?: DataCallback;
@@ -221,8 +228,10 @@ const takeDocumentType = seq(substr('<!DOCTYPE', true), untilSubstr('>', true, t
  * @param decode The decoder of HTML/XML entities.
  * @param rename The callback that receives an attribute name and returns a new name.
  */
-export function parseAttrs(str: string, i: number, attrs: Array<Attribute>, decode: Rewriter, rename: Rewriter): number {
+export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<Attribute>>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
+
+  let attrCount = 0;
 
   while (i < charCount) {
 
@@ -264,10 +273,22 @@ export function parseAttrs(str: string, i: number, attrs: Array<Attribute>, deco
       }
     }
 
-    attrs.push({name, value, start, end: k});
+    // Populate attributes pool
+    const attr = attrs[attrCount];
+    if (attr) {
+      attr.name = name;
+      attr.value = value;
+      attr.start = start;
+      attr.end = k;
+    } else {
+      attrs[attrCount] = {name, value, start, end: k};
+    }
+    attrCount++;
 
     i = k;
   }
+
+  attrs.length = attrCount;
   return i;
 }
 
@@ -305,6 +326,9 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
   let textEnd = -1;
   let tagParsingEnabled = true;
   let startTagName: string | undefined;
+
+  // Pool of reusable attribute objects
+  const attrs = pure<Mutable<ArrayLike<Attribute>>>({length: 0});
 
   // Emits text chunk if any
   const emitText = () => {
@@ -352,7 +376,6 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
 
-        const attrs: Array<Attribute> = [];
         j = parseAttrs(str, j, attrs, decodeAttr, renameAttr);
 
         // Skip malformed content and excessive whitespaces

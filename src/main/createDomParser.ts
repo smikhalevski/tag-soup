@@ -23,11 +23,19 @@ export interface DomParserDialectOptions<Element> extends ForgivingSaxParserOpti
   [saxParserOption: string]: unknown;
 }
 
-export type ElementFactory<Element> = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, start: number, end: number) => Element;
+export type ElementFactory<Element> = (tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number) => Element;
 
 export type DataNodeFactory<Node> = (data: string, start: number, end: number) => Node;
 
 export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
+
+  /**
+   * Creates a new element.
+   *
+   * Note: `attrs` argument is an array-like object that holds pooled objects that would be revoked after this callback
+   * finishes. To preserve parsed attributes make a deep copy of `attrs`. This is done to reduce memory consumption
+   * during parsing by avoiding excessive object allocation.
+   */
   createElement: ElementFactory<Element>;
   appendChild: (element: Element, childNode: Node) => void;
 

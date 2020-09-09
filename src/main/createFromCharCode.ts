@@ -1,4 +1,4 @@
-import {FromCharCode} from './shared-types';
+import {FromCharCode} from './parser-utils';
 
 export interface FromCharCodeOptions {
 

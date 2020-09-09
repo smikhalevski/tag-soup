@@ -50,7 +50,7 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
       expect(onTextMock).not.toHaveBeenCalled();
     });
 
@@ -58,7 +58,7 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 3, 7);
@@ -76,8 +76,8 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 3, 3);
@@ -88,9 +88,9 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b><c>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, 3, 6);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(3, 'c', [], false, 6, 9);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(3, 'c', {length: 0}, false, 6, 9);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 6);
@@ -102,8 +102,8 @@ describe('createForgivingSaxParser', () => {
       parser.writeStream('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], true, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, true, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 10);
@@ -116,8 +116,8 @@ describe('createForgivingSaxParser', () => {
       parser.commit('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', [], false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
       expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 6);
@@ -128,7 +128,7 @@ describe('createForgivingSaxParser', () => {
       parser.commit('<a>bbb');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'bbb', 3, 6);
@@ -142,8 +142,8 @@ describe('createForgivingSaxParser', () => {
       parser.commit('<p><p>aaa</p></p>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'p', [], false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'p', [], false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'p', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'p', {length: 0}, false, 3, 6);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa', 6, 9);

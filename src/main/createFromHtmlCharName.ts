@@ -1,4 +1,4 @@
-import {FromCharName} from './shared-types';
+import {FromCharName} from './parser-utils';
 
 export interface FromHtmlCharNameOptions {
 

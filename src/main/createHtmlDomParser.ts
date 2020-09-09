@@ -3,14 +3,9 @@ import {createFromCharCode, FromCharCodeOptions} from './createFromCharCode';
 import {lowerCase, SaxParser, SaxParserCallbacks} from './createSaxParser';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {DomParser} from './createDomParser';
-import {
-  createTagSoupDomParser,
-  TagSoupDomParserOptions,
-  TagSoupElement,
-  TagSoupNode,
-  TagSoupText,
-} from './createTagSoupDomParser';
+import {DomParser, DomParserDialectOptions} from './createDomParser';
+import {createXmlDomParser, DomElement, DomNode, DomText} from './createXmlDomParser';
+import {pure} from './parser-utils';
 
 export interface HtmlDialectOptions extends FromCharCodeOptions {
 
@@ -72,18 +67,14 @@ export function createHtmlSaxParser(options: HtmlSaxParserOptions): SaxParser {
 export interface HtmlDomParserOptions extends HtmlDialectOptions {
 }
 
-export function createHtmlDomParser(options?: HtmlDomParserOptions): DomParser<TagSoupNode, TagSoupElement, TagSoupText> {
-  const domParserOptions: TagSoupDomParserOptions = {
+export function createHtmlDomParser(options?: HtmlDomParserOptions): DomParser<DomNode, DomElement, DomText> {
+  const domParserOptions: DomParserDialectOptions<DomElement> = {
     saxParserFactory: createHtmlSaxParser,
   };
-  return createTagSoupDomParser(Object.assign({}, options, domParserOptions));
+  return createXmlDomParser(Object.assign({}, options, domParserOptions));
 }
 
-function purify(src: object): any {
-  return Object.assign(Object.create(null), src);
-}
-
-const voidTagMap = purify({
+const voidTagMap = pure<Record<string, 1>>({
   area: 1,
   base: 1,
   basefont: 1,
@@ -105,13 +96,13 @@ const voidTagMap = purify({
   wbr: 1,
 });
 
-const textTagMap = purify({
+const textTagMap = pure<Record<string, 1>>({
   script: 1,
   style: 1,
   textarea: 1,
 });
 
-const formTagMap = purify({
+const formTagMap = pure<Record<string, 1>>({
   input: 1,
   option: 1,
   optgroup: 1,
@@ -121,18 +112,18 @@ const formTagMap = purify({
   textarea: 1,
 });
 
-const pTagMap = purify({p: 1});
+const pTagMap = pure<Record<string, 1>>({p: 1});
 
-const implicitEndMap = purify({
-  tr: purify({tr: 1, th: 1, td: 1}),
-  th: purify({th: 1}),
-  td: purify({thead: 1, th: 1, td: 1}),
-  body: purify({head: 1, link: 1, script: 1}),
-  li: purify({li: 1}),
-  option: purify({option: 1}),
-  optgroup: purify({optgroup: 1, option: 1}),
-  dd: purify({dt: 1, dd: 1}),
-  dt: purify({dt: 1, dd: 1}),
+const implicitEndMap = pure<Record<string, Record<string, 1>>>({
+  tr: pure({tr: 1, th: 1, td: 1}),
+  th: pure({th: 1}),
+  td: pure({thead: 1, th: 1, td: 1}),
+  body: pure({head: 1, link: 1, script: 1}),
+  li: pure({li: 1}),
+  option: pure({option: 1}),
+  optgroup: pure({optgroup: 1, option: 1}),
+  dd: pure({dt: 1, dd: 1}),
+  dt: pure({dt: 1, dd: 1}),
   select: formTagMap,
   input: formTagMap,
   output: formTagMap,
@@ -167,8 +158,8 @@ const implicitEndMap = purify({
   section: pTagMap,
   table: pTagMap,
   ul: pTagMap,
-  rt: purify({rt: 1, rp: 1}),
-  rp: purify({rt: 1, rp: 1}),
-  tbody: purify({thead: 1, tbody: 1}),
-  tfoot: purify({thead: 1, tbody: 1}),
+  rt: pure({rt: 1, rp: 1}),
+  rp: pure({rt: 1, rp: 1}),
+  tbody: pure({thead: 1, tbody: 1}),
+  tfoot: pure({thead: 1, tbody: 1}),
 });

@@ -3,7 +3,7 @@ const path = require('path');
 const Benchmark = require('benchmark');
 const htmlparser2 = require('htmlparser2');
 const {padEnd, padStart} = require('lodash');
-const {createSaxParser, createTagSoupDomParser} = require('../../lib');
+const {createSaxParser, createXmlDomParser} = require('../../lib');
 const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/html');
 
 const html = fs.readFileSync(path.join(__dirname, './test.html'), {encoding: 'utf8'});
@@ -15,7 +15,7 @@ suite.on('complete', () => {
 
   for (const bench of benches) {
     const ms = bench.stats.mean * 1000;
-    console.log(padEnd(bench.name, 45) + padStart(ms.toFixed(2), 8) + 'ms ± ' + bench.stats.rme.toFixed() + '%');
+    console.log(padEnd(bench.name, 40) + padStart(ms.toFixed(2), 8) + 'ms ± ' + bench.stats.rme.toFixed() + '%');
   }
 
   console.log('\nSAX XML  ratio = ' + (benches[0].stats.mean / benches[1].stats.mean).toFixed(2));
@@ -50,8 +50,8 @@ suite.add('DOM htmlparser2', () => {
 });
 
 // 4
-const xmlDomParser = createTagSoupDomParser();
-suite.add('DOM XML  tag-soup (createTagSoupDomParser)', () => {
+const xmlDomParser = createXmlDomParser();
+suite.add('DOM XML  tag-soup (createXmlDomParser)', () => {
   xmlDomParser.commit(html);
 });
 

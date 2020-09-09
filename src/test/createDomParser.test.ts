@@ -32,7 +32,7 @@ describe('createDomParser', () => {
   it('parses tag with text', () => {
     expect(parser.commit('<a>okay</a>')).toEqual([
       {
-        tagName: 'a', start: 0, end: 11, attrs: [], children: [
+        tagName: 'a', start: 0, end: 11, attrs: {length: 0}, children: [
           {data: 'okay', start: 3, end: 7},
         ],
       },
@@ -41,7 +41,7 @@ describe('createDomParser', () => {
 
   it('parses attributes', () => {
     expect(parser.commit('<a foo=bar></a>')).toEqual([
-      {tagName: 'a', start: 0, end: 15, attrs: [{name: 'foo', value: 'bar', start: 3, end: 10}], children: []},
+      {tagName: 'a', start: 0, end: 15, attrs: {length: 1, 0: {name: 'foo', value: 'bar', start: 3, end: 10}}, children: []},
     ]);
   });
 
@@ -52,8 +52,8 @@ describe('createDomParser', () => {
     });
 
     expect(parser.commit('<a><a>')).toEqual([
-      {tagName: 'a', start: 0, end: 3, attrs: [], children: []},
-      {tagName: 'a', start: 3, end: 6, attrs: [], children: []},
+      {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
+      {tagName: 'a', start: 3, end: 6, attrs: {length: 0}, children: []},
     ]);
   });
 
@@ -64,16 +64,16 @@ describe('createDomParser', () => {
     });
 
     expect(parser.commit('<a><b></b></a>')).toEqual([
-      {tagName: 'a', start: 0, end: 3, attrs: [], children: []},
-      {tagName: 'b', start: 3, end: 10, attrs: [], children: []},
+      {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
+      {tagName: 'b', start: 3, end: 10, attrs: {length: 0}, children: []},
     ]);
   });
 
   it('parses nested tags', () => {
     expect(parser.commit('<a><b></b></a>')).toEqual([
       {
-        tagName: 'a', start: 0, end: 14, attrs: [], children: [
-          {tagName: 'b', start: 3, end: 10, attrs: [], children: []},
+        tagName: 'a', start: 0, end: 14, attrs: {length: 0}, children: [
+          {tagName: 'b', start: 3, end: 10, attrs: {length: 0}, children: []},
         ],
       },
     ]);
@@ -82,8 +82,8 @@ describe('createDomParser', () => {
   it('parses nested tags that are closed in wrong order', () => {
     expect(parser.commit('<a><b></a></b>')).toEqual([
       {
-        tagName: 'a', start: 0, end: 10, attrs: [], children: [
-          {tagName: 'b', start: 3, end: 6, attrs: [], children: []},
+        tagName: 'a', start: 0, end: 10, attrs: {length: 0}, children: [
+          {tagName: 'b', start: 3, end: 6, attrs: {length: 0}, children: []},
         ],
       },
     ]);
@@ -92,10 +92,10 @@ describe('createDomParser', () => {
   it('parses nested tags that are closed in wrong order with matching parent', () => {
     expect(parser.commit('<b><a><b></a></b>')).toEqual([
       {
-        tagName: 'b', start: 0, end: 17, attrs: [], children: [
+        tagName: 'b', start: 0, end: 17, attrs: {length: 0}, children: [
           {
-            tagName: 'a', start: 3, end: 13, attrs: [], children: [
-              {tagName: 'b', start: 6, end: 9, attrs: [], children: []},
+            tagName: 'a', start: 3, end: 13, attrs: {length: 0}, children: [
+              {tagName: 'b', start: 6, end: 9, attrs: {length: 0}, children: []},
             ],
           },
         ],
@@ -108,7 +108,7 @@ describe('createDomParser', () => {
 
     expect(parser.commit('<a></b>eee')).toEqual([
       {
-        tagName: 'a', start: 0, end: 10, attrs: [], children: [
+        tagName: 'a', start: 0, end: 10, attrs: {length: 0}, children: [
           {data: 'eee', start: 7, end: 10},
         ],
       },

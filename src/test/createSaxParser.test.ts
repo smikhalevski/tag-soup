@@ -261,25 +261,26 @@ describe('parseSax', () => {
       parseSax('<a>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
     });
 
     it('parses the start tag with attrs', () => {
       parseSax('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [
-        {name: 'foo', value: '', start: 3, end: 6},
-        {name: 'bar', value: 'aaa"bbb', start: 7, end: 20},
-        {name: 'baz', value: 'aaa\'bbb', start: 22, end: 35},
-      ], false, 0, 36);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 3,
+        0: {name: 'foo', value: '', start: 3, end: 6},
+        1: {name: 'bar', value: 'aaa"bbb', start: 7, end: 20},
+        2: {name: 'baz', value: 'aaa\'bbb', start: 22, end: 35},
+      }, false, 0, 36);
     });
 
     it('parses the start tag without attrs and with spaces before the greater-then char', () => {
       parseSax('<a   >', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 6);
     });
 
     it('parses the end tag', () => {
@@ -293,7 +294,7 @@ describe('parseSax', () => {
       parseSax('<a/>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 4);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 4);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
@@ -302,7 +303,7 @@ describe('parseSax', () => {
       parseSax('<a/>', false, 0, {...saxParserOptionsMock, selfClosingEnabled: true});
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], true, 0, 4);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, true, 0, 4);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
@@ -314,11 +315,12 @@ describe('parseSax', () => {
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [
-        {name: 'foo', value: '', start: 3, end: 6},
-        {name: 'bar', value: 'aaa"bbb', start: 7, end: 20},
-        {name: 'baz', value: 'aaa\'bbb', start: 22, end: 35},
-      ], true, 0, 39);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 3,
+        0: {name: 'foo', value: '', start: 3, end: 6},
+        1: {name: 'bar', value: 'aaa"bbb', start: 7, end: 20},
+        2: {name: 'baz', value: 'aaa\'bbb', start: 22, end: 35},
+      }, true, 0, 39);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
@@ -327,9 +329,10 @@ describe('parseSax', () => {
       parseSax('<a foo=123//>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [
-        {name: 'foo', value: '123//', start: 3, end: 12},
-      ], false, 0, 13);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 1,
+        0: {name: 'foo', value: '123//', start: 3, end: 12},
+      }, false, 0, 13);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
@@ -352,7 +355,7 @@ describe('parseSax', () => {
       parseSax('<a@#$%*>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a@#$%*', [], false, 0, 8);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a@#$%*', {length: 0}, false, 0, 8);
     });
 
     it('parses the end tag with the invalid syntax as text', () => {
@@ -373,7 +376,7 @@ describe('parseSax', () => {
       parseSax('<a>okay', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'okay', 3, 7);
@@ -386,17 +389,18 @@ describe('parseSax', () => {
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa< /a>bbb', 0, 11);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', [], false, 11, 14);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', {length: 0}, false, 11, 14);
     });
 
     it('emits start tag with attrs', () => {
       parseSax('<a foo bar=eee>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [
-        {name: 'foo', value: '', start: 3, end: 6},
-        {name: 'bar', value: 'eee', start: 7, end: 14},
-      ], false, 0, 15);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 2,
+        0: {name: 'foo', value: '', start: 3, end: 6},
+        1: {name: 'bar', value: 'eee', start: 7, end: 14},
+      }, false, 0, 15);
     });
 
     it('parses terminated XML comments', () => {
@@ -514,7 +518,7 @@ describe('parseSax', () => {
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', [], false, 0, 8);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', {length: 0}, false, 0, 8);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<foo aaa=111>', 8, 21);
@@ -531,7 +535,7 @@ describe('parseSax', () => {
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', [], false, 0, 8);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', {length: 0}, false, 0, 8);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<foo aaa=111></SCRIPT>', 8, 30);
@@ -545,8 +549,8 @@ describe('parseSax', () => {
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', [], true, 0, 9);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'foo', [], false, 9, 14);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', {length: 0}, true, 0, 9);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'foo', {length: 0}, false, 9, 14);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
@@ -558,18 +562,19 @@ describe('parseSax', () => {
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'FOO', [], false, 0, 5);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'BAR', [], false, 5, 10);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'FOO', {length: 0}, false, 0, 5);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'BAR', {length: 0}, false, 5, 10);
     });
 
     it('can rewrite attr names', () => {
       parseSax('<foo aaa=111 bbb=222>', false, 0, {...saxParserOptionsMock, renameAttr: (name) => name.toUpperCase()});
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'foo', [
-        {name: 'AAA', value: '111', start: 5, end: 12},
-        {name: 'BBB', value: '222', start: 13, end: 20},
-      ], false, 0, 21);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'foo', {
+        length: 2,
+        0: {name: 'AAA', value: '111', start: 5, end: 12},
+        1: {name: 'BBB', value: '222', start: 13, end: 20},
+      }, false, 0, 21);
     });
   });
 
@@ -579,14 +584,14 @@ describe('parseSax', () => {
       parseSax('<a>', true, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
     });
 
     it('does not emit the trailing text', () => {
       parseSax('<a>okay', true, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
       expect(onTextMock).not.toHaveBeenCalled();
     });
@@ -665,7 +670,7 @@ describe('createSaxParser', () => {
       parser.writeStream('<a>foo');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
       expect(onTextMock).not.toHaveBeenCalled();
 
       parser.writeStream('bar</a>');
@@ -684,9 +689,10 @@ describe('createSaxParser', () => {
       parser.writeStream('/>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'www', [
-        {name: 'aaa', value: '111', start: 5, end: 12},
-      ], true, 0, 15);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'www', {
+        length: 1,
+        0: {name: 'aaa', value: '111', start: 5, end: 12},
+      }, true, 0, 15);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });

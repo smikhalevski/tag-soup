@@ -1,17 +1,28 @@
-import {Attribute, createTagSoupElement, createTagSoupText, TagSoupElement, TagSoupNode} from '../main';
+import {DomAttrMap, DomElement, DomNode, DomNodeType, DomText} from '../main';
 import {createHtmlDomParser} from '../main/createHtmlDomParser';
 
-function el(tagName: string, start: number, end: number, selfClosing = false, attrs: Array<Attribute> = [], children: Array<TagSoupNode> = []): TagSoupElement {
-  const el = createTagSoupElement(tagName, attrs, selfClosing, start, end);
+export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: DomAttrMap = {}, children: Array<DomNode> = []): DomElement {
 
-  el.children = children;
+  const el: DomElement = {
+    nodeType: DomNodeType.ELEMENT,
+    parent: null,
+    tagName,
+    attrs,
+    selfClosing,
+    children,
+    start,
+    end,
+  };
+
   for (const child of children) {
     child.parent = el;
   }
   return el;
 }
 
-const text = createTagSoupText;
+export function text(value: string, start: number, end: number): DomText {
+  return {nodeType: 3, parent: null, data: value, start, end};
+}
 
 describe('createHtmlDomParser', () => {
 
@@ -20,7 +31,7 @@ describe('createHtmlDomParser', () => {
 
     expect(parser.commit('<p><p>aaa</p></p>')).toEqual([
       el('p', 0, 3),
-      el('p', 3, 13, false, [], [
+      el('p', 3, 13, false, {}, [
         text('aaa', 6, 9),
       ]),
     ]);

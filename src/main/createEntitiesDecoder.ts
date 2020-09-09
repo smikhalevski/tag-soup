@@ -1,7 +1,6 @@
 import {allCharBy, CharCodeChecker} from './dsl-utils';
-import {CharCode} from './CharCode';
 import {fromXmlCharName} from './fromXmlCharName';
-import {FromCharCode, FromCharName, Rewriter} from './shared-types';
+import {CharCode, FromCharCode, FromCharName, Rewriter} from './parser-utils';
 
 // [0-9]
 const isNumberChar: CharCodeChecker = (c) => c > 47 && c < 58;
