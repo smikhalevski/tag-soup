@@ -66,7 +66,7 @@ export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): D
     renameTag,
     renameAttr,
     selfClosingEnabled,
-    getContentMode: getTagType,
+    getContentMode,
     isEmittedAsText,
     isIgnored,
     isImplicitEnd,

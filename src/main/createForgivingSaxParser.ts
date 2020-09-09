@@ -1,4 +1,11 @@
-import {parseSax, SaxParser, SaxParserCallbacks, SaxParserDialectOptions, SaxParserOptions} from './createSaxParser';
+import {
+  Attribute,
+  parseSax,
+  SaxParser,
+  SaxParserCallbacks,
+  SaxParserDialectOptions,
+  SaxParserOptions,
+} from './createSaxParser';
 import {ContentMode} from './ContentMode';
 
 export interface ForgivingSaxParserDialectOptions extends SaxParserDialectOptions {
@@ -38,22 +45,16 @@ export function createForgivingSaxParser(options: ForgivingSaxParserOptions): Sa
   let tail = '';
   let offset = 0;
 
-  const tagNameStack: Array<string> = [];
-
-  let depth = 0;
-
   let text = '';
   let textStart = -1;
   let textEnd = -1;
 
-  const emitText = (): void => {
-    if (textStart !== -1) {
-      onText?.(text, textStart, textEnd);
-      textStart = -1;
-    }
-  };
+  let nameStack: Array<string> = [];
+  let attrStack: Array<Array<Attribute>> = [];
+  let depth = 0; // stack depth
+  let c = -1; // cursor
 
-  const addText = (data: string, start: number, end: number): void => {
+  const addText = (data: string, start: number, end: number) => {
     if (textStart === -1) {
       text = data;
       textStart = start;
@@ -63,62 +64,84 @@ export function createForgivingSaxParser(options: ForgivingSaxParserOptions): Sa
     textEnd = end;
   };
 
+  const emitText = () => {
+    if (textStart !== -1) {
+      emitOrphans(textStart);
+
+      onText?.(text, textStart, textEnd);
+      textStart = -1;
+    }
+  };
+
+  const emitOrphans = (start: number) => {
+    if (c !== depth - 1) {
+      for (let i = c; i < depth; i++) {
+        onStartTag?.(nameStack[i], attrStack[i], false, ContentMode.FLOW, start, start);
+        c = i;
+      }
+    }
+  };
+
   const overrides: SaxParserOptions = {
 
-    onStartTag(tagName, attrs, selfClosing, tagType, start, end) {
-      if (isIgnored?.(tagName)) {
-        return;
-      }
-      if (isEmittedAsText?.(tagName)) {
-        addText(tail.substring(start - offset, end - offset), start, end);
-        return;
-      }
+    onStartTag(name, attrs, selfClosing, contentMode, start, end) {
+      selfClosing ||= contentMode === ContentMode.VOID;
 
       emitText();
-      selfClosing ||= tagType === ContentMode.VOID;
 
-      if (isImplicitEnd && onEndTag) {
-        for (let i = depth - 1; i >= 0; i--) {
+      if (isImplicitEnd) {
+        for (let i = 0; i <= c; i++) {
+          if (isImplicitEnd(nameStack[i], name)) {
 
-          if (isImplicitEnd(tagNameStack[i], tagName)) {
-            for (let j = depth - 1; j >= i; j--) {
-              onEndTag(tagNameStack[j], start, start);
+            if (onEndTag) {
+              for (let j = c; j >= i; j--) {
+                onEndTag(nameStack[j], start, start);
+              }
             }
-            depth = i;
+            c = i - 1;
             break;
           }
         }
       }
-      onStartTag?.(tagName, attrs, selfClosing, tagType, start, end);
 
-      if (!selfClosing) {
-        tagNameStack[depth++] = tagName;
+      onStartTag?.(name, attrs, selfClosing, contentMode, start, end);
+
+      if (selfClosing) {
+        depth--;
+        for (let i = c + 1; i < depth; i++) {
+          nameStack[i] = nameStack[i + 1];
+          attrStack[i] = attrStack[i + 1];
+        }
+      } else {
+        c++;
+        nameStack[c] = name;
+        attrStack[c] = attrs;
+
+        if (c === depth) {
+          depth++;
+        }
       }
     },
 
-    onEndTag(tagName, start, end) {
-      if (isIgnored?.(tagName)) {
-        return;
-      }
-      if (isEmittedAsText?.(tagName)) {
-        addText(tail.substring(start - offset, end - offset), start, end);
-        return;
-      }
-
+    onEndTag(name, start, end) {
       emitText();
 
-      for (let i = depth - 1; i >= 0; i--) {
-        if (tagNameStack[i] === tagName) {
+      for (let i = c; i >= 0; i--) {
+        if (nameStack[i] === name) {
 
           if (onEndTag) {
-            for (let j = depth - 1; j > i; j--) {
-              onEndTag(tagNameStack[j], start, start);
+            for (let j = c; j > i; j--) {
+              onEndTag(nameStack[j], start, start);
             }
-            onEndTag(tagName, start, end);
+            onEndTag(nameStack[i], start, end);
           }
+          c = i - 1;
 
-          depth = i;
-          break;
+          depth--;
+          for (let j = c + 1; j < depth; j--) {
+            nameStack[i] = nameStack[i + 1];
+            attrStack[i] = attrStack[i + 1];
+          }
         }
       }
     },
@@ -148,8 +171,11 @@ export function createForgivingSaxParser(options: ForgivingSaxParserOptions): Sa
       offset += l;
 
       emitText();
-      for (let i = depth - 1; i >= 0; i--) {
-        onEndTag?.(tagNameStack[i], offset, offset);
+
+      if (onEndTag) {
+        for (let i = c; i >= 0; i--) {
+          onEndTag(nameStack[i], offset, offset);
+        }
       }
 
       offset = 0;

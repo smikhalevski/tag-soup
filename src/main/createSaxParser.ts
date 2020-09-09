@@ -19,7 +19,7 @@ export interface Attribute {
   end: number;
 }
 
-export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, tagType: ContentMode, start: number, end: number) => void;
+export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, contentMode: ContentMode, start: number, end: number) => void;
 
 export type EndTagCallback = (tagName: string, start: number, end: number) => void;
 

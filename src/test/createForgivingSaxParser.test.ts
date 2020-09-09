@@ -98,34 +98,34 @@ describe('createForgivingSaxParser', () => {
       expect(onEndTagMock).toHaveBeenNthCalledWith(2, 'a', 6, 6);
     });
 
-    it('emits start tag as raw source', () => {
-      parser = createParser({isEmittedAsText: (t) => t === 'b'});
-      parser.writeStream('<a><b>');
-
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
-
-      expect(onTextMock).not.toHaveBeenCalled();
-
-      parser.commit();
-
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, '<b>', 3, 6);
-    });
-
-    it('does not emit ignored tags', () => {
-      parser = createParser({isIgnored: (t) => t === 'b'});
-      parser.writeStream('<a><b></b></a>');
-
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
-
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 10, 14);
-    });
+  //   it('emits start tag as raw source', () => {
+  //     parser = createParser({isEmittedAsText: (t) => t === 'b'});
+  //     parser.writeStream('<a><b>');
+  //
+  //     expect(onStartTagMock).toHaveBeenCalledTimes(1);
+  //     expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
+  //
+  //     expect(onTextMock).not.toHaveBeenCalled();
+  //
+  //     parser.commit();
+  //
+  //     expect(onTextMock).toHaveBeenCalledTimes(1);
+  //     expect(onTextMock).toHaveBeenNthCalledWith(1, '<b>', 3, 6);
+  //   });
+  //
+  //   it('does not emit ignored tags', () => {
+  //     parser = createParser({isIgnored: (t) => t === 'b'});
+  //     parser.writeStream('<a><b></b></a>');
+  //
+  //     expect(onStartTagMock).toHaveBeenCalledTimes(1);
+  //     expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', [], false, ContentMode.FLOW, 0, 3);
+  //
+  //     expect(onEndTagMock).toHaveBeenCalledTimes(1);
+  //     expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 10, 14);
+  //   });
 
     it('recognizes void tags', () => {
-      parser = createParser({getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : ContentMode.FLOW});
+      parser = createParser({getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : null});
       parser.writeStream('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
@@ -137,21 +137,21 @@ describe('createForgivingSaxParser', () => {
     });
   });
 
-  describe('in non-streaming mode', () => {
-
-    it('emits raw source instead of a tag', () => {
-      parser = createParser({isEmittedAsText: (tagName) => tagName === 'a'});
-      parser.commit('<a><b></b></a>');
-
-      expect(onTextMock).toHaveBeenCalledTimes(2);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, '<a>', 0, 3);
-      expect(onTextMock).toHaveBeenNthCalledWith(2, '</a>', 10, 14);
-
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', [], false, ContentMode.FLOW, 3, 6);
-
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 10);
-    });
-  });
+  // describe('in non-streaming mode', () => {
+  //
+  //   it('emits raw source instead of a tag', () => {
+  //     parser = createParser({isEmittedAsText: (tagName) => tagName === 'a'});
+  //     parser.commit('<a><b></b></a>');
+  //
+  //     expect(onTextMock).toHaveBeenCalledTimes(2);
+  //     expect(onTextMock).toHaveBeenNthCalledWith(1, '<a>', 0, 3);
+  //     expect(onTextMock).toHaveBeenNthCalledWith(2, '</a>', 10, 14);
+  //
+  //     expect(onStartTagMock).toHaveBeenCalledTimes(1);
+  //     expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', [], false, ContentMode.FLOW, 3, 6);
+  //
+  //     expect(onEndTagMock).toHaveBeenCalledTimes(1);
+  //     expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 10);
+  //   });
+  // });
 });
