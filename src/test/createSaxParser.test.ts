@@ -1,46 +1,45 @@
 import {
   Attribute,
-  createAttr,
   createSaxParser,
   identity,
-  parseSax, SaxParser,
+  parseAttrs,
+  parseSax,
+  SaxParser,
   SaxParserOptions,
-  traverseAttrs,
 } from '../main/createSaxParser';
-import {createObjectPool, ObjectPool} from '../main/createObjectPool';
 
-describe('traverseAttrs', () => {
+describe('parseAttrs', () => {
 
-  let attrPool: ObjectPool<Attribute>;
+  let attrs: Array<Attribute>;
 
   beforeEach(() => {
-    attrPool = createObjectPool(createAttr);
+    attrs = [];
   });
 
   it('reads a double quoted attr', () => {
-    expect(traverseAttrs('aaa="111"', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa="111"', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 9},
     ]);
   });
 
   it('reads a single quoted attr', () => {
-    expect(traverseAttrs('aaa=\'111\'', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=\'111\'', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 9},
     ]);
   });
 
   it('reads an unquoted attr', () => {
-    expect(traverseAttrs('aaa=111', 0, attrPool, identity, identity)).toBe(7);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111', 0, attrs, identity, identity)).toBe(7);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 7},
     ]);
   });
 
   it('reads mixed attrs separated by spaces', () => {
-    expect(traverseAttrs('aaa=111 bbb="222" ccc=\'333\'', 0, attrPool, identity, identity)).toBe(27);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111 bbb="222" ccc=\'333\'', 0, attrs, identity, identity)).toBe(27);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 7},
       {name: 'bbb', value: '222', start: 8, end: 17},
       {name: 'ccc', value: '333', start: 18, end: 27},
@@ -48,172 +47,172 @@ describe('traverseAttrs', () => {
   });
 
   it('reads quoted attrs separated by slashes', () => {
-    expect(traverseAttrs('aaa="111"//bbb=\'222\'//', 0, attrPool, identity, identity)).toBe(20);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa="111"//bbb=\'222\'//', 0, attrs, identity, identity)).toBe(20);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 9},
       {name: 'bbb', value: '222', start: 11, end: 20},
     ]);
   });
 
   it('reads non-separated quoted attrs', () => {
-    expect(traverseAttrs('aaa="111"bbb=\'222\'', 0, attrPool, identity, identity)).toBe(18);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa="111"bbb=\'222\'', 0, attrs, identity, identity)).toBe(18);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 9},
       {name: 'bbb', value: '222', start: 9, end: 18},
     ]);
   });
 
   it('reads an attr without the value', () => {
-    expect(traverseAttrs('aaa', 0, attrPool, identity, identity)).toBe(3);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa', 0, attrs, identity, identity)).toBe(3);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '', start: 0, end: 3},
     ]);
   });
 
   it('reads a attr with an equals char and without the value', () => {
-    expect(traverseAttrs('aaa=', 0, attrPool, identity, identity)).toBe(4);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=', 0, attrs, identity, identity)).toBe(4);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '', start: 0, end: 4},
     ]);
   });
 
   it('treats the slash char as the whitespace in the attr name', () => {
-    expect(traverseAttrs('aaa/bbb="222"', 0, attrPool, identity, identity)).toBe(13);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa/bbb="222"', 0, attrs, identity, identity)).toBe(13);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '', start: 0, end: 3},
       {name: 'bbb', value: '222', start: 4, end: 13},
     ]);
   });
 
   it('ignores leading slashes', () => {
-    expect(traverseAttrs('//aaa=111', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('//aaa=111', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 2, end: 9},
     ]);
   });
 
   it('ignores leading space chars', () => {
-    expect(traverseAttrs(' \taaa=111', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs(' \taaa=111', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 2, end: 9},
     ]);
   });
 
   it('trailing slashes are the part of the unquoted attr value', () => {
-    expect(traverseAttrs('aaa=111//', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111//', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111//', start: 0, end: 9},
     ]);
   });
 
   it('trailing slashes are treated as an unquoted value', () => {
-    expect(traverseAttrs('aaa=//', 0, attrPool, identity, identity)).toBe(6);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=//', 0, attrs, identity, identity)).toBe(6);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '//', start: 0, end: 6},
     ]);
   });
 
   it('trailing slashes after the quoted value are ignored', () => {
-    expect(traverseAttrs('aaa="111"//', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa="111"//', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 9},
     ]);
   });
 
   it('trailing slash without the preceding equals char is ignored', () => {
-    expect(traverseAttrs('aaa/', 0, attrPool, identity, identity)).toBe(3);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa/', 0, attrs, identity, identity)).toBe(3);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '', start: 0, end: 3},
     ]);
   });
 
   it('ignores training spaces', () => {
-    expect(traverseAttrs('aaa=111  ', 0, attrPool, identity, identity)).toBe(7);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111  ', 0, attrs, identity, identity)).toBe(7);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 7},
     ]);
   });
 
   it('ignores spaces around the equals char', () => {
-    expect(traverseAttrs('aaa  =  111', 0, attrPool, identity, identity)).toBe(11);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa  =  111', 0, attrs, identity, identity)).toBe(11);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111', start: 0, end: 11},
     ]);
   });
 
   it('treats the equals char as the part of the attr value', () => {
-    expect(traverseAttrs('aaa=111=111', 0, attrPool, identity, identity)).toBe(11);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111=111', 0, attrs, identity, identity)).toBe(11);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111=111', start: 0, end: 11},
     ]);
   });
 
   it('treats the quote char as the part of the attr value', () => {
-    expect(traverseAttrs('aaa=111"111', 0, attrPool, identity, identity)).toBe(11);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111"111', 0, attrs, identity, identity)).toBe(11);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111"111', start: 0, end: 11},
     ]);
   });
 
   it('treats single quot as the part of attr value', () => {
-    expect(traverseAttrs('aaa=111\'111', 0, attrPool, identity, identity)).toBe(11);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111\'111', 0, attrs, identity, identity)).toBe(11);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111\'111', start: 0, end: 11},
     ]);
   });
 
   it('treats slash followed by the equals char as the part of the attr value', () => {
-    expect(traverseAttrs('aaa=111/=111 bbb=222', 0, attrPool, identity, identity)).toBe(20);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111/=111 bbb=222', 0, attrs, identity, identity)).toBe(20);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '111/=111', start: 0, end: 12},
       {name: 'bbb', value: '222', start: 13, end: 20},
     ]);
   });
 
   it('treats leading quotes as the part of the attr name', () => {
-    expect(traverseAttrs('""""aaa=111', 0, attrPool, identity, identity)).toBe(11);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('""""aaa=111', 0, attrs, identity, identity)).toBe(11);
+    expect(attrs).toEqual([
       {name: '""""aaa', value: '111', start: 0, end: 11},
     ]);
   });
 
   it('treats trailing quotes as the part of the attr name', () => {
-    expect(traverseAttrs('aaa=""""""bbb=222', 0, attrPool, identity, identity)).toBe(17);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=""""""bbb=222', 0, attrs, identity, identity)).toBe(17);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '', start: 0, end: 6},
       {name: '""""bbb', value: '222', start: 6, end: 17},
     ]);
   });
 
   it('reads the attr with the weird name', () => {
-    expect(traverseAttrs('@#$%*=000', 0, attrPool, identity, identity)).toBe(9);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('@#$%*=000', 0, attrs, identity, identity)).toBe(9);
+    expect(attrs).toEqual([
       {name: '@#$%*', value: '000', start: 0, end: 9},
     ]);
   });
 
   it('reads the attr that starts with the less-than char', () => {
-    expect(traverseAttrs('<=000', 0, attrPool, identity, identity)).toBe(5);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('<=000', 0, attrs, identity, identity)).toBe(5);
+    expect(attrs).toEqual([
       {name: '<', value: '000', start: 0, end: 5},
     ]);
   });
 
   it('does not read after the greater-than char', () => {
-    expect(traverseAttrs('  >aaa=111', 0, attrPool, identity, identity)).toBe(0);
-    expect(attrPool.cache).toEqual([]);
+    expect(parseAttrs('  >aaa=111', 0, attrs, identity, identity)).toBe(0);
+    expect(attrs).toEqual([]);
   });
 
   it('decodes the value', () => {
-    expect(traverseAttrs('aaa=111', 0, attrPool, () => '222', identity)).toBe(7);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111', 0, attrs, () => '222', identity)).toBe(7);
+    expect(attrs).toEqual([
       {name: 'aaa', value: '222', start: 0, end: 7},
     ]);
   });
 
   it('renames the attr', () => {
-    expect(traverseAttrs('aaa=111', 0, attrPool, identity, () => 'bbb')).toBe(7);
-    expect(attrPool.cache).toEqual([
+    expect(parseAttrs('aaa=111', 0, attrs, identity, () => 'bbb')).toBe(7);
+    expect(attrs).toEqual([
       {name: 'bbb', value: '111', start: 0, end: 7},
     ]);
   });
@@ -221,10 +220,7 @@ describe('traverseAttrs', () => {
 
 describe('parseSax', () => {
   
-  let attrPool: ObjectPool<Attribute>;
-
   const onStartTagMock = jest.fn();
-  const onAttributeMock = jest.fn();
   const onEndTagMock = jest.fn();
   const onTextMock = jest.fn();
   const onCommentMock = jest.fn();
@@ -234,7 +230,6 @@ describe('parseSax', () => {
 
   const saxParserOptionsMock: SaxParserOptions = {
     onStartTag: onStartTagMock,
-    onAttribute: onAttributeMock,
     onEndTag: onEndTagMock,
     onText: onTextMock,
     onComment: onCommentMock,
@@ -244,10 +239,7 @@ describe('parseSax', () => {
   };
 
   beforeEach(() => {
-    attrPool = createObjectPool(createAttr);
-
     onStartTagMock.mockReset();
-    onAttributeMock.mockReset();
     onEndTagMock.mockReset();
     onTextMock.mockReset();
     onCommentMock.mockReset();
@@ -259,257 +251,258 @@ describe('parseSax', () => {
   describe('in non-streaming mode', () => {
 
     it('parses text', () => {
-      parseSax('aaa', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('aaa', false, 0, saxParserOptionsMock);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa', 0, 3);
     });
 
     it('parses the start tag without attrs', () => {
-      parseSax('<a>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
     });
 
     it('parses the start tag with attrs', () => {
-      parseSax('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 36);
-
-      expect(onAttributeMock).toHaveBeenCalledTimes(3);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(1, 'foo', '', 3, 6);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(2, 'bar', 'aaa"bbb', 7, 20);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(3, 'baz', 'aaa\'bbb', 22, 35);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 3,
+        0: {name: 'foo', value: '', start: 3, end: 6},
+        1: {name: 'bar', value: 'aaa"bbb', start: 7, end: 20},
+        2: {name: 'baz', value: 'aaa\'bbb', start: 22, end: 35},
+      }, false, 0, 36);
     });
 
     it('parses the start tag without attrs and with spaces before the greater-then char', () => {
-      parseSax('<a   >', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a   >', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 6);
     });
 
     it('parses the end tag', () => {
-      parseSax('</a   >', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('</a   >', false, 0, saxParserOptionsMock);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 7);
+      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 0, 7);
     });
 
     it('does not emit self-closing tags by default', () => {
-      parseSax('<a/>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a/>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 4);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 4);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
 
     it('parses the self-closing tag without attrs', () => {
-      parseSax('<a/>', attrPool, false, 0,{...saxParserOptionsMock, selfClosingEnabled: true});
+      parseSax('<a/>', false, 0, {...saxParserOptionsMock, selfClosingEnabled: true});
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', true, 0, 4);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, true, 0, 4);
 
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', true, 2, 4);
+      expect(onEndTagMock).not.toHaveBeenCalled();
     });
 
     it('parses the self-closing tag with attrs', () => {
-      parseSax('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb"  />', attrPool, false, 0,{...saxParserOptionsMock, selfClosingEnabled: true});
+      parseSax('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb"  />', false, 0, {
+        ...saxParserOptionsMock,
+        selfClosingEnabled: true,
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', true, 0, 39);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 3,
+        0: {name: 'foo', value: '', start: 3, end: 6},
+        1: {name: 'bar', value: 'aaa"bbb', start: 7, end: 20},
+        2: {name: 'baz', value: 'aaa\'bbb', start: 22, end: 35},
+      }, true, 0, 39);
 
-      expect(onAttributeMock).toHaveBeenCalledTimes(3);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(1, 'foo', '', 3, 6);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(2, 'bar', 'aaa"bbb', 7, 20);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(3, 'baz', 'aaa\'bbb', 22, 35);
-
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', true, 37, 39);
+      expect(onEndTagMock).not.toHaveBeenCalled();
     });
 
     it('does not parse self-closing tag with the unquoted attr that ends with a slash', () => {
-      parseSax('<a foo=123//>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a foo=123//>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 13);
-
-      expect(onAttributeMock).toHaveBeenCalledTimes(1);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(1, 'foo', '123//', 3, 12);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 1,
+        0: {name: 'foo', value: '123//', start: 3, end: 12},
+      }, false, 0, 13);
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
 
     it('parses the start tag with the invalid syntax as a text', () => {
-      parseSax('< a>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('< a>', false, 0, saxParserOptionsMock);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '< a>', 0, 4);
     });
 
     it('parses the start tag that start with the weird char as text', () => {
-      parseSax('<@#$%*>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<@#$%*>', false, 0, saxParserOptionsMock);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<@#$%*>', 0, 7);
     });
 
     it('parses the start tag that contain weird chars and starts with the valid name char', () => {
-      parseSax('<a@#$%*>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a@#$%*>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a@#$%*', false, 0, 8);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a@#$%*', {length: 0}, false, 0, 8);
     });
 
     it('parses the end tag with the invalid syntax as text', () => {
-      parseSax('</ a>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('</ a>', false, 0, saxParserOptionsMock);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '</ a>', 0, 5);
     });
 
     it('ignores bullshit in closing tags', () => {
-      parseSax('</a @#$%*/>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('</a @#$%*/>', false, 0, saxParserOptionsMock);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 11);
+      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 0, 11);
     });
 
     it('parses the trailing text', () => {
-      parseSax('<a>okay', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a>okay', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'okay', 3, 7);
     });
 
     it('malformed tag becomes part of text', () => {
-      parseSax('aaa< /a>bbb<b>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('aaa< /a>bbb<b>', false, 0, saxParserOptionsMock);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa< /a>bbb', 0, 11);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', false, 11, 14);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'b', {length: 0}, false, 11, 14);
     });
 
     it('emits start tag with attrs', () => {
-      parseSax('<a foo bar=eee>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<a foo bar=eee>', false, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 15);
-
-      expect(onAttributeMock).toHaveBeenCalledTimes(2);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(1, 'foo', '', 3, 6);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(2, 'bar', 'eee', 7, 14);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {
+        length: 2,
+        0: {name: 'foo', value: '', start: 3, end: 6},
+        1: {name: 'bar', value: 'eee', start: 7, end: 14},
+      }, false, 0, 15);
     });
 
     it('parses terminated XML comments', () => {
-      parseSax('<!--foo-->', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!--foo-->', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 10);
     });
 
     it('parses unterminated XML comments', () => {
-      parseSax('<!--foo', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!--foo', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
     });
 
     it('parses terminated HTML comments', () => {
-      parseSax('<!foo>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!foo>', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 6);
     });
 
     it('parses unterminated HTML comments', () => {
-      parseSax('<!foo', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!foo', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 5);
     });
 
     it('parses HTML comments as text in XML mode', () => {
-      parseSax('<!foo>', attrPool, false, 0,{...saxParserOptionsMock, xmlEnabled: true});
+      parseSax('<!foo>', false, 0, {...saxParserOptionsMock, xmlEnabled: true});
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<!foo>', 0, 6);
     });
 
     it('parses XML comments that contain minuses', () => {
-      parseSax('<!-- foo---->', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!-- foo---->', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, ' foo--', 0, 13);
     });
 
     it('parses processing instructions in XML mode', () => {
-      parseSax('<?xml version="1.0"?>', attrPool, false, 0,{xmlEnabled: true, ...saxParserOptionsMock});
+      parseSax('<?xml version="1.0"?>', false, 0, {xmlEnabled: true, ...saxParserOptionsMock});
 
       expect(onProcessingInstructionMock).toHaveBeenCalledTimes(1);
       expect(onProcessingInstructionMock).toHaveBeenNthCalledWith(1, 'xml version="1.0"', 0, 21);
     });
 
     it('parses terminated processing instructions as comments', () => {
-      parseSax('<?xml version="1.0"?>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<?xml version="1.0"?>', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, '?xml version="1.0"?', 0, 21);
     });
 
     it('parses unterminated processing instructions as comments', () => {
-      parseSax('<?xml version="1.0"', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<?xml version="1.0"', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, '?xml version="1.0"', 0, 19);
     });
 
     it('parses CDATA blocks in XML mode', () => {
-      parseSax('<![CDATA[hello]]>', attrPool, false, 0,{xmlEnabled: true, ...saxParserOptionsMock});
+      parseSax('<![CDATA[hello]]>', false, 0, {xmlEnabled: true, ...saxParserOptionsMock});
 
       expect(onCdataSectionMock).toHaveBeenCalledTimes(1);
       expect(onCdataSectionMock).toHaveBeenNthCalledWith(1, 'hello', 0, 17);
     });
 
     it('parses CDATA blocks as comments', () => {
-      parseSax('<![CDATA[hello]]>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<![CDATA[hello]]>', false, 0, saxParserOptionsMock);
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
       expect(onCommentMock).toHaveBeenNthCalledWith(1, '[CDATA[hello]]', 0, 17);
     });
 
     it('parses doctype in XML mode', () => {
-      parseSax('<!DOCTYPE html>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!DOCTYPE html>', false, 0, saxParserOptionsMock);
 
       expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
       expect(onDocumentTypeMock).toHaveBeenNthCalledWith(1, ' html', 0, 15);
     });
 
     it('parses doctype without spaces', () => {
-      parseSax('<!DOCTYPEhtml>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!DOCTYPEhtml>', false, 0, saxParserOptionsMock);
 
       expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
       expect(onDocumentTypeMock).toHaveBeenNthCalledWith(1, 'html', 0, 14);
     });
 
     it('parses doctype without value', () => {
-      parseSax('<!DOCTYPE>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!DOCTYPE>', false, 0, saxParserOptionsMock);
 
       expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
       expect(onDocumentTypeMock).toHaveBeenNthCalledWith(1, '', 0, 10);
     });
 
     it('does not parse DTD', () => {
-      parseSax('<!DOCTYPE greeting [<!ELEMENT greeting (#PCDATA)>]>', attrPool, false, 0,saxParserOptionsMock);
+      parseSax('<!DOCTYPE greeting [<!ELEMENT greeting (#PCDATA)>]>', false, 0, saxParserOptionsMock);
 
       expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
       expect(onDocumentTypeMock).toHaveBeenNthCalledWith(1, ' greeting [<!ELEMENT greeting (#PCDATA)', 0, 49);
@@ -519,100 +512,112 @@ describe('parseSax', () => {
     });
 
     it('can enforce case-insensitive CDATA tags in HTML mode', () => {
-      parseSax('<script><foo aaa=111></SCRIPT>', attrPool, false, 0,{...saxParserOptionsMock, isRawTag: (name) => name === 'script'});
+      parseSax('<script><foo aaa=111></SCRIPT>', false, 0, {
+        ...saxParserOptionsMock,
+        isTextContent: (tagName) => tagName === 'script',
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', false, 0, 8);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', {length: 0}, false, 0, 8);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<foo aaa=111>', 8, 21);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'SCRIPT', false, 21, 30);
+      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'script', 21, 30);
     });
 
     it('CDATA tags are case-sensitive in XML mode', () => {
-      parseSax('<script><foo aaa=111></SCRIPT>', attrPool, false, 0,{...saxParserOptionsMock, isRawTag: (name) => name === 'script', xmlEnabled: true});
+      parseSax('<script><foo aaa=111></SCRIPT>', false, 0, {
+        ...saxParserOptionsMock,
+        xmlEnabled: true,
+        isTextContent: (tagName) => tagName === 'script',
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', false, 0, 8);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', {length: 0}, false, 0, 8);
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
       expect(onTextMock).toHaveBeenNthCalledWith(1, '<foo aaa=111></SCRIPT>', 8, 30);
     });
 
     it('can enforce CDATA in self-closing tags', () => {
-      parseSax('<script/><foo>', attrPool, false, 0,{...saxParserOptionsMock, isRawTag: (name) => name === 'script', selfClosingEnabled: true});
+      parseSax('<script/><foo>', false, 0, {
+        ...saxParserOptionsMock,
+        selfClosingEnabled: true,
+        isTextContent: (tagName) => tagName === 'script',
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', true, 0, 9);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'foo', false, 9, 14);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'script', {length: 0}, true, 0, 9);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'foo', {length: 0}, false, 9, 14);
 
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'script', true, 7, 9);
+      expect(onEndTagMock).not.toHaveBeenCalled();
     });
 
     it('can rewrite tag names', () => {
-      parseSax('<foo><bar>', attrPool, false, 0,{...saxParserOptionsMock, renameTag: (name) => name.toUpperCase()});
+      parseSax('<foo><bar>', false, 0, {
+        ...saxParserOptionsMock,
+        renameTag: (tagName) => tagName.toUpperCase(),
+      });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'FOO', false, 0, 5);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'BAR', false, 5, 10);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'FOO', {length: 0}, false, 0, 5);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'BAR', {length: 0}, false, 5, 10);
     });
 
     it('can rewrite attr names', () => {
-      parseSax('<foo aaa=111 bbb=222>', attrPool, false, 0,{...saxParserOptionsMock, renameAttr: (name) => name.toUpperCase()});
+      parseSax('<foo aaa=111 bbb=222>', false, 0, {...saxParserOptionsMock, renameAttr: (name) => name.toUpperCase()});
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'foo', false, 0, 21);
-
-      expect(onAttributeMock).toHaveBeenCalledTimes(2);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(1, 'AAA', '111', 5, 12);
-      expect(onAttributeMock).toHaveBeenNthCalledWith(2, 'BBB', '222', 13, 20);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'foo', {
+        length: 2,
+        0: {name: 'AAA', value: '111', start: 5, end: 12},
+        1: {name: 'BBB', value: '222', start: 13, end: 20},
+      }, false, 0, 21);
     });
   });
 
   describe('in streaming mode', () => {
 
     it('parses the start tag without attrs', () => {
-      parseSax('<a>', attrPool, true, 0,saxParserOptionsMock);
+      parseSax('<a>', true, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
     });
 
     it('does not emit the trailing text', () => {
-      parseSax('<a>okay', attrPool, true, 0,saxParserOptionsMock);
+      parseSax('<a>okay', true, 0, saxParserOptionsMock);
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 3);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
-      expect(onTextMock).toHaveBeenCalledTimes(0);
+      expect(onTextMock).not.toHaveBeenCalled();
     });
 
     it('does not emit unterminated XML comments', () => {
-      parseSax('<!--foo', attrPool, true, 0,saxParserOptionsMock);
-      expect(onCommentMock).toHaveBeenCalledTimes(0);
+      parseSax('<!--foo', true, 0, saxParserOptionsMock);
+      expect(onCommentMock).not.toHaveBeenCalled();
     });
 
     it('does not emit unterminated HTML comments', () => {
-      parseSax('<!foo', attrPool, true, 0,saxParserOptionsMock);
-      expect(onCommentMock).toHaveBeenCalledTimes(0);
+      parseSax('<!foo', true, 0, saxParserOptionsMock);
+      expect(onCommentMock).not.toHaveBeenCalled();
     });
 
     it('does not emit unterminated processing instructions as comments', () => {
-      parseSax('<?xml version="1.0"', attrPool, true, 0,saxParserOptionsMock);
-      expect(onCommentMock).toHaveBeenCalledTimes(0);
+      parseSax('<?xml version="1.0"', true, 0, saxParserOptionsMock);
+      expect(onCommentMock).not.toHaveBeenCalled();
     });
   });
 });
 
-describe('in streaming mode', () => {
+describe('createSaxParser', () => {
 
   let parser: SaxParser;
 
   const onStartTagMock = jest.fn();
-  const onAttributeMock = jest.fn();
   const onEndTagMock = jest.fn();
   const onTextMock = jest.fn();
   const onCommentMock = jest.fn();
@@ -625,17 +630,15 @@ describe('in streaming mode', () => {
       selfClosingEnabled: true,
 
       onStartTag: onStartTagMock,
-      onAttribute: onAttributeMock,
       onEndTag: onEndTagMock,
       onText: onTextMock,
       onComment: onCommentMock,
       onProcessingInstruction: onProcessingInstructionMock,
       onCdataSection: onCdataSectionMock,
       onDocumentType: onDocumentTypeMock,
-    })
+    });
 
     onStartTagMock.mockReset();
-    onAttributeMock.mockReset();
     onEndTagMock.mockReset();
     onTextMock.mockReset();
     onCommentMock.mockReset();
@@ -644,81 +647,99 @@ describe('in streaming mode', () => {
     onDocumentTypeMock.mockReset();
   });
 
-  it('defers text emit', () => {
-    parser.writeStream('<a>foo');
+  describe('in non-streaming mode', () => {
 
-    expect(onStartTagMock).toHaveBeenCalledTimes(1);
-    expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', false, 0, 3);
-    expect(onTextMock).toHaveBeenCalledTimes(0);
+    it('does not emit incomplete start tags', () => {
+      parser.commit('<www aaa=111 ');
 
-    parser.writeStream('bar</a>');
+      expect(onStartTagMock).not.toHaveBeenCalled();
+      expect(onTextMock).not.toHaveBeenCalled();
+    });
 
-    expect(onTextMock).toHaveBeenCalledTimes(1);
-    expect(onTextMock).toHaveBeenNthCalledWith(1, 'foobar', 3, 9);
-    expect(onEndTagMock).toHaveBeenCalledTimes(1);
-    expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', false, 9, 13);
+    it('emits incomplete comment', () => {
+      parser.commit('<!--foo');
+
+      expect(onCommentMock).toHaveBeenCalledTimes(1);
+      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
+    });
   });
 
-  it('defers start tag emit', () => {
-    parser.writeStream('<www aaa=111 ');
+  describe('in streaming mode', () => {
 
-    expect(onStartTagMock).toHaveBeenCalledTimes(0);
-    expect(onAttributeMock).toHaveBeenCalledTimes(0);
+    it('defers text emit', () => {
+      parser.writeStream('<a>foo');
 
-    parser.writeStream('/>');
+      expect(onStartTagMock).toHaveBeenCalledTimes(1);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onTextMock).not.toHaveBeenCalled();
 
-    expect(onStartTagMock).toHaveBeenCalledTimes(1);
-    expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'www', true, 0, 15);
+      parser.writeStream('bar</a>');
 
-    expect(onAttributeMock).toHaveBeenCalledTimes(1);
-    expect(onAttributeMock).toHaveBeenNthCalledWith(1, 'aaa', '111', 5, 12);
+      expect(onTextMock).toHaveBeenCalledTimes(1);
+      expect(onTextMock).toHaveBeenNthCalledWith(1, 'foobar', 3, 9);
+      expect(onEndTagMock).toHaveBeenCalledTimes(1);
+      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 9, 13);
+    });
 
-    expect(onEndTagMock).toHaveBeenCalledTimes(1);
-    expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'www', true, 13, 15);
-  });
+    it('defers start tag emit', () => {
+      parser.writeStream('<www aaa=111 ');
 
-  it('defers comment emit', () => {
-    parser.writeStream('<!--foo');
+      expect(onStartTagMock).not.toHaveBeenCalled();
 
-    expect(onCommentMock).toHaveBeenCalledTimes(0);
+      parser.writeStream('/>');
 
-    parser.writeStream('bar-->');
+      expect(onStartTagMock).toHaveBeenCalledTimes(1);
+      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'www', {
+        length: 1,
+        0: {name: 'aaa', value: '111', start: 5, end: 12},
+      }, true, 0, 15);
 
-    expect(onCommentMock).toHaveBeenCalledTimes(1);
-    expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 13);
-  });
+      expect(onEndTagMock).not.toHaveBeenCalled();
+    });
 
-  it('emits tail on commit', () => {
-    parser.writeStream('<!--foo');
+    it('defers comment emit', () => {
+      parser.writeStream('<!--foo');
 
-    expect(onCommentMock).toHaveBeenCalledTimes(0);
+      expect(onCommentMock).not.toHaveBeenCalled();
 
-    parser.commit();
+      parser.writeStream('bar-->');
 
-    expect(onCommentMock).toHaveBeenCalledTimes(1);
-    expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
-  });
+      expect(onCommentMock).toHaveBeenCalledTimes(1);
+      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 13);
+    });
 
-  it('emits tail on commit with an additional data', () => {
-    parser.writeStream('<!--foo');
+    it('emits incomplete comment on commit', () => {
+      parser.writeStream('<!--foo');
 
-    expect(onCommentMock).toHaveBeenCalledTimes(0);
+      expect(onCommentMock).not.toHaveBeenCalled();
 
-    parser.commit('bar');
+      parser.commit();
 
-    expect(onCommentMock).toHaveBeenCalledTimes(1);
-    expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 10);
-  });
+      expect(onCommentMock).toHaveBeenCalledTimes(1);
+      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
+    });
 
-  it('can reset the stream', () => {
-    parser.writeStream('foo');
+    it('emits tail on commit with an additional data', () => {
+      parser.writeStream('<!--foo');
 
-    expect(onTextMock).toHaveBeenCalledTimes(0);
+      expect(onCommentMock).not.toHaveBeenCalled();
 
-    parser.resetStream();
-    parser.commit('bar');
+      parser.commit('bar');
 
-    expect(onTextMock).toHaveBeenCalledTimes(1);
-    expect(onTextMock).toHaveBeenNthCalledWith(1, 'bar', 0, 3);
+      expect(onCommentMock).toHaveBeenCalledTimes(1);
+      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 10);
+    });
+
+    it('can reset the stream', () => {
+      parser.writeStream('foo');
+
+      expect(onTextMock).not.toHaveBeenCalled();
+
+      parser.resetStream();
+      parser.commit('bar');
+
+      expect(onTextMock).toHaveBeenCalledTimes(1);
+      expect(onTextMock).toHaveBeenNthCalledWith(1, 'bar', 0, 3);
+    });
   });
 });

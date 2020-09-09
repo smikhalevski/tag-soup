@@ -73,7 +73,9 @@ export function all(taker: Taker): Taker {
  */
 export function allCharBy(charCodeChecker: CharCodeChecker): Taker {
   return (str, i) => {
-    for (const l = str.length; i < l && charCodeChecker(str.charCodeAt(i)); i++) {
+    const l = str.length;
+    while (i < l && charCodeChecker(str.charCodeAt(i))) {
+      i++;
     }
     return i;
   };

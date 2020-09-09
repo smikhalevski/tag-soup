@@ -1,10 +1,28 @@
-import {FromCharCode} from './shared-types';
+import {FromCharCode} from './parser-utils';
 
 export interface FromCharCodeOptions {
+
+  /**
+   * If set to `true` then an error is thrown if decoder meets a disallowed character reference. Using this option may
+   * slow decoding because additional checks are involved.
+   *
+   * @default false
+   */
   strict?: boolean;
+
+  /**
+   * This char is returned for disallowed character references in non-strict mode.
+   *
+   * @default "\ufffd"
+   */
   replacementChar?: string;
 }
 
+/**
+ * Creates decoder for numeric-encoded XML entities.
+ *
+ * @see createEntitiesDecoder
+ */
 export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharCode {
   const {
     strict = false,
@@ -35,40 +53,48 @@ export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharC
   };
 }
 
-// https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
-const replacementCodePoints: Record<number, string> = {
-  0: '\uFFFD',
-  128: '\u20AC',
-  130: '\u201A',
+/**
+ * Disallowed character references are replaced with chars from this map.
+ *
+ * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
+ */
+export const replacementCodePoints: Record<number, string> = {
+  0: '\ufffd',
+  128: '\u20ac',
+  130: '\u201a',
   131: '\u0192',
-  132: '\u201E',
+  132: '\u201e',
   133: '\u2026',
   134: '\u2020',
   135: '\u2021',
-  136: '\u02C6',
+  136: '\u02c6',
   137: '\u2030',
   138: '\u0160',
   139: '\u2039',
   140: '\u0152',
-  142: '\u017D',
+  142: '\u017d',
   145: '\u2018',
   146: '\u2019',
-  147: '\u201C',
-  148: '\u201D',
+  147: '\u201c',
+  148: '\u201d',
   149: '\u2022',
   150: '\u2013',
   151: '\u2014',
-  152: '\u02DC',
+  152: '\u02dc',
   153: '\u2122',
   154: '\u0161',
-  155: '\u203A',
+  155: '\u203a',
   156: '\u0153',
-  158: '\u017E',
+  158: '\u017e',
   159: '\u0178',
 };
 
-// https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
-const errorCodePoints = [
+/**
+ * Disallowed character references that are replaced with {@link FromCharCodeOptions.replacementChar}.
+ *
+ * @see https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
+ */
+export const errorCodePoints = [
   1,
   2,
   3,

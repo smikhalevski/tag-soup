@@ -12,10 +12,10 @@
     "moduleResolution": "node",
     "noUnusedLocals": false,
     "preserveSymlinks": true,
-    "removeComments": true,
+    "removeComments": false,
     "skipLibCheck": true,
     "strict": true,
-    "target": "es5",
+    "target": "es3",
     "module": "esnext",
     "rootDir": "./src/main",
     "outDir": "./lib"

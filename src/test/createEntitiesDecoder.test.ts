@@ -1,7 +1,7 @@
 import {createEntitiesDecoder} from '../main/createEntitiesDecoder';
 import {createFromHtmlCharName} from '../main/createFromHtmlCharName';
 
-describe('decode', () => {
+describe('createEntitiesDecoder', () => {
 
   it('decodes decimal entities', () => {
     expect(createEntitiesDecoder()('&#60;')).toBe('<');

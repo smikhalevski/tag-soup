@@ -1,53 +1,54 @@
-import {createSaxParser, SaxParserDialectOptions, SaxParserOptions} from './createSaxParser';
+import {Attribute, DataCallback, SaxParser, SaxParserCallbacks, SaxParserOptions} from './createSaxParser';
+import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
 
-export interface DomParserDialectOptions<Element> extends SaxParserDialectOptions {
-
-  /**
-   * If returns `true` then tag with given name is rendered as text while its children are left intact.
-   */
-  isIgnoredTag?: (tagName: string) => boolean;
-
-  /**
-   * If returns `true` then tag with given name is replaced with its children.
-   */
-  isOmittedTag?: (tagName: string) => boolean;
-
-  /**
-   * If returns `true` then element cannot have children and if it does they are rendered as its siblings.
-   */
-  isVoidElement?: (element: Element) => boolean;
-
-  /**
-   * If returns `true` then `element` is rendered as sibling of `parentElement` instead of being added as a child to
-   * `parentElement`.
-   */
-  isImplicitClose?: (parentElement: Element, element: Element) => boolean;
+export interface CustomSaxParserOptions extends SaxParserOptions {
+  [saxParserOption: string]: unknown;
 }
 
-export type ElementFactory<Element> = (tagName: string, start: number, end: number) => Element;
+export interface DomParserDialectOptions<Element> extends ForgivingSaxParserOptions {
 
-export type TextNodeFactory<Text> = (data: string, start: number, end: number) => Text;
+  /**
+   * Factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings. By
+   * default, a forgiving SAX parser is used.
+   *
+   * Note: DOM parser expects underlying SAX parser to emit tags in correct order. No additional checks are made while
+   * constructing a tree of elements.
+   */
+  saxParserFactory?: (options: CustomSaxParserOptions) => SaxParser;
+
+  /**
+   * If you use your custom implementation of the SAX parser, you can provide additional options to it using this
+   * indexer.
+   */
+  [saxParserOption: string]: unknown;
+}
+
+export type ElementFactory<Element> = (tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number) => Element;
 
 export type DataNodeFactory<Node> = (data: string, start: number, end: number) => Node;
 
 export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
+
+  /**
+   * Creates a new element.
+   *
+   * Note: `attrs` argument is an array-like object that holds pooled objects that would be revoked after this callback
+   * finishes. To preserve parsed attributes make a deep copy of `attrs`. This is done to reduce memory consumption
+   * during parsing by avoiding excessive object allocation.
+   */
   createElement: ElementFactory<Element>;
-  createTextNode: TextNodeFactory<Text>;
+  appendChild: (element: Element, childNode: Node) => void;
+
+  /**
+   * Triggered when container element end tag is emitted. Use this to update source end offset of the container element.
+   */
+  onContainerEnd?: (element: Element, start: number, end: number) => void;
+
+  createTextNode?: DataNodeFactory<Text>;
   createProcessingInstruction?: DataNodeFactory<Node>;
   createCdataSection?: DataNodeFactory<Node>;
   createDocumentType?: DataNodeFactory<Node>;
   createComment?: DataNodeFactory<Node>;
-
-  /**
-   * Clones an element with a single child.
-   */
-  cloneElement?: (element: Element, childNode: Node, start: number, end: number) => Element;
-  setAttribute?: (element: Element, name: string, value: string, start: number, end: number) => void;
-  appendChild: (element: Element, childNode: Node) => void;
-  appendData: (textNode: Text, data: string) => void;
-  getParentElement: (node: Node) => Element | null;
-  getTagName: (element: Element) => string;
-  setEndOffset?: (node: Node, end: number) => void;
 }
 
 export interface DomParserOptions<Node, Element extends Node, Text extends Node> extends DomParserDialectOptions<Element>, DomParserFactoryCallbacks<Node, Element, Text> {
@@ -62,217 +63,87 @@ export interface DomParser<Node, Element extends Node = Node, Text extends Node 
   commit(str?: string): Array<Node>;
 }
 
+/**
+ * Creates a streaming DOM parser (which is essentially a thin wrapper around a SAX parser).
+ */
 export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: DomParserOptions<Node, Element, Text>): DomParser<Node, Element, Text> {
   const {
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    isRawTag,
-
-    isIgnoredTag,
-    isOmittedTag,
-    isVoidElement,
-    isImplicitClose,
+    saxParserFactory = createForgivingSaxParser,
 
     createElement,
+    appendChild,
+    onContainerEnd,
+
     createTextNode,
     createProcessingInstruction,
     createCdataSection,
     createDocumentType,
     createComment,
-
-    cloneElement,
-    setAttribute,
-    appendChild,
-    appendData,
-    getParentElement,
-    getTagName,
-    setEndOffset,
   } = options;
 
-  let str: string;
-  let offset = 0;
-  let nodeList: Array<Node> = [];
-  let hostEl: Element | null;
-  let orphanEl: Element | null;
-  let textNode: Text | null;
-  let treeStarted = false;
+  let elements: Array<Element> = [];
+  let depth = 0;
+  let nodes: Array<Node> = [];
 
-  const pushChild = (node: Node, closeImplied: boolean, start: number): void => {
-    if (cloneElement != null) {
-      for (let el = orphanEl, parentEl; el != null && (parentEl = getParentElement(el)) !== hostEl; el = parentEl) {
-        if (closeImplied && parentEl != null && isImplicitClose?.(parentEl, node as Element)) {
-          break;
-        }
-        node = cloneElement(el, node, start, start);
-      }
-      orphanEl = null;
-    }
-    if (hostEl != null) {
-      appendChild(hostEl, node);
+  const pushNode = (node: Node) => {
+    if (depth > 0) {
+      appendChild(elements[depth - 1], node);
     } else {
-      nodeList.push(node);
+      nodes.push(node);
     }
-    treeStarted = true;
   };
 
-  const pushData = (data: string, start: number, end: number): void => {
-    if (textNode != null && orphanEl == null) {
-      appendData(textNode, data);
-      setEndOffset?.(textNode, end);
-      return;
+  const createDataCallback = (factory: DataNodeFactory<Node> | undefined): DataCallback | undefined => {
+    if (factory) {
+      return (data, start, end) => pushNode(factory(data, start, end));
     }
-
-    textNode = createTextNode(data, start, end);
-    pushChild(textNode, false, start);
-
-    hostEl = getParentElement(textNode);
   };
 
-  const saxParserOptions: SaxParserOptions = {
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    isRawTag,
+  const saxParserCallbacks: SaxParserCallbacks = {
 
-    onStartTag(tagName, selfClosing, start, end) {
-      if (isOmittedTag?.(tagName)) {
-        return;
-      }
-      if (isIgnoredTag?.(tagName)) {
-        pushData(str.substring(start - offset, end - offset), start, end);
-        return;
-      }
+    onStartTag(tagName, attrs, selfClosing, start, end) {
+      const element = createElement(tagName, attrs, selfClosing, start, end);
+      pushNode(element);
 
-      const el = createElement(tagName, start, end);
-      if (hostEl != null && isImplicitClose?.(hostEl, el)) {
-        setEndOffset?.(hostEl, start);
-        hostEl = getParentElement(hostEl);
-      }
-      pushChild(el, true, start);
-
-      hostEl = selfClosing || isVoidElement?.(el) ? getParentElement(el) : el;
-      textNode = null;
-    },
-
-    onAttribute(name, value, start, end) {
-      if (hostEl) {
-        setAttribute?.(hostEl, name, value, start, end);
+      if (!selfClosing) {
+        elements[depth] = element;
+        depth++;
       }
     },
 
-    onEndTag(tagName, selfClosing, start, end) {
-      if (isOmittedTag?.(tagName)) {
-        return;
-      }
-      if (isIgnoredTag?.(tagName)) {
-        pushData(str.substring(start - offset, end - offset), start, end);
-        return;
-      }
-      if (selfClosing || hostEl == null) {
-        return;
-      }
-
-      for (let el: Element | null = hostEl; el != null; el = getParentElement(el)) {
-        if (getTagName(el) === tagName) {
-          if (el !== hostEl) {
-
-            if (cloneElement != null) {
-              orphanEl = hostEl;
-            }
-
-            if (setEndOffset != null) {
-              for (let orphanEl: Node | null = hostEl; orphanEl != null && orphanEl !== el; orphanEl = getParentElement(orphanEl)) {
-                setEndOffset(orphanEl, start);
-              }
-            }
-          }
-
-          setEndOffset?.(el, end);
-
-          hostEl = getParentElement(el);
-          textNode = null;
-          break;
-        }
-      }
+    onEndTag(tagName, start, end) {
+      depth--;
+      onContainerEnd?.(elements[depth], start, end);
     },
 
-    onText: pushData,
+    onText: createDataCallback(createTextNode),
+    onProcessingInstruction: createDataCallback(createProcessingInstruction),
+    onCdataSection: createDataCallback(createCdataSection),
+    onDocumentType: createDataCallback(createDocumentType),
+    onComment: createDataCallback(createComment),
   };
 
-  if (createProcessingInstruction) {
-    saxParserOptions.onProcessingInstruction = (value, start, end) => {
-      pushChild(createProcessingInstruction(value, start, end), false, start);
-    };
-  }
+  const saxParser = saxParserFactory(Object.assign({}, options, saxParserCallbacks));
 
-  if (createCdataSection) {
-    saxParserOptions.onCdataSection = (value, start, end) => {
-      pushChild(createCdataSection(value, start, end), false, start);
-    };
-  }
-
-  if (createDocumentType) {
-    saxParserOptions.onDocumentType = (value, start, end) => {
-      if (!treeStarted) {
-        nodeList.push(createDocumentType(value, start, end));
-      }
-    };
-  }
-
-  if (createComment) {
-    saxParserOptions.onComment = (value, start, end) => {
-      pushChild(createComment(value, start, end), false, start);
-    };
-  }
-
-  const saxParser = createSaxParser(saxParserOptions);
-
-  const reset = () => {
-    str = '';
-    offset = 0;
-    nodeList = [];
-    hostEl = null;
-    orphanEl = null;
-    textNode = null;
-    treeStarted = false;
+  const resetStream = () => {
+    saxParser.resetStream();
+    elements = [];
+    depth = 0;
+    nodes = [];
   };
 
   return {
-    resetStream() {
-      saxParser.resetStream();
-      reset();
-    },
+    resetStream,
 
-    writeStream(s) {
-      str = saxParser.tail + s;
-      offset = saxParser.offset;
-
-      saxParser.writeStream(str);
-      return nodeList;
-    },
-
-    commit(s = '') {
-      str = saxParser.tail + s;
-      offset = saxParser.offset;
-
+    writeStream(str) {
       saxParser.commit(str);
+      return nodes;
+    },
 
-      if (setEndOffset != null) {
-        const charCount = offset + str.length;
-        for (let el: Element | null = hostEl; el != null; el = getParentElement(el)) {
-          setEndOffset(el, charCount);
-        }
-      }
-
-      const result = nodeList;
-      reset();
+    commit(str) {
+      saxParser.commit(str);
+      const result = nodes;
+      resetStream();
       return result;
     },
   };

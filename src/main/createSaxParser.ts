@@ -1,13 +1,142 @@
-import {createObjectPool, ObjectPool} from './createObjectPool';
 import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, untilSubstr} from './dsl-utils';
-import {CharCode} from './CharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {Rewriter} from './shared-types';
+import {CharCode, Mutable, pure, Rewriter} from './parser-utils';
 
-const xmlDecoder = createEntitiesDecoder();
+export interface Attribute {
 
-export function identity<T>(value: T): T {
-  return value;
+  /**
+   * The rewritten name of the attribute.
+   */
+  name: string;
+
+  /**
+   * The decoded value of the attribute. If attribute didn't have a value then an empty string.
+   */
+  value: string;
+  start: number;
+  end: number;
+}
+
+export type StartTagCallback = (tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number) => void;
+
+export type EndTagCallback = (tagName: string, start: number, end: number) => void;
+
+export type DataCallback = (data: string, start: number, end: number) => void;
+
+export interface SaxParserDialectOptions {
+
+  /**
+   * If set to `true` then CDATA sections and processing instructions are recognized, self-closing tags are enabled and
+   * tag names are case-sensitive. Otherwise, CDATA sections and processing instructions are emitted as comments,
+   * self-closing tags are treated as start tags and tag names are case-insensitive.
+   *
+   * @default false
+   */
+  xmlEnabled?: boolean;
+
+  /**
+   * Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.
+   */
+  decodeAttr?: Rewriter;
+
+  /**
+   * Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.
+   */
+  decodeText?: Rewriter;
+
+  /**
+   * Rewrites tag name. By default, in XML mode tags are not rewritten while in non-XML mode tags are converted to
+   * lower case.
+   */
+  renameTag?: Rewriter;
+
+  /**
+   * Rewrites attribute name. By default there's no rewriting.
+   */
+  renameAttr?: Rewriter;
+
+  /**
+   * Enables self-closing tags recognition. In XML mode this is always enabled.
+   */
+  selfClosingEnabled?: boolean;
+
+  /**
+   * If returns `true` than content inside the container tag would be treated as a plain text.
+   */
+  isTextContent?: (tagName: string) => boolean;
+}
+
+export interface SaxParserCallbacks {
+
+  /**
+   * Triggered when a start tag and its attributes were read.
+   *
+   * Note: `attrs` argument is an array-like object that holds pooled objects that would be revoked after this callback
+   * finishes. To preserve parsed attributes make a deep copy of `attrs`. This is done to reduce memory consumption
+   * during parsing by avoiding excessive object allocation.
+   */
+  onStartTag?: StartTagCallback;
+  onEndTag?: EndTagCallback;
+  onText?: DataCallback;
+  onComment?: DataCallback;
+  onProcessingInstruction?: DataCallback;
+  onCdataSection?: DataCallback;
+  onDocumentType?: DataCallback;
+  onReset?: () => void;
+  onWrite?: (chunk: string, parsedCharCount: number) => void;
+  onCommit?: (chunk: string, parsedCharCount: number) => void;
+}
+
+export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
+}
+
+export interface SaxParser {
+
+  resetStream(): void;
+
+  writeStream(chunk: string): void;
+
+  commit(chunk?: string): void;
+}
+
+/**
+ * Creates a streaming SAX parser that emits tags as is.
+ */
+export function createSaxParser(options: SaxParserOptions): SaxParser {
+  const {
+    onReset,
+    onWrite,
+    onCommit,
+  } = options;
+
+  let buffer = '';
+  let offset = 0;
+  let parsedCharCount = 0;
+
+  const resetStream = () => {
+    buffer = '';
+    offset = 0;
+    onReset?.();
+  };
+
+  return {
+    resetStream,
+
+    writeStream(chunk) {
+      buffer += chunk;
+      const l = parseSax(buffer, true, offset, options);
+      parsedCharCount += l;
+      buffer = buffer.substr(l);
+      offset += l;
+      onWrite?.(chunk, parsedCharCount);
+    },
+
+    commit(chunk = '') {
+      parsedCharCount += parseSax(buffer + chunk, false, offset, options);
+      onCommit?.(chunk, parsedCharCount);
+      resetStream();
+    },
+  };
 }
 
 // https://www.w3.org/TR/xml/#NT-S
@@ -90,17 +219,19 @@ const takeCdataSection = seq(substr('<![CDATA['), untilSubstr(']]>', true, true)
 // <!DOCTYPE html>
 const takeDocumentType = seq(substr('<!DOCTYPE', true), untilSubstr('>', true, true));
 
-export function createAttr(): Attribute {
-  return {
-    name: '',
-    value: '',
-    start: 0,
-    end: 0,
-  };
-}
-
-export function traverseAttrs(str: string, i: number, attrPool: ObjectPool<Attribute>, decode: Rewriter, rename: Rewriter): number {
+/**
+ * Parses attributes from string starting from given position.
+ *
+ * @param str The string to read attributes from.
+ * @param i The initial index where attributes' definitions are expected to start.
+ * @param attrs An array to which {@link Attribute} objects are added.
+ * @param decode The decoder of HTML/XML entities.
+ * @param rename The callback that receives an attribute name and returns a new name.
+ */
+export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<Attribute>>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
+
+  let attrCount = 0;
 
   while (i < charCount) {
 
@@ -114,9 +245,7 @@ export function traverseAttrs(str: string, i: number, attrPool: ObjectPool<Attri
       break;
     }
 
-    const attr = attrPool.allocate();
-
-    attr.name = rename(str.substring(k, j));
+    const name = rename(str.substring(k, j));
 
     k = j;
     j = takeEq(str, k);
@@ -144,129 +273,47 @@ export function traverseAttrs(str: string, i: number, attrPool: ObjectPool<Attri
       }
     }
 
-    attr.value = value;
-    attr.start = start;
-    attr.end = k;
+    // Populate attributes pool
+    const attr = attrs[attrCount];
+    if (attr) {
+      attr.name = name;
+      attr.value = value;
+      attr.start = start;
+      attr.end = k;
+    } else {
+      attrs[attrCount] = {name, value, start, end: k};
+    }
+    attrCount++;
 
     i = k;
   }
+
+  attrs.length = attrCount;
   return i;
 }
 
-export interface Attribute {
-  name: string;
-  value: string;
-  start: number;
-  end: number;
+// Default decoder used by SAX parser
+const xmlDecoder = createEntitiesDecoder();
+
+export function lowerCase(str: string): string {
+  return str.toLowerCase();
 }
 
-export type StartTagCallback = (tagName: string, selfClosing: boolean, start: number, end: number) => void;
-
-export type AttributeCallback = (name: string, value: string, start: number, end: number) => void;
-
-export type EndTagCallback = (tagName: string, selfClosing: boolean, start: number, end: number) => void;
-
-export type DataCallback = (data: string, start: number, end: number) => void;
-
-export interface SaxParserDialectOptions {
-
-  /**
-   * If set to `true` then CDATA sections and processing instructions are recognized, self-closing tags are enabled and
-   * tag names are case-sensitive. Otherwise, CDATA sections and processing instructions are emitted as comments,
-   * self-closing tags are treated as start tags and tag names are case-insensitive.
-   *
-   * @default false
-   */
-  xmlEnabled?: boolean;
-
-  /**
-   * Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.
-   */
-  decodeAttr?: Rewriter;
-
-  /**
-   * Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.
-   */
-  decodeText?: Rewriter;
-  renameTag?: Rewriter;
-  renameAttr?: Rewriter;
-  selfClosingEnabled?: boolean;
-
-  /**
-   * If returns `true` then contents of the tag are treated as plain text.
-   */
-  isRawTag?: (tagName: string) => boolean;
+export function identity<T>(value: T): T {
+  return value;
 }
 
-export interface SaxParserCallbacks {
-  onStartTag?: StartTagCallback;
-  onAttribute?: AttributeCallback;
-  onEndTag?: EndTagCallback;
-  onText?: DataCallback;
-  onComment?: DataCallback;
-  onProcessingInstruction?: DataCallback;
-  onCdataSection?: DataCallback;
-  onDocumentType?: DataCallback;
-}
-
-export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
-}
-
-export interface SaxParser {
-
-  readonly tail: string;
-  readonly offset: number;
-
-  resetStream(): void;
-
-  writeStream(str: string): void;
-
-  commit(str?: string): void;
-}
-
-export function createSaxParser(options: SaxParserOptions): SaxParser {
-  const attrPool = createObjectPool(createAttr);
-
-  let tail = '';
-  let offset = 0;
-
-  return {
-    get tail() {
-      return tail;
-    },
-    get offset() {
-      return offset;
-    },
-
-    resetStream() {
-      tail = '';
-      offset = 0;
-    },
-    writeStream(str) {
-      const i = parseSax(tail + str, attrPool, true, offset, options);
-      tail = str.substr(i);
-      offset += i;
-    },
-    commit(str = '') {
-      parseSax(tail + str, attrPool, false, offset, options);
-      tail = '';
-      offset = 0;
-    },
-  };
-}
-
-export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming: boolean, offset: number, options: SaxParserOptions): number {
+export function parseSax(str: string, streaming: boolean, offset: number, options: SaxParserOptions): number {
   const {
     xmlEnabled = false,
     decodeAttr = xmlDecoder,
     decodeText = xmlDecoder,
-    renameTag = identity,
-    renameAttr = identity,
+    renameTag = xmlEnabled ? identity : lowerCase,
+    renameAttr = xmlEnabled ? identity : lowerCase,
     selfClosingEnabled = false,
-    isRawTag,
+    isTextContent,
 
     onStartTag,
-    onAttribute,
     onEndTag,
     onText,
     onComment,
@@ -277,12 +324,18 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
 
   let textStart = -1;
   let textEnd = -1;
-  let rawTagName: string | null = null;
+  let tagParsingEnabled = true;
+  let startTagName: string | undefined;
+
+  // Pool of reusable attribute objects
+  const attrs = pure<Mutable<ArrayLike<Attribute>>>({length: 0});
 
   // Emits text chunk if any
   const emitText = () => {
     if (textStart !== -1) {
-      onText?.(decodeText(str.substring(textStart, textEnd)), offset + textStart, offset + textEnd);
+      // This substring call would have performance implications in perf test if the result substring is huge
+      const text = str.substring(textStart, textEnd);
+      onText?.(decodeText(text), offset + textStart, offset + textEnd);
       textStart = textEnd = -1;
     }
   };
@@ -316,16 +369,14 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
       }
     }
 
-    // Outside of the raw context
-    if (!rawTagName) {
+    if (tagParsingEnabled) {
 
       // Start tag
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
 
-        attrPool.reset();
-        j = traverseAttrs(str, j, attrPool, decodeAttr, renameAttr);
+        j = parseAttrs(str, j, attrs, decodeAttr, renameAttr);
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -338,25 +389,11 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
         const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode.SLASH;
 
         emitText();
-        onStartTag?.(tagName, selfClosing, offset + i, offset + k);
+        onStartTag?.(tagName, attrs, selfClosing, offset + i, offset + k);
 
-        if (onAttribute) {
-          for (let i = 0, n = attrPool.countAllocations(); i < n; i++) {
-            const attr = attrPool.cache[i];
-            onAttribute(attr.name, attr.value, offset + attr.start, offset + attr.end);
-          }
-        }
-
-        if (selfClosing) {
-
-          // Emit self-closing start tag
-          onEndTag?.(tagName, true, offset + k - 2, offset + k);
-        } else {
-
-          // Enforce CDATA context only for non self-closing tags
-          if (isRawTag?.(tagName)) {
-            rawTagName = xmlEnabled ? tagName : tagName.toLowerCase();
-          }
+        if (!selfClosing) {
+          startTagName = tagName;
+          tagParsingEnabled = !isTextContent?.(tagName);
         }
 
         i = k;
@@ -364,13 +401,15 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
       }
     }
 
-    // End tag (can be inside the raw context)
+    // End tag
     j = takeEndTagOpening(str, i);
     if (j !== -1) {
       const tagName = renameTag(str.substring(i + 2, j));
 
-      if (!rawTagName || (xmlEnabled ? tagName : tagName.toLowerCase()) === rawTagName) {
-        rawTagName = null;
+      if (tagParsingEnabled || startTagName === tagName) {
+
+        // Resume tag parsing if text content tag has ended
+        tagParsingEnabled = true;
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -381,15 +420,14 @@ export function parseSax(str: string, attrPool: ObjectPool<Attribute>, streaming
         }
 
         emitText();
-        onEndTag?.(tagName, false, offset + i, offset + k);
+        onEndTag?.(tagName, offset + i, offset + k);
 
         i = k;
         continue;
       }
     }
 
-    // Outside of the raw context
-    if (!rawTagName) {
+    if (tagParsingEnabled) {
       let k;
 
       // Comment
