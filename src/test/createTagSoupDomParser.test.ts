@@ -5,11 +5,12 @@ import {
   TagSoupElement,
   TagSoupNode,
 } from '../main/createTagSoupDomParser';
-import {ContentMode} from '../main/ContentMode';
+import {Attribute} from '../main';
 
-function el(tagName: string, start: number, end: number, attrs: Record<string, string> = {}, children: Array<TagSoupNode> = []): TagSoupElement {
-  const el = createTagSoupElement(tagName, attrs, start, end, children);
+function el(tagName: string, start: number, end: number, selfClosing = false, attrs: Array<Attribute> = [], children: Array<TagSoupNode> = []): TagSoupElement {
+  const el = createTagSoupElement(tagName, attrs, selfClosing, start, end);
 
+  el.children = children;
   for (const child of children) {
     child.parent = el;
   }
@@ -24,7 +25,7 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser();
 
     expect(parser.commit('<a>okay</a>')).toEqual([
-      el('a', 0, 11, {}, [
+      el('a', 0, 11, false, [], [
         text('okay', 3, 7),
       ]),
     ]);
@@ -34,7 +35,7 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser({selfClosingEnabled: true});
 
     expect(parser.commit('<a/>')).toEqual([
-      el('a', 0, 4),
+      el('a', 0, 4, true),
     ]);
   });
 
@@ -59,7 +60,7 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser();
 
     expect(parser.commit('<a/>foo')).toEqual([
-      el('a', 0, 7, {}, [
+      el('a', 0, 7, false, [], [
         text('foo', 4, 7),
       ]),
     ]);
@@ -69,7 +70,7 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser({selfClosingEnabled: true});
 
     expect(parser.commit('<a/>foo')).toEqual([
-      el('a', 0, 4),
+      el('a', 0, 4, true),
       text('foo', 4, 7),
     ]);
   });
@@ -78,8 +79,9 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser();
 
     expect(parser.commit('<a>aaa</b>bbb</a>')).toEqual([
-      el('a', 0, 17, {}, [
-        text('aaabbb', 3, 13),
+      el('a', 0, 17, false, [], [
+        text('aaa', 3, 6),
+        text('bbb', 10, 13),
       ]),
     ]);
   });
@@ -88,12 +90,12 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser();
 
     expect(parser.commit('<a>aaa<b>bbb</a></b>')).toEqual([
-      el('a', 0, 16, {}, [
+      el('a', 0, 16, false, [], [
         text('aaa', 3, 6),
-        el('b', 6, 12, {}, [
+        el('b', 6, 12, false, [], [
           text('bbb', 9, 12),
         ]),
-      ])
+      ]),
     ]);
   });
 
@@ -101,69 +103,47 @@ describe('createTagSoupDomParser', () => {
     const parser = createTagSoupDomParser();
 
     expect(parser.commit('<a>aaa<b>bbb</a>ccc</b>')).toEqual([
-      el('a', 0, 16, {}, [
+      el('a', 0, 16, false, [], [
         text('aaa', 3, 6),
-        el('b', 6, 12, {}, [
+        el('b', 6, 12, false, [], [
           text('bbb', 9, 12),
         ]),
       ]),
-      el('b', 16, 23, {}, [
-        text('ccc', 16, 19),
-      ]),
+      text('ccc', 16, 19),
     ]);
   });
 
   it('closes void tags', () => {
-    const parser = createTagSoupDomParser({getContentMode: (tagName) => tagName === 'a' ? ContentMode.VOID : ContentMode.FLOW});
+    const parser = createTagSoupDomParser({isVoidContent: (tagName) => tagName === 'a'});
 
     expect(parser.commit('<a><a><a>')).toEqual([
-      el('a', 0, 3),
-      el('a', 3, 6),
-      el('a', 6, 9),
-    ]);
-  });
-
-  it('source of ignored tags is appended as text', () => {
-    const parser = createTagSoupDomParser({isEmittedAsText: (tagName) => tagName === 'a'});
-
-    expect(parser.commit('<b><a></b></a>')).toEqual([
-      el('b', 0, 10, {}, [
-        text('<a>', 3, 6),
-      ]),
-      text('</a>', 10, 14),
-    ]);
-  });
-
-  it('omitted tags are not output', () => {
-    const parser = createTagSoupDomParser({isIgnored: (tagName) => tagName === 'a'});
-
-    expect(parser.commit('<b><a></a></b>')).toEqual([
-      el('b', 0, 14),
+      el('a', 0, 3, true),
+      el('a', 3, 6, true),
+      el('a', 6, 9, true),
     ]);
   });
 
   it('implicitly closes current tag', () => {
-    const parser = createTagSoupDomParser({isImplicitEnd: (t1, t2) => t1 === 'p' && t2 === 'p'});
+    const parser = createTagSoupDomParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'p' && tagName === 'p'});
 
     expect(parser.commit('<p>foo<p>bar')).toEqual([
-      el('p', 0, 6, {}, [
-          text('foo', 3, 6),
+      el('p', 0, 6, false, [], [
+        text('foo', 3, 6),
       ]),
-      el('p', 6, 12, {}, [
-          text('bar', 9, 12),
+      el('p', 6, 12, false, [], [
+        text('bar', 9, 12),
       ]),
     ]);
   });
 
   it('implicitly closes current tag with nesting', () => {
-    const parser = createTagSoupDomParser({isImplicitEnd: (t1, t2) => t1 === 'p' && t2 === 'p'});
+    const parser = createTagSoupDomParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'p' && tagName === 'p'});
 
     expect(parser.commit('<p><p>aaa</p></p>')).toEqual([
       el('p', 0, 3),
-      el('p', 3, 13, {}, [
-          text('aaa', 6, 9),
+      el('p', 3, 13, false, [], [
+        text('aaa', 6, 9),
       ]),
-      el('p', 0, 6),
     ]);
   });
 });

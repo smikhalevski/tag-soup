@@ -1,8 +1,7 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, untilSubstr} from './dsl-utils';
 import {CharCode} from './CharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {Maybe, Rewriter} from './shared-types';
-import {ContentMode} from './ContentMode';
+import {Rewriter} from './shared-types';
 
 export interface Attribute {
 
@@ -19,7 +18,7 @@ export interface Attribute {
   end: number;
 }
 
-export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, contentMode: ContentMode, start: number, end: number) => void;
+export type StartTagCallback = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, start: number, end: number) => void;
 
 export type EndTagCallback = (tagName: string, start: number, end: number) => void;
 
@@ -63,13 +62,9 @@ export interface SaxParserDialectOptions {
   selfClosingEnabled?: boolean;
 
   /**
-   * Returns mode that defines how content of the tag is interpreted. If omitted then all tags are considered to have
-   * {@link ContentMode.FLOW} which has no constraints.
-   *
-   * @param tagName The tag name, rewritten with {@link renameTag}.
-   * @returns The content mode for the tag with `tagName`.
+   * If returns `true` than content inside the container tag would be treated as a plain text.
    */
-  getContentMode?: (tagName: string) => Maybe<ContentMode>;
+  isTextContent?: (tagName: string) => boolean;
 }
 
 export interface SaxParserCallbacks {
@@ -80,6 +75,9 @@ export interface SaxParserCallbacks {
   onProcessingInstruction?: DataCallback;
   onCdataSection?: DataCallback;
   onDocumentType?: DataCallback;
+  onReset?: () => void;
+  onWrite?: (chunk: string, parsedCharCount: number) => void;
+  onCommit?: (chunk: string, parsedCharCount: number) => void;
 }
 
 export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
@@ -89,33 +87,47 @@ export interface SaxParser {
 
   resetStream(): void;
 
-  writeStream(str: string): void;
+  writeStream(chunk: string): void;
 
-  commit(str?: string): void;
+  commit(chunk?: string): void;
 }
 
 /**
  * Creates a streaming SAX parser that emits tags as is.
  */
 export function createSaxParser(options: SaxParserOptions): SaxParser {
-  let tail = '';
+  const {
+    onReset,
+    onWrite,
+    onCommit,
+  } = options;
+
+  let buffer = '';
   let offset = 0;
+  let parsedCharCount = 0;
+
+  const resetStream = () => {
+    buffer = '';
+    offset = 0;
+    onReset?.();
+  };
 
   return {
-    resetStream() {
-      tail = '';
-      offset = 0;
-    },
-    writeStream(str) {
-      tail += str;
-      const l = parseSax(tail, true, offset, options);
-      tail = tail.substr(l);
+    resetStream,
+
+    writeStream(chunk) {
+      buffer += chunk;
+      const l = parseSax(buffer, true, offset, options);
+      parsedCharCount += l;
+      buffer = buffer.substr(l);
       offset += l;
+      onWrite?.(chunk, parsedCharCount);
     },
-    commit(str = '') {
-      parseSax(tail + str, false, offset, options);
-      tail = '';
-      offset = 0;
+
+    commit(chunk = '') {
+      parsedCharCount += parseSax(buffer + chunk, false, offset, options);
+      onCommit?.(chunk, parsedCharCount);
+      resetStream();
     },
   };
 }
@@ -262,7 +274,7 @@ export function parseAttrs(str: string, i: number, attrs: Array<Attribute>, deco
 // Default decoder used by SAX parser
 const xmlDecoder = createEntitiesDecoder();
 
-function lowerCase(str: string): string {
+export function lowerCase(str: string): string {
   return str.toLowerCase();
 }
 
@@ -278,7 +290,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
     renameTag = xmlEnabled ? identity : lowerCase,
     renameAttr = xmlEnabled ? identity : lowerCase,
     selfClosingEnabled = false,
-    getContentMode,
+    isTextContent,
 
     onStartTag,
     onEndTag,
@@ -291,13 +303,15 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
 
   let textStart = -1;
   let textEnd = -1;
-  let startTagMode: number = ContentMode.FLOW;
+  let tagParsingEnabled = true;
   let startTagName: string | undefined;
 
   // Emits text chunk if any
   const emitText = () => {
     if (textStart !== -1) {
-      onText?.(decodeText(str.substring(textStart, textEnd)), offset + textStart, offset + textEnd);
+      // This substring call would have performance implications in perf test if the result substring is huge
+      const text = str.substring(textStart, textEnd);
+      onText?.(decodeText(text), offset + textStart, offset + textEnd);
       textStart = textEnd = -1;
     }
   };
@@ -331,13 +345,12 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       }
     }
 
-    if (startTagMode !== ContentMode.TEXT) {
+    if (tagParsingEnabled) {
 
       // Start tag
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
-        const tagMode = getContentMode?.(tagName) || ContentMode.FLOW;
 
         const attrs: Array<Attribute> = [];
         j = parseAttrs(str, j, attrs, decodeAttr, renameAttr);
@@ -353,11 +366,11 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
         const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode.SLASH;
 
         emitText();
-        onStartTag?.(tagName, attrs, selfClosing, tagMode, offset + i, offset + k);
+        onStartTag?.(tagName, attrs, selfClosing, offset + i, offset + k);
 
         if (!selfClosing) {
           startTagName = tagName;
-          startTagMode = tagMode;
+          tagParsingEnabled = !isTextContent?.(tagName);
         }
 
         i = k;
@@ -370,7 +383,10 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
     if (j !== -1) {
       const tagName = renameTag(str.substring(i + 2, j));
 
-      if (startTagMode !== ContentMode.TEXT || startTagName === tagName) {
+      if (tagParsingEnabled || startTagName === tagName) {
+
+        // Resume tag parsing if text content tag has ended
+        tagParsingEnabled = true;
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -388,7 +404,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       }
     }
 
-    if (startTagMode !== ContentMode.TEXT) {
+    if (tagParsingEnabled) {
       let k;
 
       // Comment

@@ -1,4 +1,4 @@
-import {createDomParser, DomParser, DomParserDialectOptions} from './createDomParser';
+import {createDomParser, DomParser, DomParserDialectOptions, DomParserFactoryCallbacks} from './createDomParser';
 import {Attribute} from './createSaxParser';
 
 export const enum TagSoupNodeType {
@@ -22,6 +22,7 @@ export interface TagSoupElement extends TagSoupNode {
   nodeType: TagSoupNodeType.ELEMENT;
   tagName: string;
   attrs: Array<Attribute>;
+  selfClosing: boolean;
   children: Array<TagSoupNode>;
 }
 
@@ -30,8 +31,8 @@ export interface TagSoupText extends TagSoupNode {
   data: string;
 }
 
-export function createTagSoupElement(tagName: string, attrs: Array<Attribute>, start: number, end: number, children: Array<TagSoupNode>): TagSoupElement {
-  return {nodeType: 1, parent: null, children, tagName, attrs, start, end};
+export function createTagSoupElement(tagName: string, attrs: Array<Attribute>, selfClosing: boolean, start: number, end: number): TagSoupElement {
+  return {nodeType: 1, parent: null, tagName, attrs, selfClosing, children: [], start, end};
 }
 
 export function createTagSoupText(value: string, start: number, end: number): TagSoupText {
@@ -45,61 +46,29 @@ export function createTagSoupNode(nodeType: number, data: string, start: number,
 export interface TagSoupDomParserOptions extends DomParserDialectOptions<TagSoupElement> {
 }
 
+/**
+ * Creates preconfigured DOM parser that returns a tree of {@link TagSoupNode}s.
+ */
 export function createTagSoupDomParser(options: TagSoupDomParserOptions = {}): DomParser<TagSoupNode, TagSoupElement, TagSoupText> {
-  const {
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    getContentMode,
-    isEmittedAsText,
-    isIgnored,
-    isImplicitEnd,
-  } = options;
 
-  return createDomParser<TagSoupNode, TagSoupElement, TagSoupText>({
-    xmlEnabled,
-    decodeAttr,
-    decodeText,
-    renameTag,
-    renameAttr,
-    selfClosingEnabled,
-    getContentMode,
-    isEmittedAsText,
-    isIgnored,
-    isImplicitEnd,
-
-    createElement(tagName, attrs, selfClosing, start, end) {
-      return createTagSoupElement(tagName, attrs, start, end, []);
-    },
+  const domParserFactoryCallbacks: DomParserFactoryCallbacks<TagSoupNode, TagSoupElement, TagSoupText> = {
+    createElement: createTagSoupElement,
 
     appendChild(element, childNode) {
       childNode.parent = element;
       element.children.push(childNode);
     },
 
-    setEndOffsets(node, start, end) {
-      node.end = end;
+    onContainerEnd(element, start, end) {
+      element.end = end;
     },
 
     createTextNode: createTagSoupText,
+    createProcessingInstruction: (data, start, end) => createTagSoupNode(TagSoupNodeType.PROCESSING_INSTRUCTION, data, start, end),
+    createCdataSection: (data, start, end) => createTagSoupNode(TagSoupNodeType.CDATA_SECTION, data, start, end),
+    createDocumentType: (data, start, end) => createTagSoupNode(TagSoupNodeType.DOCUMENT_TYPE, data, start, end),
+    createComment: (data, start, end) => createTagSoupNode(TagSoupNodeType.COMMENT, data, start, end),
+  };
 
-    createProcessingInstruction(data, start, end) {
-      return createTagSoupNode(TagSoupNodeType.PROCESSING_INSTRUCTION, data, start, end);
-    },
-
-    createCdataSection(data, start, end) {
-      return createTagSoupNode(TagSoupNodeType.CDATA_SECTION, data, start, end);
-    },
-
-    createDocumentType(data, start, end) {
-      return createTagSoupNode(TagSoupNodeType.DOCUMENT_TYPE, data, start, end);
-    },
-
-    createComment(data, start, end) {
-      return createTagSoupNode(TagSoupNodeType.COMMENT, data, start, end);
-    },
-  });
+  return createDomParser(Object.assign({}, options, domParserFactoryCallbacks));
 }

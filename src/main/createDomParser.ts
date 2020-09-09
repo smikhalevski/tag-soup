@@ -1,21 +1,42 @@
-import {Attribute, SaxParserCallbacks} from './createSaxParser';
-import {createForgivingSaxParser, ForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
+import {Attribute, DataCallback, SaxParser, SaxParserCallbacks, SaxParserOptions} from './createSaxParser';
+import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
 
-export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDialectOptions {
+export interface CustomSaxParserOptions extends SaxParserOptions {
+  [saxParserOption: string]: unknown;
+}
+
+export interface DomParserDialectOptions<Element> extends ForgivingSaxParserOptions {
+
+  /**
+   * Factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings. By
+   * default, a forgiving SAX parser is used.
+   *
+   * Note: DOM parser expects underlying SAX parser to emit tags in correct order. No additional checks are made while
+   * constructing a tree of elements.
+   */
+  saxParserFactory?: (options: CustomSaxParserOptions) => SaxParser;
+
+  /**
+   * If you use your custom implementation of the SAX parser, you can provide additional options to it using this
+   * indexer.
+   */
+  [saxParserOption: string]: unknown;
 }
 
 export type ElementFactory<Element> = (tagName: string, attrs: Array<Attribute>, selfClosing: boolean, start: number, end: number) => Element;
-
-export type TextNodeFactory<Text> = (data: string, start: number, end: number) => Text;
 
 export type DataNodeFactory<Node> = (data: string, start: number, end: number) => Node;
 
 export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
   createElement: ElementFactory<Element>;
-  setEndOffsets?: (node: Node, start: number, end: number) => void;
   appendChild: (element: Element, childNode: Node) => void;
 
-  createTextNode: TextNodeFactory<Text>;
+  /**
+   * Triggered when container element end tag is emitted. Use this to update source end offset of the container element.
+   */
+  onContainerEnd?: (element: Element, start: number, end: number) => void;
+
+  createTextNode?: DataNodeFactory<Text>;
   createProcessingInstruction?: DataNodeFactory<Node>;
   createCdataSection?: DataNodeFactory<Node>;
   createDocumentType?: DataNodeFactory<Node>;
@@ -34,11 +55,17 @@ export interface DomParser<Node, Element extends Node = Node, Text extends Node 
   commit(str?: string): Array<Node>;
 }
 
+/**
+ * Creates a streaming DOM parser (which is essentially a thin wrapper around a SAX parser).
+ */
 export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: DomParserOptions<Node, Element, Text>): DomParser<Node, Element, Text> {
   const {
+    saxParserFactory = createForgivingSaxParser,
+
     createElement,
-    setEndOffsets,
     appendChild,
+    onContainerEnd,
+
     createTextNode,
     createProcessingInstruction,
     createCdataSection,
@@ -46,65 +73,70 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     createComment,
   } = options;
 
+  let elements: Array<Element> = [];
+  let depth = 0;
   let nodes: Array<Node> = [];
 
-  const elementStack: Array<Element> = [];
-  let depth = 0;
-
-  const pushChild = (node: Node) => {
-    if (depth !== 0) {
-      appendChild(elementStack[depth - 1], node);
+  const pushNode = (node: Node) => {
+    if (depth > 0) {
+      appendChild(elements[depth - 1], node);
     } else {
       nodes.push(node);
     }
   };
 
-  const overrides: SaxParserCallbacks = {
-    onStartTag(tagName, attrs, selfClosing, tagType, start, end) {
-      const element = createElement(tagName, attrs, selfClosing, start, end);
-      pushChild(element);
-
-      if (!selfClosing) {
-        elementStack[depth++] = element;
-      }
-    },
-    onEndTag(tagName, start, end) {
-      setEndOffsets?.(elementStack[depth - 1], start, end);
-      depth--;
-    },
+  const createDataCallback = (factory: DataNodeFactory<Node> | undefined): DataCallback | undefined => {
+    if (factory) {
+      return (data, start, end) => pushNode(factory(data, start, end));
+    }
   };
 
-  if (createTextNode) {
-    overrides.onText = (data, start, end) => pushChild(createTextNode(data, start, end));
-  }
-  if (createProcessingInstruction) {
-    overrides.onProcessingInstruction = (data, start, end) => pushChild(createProcessingInstruction(data, start, end));
-  }
-  if (createCdataSection) {
-    overrides.onCdataSection = (data, start, end) => pushChild(createCdataSection(data, start, end));
-  }
-  if (createDocumentType) {
-    overrides.onDocumentType = (data, start, end) => pushChild(createDocumentType(data, start, end));
-  }
-  if (createComment) {
-    overrides.onComment = (data, start, end) => pushChild(createComment(data, start, end));
-  }
+  const saxParserCallbacks: SaxParserCallbacks = {
 
-  const saxParser = createForgivingSaxParser(Object.assign({}, options, overrides));
+    onStartTag(tagName, attrs, selfClosing, start, end) {
+      const element = createElement(tagName, attrs, selfClosing, start, end);
+      pushNode(element);
+
+      if (!selfClosing) {
+        elements[depth] = element;
+        depth++;
+      }
+    },
+
+    onEndTag(tagName, start, end) {
+      depth--;
+      onContainerEnd?.(elements[depth], start, end);
+    },
+
+    onText: createDataCallback(createTextNode),
+    onProcessingInstruction: createDataCallback(createProcessingInstruction),
+    onCdataSection: createDataCallback(createCdataSection),
+    onDocumentType: createDataCallback(createDocumentType),
+    onComment: createDataCallback(createComment),
+  };
+
+  const saxParser = saxParserFactory(Object.assign({}, options, saxParserCallbacks));
+
+  const resetStream = () => {
+    saxParser.resetStream();
+    elements = [];
+    depth = 0;
+    nodes = [];
+  };
 
   return {
-    resetStream() {
-      saxParser.resetStream();
-      depth = 0;
-      nodes = [];
-    },
+    resetStream,
+
     writeStream(str) {
       saxParser.commit(str);
       return nodes;
     },
+
     commit(str) {
       saxParser.commit(str);
-      return nodes;
+      const result = nodes;
+      resetStream();
+      return result;
     },
   };
 }
