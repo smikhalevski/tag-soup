@@ -35,13 +35,13 @@ const saxParserResult = bench(() => saxParser.write(html), null, saxBenchDuratio
 console.log('sax                 ', saxParserResult);
 
 console.log(`
-htmlparser2
-  ${round(htmlparser2SaxParserResult.mean / tagSoupSaxParserResult.mean)}✕ slower than createSaxParser
-  ${round(htmlparser2SaxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ slower than createHtmlSaxParser
-
-sax
-  ${round(saxParserResult.mean / tagSoupSaxParserResult.mean)}✕ slower than createSaxParser
-  ${round(saxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ slower than createHtmlSaxParser
+createSaxParser
+  ${round(htmlparser2SaxParserResult.mean / tagSoupSaxParserResult.mean)}✕ faster than htmlparser2
+  ${round(saxParserResult.mean / tagSoupSaxParserResult.mean)}✕ faster than sax
+  
+createHtmlSaxParser
+  ${round(htmlparser2SaxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ faster than htmlparser2
+  ${round(saxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ faster than sax
 `);
 
 console.log('\nDOM parser benchmark\n');
@@ -62,11 +62,11 @@ const parse5ParserResult = bench(() => parse5.parse(html), null, domBenchDuratio
 console.log('parse5              ', parse5ParserResult);
 
 console.log(`
-htmlparser2
-  ${round(htmlparser2DomParserResult.mean / tagSoupXmlDomResult.mean)}✕ slower than createXmlDomParser
-  ${round(htmlparser2DomParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ slower than createHtmlDomParser
+createXmlDomParser
+  ${round(htmlparser2DomParserResult.mean / tagSoupXmlDomResult.mean)}✕ faster than htmlparser2
+  ${round(parse5ParserResult.mean / tagSoupXmlDomResult.mean)}✕ faster than parse5
 
-parse5
-  ${round(parse5ParserResult.mean / tagSoupXmlDomResult.mean)}✕ slower than createXmlDomParser
-  ${round(parse5ParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ slower than createHtmlDomParser
+createHtmlDomParser
+  ${round(htmlparser2DomParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ faster htmlparser2 
+  ${round(parse5ParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ faster than parse5
 `);
