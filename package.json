@@ -15,7 +15,8 @@
     "clean": "rm -rf ./{lib,docs}",
     "test": "jest",
     "perf": "node --max-old-space-size=4096 src/test/perf.js",
-    "docs": "typedoc --mode library --out ./docs ./src/main/html.ts"
+    "docs": "typedoc --mode library --out ./docs ./src/main/html.ts",
+    "publish-docs": "b=$(git rev-parse --abbrev-ref HEAD) && npm run clean && npm run docs && t=$(mktemp -d) && cp -R ./docs/ $t && git checkout ghpages && ls -A | grep -wv .git | xargs rm -rf && cp -R $t/ . && git add . && git commit -m 'Updated docs' && git push && git checkout $b"
   },
   "repository": {
     "type": "git",
