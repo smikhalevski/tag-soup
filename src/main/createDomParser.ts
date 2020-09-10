@@ -1,11 +1,11 @@
 import {Attribute, DataCallback, SaxParser, SaxParserCallbacks, SaxParserOptions} from './createSaxParser';
-import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
+import {createForgivingSaxParser, ForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
 export interface CustomSaxParserOptions extends SaxParserOptions {
   [saxParserOption: string]: unknown;
 }
 
-export interface DomParserDialectOptions<Element> extends ForgivingSaxParserOptions {
+export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDialectOptions {
 
   /**
    * Factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings. By
