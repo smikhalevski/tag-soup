@@ -1,7 +1,7 @@
 {
   "name": "tag-soup",
   "version": "0.0.1",
-  "description": "Forgiving JS SAX/DOM parser",
+  "description": "The fastest JS SAX/DOM XML/HTML parser",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "files": [
@@ -15,13 +15,14 @@
     "terser": "for p in ./lib/{index,html}.js; do terser --compress --mangle toplevel --output $p -- $p; done",
     "clean": "rm -rf ./lib",
     "test": "jest",
-    "perf": "node --max-old-space-size=4096 ./src/test/perf.js"
+    "perf": "node --max-old-space-size=4096 src/test/perf.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/smikhalevski/tag-soup.git"
   },
   "keywords": [
+    "tiny",
     "small",
     "forgiving",
     "stream",
@@ -33,7 +34,7 @@
     "parser"
   ],
   "author": "Savva Mikhalevski <smikhalevski@gmail.com>",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/smikhalevski/tag-soup/issues"
   },
@@ -53,7 +54,9 @@
   },
   "dependencies": {},
   "optionalDependencies": {
-    "benchmark": "^2.1.4",
-    "htmlparser2": "^4.1.0"
+    "htmlparser2": "^4.1.0",
+    "nodemark": "^0.3.0",
+    "parse5": "^6.0.1",
+    "sax": "^1.2.4"
   }
 }
