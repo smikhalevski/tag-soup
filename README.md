@@ -17,34 +17,34 @@
 
 SAX parser benchmark
 ```
-createSaxParser      31 ops/sec ±0.55% (278 samples)
-createHtmlSaxParser  22 ops/sec ±0.66% (198 samples)
-htmlparser2          15 ops/sec ±0.7% (134 samples)
-sax                  1 ops/sec ±52.95% (10 samples)
+createSaxParser      31 ops/sec ±0.54% (277 samples)
+createHtmlSaxParser  21 ops/sec ±0.89% (194 samples)
+htmlparser2          15 ops/sec ±0.87% (132 samples)
+sax                  1 ops/sec ±54.91% (10 samples)
 
-htmlparser2
-  2.1✕ slower than createSaxParser
-  1.5✕ slower than createHtmlSaxParser
+createSaxParser
+  2.1✕ faster than htmlparser2
+  22.5✕ faster than sax
 
-sax
-  21.8✕ slower than createSaxParser
-  15.4✕ slower than createHtmlSaxParser
+createHtmlSaxParser
+  1.5✕ faster than htmlparser2
+  15.8✕ faster than sax
 ```
 
 DOM parser benchmark
 ```
-createXmlDomParser   7 ops/sec ±61.11% (73 samples)
+createXmlDomParser   7 ops/sec ±59.96% (74 samples)
 createHtmlDomParser  8 ops/sec ±51.76% (72 samples)
-htmlparser2          4 ops/sec ±61.31% (43 samples)
-parse5               1 ops/sec ±52.56% (5 samples)
+htmlparser2          4 ops/sec ±59.91% (43 samples)
+parse5               1 ops/sec ±56.04% (5 samples)
 
-htmlparser2
-  1.7✕ slower than createXmlDomParser
-  2.0✕ slower than createHtmlDomParser
+createXmlDomParser
+  1.8✕ faster than htmlparser2
+  10.2✕ faster than parse5
 
-parse5
-  11.2✕ slower than createXmlDomParser
-  13.5✕ slower than createHtmlDomParser
+createHtmlDomParser
+  2.1✕ faster htmlparser2
+  12.0✕ faster than parse5
 ```
 
 You can run a performance test using `npm i; npm run build; npm run perf`.
@@ -139,13 +139,13 @@ console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
 
 Both SAX and DOM parsers are stateful instances that have the following methods:
 
-**writeStream(chunk)**
+**`writeStream(chunk)`**<br>
 Makes parser process a given string chunk and triggers corresponding callbacks. If there's an ambiguity during parsing then the parser is paused until the next `writestream` invocation in order to resolve it when additional data is available.
 
-**commit(chunk)**
+**`commit(chunk)`**<br>
 Makes parser process a given string chunk and triggers corresponding callbacks. Always parses the whole string.
 
-**resetStream()**
+**`resetStream()`**<br>
 Resets the internal state of the parser.
 
 
@@ -158,7 +158,7 @@ Creates a SAX parser that:
 
 #### <a id="create-sax-parser-dialect-options"></a>Dialect options
 
-**`xmlEnabled = false`**
+**`xmlEnabled = false`**<br>
 If set to `true` then
 - CDATA sections, processing instructions are parsed;
 - Self-closing tags are recognized;
@@ -169,56 +169,56 @@ If set to `false` then
 - Self-closing tags are treated as start tags;
 - Tag names are case-insensitive.
 
-**`decodeAttr(attrValue)`**
+**`decodeAttr(attrValue)`**<br>
 Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.
 
-**`decodeText(textData)`**
+**`decodeText(textData)`**<br>
 Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.
 
-**`renameTag(tagName)`**
+**`renameTag(tagName)`**<br>
 Rewrites tag name. By default, in XML mode tags aren't renamed while in non-XML mode tags are converted to lower case.
 
-**`renameAttr(attrName)`**
+**`renameAttr(attrName)`**<br>
 Rewrites attribute name. By default, there's no renaming.
 
-**`selfClosingEnabled = false`**
+**`selfClosingEnabled = false`**<br>
 Enables self-closing tags recognition. In XML mode this is always enabled.
 
-**`isTextContent(tagName)`**
+**`isTextContent(tagName)`**<br>
 If returns `true` than the content inside the container tag would be treated as a plain text. Useful when parsing `script` and `style` tags.
 
 #### <a id="create-sax-parser-callback-options"></a>Callback options
 
-**`onStartTag(tagName, attrs, selfClosing, start, end)`**
+**`onStartTag(tagName, attrs, selfClosing, start, end)`**<br>
 Triggered when a start tag and its attributes were read.
 
 **Note:** `attrs` argument is an array-like object that holds pooled objects that would be revoked after this callback finishes. To preserve parsed attributes make a deep copy of `attrs`. Object pooling is used to reduce memory consumption during parsing by avoiding excessive allocations.
 
-**`onEndTag(tagName, start, end)`**
+**`onEndTag(tagName, start, end)`**<br>
 Triggered when an end tag was read.
 
-**`onText(data, start, end)`**
+**`onText(data, start, end)`**<br>
 Triggered when a chunk of text was read.
 
-**`onComment(data, start, end)`**
+**`onComment(data, start, end)`**<br>
 Triggered when a comment was read.
 
-**`onProcessingInstruction(data, start, end)`**
+**`onProcessingInstruction(data, start, end)`**<br>
 Triggered when a processing instruction was read.
 
-**`onCdataSection(data, start, end)`**
+**`onCdataSection(data, start, end)`**<br>
 Triggered when a CDATA section was read. This is triggered only when `xmlEnabled` is set to `true`. In HTML mode CDATA sections are treated as text.
 
-**`onDocumentType(data, start, end)`**
+**`onDocumentType(data, start, end)`**<br>
 Triggered when a DOCTYPE was read. This library doesn't process the contents of the DOCTYPE and `data` argument would contain the raw source of the DOCTYPE declaration. 
 
-**`onReset()`**
+**`onReset()`**<br>
 Triggered when `saxParser.resetStream()` is called.
 
-**`onWrite(chunk, parsedCharCount)`**
+**`onWrite(chunk, parsedCharCount)`**<br>
 Triggered when `saxParser.writeStream(chunk)` is called.
 
-**`onCommit(chunk, parsedCharCount)`**
+**`onCommit(chunk, parsedCharCount)`**<br>
 Triggered when `saxParser.commit(chunk)` is called.
 
 
@@ -237,10 +237,10 @@ A thin wrapper around `createSaxParser` that
 
 Supports all dialect options from [`createSaxParser`](#create-sax-parser-dialect-options).
 
-**`isVoidContent(tagName)`**
+**`isVoidContent(tagName)`**<br>
 If returns `true` than the tag would be treated as self-closing even if it isn't marked up as such.
 
-**`isImplicitEnd(currentTagName, tagName)`**
+**`isImplicitEnd(currentTagName, tagName)`**<br>
 If returns `true` then `currentTagName` would be closed when `tagName` starts.
 
 #### Callback options
@@ -256,19 +256,19 @@ Preconfigured HTML SAX parser.
 
 #### <a id="create-html-sax-parser-dialect-options"></a>Dialect options
 
-**`xhtmlEnabled = false`**
+**`xhtmlEnabled = false`**<br>
 If set to `true` then:
 - Self-closing tags are parsed;
 - All non-void elements are expected to be closed.
 
-**`strict = false`**
+**`strict = false`**<br>
 If set to `true` then:
 - Doesn't recognize non-terminated and legacy HTML entities;
 - Throw an error if the decoder meets a disallowed character reference.
 
 **Note:** Using this option may slow parsing because additional checks are involved.
 
-**`replacementChar = "\ufffd"`**
+**`replacementChar = "\ufffd"`**<br>
 This char is returned for disallowed character references in non-strict mode.
 
 #### Callback options
@@ -286,37 +286,37 @@ Creates a custom DOM parser that uses provided callbacks to create elements.
 
 Supports all dialect options from [`createForgivingSaxParser`](#create-forgiving-sax-parser-dialect-options).
 
-**`saxParserFactory`**
+**`saxParserFactory`**<br>
 The factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings. By default, a forgiving SAX parser is used.
 
 **Note:** DOM parser expects underlying SAX parser to emit tags in the correct order. No additional checks are made while constructing a tree of elements.
 
 #### Factory options
 
-**`createElement(tagName, attrs, selfClosing, start, end)`**
+**`createElement(tagName, attrs, selfClosing, start, end)`**<br>
 Creates a new element.
 
 **Note:** `attrs` argument is an array-like object that holds pooled objects that would be revoked after this callback finishes. To preserve parsed attributes make a deep copy of `attrs`. This is done to reduce memory consumption during parsing by avoiding excessive object allocation.
 
-**`appendChild(element, childNode)`**
+**`appendChild(element, childNode)`**<br>
 Append `childNode` as the last child to an `element`.
 
-**`onContainerEnd(data, start, end)`**
+**`onContainerEnd(data, start, end)`**<br>
 Triggered when the container element end tag is emitted. Use this to update the source end offset of the container element.
 
-**`createTextNode(data, start, end)`**
+**`createTextNode(data, start, end)`**<br>
 Creates a new text node.
 
-**`createProcessingInstruction(data, start, end)`**
+**`createProcessingInstruction(data, start, end)`**<br>
 Creates a new processing instruction.
 
-**`createCdataSection(data, start, end)`**
+**`createCdataSection(data, start, end)`**<br>
 Creates a new CDATA section node.
 
-**`createDocumentType(data, start, end)`**
+**`createDocumentType(data, start, end)`**<br>
 Creates a new DOCTYPE node.
 
-**`createComment(data, start, end)`**
+**`createComment(data, start, end)`**<br>
 Creates a new comment node.
 
 
@@ -343,10 +343,10 @@ Supports all dialect options from [`createHtmlSaxParser`](#create-html-sax-parse
 
 Creates a decoder callback that would receive a string end decode XML/HTML entities in it.
 
-**`fromCharName(entityName)`**
+**`fromCharName(entityName)`**<br>
 Receives an entity name ("lt", "gt", etc.) and returns a string replacement for it.
 
-**`fromCharCode(entityCode)`**
+**`fromCharCode(entityCode)`**<br>
 Receives a numeric code point and should return a string replacement for it.
 
 
@@ -356,7 +356,7 @@ Receives a numeric code point and should return a string replacement for it.
 
 Creates a mapper from an HTML entity name to a corresponding char.
 
-**`strict = false`**
+**`strict = false`**<br>
 If set to `true` then:
 - Entities that are not terminated with a semicolon are not decoded.
 
@@ -370,12 +370,12 @@ If set to `false` then:
 
 Creates a mapper from a numeric XML entity to a corresponding char.
 
-**`strict = false`**
+**`strict = false`**<br>
 If set to `true` then an error is thrown if the decoder meets a disallowed character reference.
 
 **Note:** Using this option may slow decoding because additional checks are involved.
 
-**`replacementChar = "\ufffd"`**
+**`replacementChar = "\ufffd"`**<br>
 This char is returned for disallowed character references in non-strict mode.
 
 
