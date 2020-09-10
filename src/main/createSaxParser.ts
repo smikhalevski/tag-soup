@@ -102,7 +102,7 @@ export interface SaxParser {
 /**
  * Creates a streaming SAX parser that emits tags as is.
  */
-export function createSaxParser(options: SaxParserOptions): SaxParser {
+export function createSaxParser(options: SaxParserOptions = {}): SaxParser {
   const {
     onReset,
     onWrite,

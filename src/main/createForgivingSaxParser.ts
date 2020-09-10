@@ -19,7 +19,7 @@ export interface ForgivingSaxParserOptions extends ForgivingSaxParserDialectOpti
 /**
  * Creates a streaming SAX parser that guarantees the correct order of start and end tags.
  */
-export function createForgivingSaxParser(options: ForgivingSaxParserOptions): SaxParser {
+export function createForgivingSaxParser(options: ForgivingSaxParserOptions = {}): SaxParser {
   const {
     onStartTag,
     onEndTag,
