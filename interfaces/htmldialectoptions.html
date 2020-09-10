@@ -1,0 +1,390 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>HtmlDialectOptions | tag-soup</title>
+	<meta name="description" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.js" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">tag-soup</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+							<input type="checkbox" id="tsd-filter-only-exported" />
+							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../globals.html">Globals</a>
+				</li>
+				<li>
+					<a href="htmldialectoptions.html">HtmlDialectOptions</a>
+				</li>
+			</ul>
+			<h1>Interface HtmlDialectOptions</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-hierarchy">
+				<h3>Hierarchy</h3>
+				<ul class="tsd-hierarchy">
+					<li>
+						<span class="tsd-signature-type">FromCharCodeOptions</span>
+						<ul class="tsd-hierarchy">
+							<li>
+								<span class="target">HtmlDialectOptions</span>
+								<ul class="tsd-hierarchy">
+									<li>
+										<a href="htmlsaxparseroptions.html" class="tsd-signature-type">HtmlSaxParserOptions</a>
+									</li>
+									<li>
+										<a href="htmldomparseroptions.html" class="tsd-signature-type">HtmlDomParserOptions</a>
+									</li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+				</ul>
+			</section>
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Properties</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="htmldialectoptions.html#replacementchar" class="tsd-kind-icon">replacement<wbr>Char</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-overwrite"><a href="htmldialectoptions.html#strict" class="tsd-kind-icon">strict</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="htmldialectoptions.html#xhtmlenabled" class="tsd-kind-icon">xhtml<wbr>Enabled</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Properties</h2>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
+					<a name="replacementchar" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> replacement<wbr>Char</h3>
+					<div class="tsd-signature tsd-kind-icon">replacement<wbr>Char<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<p>Inherited from <a href="htmldialectoptions.html">HtmlDialectOptions</a>.<a href="htmldialectoptions.html#replacementchar">replacementChar</a></p>
+						<ul>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createFromCharCode.ts#L18">createFromCharCode.ts:18</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>This char is returned for disallowed character references in non-strict mode.</p>
+						</div>
+						<dl class="tsd-comment-tags">
+							<dt>default</dt>
+							<dd><p>&quot;\ufffd&quot;</p>
+							</dd>
+						</dl>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-overwrite">
+					<a name="strict" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> strict</h3>
+					<div class="tsd-signature tsd-kind-icon">strict<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<p>Overrides FromCharCodeOptions.strict</p>
+						<ul>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createHtmlDomParser.ts#L28">createHtmlDomParser.ts:28</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>If set to <code>true</code> then:</p>
+							<ul>
+								<li>does not recognize non-terminated and legacy HTML entities;</li>
+								<li>throws an error if decoder meets a disallowed character reference.</li>
+							</ul>
+						</div>
+						<dl class="tsd-comment-tags">
+							<dt>default</dt>
+							<dd><p>false</p>
+							</dd>
+						</dl>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="xhtmlenabled" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> xhtml<wbr>Enabled</h3>
+					<div class="tsd-signature tsd-kind-icon">xhtml<wbr>Enabled<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createHtmlDomParser.ts#L19">createHtmlDomParser.ts:19</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>If set to <code>true</code> then:</p>
+							<ul>
+								<li>self-closing tags are parsed;</li>
+								<li>all non-void elements are expected to be closed (no implicit end checks are not performed).</li>
+							</ul>
+						</div>
+						<dl class="tsd-comment-tags">
+							<dt>default</dt>
+							<dd><p>false</p>
+							</dd>
+						</dl>
+					</div>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class="globals  ">
+						<a href="../globals.html"><em>Globals</em></a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-enum">
+						<a href="../enums/domnodetype.html" class="tsd-kind-icon">Dom<wbr>Node<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="attribute.html" class="tsd-kind-icon">Attribute</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="customsaxparseroptions.html" class="tsd-kind-icon">Custom<wbr>Sax<wbr>Parser<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="domattrmap.html" class="tsd-kind-icon">Dom<wbr>Attr<wbr>Map</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="domelement.html" class="tsd-kind-icon">Dom<wbr>Element</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="domnode.html" class="tsd-kind-icon">Dom<wbr>Node</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="domparser.html" class="tsd-kind-icon">Dom<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="domparserdialectoptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Dialect<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="domparserfactorycallbacks.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Factory<wbr>Callbacks</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="domparseroptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="domtext.html" class="tsd-kind-icon">Dom<wbr>Text</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="entitiesdecoderoptions.html" class="tsd-kind-icon">Entities<wbr>Decoder<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="forgivingsaxparserdialectoptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="forgivingsaxparseroptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Options</a>
+					</li>
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-interface">
+						<a href="htmldialectoptions.html" class="tsd-kind-icon">Html<wbr>Dialect<wbr>Options</a>
+						<ul>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
+								<a href="htmldialectoptions.html#replacementchar" class="tsd-kind-icon">replacement<wbr>Char</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-overwrite">
+								<a href="htmldialectoptions.html#strict" class="tsd-kind-icon">strict</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="htmldialectoptions.html#xhtmlenabled" class="tsd-kind-icon">xhtml<wbr>Enabled</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="after-current">
+					<li class=" tsd-kind-interface">
+						<a href="htmldomparseroptions.html" class="tsd-kind-icon">Html<wbr>Dom<wbr>Parser<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="htmlsaxparseroptions.html" class="tsd-kind-icon">Html<wbr>Sax<wbr>Parser<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="saxparser.html" class="tsd-kind-icon">Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="saxparsercallbacks.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Callbacks</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="saxparserdialectoptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="saxparseroptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#datacallback" class="tsd-kind-icon">Data<wbr>Callback</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="../globals.html#datanodefactory" class="tsd-kind-icon">Data<wbr>Node<wbr>Factory</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="../globals.html#elementfactory" class="tsd-kind-icon">Element<wbr>Factory</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#endtagcallback" class="tsd-kind-icon">End<wbr>Tag<wbr>Callback</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#starttagcallback" class="tsd-kind-icon">Start<wbr>Tag<wbr>Callback</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createdomelement" class="tsd-kind-icon">create<wbr>Dom<wbr>Element</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createdomnode" class="tsd-kind-icon">create<wbr>Dom<wbr>Node</a>
+					</li>
+					<li class=" tsd-kind-function tsd-has-type-parameter">
+						<a href="../globals.html#createdomparser" class="tsd-kind-icon">create<wbr>Dom<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createdomtext" class="tsd-kind-icon">create<wbr>Dom<wbr>Text</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createentitiesdecoder" class="tsd-kind-icon">create<wbr>Entities<wbr>Decoder</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createforgivingsaxparser" class="tsd-kind-icon">create<wbr>Forgiving<wbr>Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createhtmldomparser" class="tsd-kind-icon">create<wbr>Html<wbr>Dom<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createhtmlsaxparser" class="tsd-kind-icon">create<wbr>Html<wbr>Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createsaxparser" class="tsd-kind-icon">create<wbr>Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createxmldomparser" class="tsd-kind-icon">create<wbr>Xml<wbr>Dom<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#fromxmlcharname" class="tsd-kind-icon">from<wbr>Xml<wbr>Char<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="../globals.html#xmlentities" class="tsd-kind-icon">xml<wbr>Entities</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-module"><span class="tsd-kind-icon">Module</span></li>
+				<li class="tsd-kind-object-literal"><span class="tsd-kind-icon">Object literal</span></li>
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
+				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
+				<li class="tsd-kind-index-signature"><span class="tsd-kind-icon">Index signature</span></li>
+				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
+				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+				<li class="tsd-kind-enum-member"><span class="tsd-kind-icon">Enumeration member</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-enum"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-enum"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+				<li class="tsd-kind-interface tsd-has-type-parameter"><span class="tsd-kind-icon">Interface with type parameter</span></li>
+				<li class="tsd-kind-constructor tsd-parent-kind-interface"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-index-signature tsd-parent-kind-interface"><span class="tsd-kind-icon">Index signature</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
+				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
+				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
+				<li class="tsd-kind-index-signature tsd-parent-kind-class"><span class="tsd-kind-icon">Index signature</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
+				<li class="tsd-kind-call-signature tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+<script>if (location.protocol == 'file:') document.write('<script src="../assets/js/search.js"><' + '/script>');</script>
+</body>
+</html>
