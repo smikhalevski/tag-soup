@@ -16,7 +16,8 @@
     "test": "jest",
     "perf": "node --max-old-space-size=4096 src/test/perf.js",
     "docs": "typedoc --mode library --out ./docs ./src/main/html.ts",
-    "publish-docs": "b=$(git rev-parse --abbrev-ref HEAD) && npm run clean && npm run docs && t=$(mktemp -d) && cp -R ./docs/ $t && git checkout ghpages && ls -A | grep -wv .git | xargs rm -rf && cp -R $t/ . && git add . && git commit -m 'Updated docs' && git push && git checkout $b"
+    "publish-docs": "set -ex; [ -d ./docs ]; [[ ! $(git status --porcelain) ]]; branch=$(git rev-parse --abbrev-ref HEAD); sha=$(git rev-parse --short HEAD); t=$(mktemp -d); cp -R ./docs/ $t; git checkout ghpages; ls -A | grep -wv .git | xargs rm -rf; cp -R $t/ .; git add .; git commit -m \"Updated docs ($sha)\"; git push; git checkout $branch",
+    "release-docs": "set -e; npm run clean; npm run docs; npm run publish-docs"
   },
   "repository": {
     "type": "git",
