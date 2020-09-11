@@ -60,12 +60,16 @@ describe('createSaxParser', () => {
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
       expect(onTextMock).not.toHaveBeenCalled();
 
+      parser.write('qux');
+
+      expect(onTextMock).not.toHaveBeenCalled();
+
       parser.write('bar</a>');
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, 'foobar', 3, 9);
+      expect(onTextMock).toHaveBeenNthCalledWith(1, 'fooquxbar', 3, 12);
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 9, 13);
+      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 12, 16);
     });
 
     it('defers start tag emit', () => {
@@ -95,7 +99,7 @@ describe('createSaxParser', () => {
       expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 13);
     });
 
-    it('emits incomplete comment on commit', () => {
+    it('emits incomplete comment on parse', () => {
       parser.write('<!--foo');
 
       expect(onCommentMock).not.toHaveBeenCalled();
@@ -106,7 +110,7 @@ describe('createSaxParser', () => {
       expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
     });
 
-    it('emits tail on commit with an additional data', () => {
+    it('emits tail on parse with an additional data', () => {
       parser.write('<!--foo');
 
       expect(onCommentMock).not.toHaveBeenCalled();

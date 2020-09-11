@@ -1,6 +1,60 @@
 # TagSoup
 
-> The fastest JS SAX/DOM HTML/XML parser.
+TagSoup is [the fastest](#performance) JS SAX/DOM HTML/XML parser.
+
+## Documentation
+
+[API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
+
+Parsing XML SAX
+```js
+const TagSoup = require('tag-soup');
+
+const parser = TagSoup.createForgivingSaxParser({
+  onStartTag(tagName, attrs, selfClosing, start, end) {
+    // Process start tag here
+  },
+  onEndTag(tagName, start, end) {
+    // Process end tag here
+  },
+});
+parser.parse('<foo>okay');
+```
+
+Parsing XML DOM
+```js
+const TagSoup = require('tag-soup');
+
+const parser = TagSoup.createXmlDomParser();
+const dom = parser.parse('<foo>okay');
+
+console.log(dom[0].children[0].data); // → 'okay'
+```
+
+Parsing HTML SAX
+```js
+const TagSoup = require('tag-soup/lib/html');
+
+const parser = TagSoup.createHtmlSaxParser({
+  onStartTag(tagName, attrs, selfClosing, start, end) {
+    // Process start tag here
+  },
+  onEndTag(tagName, start, end) {
+    // Process end tag here
+  },
+});
+parser.parse('<script>console.log("<foo></foo>")</script>');
+```
+
+Parsing HTML DOM
+```js
+const TagSoup = require('tag-soup/lib/html');
+
+const parser = TagSoup.createHtmlDomParser();
+const dom = parser.parse('<script>console.log("<foo></foo>")</script>');
+
+console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
+```
 
 ## Why use TagSoup?
 
@@ -47,13 +101,12 @@ createHtmlDomParser
   12.0✕ faster than parse5
 ```
 
-You can run a performance test using `npm i; npm run build; npm run perf`.
+To run a performance test use `npm run build` and then `npm run perf`.
 
 
 ## Bundle size
 
-For XML parsing use:
-
+For XML parsing use
 ```ts
 const TagSoup = require('tag-soup');
 ```  
@@ -65,8 +118,7 @@ This would require a 3 KB (gzipped) bundle with:
 - Preconfigured Cheerio-compatible XML DOM parser.
 
 
-For HTML parsing use:
-
+For HTML parsing use
 ```ts
 const TagSoup = require('tag-soup/lib/html');
 ```  
@@ -106,27 +158,3 @@ while with TagSoup you would get
 note the missing `b` tag in the second paragraph.
 
 TagSoup can parse all weird attribute syntax variations and any tag names, [see tests here for more details](https://github.com/smikhalevski/tag-soup/blob/master/src/test/createSaxParser.test.ts).
-
-
-
-## Usage examples
-
-XML parsing:
-```js
-const TagSoup = require('tag-soup');
-
-const parser = TagSoup.createXmlDomParser();
-const dom = parser.commit('<foo>okay');
-
-console.log(dom[0].children[0].data); // → 'okay'
-```
-
-HTML DOM parsing:
-```js
-const TagSoup = require('tag-soup/lib/html');
-
-const parser = TagSoup.createHtmlDomParser();
-const dom = parser.commit('<script>console.log("<foo></foo>")</script>');
-
-console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
-```

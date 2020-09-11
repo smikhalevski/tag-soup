@@ -210,7 +210,7 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     reset,
 
     write(str) {
-      saxParser.parse(str);
+      saxParser.write(str);
       return nodes;
     },
 

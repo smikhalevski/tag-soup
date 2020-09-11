@@ -19,11 +19,11 @@ function round(v) {
 console.log('SAX parser benchmark\n');
 
 const tagSoupSaxParser = createSaxParser({});
-const tagSoupSaxParserResult = bench(() => tagSoupSaxParser.commit(html), null, saxBenchDuration);
+const tagSoupSaxParserResult = bench(() => tagSoupSaxParser.parse(html), null, saxBenchDuration);
 console.log('createSaxParser     ', tagSoupSaxParserResult);
 
 const tagSoupHtmlSaxParser = createHtmlSaxParser({});
-const tagSoupHtmlSaxParserResult = bench(() => tagSoupHtmlSaxParser.commit(html), null, saxBenchDuration);
+const tagSoupHtmlSaxParserResult = bench(() => tagSoupHtmlSaxParser.parse(html), null, saxBenchDuration);
 console.log('createHtmlSaxParser ', tagSoupHtmlSaxParserResult);
 
 const htmlparser2SaxParser = new htmlparser2.Parser({});
@@ -47,11 +47,11 @@ createHtmlSaxParser
 console.log('\nDOM parser benchmark\n');
 
 const tagSoupXmlDomParser = createXmlDomParser({});
-const tagSoupXmlDomResult = bench(() => tagSoupXmlDomParser.commit(html), null, domBenchDuration);
+const tagSoupXmlDomResult = bench(() => tagSoupXmlDomParser.parse(html), null, domBenchDuration);
 console.log('createXmlDomParser  ', tagSoupXmlDomResult);
 
 const tagSoupHtmlDomParser = createHtmlDomParser({});
-const tagSoupHtmlDomParserResult = bench(() => tagSoupHtmlDomParser.commit(html), null, domBenchDuration);
+const tagSoupHtmlDomParserResult = bench(() => tagSoupHtmlDomParser.parse(html), null, domBenchDuration);
 console.log('createHtmlDomParser ', tagSoupHtmlDomParserResult);
 
 const htmlparser2DomParser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
