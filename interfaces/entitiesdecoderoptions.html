@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>EntitiesDecoderOptions | tag-soup</title>
+	<title>EntitiesDecoderOptions | TagSoup - v0.0.2</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">tag-soup</a>
+					<a href="../index.html" class="title">TagSoup - v0.0.2</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -96,7 +96,7 @@
 					<div class="tsd-signature tsd-kind-icon">from<wbr>Char<wbr>Code<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">FromCharCode</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createEntitiesDecoder.ts#L33">createEntitiesDecoder.ts:33</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createEntitiesDecoder.ts#L32">createEntitiesDecoder.ts:32</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -107,6 +107,9 @@
 							<dt>default</dt>
 							<dd><p>String.fromCharCode</p>
 							</dd>
+							<dt>see</dt>
+							<dd><p>{@link createFromCharCode}</p>
+							</dd>
 						</dl>
 					</div>
 				</section>
@@ -116,7 +119,7 @@
 					<div class="tsd-signature tsd-kind-icon">from<wbr>Char<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">FromCharName</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createEntitiesDecoder.ts#L26">createEntitiesDecoder.ts:26</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createEntitiesDecoder.ts#L24">createEntitiesDecoder.ts:24</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -124,11 +127,8 @@
 							<p>Receives an entity name (&quot;lt&quot;, &quot;gt&quot;, etc.) and returns a string replacement for it.</p>
 						</div>
 						<dl class="tsd-comment-tags">
-							<dt>default</dt>
-							<dd><p><a href="../globals.html#fromxmlcharname">fromXmlCharName</a></p>
-							</dd>
 							<dt>see</dt>
-							<dd><p>createFromHtmlCharName</p>
+							<dd><p><a href="../globals.html#createfromhtmlcharname">createFromHtmlCharName</a></p>
 							</dd>
 						</dl>
 					</div>
@@ -149,15 +149,6 @@
 						<a href="../enums/domnodetype.html" class="tsd-kind-icon">Dom<wbr>Node<wbr>Type</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="attribute.html" class="tsd-kind-icon">Attribute</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="customsaxparseroptions.html" class="tsd-kind-icon">Custom<wbr>Sax<wbr>Parser<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="domattrmap.html" class="tsd-kind-icon">Dom<wbr>Attr<wbr>Map</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="domelement.html" class="tsd-kind-icon">Dom<wbr>Element</a>
 					</li>
 					<li class=" tsd-kind-interface">
@@ -165,12 +156,6 @@
 					</li>
 					<li class=" tsd-kind-interface tsd-has-type-parameter">
 						<a href="domparser.html" class="tsd-kind-icon">Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="domparserdialectoptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="domparserfactorycallbacks.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Factory<wbr>Callbacks</a>
 					</li>
 					<li class=" tsd-kind-interface tsd-has-type-parameter">
 						<a href="domparseroptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Options</a>
@@ -194,13 +179,10 @@
 				</ul>
 				<ul class="after-current">
 					<li class=" tsd-kind-interface">
-						<a href="forgivingsaxparserdialectoptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="forgivingsaxparseroptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="htmldialectoptions.html" class="tsd-kind-icon">Html<wbr>Dialect<wbr>Options</a>
+						<a href="fromhtmlcharnameoptions.html" class="tsd-kind-icon">From<wbr>Html<wbr>Char<wbr>Name<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="htmldomparseroptions.html" class="tsd-kind-icon">Html<wbr>Dom<wbr>Parser<wbr>Options</a>
@@ -212,46 +194,19 @@
 						<a href="saxparser.html" class="tsd-kind-icon">Sax<wbr>Parser</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="saxparsercallbacks.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Callbacks</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="saxparserdialectoptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="saxparseroptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#datacallback" class="tsd-kind-icon">Data<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="../globals.html#datanodefactory" class="tsd-kind-icon">Data<wbr>Node<wbr>Factory</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="../globals.html#elementfactory" class="tsd-kind-icon">Element<wbr>Factory</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#endtagcallback" class="tsd-kind-icon">End<wbr>Tag<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#starttagcallback" class="tsd-kind-icon">Start<wbr>Tag<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#createdomelement" class="tsd-kind-icon">create<wbr>Dom<wbr>Element</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#createdomnode" class="tsd-kind-icon">create<wbr>Dom<wbr>Node</a>
 					</li>
 					<li class=" tsd-kind-function tsd-has-type-parameter">
 						<a href="../globals.html#createdomparser" class="tsd-kind-icon">create<wbr>Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#createdomtext" class="tsd-kind-icon">create<wbr>Dom<wbr>Text</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createentitiesdecoder" class="tsd-kind-icon">create<wbr>Entities<wbr>Decoder</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createforgivingsaxparser" class="tsd-kind-icon">create<wbr>Forgiving<wbr>Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createfromhtmlcharname" class="tsd-kind-icon">create<wbr>From<wbr>Html<wbr>Char<wbr>Name</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createhtmldomparser" class="tsd-kind-icon">create<wbr>Html<wbr>Dom<wbr>Parser</a>
@@ -264,12 +219,6 @@
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createxmldomparser" class="tsd-kind-icon">create<wbr>Xml<wbr>Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#fromxmlcharname" class="tsd-kind-icon">from<wbr>Xml<wbr>Char<wbr>Name</a>
-					</li>
-					<li class=" tsd-kind-object-literal">
-						<a href="../globals.html#xmlentities" class="tsd-kind-icon">xml<wbr>Entities</a>
 					</li>
 				</ul>
 			</nav>

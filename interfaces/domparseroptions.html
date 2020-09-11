@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>DomParserOptions | tag-soup</title>
+	<title>DomParserOptions | TagSoup - v0.0.2</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="../index.html" class="title">tag-soup</a>
+					<a href="../index.html" class="title">TagSoup - v0.0.2</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -66,17 +66,39 @@
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>Options required to create a new DOM parser.</p>
+					</div>
+				</div>
+			</section>
 			<section class="tsd-panel tsd-type-parameters">
 				<h3>Type parameters</h3>
 				<ul class="tsd-type-parameters">
 					<li>
 						<h4>Node</h4>
+						<div class="tsd-comment tsd-typography">
+							<div class="lead">
+								<p>The type of object that describes a node in the DOM tree.</p>
+							</div>
+						</div>
 					</li>
 					<li>
 						<h4>Element<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Node</span></h4>
+						<div class="tsd-comment tsd-typography">
+							<div class="lead">
+								<p>The type of object that describes an element in the DOM tree.</p>
+							</div>
+						</div>
 					</li>
 					<li>
 						<h4>Text<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Node</span></h4>
+						<div class="tsd-comment tsd-typography">
+							<div class="lead">
+								<p>The type of object that describes a text node in the DOM tree.</p>
+							</div>
+						</div>
 					</li>
 				</ul>
 			</section>
@@ -101,8 +123,8 @@
 				<div class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">[</span>saxParserOption: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">]: </span><span class="tsd-signature-type">unknown</span></div>
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>If you use your custom implementation of the SAX parser, you can provide additional options to it using this
-						indexer.</p>
+						<p>If you use your custom implementation of the SAX parser with <a href="domparseroptions.html#saxparserfactory">saxParserFactory</a>, you can provide additional
+						options to it using this indexer.</p>
 					</div>
 				</div>
 			</section>
@@ -113,24 +135,29 @@
 						<section class="tsd-index-section tsd-is-inherited">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#appendchild" class="tsd-kind-icon">append<wbr>Child</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createcdatasection" class="tsd-kind-icon">create<wbr>Cdata<wbr>Section</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createcomment" class="tsd-kind-icon">create<wbr>Comment</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createdocumenttype" class="tsd-kind-icon">create<wbr>Document<wbr>Type</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createelement" class="tsd-kind-icon">create<wbr>Element</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createprocessinginstruction" class="tsd-kind-icon">create<wbr>Processing<wbr>Instruction</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createtextnode" class="tsd-kind-icon">create<wbr>Text<wbr>Node</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#decodeattr" class="tsd-kind-icon">decode<wbr>Attr</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#decodetext" class="tsd-kind-icon">decode<wbr>Text</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#isimplicitend" class="tsd-kind-icon">is<wbr>Implicit<wbr>End</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#istextcontent" class="tsd-kind-icon">is<wbr>Text<wbr>Content</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#isvoidcontent" class="tsd-kind-icon">is<wbr>Void<wbr>Content</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#oncontainerend" class="tsd-kind-icon">on<wbr>Container<wbr>End</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#renameattr" class="tsd-kind-icon">rename<wbr>Attr</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#renametag" class="tsd-kind-icon">rename<wbr>Tag</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#saxparserfactory" class="tsd-kind-icon">sax<wbr>Parser<wbr>Factory</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#selfclosingenabled" class="tsd-kind-icon">self<wbr>Closing<wbr>Enabled</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#xmlenabled" class="tsd-kind-icon">xml<wbr>Enabled</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section tsd-is-inherited">
+							<h3>Methods</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#appendchild" class="tsd-kind-icon">append<wbr>Child</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#createelement" class="tsd-kind-icon">create<wbr>Element</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#isimplicitend" class="tsd-kind-icon">is<wbr>Implicit<wbr>End</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#istextcontent" class="tsd-kind-icon">is<wbr>Text<wbr>Content</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#isvoidcontent" class="tsd-kind-icon">is<wbr>Void<wbr>Content</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#oncontainerend" class="tsd-kind-icon">on<wbr>Container<wbr>End</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="domparseroptions.html#saxparserfactory" class="tsd-kind-icon">sax<wbr>Parser<wbr>Factory</a></li>
 							</ul>
 						</section>
 					</div>
@@ -139,50 +166,20 @@
 			<section class="tsd-panel-group tsd-member-group tsd-is-inherited">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="appendchild" class="tsd-anchor"></a>
-					<h3>append<wbr>Child</h3>
-					<div class="tsd-signature tsd-kind-icon">append<wbr>Child<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span>element<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Element</span>, childNode<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Node</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#appendchild">appendChild</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L40">createDomParser.ts:40</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-type-declaration">
-						<h4>Type declaration</h4>
-						<ul class="tsd-parameters">
-							<li class="tsd-parameter-signature">
-								<ul class="tsd-signatures tsd-kind-type-literal tsd-parent-kind-property">
-									<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>element<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Element</span>, childNode<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Node</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
-								</ul>
-								<ul class="tsd-descriptions">
-									<li class="tsd-description">
-										<h4 class="tsd-parameters-title">Parameters</h4>
-										<ul class="tsd-parameters">
-											<li>
-												<h5>element: <span class="tsd-signature-type">Element</span></h5>
-											</li>
-											<li>
-												<h5>childNode: <span class="tsd-signature-type">Node</span></h5>
-											</li>
-										</ul>
-										<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
-									</li>
-								</ul>
-							</li>
-						</ul>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="createcdatasection" class="tsd-anchor"></a>
 					<h3><span class="tsd-flag ts-flagOptional">Optional</span> create<wbr>Cdata<wbr>Section</h3>
 					<div class="tsd-signature tsd-kind-icon">create<wbr>Cdata<wbr>Section<span class="tsd-signature-symbol">:</span> <a href="../globals.html#datanodefactory" class="tsd-signature-type">DataNodeFactory</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Node</span><span class="tsd-signature-symbol">&gt;</span></div>
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createcdatasection">createCdataSection</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L49">createDomParser.ts:49</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L73">createDomParser.ts:73</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Factory that creates a new CDATA section node.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="createcomment" class="tsd-anchor"></a>
@@ -191,9 +188,14 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createcomment">createComment</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L51">createDomParser.ts:51</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L83">createDomParser.ts:83</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Factory that creates a new comment node.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="createdocumenttype" class="tsd-anchor"></a>
@@ -202,27 +204,13 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createdocumenttype">createDocumentType</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L50">createDomParser.ts:50</a></li>
-						</ul>
-					</aside>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="createelement" class="tsd-anchor"></a>
-					<h3>create<wbr>Element</h3>
-					<div class="tsd-signature tsd-kind-icon">create<wbr>Element<span class="tsd-signature-symbol">:</span> <a href="../globals.html#elementfactory" class="tsd-signature-type">ElementFactory</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Element</span><span class="tsd-signature-symbol">&gt;</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createelement">createElement</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L39">createDomParser.ts:39</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L78">createDomParser.ts:78</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Creates a new element.</p>
+							<p>Factory that creates a new DOCTYPE node.</p>
 						</div>
-						<p>Note: <code>attrs</code> argument is an array-like object that holds pooled objects that would be revoked after this callback
-							finishes. To preserve parsed attributes make a deep copy of <code>attrs</code>. This is done to reduce memory consumption
-						during parsing by avoiding excessive object allocation.</p>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
@@ -232,9 +220,14 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createprocessinginstruction">createProcessingInstruction</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L48">createDomParser.ts:48</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L68">createDomParser.ts:68</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Factory that creates a new processing instruction.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="createtextnode" class="tsd-anchor"></a>
@@ -243,9 +236,14 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createtextnode">createTextNode</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L47">createDomParser.ts:47</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L63">createDomParser.ts:63</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Factory that creates a new text node.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="decodeattr" class="tsd-anchor"></a>
@@ -254,13 +252,18 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#decodeattr">decodeAttr</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L40">createSaxParser.ts:40</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L60">createSaxParser.ts:60</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.</p>
+							<p>Decodes XML entities in an attribute value. By default, only XML entities are decoded.</p>
 						</div>
+						<dl class="tsd-comment-tags">
+							<dt>see</dt>
+							<dd><p><a href="../globals.html#createentitiesdecoder">createEntitiesDecoder</a></p>
+							</dd>
+						</dl>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
@@ -270,77 +273,18 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#decodetext">decodeText</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L45">createSaxParser.ts:45</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L67">createSaxParser.ts:67</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.</p>
+							<p>Decodes XML entities in plain text value. By default, only XML entities are decoded.</p>
 						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="isimplicitend" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Implicit<wbr>End</h3>
-					<div class="tsd-signature tsd-kind-icon">is<wbr>Implicit<wbr>End<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>currentTagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="forgivingsaxparserdialectoptions.html">ForgivingSaxParserDialectOptions</a>.<a href="forgivingsaxparserdialectoptions.html#isimplicitend">isImplicitEnd</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createForgivingSaxParser.ts#L13">createForgivingSaxParser.ts:13</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>If returns <code>true</code> then <code>currentTagName</code> would be closed when <code>tagName</code> starts.</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="istextcontent" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Text<wbr>Content</h3>
-					<div class="tsd-signature tsd-kind-icon">is<wbr>Text<wbr>Content<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#istextcontent">isTextContent</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L66">createSaxParser.ts:66</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>If returns <code>true</code> than content inside the container tag would be treated as a plain text.</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="isvoidcontent" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Void<wbr>Content</h3>
-					<div class="tsd-signature tsd-kind-icon">is<wbr>Void<wbr>Content<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="forgivingsaxparserdialectoptions.html">ForgivingSaxParserDialectOptions</a>.<a href="forgivingsaxparserdialectoptions.html#isvoidcontent">isVoidContent</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createForgivingSaxParser.ts#L8">createForgivingSaxParser.ts:8</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>If returns <code>true</code> than tag would be treated as self-closing.</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="oncontainerend" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> on<wbr>Container<wbr>End</h3>
-					<div class="tsd-signature tsd-kind-icon">on<wbr>Container<wbr>End<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>element<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Element</span>, start<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, end<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#oncontainerend">onContainerEnd</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L45">createDomParser.ts:45</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Triggered when container element end tag is emitted. Use this to update source end offset of the container element.</p>
-						</div>
+						<dl class="tsd-comment-tags">
+							<dt>see</dt>
+							<dd><p><a href="../globals.html#createentitiesdecoder">createEntitiesDecoder</a></p>
+							</dd>
+						</dl>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
@@ -350,12 +294,12 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#renameattr">renameAttr</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L56">createSaxParser.ts:56</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L78">createSaxParser.ts:78</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Rewrites attribute name. By default there&#39;s no rewriting.</p>
+							<p>Rewrites attribute name. By default, there&#39;s no rewriting.</p>
 						</div>
 					</div>
 				</section>
@@ -366,33 +310,14 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#renametag">renameTag</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L51">createSaxParser.ts:51</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L73">createSaxParser.ts:73</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Rewrites tag name. By default, in XML mode tags are not rewritten while in non-XML mode tags are converted to
-							lower case.</p>
+							<p>Rewrites tag name. By default, in XML mode tags aren&#39;t renamed while in non-XML mode tags are converted to lower
+							case.</p>
 						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-					<a name="saxparserfactory" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> sax<wbr>Parser<wbr>Factory</h3>
-					<div class="tsd-signature tsd-kind-icon">sax<wbr>Parser<wbr>Factory<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">: </span><a href="customsaxparseroptions.html" class="tsd-signature-type">CustomSaxParserOptions</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><a href="saxparser.html" class="tsd-signature-type">SaxParser</a><span class="tsd-signature-symbol">)</span></div>
-					<aside class="tsd-sources">
-						<p>Inherited from <a href="domparserdialectoptions.html">DomParserDialectOptions</a>.<a href="domparserdialectoptions.html#saxparserfactory">saxParserFactory</a></p>
-						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createDomParser.ts#L17">createDomParser.ts:17</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings. By
-							default, a forgiving SAX parser is used.</p>
-						</div>
-						<p>Note: DOM parser expects underlying SAX parser to emit tags in correct order. No additional checks are made while
-						constructing a tree of elements.</p>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
@@ -402,13 +327,18 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#selfclosingenabled">selfClosingEnabled</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L61">createSaxParser.ts:61</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L85">createSaxParser.ts:85</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Enables self-closing tags recognition. In XML mode this is always enabled.</p>
+							<p>Enables self-closing tags recognition. This is always enabled if <a href="domparseroptions.html#xmlenabled">xmlEnabled</a> is set to <code>true</code>.</p>
 						</div>
+						<dl class="tsd-comment-tags">
+							<dt>default</dt>
+							<dd><p>false</p>
+							</dd>
+						</dl>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
@@ -418,21 +348,318 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#xmlenabled">xmlEnabled</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/8c7d9c0/src/main/createSaxParser.ts#L35">createSaxParser.ts:35</a></li>
+							<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L53">createSaxParser.ts:53</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>If set to <code>true</code> then CDATA sections and processing instructions are recognized, self-closing tags are enabled and
-								tag names are case-sensitive. Otherwise, CDATA sections and processing instructions are emitted as comments,
-							self-closing tags are treated as start tags and tag names are case-insensitive.</p>
+							<p>Determines whether XML rules should be applied during parsing.</p>
 						</div>
+						<p>If set to <code>true</code> then:</p>
+						<ul>
+							<li>CDATA sections and processing instructions are parsed;</li>
+							<li>Self-closing tags are recognized;</li>
+							<li>Tag names are case-sensitive.</li>
+						</ul>
+						<p>If set to <code>false</code> then:</p>
+						<ul>
+							<li>CDATA sections and processing instructions are emitted as comments;</li>
+							<li>Self-closing tags are treated as start tags;</li>
+							<li>Tag names are case-insensitive.</li>
+						</ul>
 						<dl class="tsd-comment-tags">
 							<dt>default</dt>
 							<dd><p>false</p>
 							</dd>
 						</dl>
 					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group tsd-is-inherited">
+				<h2>Methods</h2>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="appendchild" class="tsd-anchor"></a>
+					<h3>append<wbr>Child</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">append<wbr>Child<span class="tsd-signature-symbol">(</span>element<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Element</span>, childNode<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Node</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#appendchild">appendChild</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L49">createDomParser.ts:49</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Appends <code>childNode</code> as the last child to an <code>element</code>.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>element: <span class="tsd-signature-type">Element</span></h5>
+								</li>
+								<li>
+									<h5>childNode: <span class="tsd-signature-type">Node</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="createelement" class="tsd-anchor"></a>
+					<h3>create<wbr>Element</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Element<span class="tsd-signature-symbol">(</span>tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, attrs<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">ArrayLike</span><span class="tsd-signature-symbol">&lt;</span><a href="attribute.html" class="tsd-signature-type">Attribute</a><span class="tsd-signature-symbol">&gt;</span>, selfClosing<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span>, start<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, end<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Element</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#createelement">createElement</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L44">createDomParser.ts:44</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Creates a new element.</p>
+								</div>
+								<dl class="tsd-comment-tags">
+									<dt>see</dt>
+									<dd><p><a href="domparseroptions.html#oncontainerend">onContainerEnd</a></p>
+									</dd>
+								</dl>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>tagName: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The tag name of an element.</p>
+									</div>
+								</li>
+								<li>
+									<h5>attrs: <span class="tsd-signature-type">ArrayLike</span><span class="tsd-signature-symbol">&lt;</span><a href="attribute.html" class="tsd-signature-type">Attribute</a><span class="tsd-signature-symbol">&gt;</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>An array-like object that holds pooled objects that would be revoked after this callback finishes. To
+											preserve parsed attributes make a deep copy of <code>attrs</code>. Object pooling is used to reduce memory consumption
+										during parsing by avoiding excessive object allocation.</p>
+									</div>
+								</li>
+								<li>
+									<h5>selfClosing: <span class="tsd-signature-type">boolean</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p><code>true</code> if tag is self-closing, <code>false</code> otherwise. Ensure that <a href="domparseroptions.html#selfclosingenabled">selfClosingEnabled</a> or
+										<a href="domparseroptions.html#xmlenabled">xmlEnabled</a> is set to <code>true</code> to support self-closing tags.</p>
+									</div>
+								</li>
+								<li>
+									<h5>start: <span class="tsd-signature-type">number</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The index of a char at which the start tag declaration starts in the source.</p>
+									</div>
+								</li>
+								<li>
+									<h5>end: <span class="tsd-signature-type">number</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The index of a char at which the start tag declaration ends (exclusive) in the source.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Element</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="isimplicitend" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Implicit<wbr>End</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">is<wbr>Implicit<wbr>End<span class="tsd-signature-symbol">(</span>currentTagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="forgivingsaxparserdialectoptions.html">ForgivingSaxParserDialectOptions</a>.<a href="forgivingsaxparserdialectoptions.html#isimplicitend">isImplicitEnd</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createForgivingSaxParser.ts#L22">createForgivingSaxParser.ts:22</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Determines whether the container start tag with name <code>currentTagName</code> should be closed with corresponding end tag
+									when tag with name <code>tagName</code> is read.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>currentTagName: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The name of the start tag that is currently opened.</p>
+									</div>
+								</li>
+								<li>
+									<h5>tagName: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The name of the start tag that was read.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+							<p>If <code>true</code> than the <a href="saxparsercallbacks.html#onendtag">onEndTag</a> would be triggered with <code>currentTagName</code> before <a href="saxparsercallbacks.html#onstarttag">onStartTag</a>
+							with <code>tagName</code> is triggered.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="istextcontent" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Text<wbr>Content</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">is<wbr>Text<wbr>Content<span class="tsd-signature-symbol">(</span>tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="saxparserdialectoptions.html">SaxParserDialectOptions</a>.<a href="saxparserdialectoptions.html#istextcontent">isTextContent</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createSaxParser.ts#L94">createSaxParser.ts:94</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Determines whether the container tag content should be interpreted as a markup or as a plain text. Useful when
+									parsing <code>script</code> and <code>style</code> tags. By default, <code>false</code> for all tags.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>tagName: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The name of the start tag.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+							<p>If <code>true</code> than the content inside the container tag would be treated as a plain text.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="isvoidcontent" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Void<wbr>Content</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">is<wbr>Void<wbr>Content<span class="tsd-signature-symbol">(</span>tagName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="forgivingsaxparserdialectoptions.html">ForgivingSaxParserDialectOptions</a>.<a href="forgivingsaxparserdialectoptions.html#isvoidcontent">isVoidContent</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createForgivingSaxParser.ts#L11">createForgivingSaxParser.ts:11</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Determines whether the tag cannot have any content.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>tagName: <span class="tsd-signature-type">string</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The name of the start tag.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+							<p>If <code>true</code> than the tag would be treated as self-closing even if it isn&#39;t marked up as such.</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="oncontainerend" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> on<wbr>Container<wbr>End</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">on<wbr>Container<wbr>End<span class="tsd-signature-symbol">(</span>element<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Element</span>, start<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, end<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="domparserfactorycallbacks.html">DomParserFactoryCallbacks</a>.<a href="domparserfactorycallbacks.html#oncontainerend">onContainerEnd</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L58">createDomParser.ts:58</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Triggered when the end tag of the container is read from source.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>element: <span class="tsd-signature-type">Element</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The element for which the end tag was read.</p>
+									</div>
+								</li>
+								<li>
+									<h5>start: <span class="tsd-signature-type">number</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The index of a char at which the end tag declaration starts in the source.</p>
+									</div>
+								</li>
+								<li>
+									<h5>end: <span class="tsd-signature-type">number</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>The index of a char at which the end tag declaration ends (exclusive) in the source.</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+					<a name="saxparserfactory" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> sax<wbr>Parser<wbr>Factory</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">sax<wbr>Parser<wbr>Factory<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">: </span><a href="customsaxparseroptions.html" class="tsd-signature-type">CustomSaxParserOptions</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="saxparser.html" class="tsd-signature-type">SaxParser</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<p>Inherited from <a href="domparserdialectoptions.html">DomParserDialectOptions</a>.<a href="domparserdialectoptions.html#saxparserfactory">saxParserFactory</a></p>
+								<ul>
+									<li>Defined in <a href="https://github.com/smikhalevski/tag-soup/blob/3a7d6b4/src/main/createDomParser.ts#L18">createDomParser.ts:18</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>The factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings.</p>
+								</div>
+								<p><strong>Note:</strong> DOM parser expects underlying SAX parser to emit tags in the correct order. No additional checks are
+								made while constructing a tree of elements.</p>
+								<dl class="tsd-comment-tags">
+									<dt>default</dt>
+									<dd><p><a href="../globals.html#createforgivingsaxparser">createForgivingSaxParser</a></p>
+									</dd>
+								</dl>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>options: <a href="customsaxparseroptions.html" class="tsd-signature-type">CustomSaxParserOptions</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="saxparser.html" class="tsd-signature-type">SaxParser</a></h4>
+						</li>
+					</ul>
 				</section>
 			</section>
 		</div>
@@ -450,15 +677,6 @@
 						<a href="../enums/domnodetype.html" class="tsd-kind-icon">Dom<wbr>Node<wbr>Type</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="attribute.html" class="tsd-kind-icon">Attribute</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="customsaxparseroptions.html" class="tsd-kind-icon">Custom<wbr>Sax<wbr>Parser<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="domattrmap.html" class="tsd-kind-icon">Dom<wbr>Attr<wbr>Map</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="domelement.html" class="tsd-kind-icon">Dom<wbr>Element</a>
 					</li>
 					<li class=" tsd-kind-interface">
@@ -467,20 +685,11 @@
 					<li class=" tsd-kind-interface tsd-has-type-parameter">
 						<a href="domparser.html" class="tsd-kind-icon">Dom<wbr>Parser</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="domparserdialectoptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="domparserfactorycallbacks.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Factory<wbr>Callbacks</a>
-					</li>
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-interface tsd-has-type-parameter">
 						<a href="domparseroptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Options</a>
 						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#appendchild" class="tsd-kind-icon">append<wbr>Child</a>
-							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#createcdatasection" class="tsd-kind-icon">create<wbr>Cdata<wbr>Section</a>
 							</li>
@@ -489,9 +698,6 @@
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#createdocumenttype" class="tsd-kind-icon">create<wbr>Document<wbr>Type</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#createelement" class="tsd-kind-icon">create<wbr>Element</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#createprocessinginstruction" class="tsd-kind-icon">create<wbr>Processing<wbr>Instruction</a>
@@ -506,31 +712,37 @@
 								<a href="domparseroptions.html#decodetext" class="tsd-kind-icon">decode<wbr>Text</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#isimplicitend" class="tsd-kind-icon">is<wbr>Implicit<wbr>End</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#istextcontent" class="tsd-kind-icon">is<wbr>Text<wbr>Content</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#isvoidcontent" class="tsd-kind-icon">is<wbr>Void<wbr>Content</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#oncontainerend" class="tsd-kind-icon">on<wbr>Container<wbr>End</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#renameattr" class="tsd-kind-icon">rename<wbr>Attr</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#renametag" class="tsd-kind-icon">rename<wbr>Tag</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
-								<a href="domparseroptions.html#saxparserfactory" class="tsd-kind-icon">sax<wbr>Parser<wbr>Factory</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#selfclosingenabled" class="tsd-kind-icon">self<wbr>Closing<wbr>Enabled</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 								<a href="domparseroptions.html#xmlenabled" class="tsd-kind-icon">xml<wbr>Enabled</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#appendchild" class="tsd-kind-icon">append<wbr>Child</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#createelement" class="tsd-kind-icon">create<wbr>Element</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#isimplicitend" class="tsd-kind-icon">is<wbr>Implicit<wbr>End</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#istextcontent" class="tsd-kind-icon">is<wbr>Text<wbr>Content</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#isvoidcontent" class="tsd-kind-icon">is<wbr>Void<wbr>Content</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#oncontainerend" class="tsd-kind-icon">on<wbr>Container<wbr>End</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+								<a href="domparseroptions.html#saxparserfactory" class="tsd-kind-icon">sax<wbr>Parser<wbr>Factory</a>
 							</li>
 						</ul>
 					</li>
@@ -543,13 +755,10 @@
 						<a href="entitiesdecoderoptions.html" class="tsd-kind-icon">Entities<wbr>Decoder<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="forgivingsaxparserdialectoptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="forgivingsaxparseroptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="htmldialectoptions.html" class="tsd-kind-icon">Html<wbr>Dialect<wbr>Options</a>
+						<a href="fromhtmlcharnameoptions.html" class="tsd-kind-icon">From<wbr>Html<wbr>Char<wbr>Name<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="htmldomparseroptions.html" class="tsd-kind-icon">Html<wbr>Dom<wbr>Parser<wbr>Options</a>
@@ -561,46 +770,19 @@
 						<a href="saxparser.html" class="tsd-kind-icon">Sax<wbr>Parser</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="saxparsercallbacks.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Callbacks</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="saxparserdialectoptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="saxparseroptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#datacallback" class="tsd-kind-icon">Data<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="../globals.html#datanodefactory" class="tsd-kind-icon">Data<wbr>Node<wbr>Factory</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="../globals.html#elementfactory" class="tsd-kind-icon">Element<wbr>Factory</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#endtagcallback" class="tsd-kind-icon">End<wbr>Tag<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#starttagcallback" class="tsd-kind-icon">Start<wbr>Tag<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#createdomelement" class="tsd-kind-icon">create<wbr>Dom<wbr>Element</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#createdomnode" class="tsd-kind-icon">create<wbr>Dom<wbr>Node</a>
 					</li>
 					<li class=" tsd-kind-function tsd-has-type-parameter">
 						<a href="../globals.html#createdomparser" class="tsd-kind-icon">create<wbr>Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#createdomtext" class="tsd-kind-icon">create<wbr>Dom<wbr>Text</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createentitiesdecoder" class="tsd-kind-icon">create<wbr>Entities<wbr>Decoder</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createforgivingsaxparser" class="tsd-kind-icon">create<wbr>Forgiving<wbr>Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="../globals.html#createfromhtmlcharname" class="tsd-kind-icon">create<wbr>From<wbr>Html<wbr>Char<wbr>Name</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createhtmldomparser" class="tsd-kind-icon">create<wbr>Html<wbr>Dom<wbr>Parser</a>
@@ -613,12 +795,6 @@
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="../globals.html#createxmldomparser" class="tsd-kind-icon">create<wbr>Xml<wbr>Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="../globals.html#fromxmlcharname" class="tsd-kind-icon">from<wbr>Xml<wbr>Char<wbr>Name</a>
-					</li>
-					<li class=" tsd-kind-object-literal">
-						<a href="../globals.html#xmlentities" class="tsd-kind-icon">xml<wbr>Entities</a>
 					</li>
 				</ul>
 			</nav>

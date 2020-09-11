@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>tag-soup</title>
+	<title>TagSoup - v0.0.2</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="assets/css/main.css">
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="index.html" class="title">tag-soup</a>
+					<a href="index.html" class="title">TagSoup - v0.0.2</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -56,7 +56,7 @@
 					<a href="globals.html">Globals</a>
 				</li>
 			</ul>
-			<h1>tag-soup</h1>
+			<h1>TagSoup - v0.0.2</h1>
 		</div>
 	</div>
 </header>
@@ -64,12 +64,52 @@
 	<div class="row">
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
-				<a href="#tagsoup" id="tagsoup" style="color: inherit; text-decoration: none;">
-					<h1>TagSoup</h1>
+				<a href="#tagsoup-" id="tagsoup-" style="color: inherit; text-decoration: none;">
+					<h1>TagSoup <a href="https://travis-ci.org/smikhalevski/tag-soup"><img src="https://travis-ci.org/smikhalevski/tag-soup.svg?branch=master" alt="Build Status"></a></h1>
 				</a>
-				<blockquote>
-					<p>The fastest JS SAX/DOM HTML/XML parser.</p>
-				</blockquote>
+				<p>TagSoup is <a href="#performance">the fastest</a> JS SAX/DOM HTML/XML parser.</p>
+				<a href="#documentation" id="documentation" style="color: inherit; text-decoration: none;">
+					<h2>Documentation</h2>
+				</a>
+				<p><a href="https://smikhalevski.github.io/tag-soup/">API documentation is available here.</a></p>
+				<p>Parsing XML SAX</p>
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup'</span>);
+
+<span class="hljs-keyword">const</span> parser = TagSoup.createForgivingSaxParser({
+  onStartTag(tagName, attrs, selfClosing, start, end) {
+    <span class="hljs-comment">// Process start tag here</span>
+  },
+  onEndTag(tagName, start, end) {
+    <span class="hljs-comment">// Process end tag here</span>
+  },
+});
+parser.parse(<span class="hljs-string">'&lt;foo&gt;okay'</span>);</code></pre>
+				<p>Parsing XML DOM</p>
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup'</span>);
+
+<span class="hljs-keyword">const</span> parser = TagSoup.createXmlDomParser();
+<span class="hljs-keyword">const</span> dom = parser.parse(<span class="hljs-string">'&lt;foo&gt;okay'</span>);
+
+<span class="hljs-built_in">console</span>.log(dom[<span class="hljs-number">0</span>].children[<span class="hljs-number">0</span>].data); <span class="hljs-comment">// → 'okay'</span></code></pre>
+				<p>Parsing HTML SAX</p>
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup/lib/html'</span>);
+
+<span class="hljs-keyword">const</span> parser = TagSoup.createHtmlSaxParser({
+  onStartTag(tagName, attrs, selfClosing, start, end) {
+    <span class="hljs-comment">// Process start tag here</span>
+  },
+  onEndTag(tagName, start, end) {
+    <span class="hljs-comment">// Process end tag here</span>
+  },
+});
+parser.parse(<span class="hljs-string">'&lt;script&gt;console.log("&lt;foo&gt;&lt;/foo&gt;")&lt;/script&gt;'</span>);</code></pre>
+				<p>Parsing HTML DOM</p>
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup/lib/html'</span>);
+
+<span class="hljs-keyword">const</span> parser = TagSoup.createHtmlDomParser();
+<span class="hljs-keyword">const</span> dom = parser.parse(<span class="hljs-string">'&lt;script&gt;console.log("&lt;foo&gt;&lt;/foo&gt;")&lt;/script&gt;'</span>);
+
+<span class="hljs-built_in">console</span>.log(dom[<span class="hljs-number">0</span>].children[<span class="hljs-number">0</span>].data); <span class="hljs-comment">// → 'console.log("&lt;foo&gt;&lt;/foo&gt;")'</span></code></pre>
 				<a href="#why-use-tagsoup" id="why-use-tagsoup" style="color: inherit; text-decoration: none;">
 					<h2>Why use TagSoup?</h2>
 				</a>
@@ -110,11 +150,11 @@ createXmlDomParser
 
 createHtmlDomParser
   <span class="hljs-number">2.1</span>✕ faster htmlparser2
-  <span class="hljs-number">12.0</span>✕ faster than parse5</code></pre><p>You can run a performance test using <code>npm i; npm run build; npm run perf</code>.</p>
+  <span class="hljs-number">12.0</span>✕ faster than parse5</code></pre><p>To run a performance test use <code>npm run build</code> and then <code>npm run perf</code>.</p>
 				<a href="#bundle-size" id="bundle-size" style="color: inherit; text-decoration: none;">
 					<h2>Bundle size</h2>
 				</a>
-				<p>For XML parsing use:</p>
+				<p>For XML parsing use</p>
 				<pre><code class="language-ts"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup'</span>);</code></pre>
 				<p>This would require a 3 KB (gzipped) bundle with: </p>
 				<ul>
@@ -122,7 +162,7 @@ createHtmlDomParser
 					<li>Convenient builder for DOM parsers which allows altering how elements are created;</li>
 					<li>Preconfigured Cheerio-compatible XML DOM parser.</li>
 				</ul>
-				<p>For HTML parsing use:</p>
+				<p>For HTML parsing use</p>
 				<pre><code class="language-ts"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup/lib/html'</span>);</code></pre>
 				<p>This would require a 16 KB (gzipped) bundle with: </p>
 				<ul>
@@ -149,219 +189,6 @@ createHtmlDomParser
 <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>nope<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span></code></pre>
 				<p>note the missing <code>b</code> tag in the second paragraph.</p>
 				<p>TagSoup can parse all weird attribute syntax variations and any tag names, <a href="https://github.com/smikhalevski/tag-soup/blob/master/src/test/createSaxParser.test.ts">see tests here for more details</a>.</p>
-				<a href="#usage-examples" id="usage-examples" style="color: inherit; text-decoration: none;">
-					<h2>Usage examples</h2>
-				</a>
-				<p>XML parsing:</p>
-				<pre><code class="language-js"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup'</span>);
-
-<span class="hljs-keyword">const</span> parser = TagSoup.createXmlDomParser();
-<span class="hljs-keyword">const</span> dom = parser.commit(<span class="hljs-string">'&lt;foo&gt;okay'</span>);
-
-<span class="hljs-built_in">console</span>.log(dom[<span class="hljs-number">0</span>].children[<span class="hljs-number">0</span>].data); <span class="hljs-comment">// → 'okay'</span></code></pre>
-				<p>HTML DOM parsing:</p>
-				<pre><code class="language-js"><span class="hljs-keyword">const</span> TagSoup = <span class="hljs-built_in">require</span>(<span class="hljs-string">'tag-soup/lib/html'</span>);
-
-<span class="hljs-keyword">const</span> parser = TagSoup.createHtmlDomParser();
-<span class="hljs-keyword">const</span> dom = parser.commit(<span class="hljs-string">'&lt;script&gt;console.log("&lt;foo&gt;&lt;/foo&gt;")&lt;/script&gt;'</span>);
-
-<span class="hljs-built_in">console</span>.log(dom[<span class="hljs-number">0</span>].children[<span class="hljs-number">0</span>].data); <span class="hljs-comment">// → 'console.log("&lt;foo&gt;&lt;/foo&gt;")'</span></code></pre>
-				<a href="#api" id="api" style="color: inherit; text-decoration: none;">
-					<h2>API</h2>
-				</a>
-				<a href="#parsers" id="parsers" style="color: inherit; text-decoration: none;">
-					<h3>Parsers</h3>
-				</a>
-				<p>Both SAX and DOM parsers are stateful instances that have the following methods:</p>
-				<p><strong><code>writeStream(chunk)</code></strong><br>
-				Makes parser process a given string chunk and triggers corresponding callbacks. If there&#39;s an ambiguity during parsing then the parser is paused until the next <code>writestream</code> invocation in order to resolve it when additional data is available.</p>
-				<p><strong><code>commit(chunk)</code></strong><br>
-				Makes parser process a given string chunk and triggers corresponding callbacks. Always parses the whole string.</p>
-				<p><strong><code>resetStream()</code></strong><br>
-				Resets the internal state of the parser.</p>
-				<a href="#createsaxparser" id="createsaxparser" style="color: inherit; text-decoration: none;">
-					<h3><code>createSaxParser</code></h3>
-				</a>
-				<p>Creates a SAX parser that:</p>
-				<ul>
-					<li>Parses XML tags and attributes;</li>
-					<li>Parses weird HTML attributes.</li>
-				</ul>
-				<a href="#dialect-options" id="dialect-options" style="color: inherit; text-decoration: none;">
-					<h4><a id="create-sax-parser-dialect-options"></a>Dialect options</h4>
-				</a>
-				<p><strong><code>xmlEnabled = false</code></strong><br>
-				If set to <code>true</code> then</p>
-				<ul>
-					<li>CDATA sections, processing instructions are parsed;</li>
-					<li>Self-closing tags are recognized;</li>
-					<li>Tag names are case-sensitive.</li>
-				</ul>
-				<p>If set to <code>false</code> then</p>
-				<ul>
-					<li>CDATA sections and processing instructions are emitted as comments;</li>
-					<li>Self-closing tags are treated as start tags;</li>
-					<li>Tag names are case-insensitive.</li>
-				</ul>
-				<p><strong><code>decodeAttr(attrValue)</code></strong><br>
-				Receives attribute value and returns string with decoded entities. By default, only XML entities are decoded.</p>
-				<p><strong><code>decodeText(textData)</code></strong><br>
-				Receives text node value and returns string with decoded entities. By default, only XML entities are decoded.</p>
-				<p><strong><code>renameTag(tagName)</code></strong><br>
-				Rewrites tag name. By default, in XML mode tags aren&#39;t renamed while in non-XML mode tags are converted to lower case.</p>
-				<p><strong><code>renameAttr(attrName)</code></strong><br>
-				Rewrites attribute name. By default, there&#39;s no renaming.</p>
-				<p><strong><code>selfClosingEnabled = false</code></strong><br>
-				Enables self-closing tags recognition. In XML mode this is always enabled.</p>
-				<p><strong><code>isTextContent(tagName)</code></strong><br>
-				If returns <code>true</code> than the content inside the container tag would be treated as a plain text. Useful when parsing <code>script</code> and <code>style</code> tags.</p>
-				<a href="#callback-options" id="callback-options" style="color: inherit; text-decoration: none;">
-					<h4><a id="create-sax-parser-callback-options"></a>Callback options</h4>
-				</a>
-				<p><strong><code>onStartTag(tagName, attrs, selfClosing, start, end)</code></strong><br>
-				Triggered when a start tag and its attributes were read.</p>
-				<p><strong>Note:</strong> <code>attrs</code> argument is an array-like object that holds pooled objects that would be revoked after this callback finishes. To preserve parsed attributes make a deep copy of <code>attrs</code>. Object pooling is used to reduce memory consumption during parsing by avoiding excessive allocations.</p>
-				<p><strong><code>onEndTag(tagName, start, end)</code></strong><br>
-				Triggered when an end tag was read.</p>
-				<p><strong><code>onText(data, start, end)</code></strong><br>
-				Triggered when a chunk of text was read.</p>
-				<p><strong><code>onComment(data, start, end)</code></strong><br>
-				Triggered when a comment was read.</p>
-				<p><strong><code>onProcessingInstruction(data, start, end)</code></strong><br>
-				Triggered when a processing instruction was read.</p>
-				<p><strong><code>onCdataSection(data, start, end)</code></strong><br>
-				Triggered when a CDATA section was read. This is triggered only when <code>xmlEnabled</code> is set to <code>true</code>. In HTML mode CDATA sections are treated as text.</p>
-				<p><strong><code>onDocumentType(data, start, end)</code></strong><br>
-				Triggered when a DOCTYPE was read. This library doesn&#39;t process the contents of the DOCTYPE and <code>data</code> argument would contain the raw source of the DOCTYPE declaration. </p>
-				<p><strong><code>onReset()</code></strong><br>
-				Triggered when <code>saxParser.resetStream()</code> is called.</p>
-				<p><strong><code>onWrite(chunk, parsedCharCount)</code></strong><br>
-				Triggered when <code>saxParser.writeStream(chunk)</code> is called.</p>
-				<p><strong><code>onCommit(chunk, parsedCharCount)</code></strong><br>
-				Triggered when <code>saxParser.commit(chunk)</code> is called.</p>
-				<a href="#createforgivingsaxparser" id="createforgivingsaxparser" style="color: inherit; text-decoration: none;">
-					<h3><code>createForgivingSaxParser</code></h3>
-				</a>
-				<p>A thin wrapper around <code>createSaxParser</code> that</p>
-				<ul>
-					<li>Can handle tags that were closed in incorrect order;</li>
-					<li>Adds missing close tags;</li>
-					<li>Supports implicit tag closing;</li>
-					<li>Supports customizable void tags;</li>
-				</ul>
-				<a href="#dialect-options-1" id="dialect-options-1" style="color: inherit; text-decoration: none;">
-					<h4><a id="create-forgiving-sax-parser-dialect-options"></a>Dialect options</h4>
-				</a>
-				<p>Supports all dialect options from <a href="#create-sax-parser-dialect-options"><code>createSaxParser</code></a>.</p>
-				<p><strong><code>isVoidContent(tagName)</code></strong><br>
-				If returns <code>true</code> than the tag would be treated as self-closing even if it isn&#39;t marked up as such.</p>
-				<p><strong><code>isImplicitEnd(currentTagName, tagName)</code></strong><br>
-				If returns <code>true</code> then <code>currentTagName</code> would be closed when <code>tagName</code> starts.</p>
-				<a href="#callback-options-1" id="callback-options-1" style="color: inherit; text-decoration: none;">
-					<h4>Callback options</h4>
-				</a>
-				<p>Supports all callback options from <a href="#create-sax-parser-callback-options"><code>createSaxParser</code></a>.</p>
-				<a href="#createhtmlsaxparser" id="createhtmlsaxparser" style="color: inherit; text-decoration: none;">
-					<h3><code>createHtmlSaxParser</code></h3>
-				</a>
-				<p>Preconfigured HTML SAX parser.</p>
-				<a href="#dialect-options-2" id="dialect-options-2" style="color: inherit; text-decoration: none;">
-					<h4><a id="create-html-sax-parser-dialect-options"></a>Dialect options</h4>
-				</a>
-				<p><strong><code>xhtmlEnabled = false</code></strong><br>
-				If set to <code>true</code> then:</p>
-				<ul>
-					<li>Self-closing tags are parsed;</li>
-					<li>All non-void elements are expected to be closed.</li>
-				</ul>
-				<p><strong><code>strict = false</code></strong><br>
-				If set to <code>true</code> then:</p>
-				<ul>
-					<li>Doesn&#39;t recognize non-terminated and legacy HTML entities;</li>
-					<li>Throw an error if the decoder meets a disallowed character reference.</li>
-				</ul>
-				<p><strong>Note:</strong> Using this option may slow parsing because additional checks are involved.</p>
-				<p><strong><code>replacementChar = &quot;\ufffd&quot;</code></strong><br>
-				This char is returned for disallowed character references in non-strict mode.</p>
-				<a href="#callback-options-2" id="callback-options-2" style="color: inherit; text-decoration: none;">
-					<h4>Callback options</h4>
-				</a>
-				<p>Supports all callback options from <a href="#create-sax-parser-callback-options"><code>createSaxParser</code></a>.</p>
-				<a href="#createdomparser" id="createdomparser" style="color: inherit; text-decoration: none;">
-					<h3><code>createDomParser</code></h3>
-				</a>
-				<p>Creates a custom DOM parser that uses provided callbacks to create elements.</p>
-				<a href="#dialect-options-3" id="dialect-options-3" style="color: inherit; text-decoration: none;">
-					<h4><a id="create-dom-parser-dialect-options"></a>Dialect options</h4>
-				</a>
-				<p>Supports all dialect options from <a href="#create-forgiving-sax-parser-dialect-options"><code>createForgivingSaxParser</code></a>.</p>
-				<p><strong><code>saxParserFactory</code></strong><br>
-				The factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings. By default, a forgiving SAX parser is used.</p>
-				<p><strong>Note:</strong> DOM parser expects underlying SAX parser to emit tags in the correct order. No additional checks are made while constructing a tree of elements.</p>
-				<a href="#factory-options" id="factory-options" style="color: inherit; text-decoration: none;">
-					<h4>Factory options</h4>
-				</a>
-				<p><strong><code>createElement(tagName, attrs, selfClosing, start, end)</code></strong><br>
-				Creates a new element.</p>
-				<p><strong>Note:</strong> <code>attrs</code> argument is an array-like object that holds pooled objects that would be revoked after this callback finishes. To preserve parsed attributes make a deep copy of <code>attrs</code>. This is done to reduce memory consumption during parsing by avoiding excessive object allocation.</p>
-				<p><strong><code>appendChild(element, childNode)</code></strong><br>
-				Append <code>childNode</code> as the last child to an <code>element</code>.</p>
-				<p><strong><code>onContainerEnd(data, start, end)</code></strong><br>
-				Triggered when the container element end tag is emitted. Use this to update the source end offset of the container element.</p>
-				<p><strong><code>createTextNode(data, start, end)</code></strong><br>
-				Creates a new text node.</p>
-				<p><strong><code>createProcessingInstruction(data, start, end)</code></strong><br>
-				Creates a new processing instruction.</p>
-				<p><strong><code>createCdataSection(data, start, end)</code></strong><br>
-				Creates a new CDATA section node.</p>
-				<p><strong><code>createDocumentType(data, start, end)</code></strong><br>
-				Creates a new DOCTYPE node.</p>
-				<p><strong><code>createComment(data, start, end)</code></strong><br>
-				Creates a new comment node.</p>
-				<a href="#createxmldomparser" id="createxmldomparser" style="color: inherit; text-decoration: none;">
-					<h3><code>createXmlDomParser</code></h3>
-				</a>
-				<p>Preconfigured Cheerio-compatible XML DOM parser.</p>
-				<p>Supports all dialect options from <a href="#create-dom-parser-dialect-options"><code>createDomParser</code></a>.</p>
-				<a href="#createhtmldomparser" id="createhtmldomparser" style="color: inherit; text-decoration: none;">
-					<h3><code>createHtmlDomParser</code></h3>
-				</a>
-				<p>Preconfigured Cheerio-compatible HTML DOM parser. In contrast with <code>createXmlDomParser</code> this one knows how to handle HTML void tags and which HTML tags should be implicitly closed.</p>
-				<p>Supports all dialect options from <a href="#create-html-sax-parser-dialect-options"><code>createHtmlSaxParser</code></a>.</p>
-				<a href="#createentitiesdecoder" id="createentitiesdecoder" style="color: inherit; text-decoration: none;">
-					<h3><code>createEntitiesDecoder</code></h3>
-				</a>
-				<p>Creates a decoder callback that would receive a string end decode XML/HTML entities in it.</p>
-				<p><strong><code>fromCharName(entityName)</code></strong><br>
-				Receives an entity name (&quot;lt&quot;, &quot;gt&quot;, etc.) and returns a string replacement for it.</p>
-				<p><strong><code>fromCharCode(entityCode)</code></strong><br>
-				Receives a numeric code point and should return a string replacement for it.</p>
-				<a href="#createfromhtmlcharname" id="createfromhtmlcharname" style="color: inherit; text-decoration: none;">
-					<h3><code>createFromHtmlCharName</code></h3>
-				</a>
-				<p>Creates a mapper from an HTML entity name to a corresponding char.</p>
-				<p><strong><code>strict = false</code></strong><br>
-				If set to <code>true</code> then:</p>
-				<ul>
-					<li>Entities that are not terminated with a semicolon are not decoded.</li>
-				</ul>
-				<p>If set to <code>false</code> then:</p>
-				<ul>
-					<li>Legacy HTML entities are decoded even if they are not terminated with a semicolon.</li>
-				</ul>
-				<a href="#createfromcharcode" id="createfromcharcode" style="color: inherit; text-decoration: none;">
-					<h3><code>createFromCharCode</code></h3>
-				</a>
-				<p>Creates a mapper from a numeric XML entity to a corresponding char.</p>
-				<p><strong><code>strict = false</code></strong><br>
-				If set to <code>true</code> then an error is thrown if the decoder meets a disallowed character reference.</p>
-				<p><strong>Note:</strong> Using this option may slow decoding because additional checks are involved.</p>
-				<p><strong><code>replacementChar = &quot;\ufffd&quot;</code></strong><br>
-				This char is returned for disallowed character references in non-strict mode.</p>
-				<a href="#fromxmlcharname" id="fromxmlcharname" style="color: inherit; text-decoration: none;">
-					<h3><code>fromXmlCharName</code></h3>
-				</a>
-				<p>Maps a named XML entity to a corresponding char.</p>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -378,15 +205,6 @@ createHtmlDomParser
 						<a href="enums/domnodetype.html" class="tsd-kind-icon">Dom<wbr>Node<wbr>Type</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/attribute.html" class="tsd-kind-icon">Attribute</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/customsaxparseroptions.html" class="tsd-kind-icon">Custom<wbr>Sax<wbr>Parser<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/domattrmap.html" class="tsd-kind-icon">Dom<wbr>Attr<wbr>Map</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="interfaces/domelement.html" class="tsd-kind-icon">Dom<wbr>Element</a>
 					</li>
 					<li class=" tsd-kind-interface">
@@ -394,12 +212,6 @@ createHtmlDomParser
 					</li>
 					<li class=" tsd-kind-interface tsd-has-type-parameter">
 						<a href="interfaces/domparser.html" class="tsd-kind-icon">Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="interfaces/domparserdialectoptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="interfaces/domparserfactorycallbacks.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Factory<wbr>Callbacks</a>
 					</li>
 					<li class=" tsd-kind-interface tsd-has-type-parameter">
 						<a href="interfaces/domparseroptions.html" class="tsd-kind-icon">Dom<wbr>Parser<wbr>Options</a>
@@ -411,13 +223,10 @@ createHtmlDomParser
 						<a href="interfaces/entitiesdecoderoptions.html" class="tsd-kind-icon">Entities<wbr>Decoder<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/forgivingsaxparserdialectoptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="interfaces/forgivingsaxparseroptions.html" class="tsd-kind-icon">Forgiving<wbr>Sax<wbr>Parser<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/htmldialectoptions.html" class="tsd-kind-icon">Html<wbr>Dialect<wbr>Options</a>
+						<a href="interfaces/fromhtmlcharnameoptions.html" class="tsd-kind-icon">From<wbr>Html<wbr>Char<wbr>Name<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/htmldomparseroptions.html" class="tsd-kind-icon">Html<wbr>Dom<wbr>Parser<wbr>Options</a>
@@ -429,46 +238,19 @@ createHtmlDomParser
 						<a href="interfaces/saxparser.html" class="tsd-kind-icon">Sax<wbr>Parser</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/saxparsercallbacks.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Callbacks</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/saxparserdialectoptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Dialect<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="interfaces/saxparseroptions.html" class="tsd-kind-icon">Sax<wbr>Parser<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#datacallback" class="tsd-kind-icon">Data<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="globals.html#datanodefactory" class="tsd-kind-icon">Data<wbr>Node<wbr>Factory</a>
-					</li>
-					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="globals.html#elementfactory" class="tsd-kind-icon">Element<wbr>Factory</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#endtagcallback" class="tsd-kind-icon">End<wbr>Tag<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#starttagcallback" class="tsd-kind-icon">Start<wbr>Tag<wbr>Callback</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#createdomelement" class="tsd-kind-icon">create<wbr>Dom<wbr>Element</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#createdomnode" class="tsd-kind-icon">create<wbr>Dom<wbr>Node</a>
 					</li>
 					<li class=" tsd-kind-function tsd-has-type-parameter">
 						<a href="globals.html#createdomparser" class="tsd-kind-icon">create<wbr>Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#createdomtext" class="tsd-kind-icon">create<wbr>Dom<wbr>Text</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="globals.html#createentitiesdecoder" class="tsd-kind-icon">create<wbr>Entities<wbr>Decoder</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="globals.html#createforgivingsaxparser" class="tsd-kind-icon">create<wbr>Forgiving<wbr>Sax<wbr>Parser</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#createfromhtmlcharname" class="tsd-kind-icon">create<wbr>From<wbr>Html<wbr>Char<wbr>Name</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="globals.html#createhtmldomparser" class="tsd-kind-icon">create<wbr>Html<wbr>Dom<wbr>Parser</a>
@@ -481,12 +263,6 @@ createHtmlDomParser
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="globals.html#createxmldomparser" class="tsd-kind-icon">create<wbr>Xml<wbr>Dom<wbr>Parser</a>
-					</li>
-					<li class=" tsd-kind-function">
-						<a href="globals.html#fromxmlcharname" class="tsd-kind-icon">from<wbr>Xml<wbr>Char<wbr>Name</a>
-					</li>
-					<li class=" tsd-kind-object-literal">
-						<a href="globals.html#xmlentities" class="tsd-kind-icon">xml<wbr>Entities</a>
 					</li>
 				</ul>
 			</nav>
