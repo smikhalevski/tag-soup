@@ -2,15 +2,10 @@ import {Attribute, DataCallback, SaxParser, SaxParserCallbacks, SaxParserOptions
 import {createForgivingSaxParser, ForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
 export interface CustomSaxParserOptions extends SaxParserOptions {
-
-  /**
-   * If you use your custom implementation of the SAX parser with {@link DomParserDialectOptions.saxParserFactory},
-   * you can provide additional options to it using this indexer.
-   */
   [saxParserOption: string]: unknown;
 }
 
-export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDialectOptions, CustomSaxParserOptions {
+export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDialectOptions {
 
   /**
    * The factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings.
@@ -21,6 +16,12 @@ export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDial
    * @default {@link createForgivingSaxParser}
    */
   saxParserFactory?(options: CustomSaxParserOptions): SaxParser;
+
+  /**
+   * If you use your custom implementation of the SAX parser with {@link saxParserFactory}, you can provide additional
+   * options to it using this indexer.
+   */
+  [saxParserOption: string]: unknown;
 }
 
 export type DataNodeFactory<Node> = (data: string, start: number, end: number) => Node;
