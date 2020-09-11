@@ -1,6 +1,6 @@
-import {createXmlDomParser, DomAttrMap, DomElement, DomNode, DomNodeType, DomText} from '../main/createXmlDomParser';
+import {createXmlDomParser, DomAttributeMap, DomElement, DomNode, DomNodeType, DomText} from '../main/createXmlDomParser';
 
-export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: DomAttrMap = {}, children: Array<DomNode> = []): DomElement {
+export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: DomAttributeMap = {}, children: Array<DomNode> = []): DomElement {
 
   const el: DomElement = {
     nodeType: DomNodeType.ELEMENT,
@@ -28,7 +28,7 @@ describe('createXmlDomParser', () => {
   it('parses a tag with attribute', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a foo=bar>')).toEqual([
+    expect(parser.parse('<a foo=bar>')).toEqual([
       el('a', 0, 11, false, {foo: 'bar'}),
     ]);
   });
@@ -36,7 +36,7 @@ describe('createXmlDomParser', () => {
   it('parses a tag with string content', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a>okay</a>')).toEqual([
+    expect(parser.parse('<a>okay</a>')).toEqual([
       el('a', 0, 11, false, {}, [
         text('okay', 3, 7),
       ]),
@@ -46,7 +46,7 @@ describe('createXmlDomParser', () => {
   it('parses a self-closing tag', () => {
     const parser = createXmlDomParser({selfClosingEnabled: true});
 
-    expect(parser.commit('<a/>')).toEqual([
+    expect(parser.parse('<a/>')).toEqual([
       el('a', 0, 4, true),
     ]);
   });
@@ -54,7 +54,7 @@ describe('createXmlDomParser', () => {
   it('parses text', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('foo')).toEqual([
+    expect(parser.parse('foo')).toEqual([
       text('foo', 0, 3),
     ]);
   });
@@ -62,7 +62,7 @@ describe('createXmlDomParser', () => {
   it('parses tag with sibling text', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a></a>foo')).toEqual([
+    expect(parser.parse('<a></a>foo')).toEqual([
       el('a', 0, 7),
       text('foo', 7, 10),
     ]);
@@ -71,7 +71,7 @@ describe('createXmlDomParser', () => {
   it('parses self-closing tag as a start tag', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a/>foo')).toEqual([
+    expect(parser.parse('<a/>foo')).toEqual([
       el('a', 0, 7, false, {}, [
         text('foo', 4, 7),
       ]),
@@ -81,7 +81,7 @@ describe('createXmlDomParser', () => {
   it('parses self-closing tag', () => {
     const parser = createXmlDomParser({selfClosingEnabled: true});
 
-    expect(parser.commit('<a/>foo')).toEqual([
+    expect(parser.parse('<a/>foo')).toEqual([
       el('a', 0, 4, true),
       text('foo', 4, 7),
     ]);
@@ -90,7 +90,7 @@ describe('createXmlDomParser', () => {
   it('ignores unmatched end tags', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a>aaa</b>bbb</a>')).toEqual([
+    expect(parser.parse('<a>aaa</b>bbb</a>')).toEqual([
       el('a', 0, 17, false, {}, [
         text('aaa', 3, 6),
         text('bbb', 10, 13),
@@ -101,7 +101,7 @@ describe('createXmlDomParser', () => {
   it('resolves incorrect order of close tags without excessive elements', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a>aaa<b>bbb</a></b>')).toEqual([
+    expect(parser.parse('<a>aaa<b>bbb</a></b>')).toEqual([
       el('a', 0, 16, false, {}, [
         text('aaa', 3, 6),
         el('b', 6, 12, false, {}, [
@@ -114,7 +114,7 @@ describe('createXmlDomParser', () => {
   it('resolves incorrect order of close tags with text', () => {
     const parser = createXmlDomParser();
 
-    expect(parser.commit('<a>aaa<b>bbb</a>ccc</b>')).toEqual([
+    expect(parser.parse('<a>aaa<b>bbb</a>ccc</b>')).toEqual([
       el('a', 0, 16, false, {}, [
         text('aaa', 3, 6),
         el('b', 6, 12, false, {}, [
@@ -128,7 +128,7 @@ describe('createXmlDomParser', () => {
   it('closes void tags', () => {
     const parser = createXmlDomParser({isVoidContent: (tagName) => tagName === 'a'});
 
-    expect(parser.commit('<a><a><a>')).toEqual([
+    expect(parser.parse('<a><a><a>')).toEqual([
       el('a', 0, 3, true),
       el('a', 3, 6, true),
       el('a', 6, 9, true),
@@ -138,7 +138,7 @@ describe('createXmlDomParser', () => {
   it('implicitly closes current tag', () => {
     const parser = createXmlDomParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'p' && tagName === 'p'});
 
-    expect(parser.commit('<p>foo<p>bar')).toEqual([
+    expect(parser.parse('<p>foo<p>bar')).toEqual([
       el('p', 0, 6, false, {}, [
         text('foo', 3, 6),
       ]),
@@ -151,7 +151,7 @@ describe('createXmlDomParser', () => {
   it('implicitly closes current tag with nesting', () => {
     const parser = createXmlDomParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'p' && tagName === 'p'});
 
-    expect(parser.commit('<p><p>aaa</p></p>')).toEqual([
+    expect(parser.parse('<p><p>aaa</p></p>')).toEqual([
       el('p', 0, 3),
       el('p', 3, 13, false, {}, [
         text('aaa', 6, 9),

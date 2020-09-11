@@ -1,5 +1,4 @@
 import {createDomParser, DomParser, DomParserDialectOptions, DomParserFactoryCallbacks} from './createDomParser';
-import {Attribute} from './createSaxParser';
 
 export const enum DomNodeType {
   ELEMENT = 1,
@@ -18,14 +17,14 @@ export interface DomNode {
   data?: string;
 }
 
-export interface DomAttrMap {
+export interface DomAttributeMap {
   [attrName: string]: string;
 }
 
 export interface DomElement extends DomNode {
   nodeType: DomNodeType.ELEMENT;
   tagName: string;
-  attrs: DomAttrMap;
+  attrs: DomAttributeMap;
   selfClosing: boolean;
   children: Array<DomNode>;
 }
@@ -35,30 +34,34 @@ export interface DomText extends DomNode {
   data: string;
 }
 
-export function createDomElement(tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number): DomElement {
-  const attrMap: DomAttrMap = {};
-  for (let i = 0, l = attrs.length; i < l; i++) {
-    const attr = attrs[i];
-    attrMap[attr.name] = attr.value;
-  }
-  return {nodeType: DomNodeType.ELEMENT, parent: null, tagName, attrs: attrMap, selfClosing, children: [], start, end};
-}
-
-export function createDomText(value: string, start: number, end: number): DomText {
-  return {nodeType: DomNodeType.TEXT, parent: null, data: value, start, end};
-}
-
-export function createDomNode(nodeType: number, data: string, start: number, end: number): DomNode {
+function createDomNode(nodeType: number, data: string, start: number, end: number): DomNode {
   return {nodeType, parent: null, start, end, data};
 }
 
 /**
- * Creates preconfigured DOM parser that returns a tree of {@link DomNode}s.
+ * Creates preconfigured Cheerio-compatible XML DOM parser that returns a tree of {@link DomNode}s.
  */
 export function createXmlDomParser(options: DomParserDialectOptions<DomElement> = {}): DomParser<DomNode, DomElement, DomText> {
 
   const domParserFactoryCallbacks: DomParserFactoryCallbacks<DomNode, DomElement, DomText> = {
-    createElement: createDomElement,
+
+    createElement(tagName, attrs, selfClosing, start, end) {
+      const attrMap: DomAttributeMap = {};
+      for (let i = 0, l = attrs.length; i < l; i++) {
+        const attr = attrs[i];
+        attrMap[attr.name] = attr.value;
+      }
+      return {
+        nodeType: DomNodeType.ELEMENT,
+        parent: null,
+        tagName,
+        attrs: attrMap,
+        selfClosing,
+        children: [],
+        start,
+        end,
+      };
+    },
 
     appendChild(element, childNode) {
       childNode.parent = element;
@@ -69,7 +72,16 @@ export function createXmlDomParser(options: DomParserDialectOptions<DomElement> 
       element.end = end;
     },
 
-    createTextNode: createDomText,
+    createTextNode(value, start, end) {
+      return {
+        nodeType: DomNodeType.TEXT,
+        parent: null,
+        data: value,
+        start,
+        end,
+      };
+    },
+
     createProcessingInstruction: (data, start, end) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, data, start, end),
     createCdataSection: (data, start, end) => createDomNode(DomNodeType.CDATA_SECTION, data, start, end),
     createDocumentType: (data, start, end) => createDomNode(DomNodeType.DOCUMENT_TYPE, data, start, end),

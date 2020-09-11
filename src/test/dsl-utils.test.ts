@@ -1,4 +1,4 @@
-import {all, char, charBy, seq, substr, untilCharBy, untilSubstr} from '../main/dsl-utils';
+import {all, char, charBy, seq, substr, untilCharBy, untilSubstr} from '../main/parser-dsl';
 
 const A = 'a'.charCodeAt(0);
 const B = 'b'.charCodeAt(0);

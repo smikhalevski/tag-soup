@@ -39,15 +39,15 @@ describe('createForgivingSaxParser', () => {
   describe('in streaming mode', () => {
 
     it('defers text emit', () => {
-      parser.writeStream('aaa');
+      parser.write('aaa');
       expect(onTextMock).not.toHaveBeenCalled();
 
-      parser.commit();
+      parser.parse();
       expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa', 0, 3);
     });
 
     it('emits the start tag', () => {
-      parser.writeStream('<a>');
+      parser.write('<a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
@@ -55,7 +55,7 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('emits the end tag', () => {
-      parser.writeStream('<a></a>');
+      parser.write('<a></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
@@ -65,7 +65,7 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('does not emit the end tag without corresponding start tag', () => {
-      parser.writeStream('</a>');
+      parser.write('</a>');
 
       expect(onStartTagMock).not.toHaveBeenCalled();
       expect(onEndTagMock).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe('createForgivingSaxParser', () => {
 
     it('emits end tag if the start implicitly closes', () => {
       parser = createParser({isImplicitEnd: (tagName) => tagName === 'a'});
-      parser.writeStream('<a><b>');
+      parser.write('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
@@ -85,7 +85,7 @@ describe('createForgivingSaxParser', () => {
 
     it('emits end tag for intermediate tags if the start implicitly closes', () => {
       parser = createParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'a' && tagName === 'c'});
-      parser.writeStream('<a><b><c>');
+      parser.write('<a><b><c>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(3);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
@@ -99,7 +99,7 @@ describe('createForgivingSaxParser', () => {
 
     it('recognizes void tags', () => {
       parser = createParser({isVoidContent: (tagName) => tagName === 'a'});
-      parser.writeStream('<a><b></b></a>');
+      parser.write('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, true, 0, 3);
@@ -113,7 +113,7 @@ describe('createForgivingSaxParser', () => {
   describe('in non-streaming mode', () => {
 
     it('emits end tags for unclosed start tags', () => {
-      parser.commit('<a><b>');
+      parser.parse('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
@@ -125,7 +125,7 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('emits text before closing unclosed tags', () => {
-      parser.commit('<a>bbb');
+      parser.parse('<a>bbb');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
@@ -139,7 +139,7 @@ describe('createForgivingSaxParser', () => {
 
     it('implicitly closes current tag with nesting', () => {
       parser = createParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'p' && tagName === 'p'});
-      parser.commit('<p><p>aaa</p></p>');
+      parser.parse('<p><p>aaa</p></p>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'p', {length: 0}, false, 0, 3);

@@ -1,6 +1,5 @@
-import {allCharBy, CharCodeChecker} from './dsl-utils';
-import {fromXmlCharName} from './fromXmlCharName';
-import {CharCode, FromCharCode, FromCharName, Rewriter} from './parser-utils';
+import {allCharBy, CharCodeChecker} from './parser-dsl';
+import {CharCode, FromCharCode, FromCharName, fromXmlCharName, Rewriter} from './parser-utils';
 
 // [0-9]
 const isNumberChar: CharCodeChecker = (c) => c > 47 && c < 58;
@@ -20,8 +19,7 @@ export interface EntitiesDecoderOptions {
   /**
    * Receives an entity name ("lt", "gt", etc.) and returns a string replacement for it.
    *
-   * @default {@link fromXmlCharName}
-   * @see createFromHtmlCharName
+   * @see {@link createFromHtmlCharName}
    */
   fromCharName?: FromCharName;
 
@@ -29,16 +27,13 @@ export interface EntitiesDecoderOptions {
    * Receives a numeric code point and should return a string replacement for it.
    *
    * @default String.fromCharCode
+   * @see {@link createFromCharCode}
    */
   fromCharCode?: FromCharCode;
 }
 
 /**
- * Creates a {@link Rewriter} that maps an encoded HTML entity into a corresponding char.
- *
- * @example
- * createEntitiesDecoder()("&#60;") // → "<"
- * createEntitiesDecoder({fromCharName: createFromHtmlCharName()})("&AMP") // → "&"
+ * Creates a rewriter that maps an encoded HTML entities in given string into corresponding chars.
  */
 export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rewriter {
   const {
