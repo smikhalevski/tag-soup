@@ -1,4 +1,4 @@
-# TagSoup
+# TagSoup [![Build Status](https://travis-ci.org/smikhalevski/tag-soup.svg?branch=master)](https://travis-ci.org/smikhalevski/tag-soup)
 
 TagSoup is [the fastest](#performance) JS SAX/DOM HTML/XML parser.
 
