@@ -29,6 +29,16 @@ export const enum CharCode {
  * Creates a new object that has the same fields as `src` but no prototype chain. Use this for creating fast lookup
  * maps.
  */
-export function pure<T>(src: T): T {
+export function purify<T>(src: T): T {
   return Object.assign(Object.create(null), src);
 }
+
+export const fromXmlCharName: FromCharName = (name, terminated) => terminated ? xmlEntities[name] : undefined;
+
+const xmlEntities = purify<Record<string, string>>({
+  amp: '&',
+  gt: '>',
+  lt: '<',
+  quot: '"',
+  apos: '\'',
+});

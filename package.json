@@ -5,17 +5,19 @@
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "files": [
-    "./lib",
-    "README.md"
+    "lib"
   ],
   "scripts": {
     "build": "set -e; npm run tsc; npm run rollup; npm run terser",
     "tsc": "tsc --module commonjs",
     "rollup": "for p in ./src/main/{index,html}.ts; do rollup --input $p --dir ./lib --format cjs --plugin @rollup/plugin-typescript; done",
     "terser": "for p in ./lib/{index,html}.js; do terser --compress --mangle toplevel --output $p -- $p; done",
-    "clean": "rm -rf ./lib",
+    "clean": "rm -rf ./{lib,docs}",
     "test": "jest",
-    "perf": "node --max-old-space-size=4096 src/test/perf.js"
+    "perf": "node --max-old-space-size=4096 ./src/test/perf.js",
+    "docs": "typedoc ./src/main/html.ts",
+    "publish-docs": "set -ex; [ -d ./docs ]; [[ ! $(git status --porcelain) ]]; branch=$(git rev-parse --abbrev-ref HEAD); sha=$(git rev-parse --short HEAD); t=$(mktemp -d); cp -R ./docs/ $t; git checkout ghpages; ls -A | grep -wv .git | xargs rm -rf; cp -R $t/ .; git add .; git commit -m \"Updated docs ($sha)\"; git push; git checkout $branch",
+    "release-docs": "set -e; npm run clean; npm run docs; npm run publish-docs"
   },
   "repository": {
     "type": "git",
@@ -45,18 +47,17 @@
   "devDependencies": {
     "@rollup/plugin-typescript": "^4.1.2",
     "@types/jest": "^25.2.3",
+    "htmlparser2": "^4.1.0",
     "jest": "^26.0.1",
+    "nodemark": "^0.3.0",
+    "parse5": "^6.0.1",
     "rollup": "^2.12.0",
+    "sax": "^1.2.4",
     "terser": "^4.7.0",
     "ts-jest": "^26.1.0",
     "tslib": "^2.0.0",
+    "typedoc": "^0.17.0-3",
     "typescript": "^4.0.2"
   },
-  "dependencies": {},
-  "optionalDependencies": {
-    "htmlparser2": "^4.1.0",
-    "nodemark": "^0.3.0",
-    "parse5": "^6.0.1",
-    "sax": "^1.2.4"
-  }
+  "dependencies": {}
 }

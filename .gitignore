@@ -1,4 +1,6 @@
 /lib/
+/docs/
+*.tgz
 
 # IntelliJ Idea file-based project settings
 *.iws

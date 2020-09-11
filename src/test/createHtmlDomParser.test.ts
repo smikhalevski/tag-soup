@@ -1,7 +1,7 @@
-import {DomAttrMap, DomElement, DomNode, DomNodeType, DomText} from '../main';
+import {DomAttributeMap, DomElement, DomNode, DomNodeType, DomText} from '../main';
 import {createHtmlDomParser} from '../main/createHtmlDomParser';
 
-export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: DomAttrMap = {}, children: Array<DomNode> = []): DomElement {
+export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: DomAttributeMap = {}, children: Array<DomNode> = []): DomElement {
 
   const el: DomElement = {
     nodeType: DomNodeType.ELEMENT,
@@ -29,7 +29,7 @@ describe('createHtmlDomParser', () => {
   it('implicitly closes paragraph', () => {
     const parser = createHtmlDomParser();
 
-    expect(parser.commit('<p><p>aaa</p></p>')).toEqual([
+    expect(parser.parse('<p><p>aaa</p></p>')).toEqual([
       el('p', 0, 3),
       el('p', 3, 13, false, {}, [
         text('aaa', 6, 9),

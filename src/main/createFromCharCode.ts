@@ -1,10 +1,11 @@
-import {FromCharCode} from './parser-utils';
+import {FromCharCode, purify} from './parser-utils';
 
 export interface FromCharCodeOptions {
 
   /**
-   * If set to `true` then an error is thrown if decoder meets a disallowed character reference. Using this option may
-   * slow decoding because additional checks are involved.
+   * If set to `true` then an error is thrown if decoder meets a disallowed character reference.
+   *
+   * **Note:** Using this option may slow decoding because additional checks are involved.
    *
    * @default false
    */
@@ -53,12 +54,8 @@ export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharC
   };
 }
 
-/**
- * Disallowed character references are replaced with chars from this map.
- *
- * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
- */
-export const replacementCodePoints: Record<number, string> = {
+// https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
+const replacementCodePoints = purify<Record<number, string>>({
   0: '\ufffd',
   128: '\u20ac',
   130: '\u201a',
@@ -87,14 +84,10 @@ export const replacementCodePoints: Record<number, string> = {
   156: '\u0153',
   158: '\u017e',
   159: '\u0178',
-};
+});
 
-/**
- * Disallowed character references that are replaced with {@link FromCharCodeOptions.replacementChar}.
- *
- * @see https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
- */
-export const errorCodePoints = [
+// https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
+const errorCodePoints = [
   1,
   2,
   3,

@@ -19,11 +19,11 @@ function round(v) {
 console.log('SAX parser benchmark\n');
 
 const tagSoupSaxParser = createSaxParser({});
-const tagSoupSaxParserResult = bench(() => tagSoupSaxParser.commit(html), null, saxBenchDuration);
+const tagSoupSaxParserResult = bench(() => tagSoupSaxParser.parse(html), null, saxBenchDuration);
 console.log('createSaxParser     ', tagSoupSaxParserResult);
 
 const tagSoupHtmlSaxParser = createHtmlSaxParser({});
-const tagSoupHtmlSaxParserResult = bench(() => tagSoupHtmlSaxParser.commit(html), null, saxBenchDuration);
+const tagSoupHtmlSaxParserResult = bench(() => tagSoupHtmlSaxParser.parse(html), null, saxBenchDuration);
 console.log('createHtmlSaxParser ', tagSoupHtmlSaxParserResult);
 
 const htmlparser2SaxParser = new htmlparser2.Parser({});
@@ -35,23 +35,23 @@ const saxParserResult = bench(() => saxParser.write(html), null, saxBenchDuratio
 console.log('sax                 ', saxParserResult);
 
 console.log(`
-htmlparser2
-  ${round(htmlparser2SaxParserResult.mean / tagSoupSaxParserResult.mean)}✕ slower than createSaxParser
-  ${round(htmlparser2SaxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ slower than createHtmlSaxParser
-
-sax
-  ${round(saxParserResult.mean / tagSoupSaxParserResult.mean)}✕ slower than createSaxParser
-  ${round(saxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ slower than createHtmlSaxParser
+createSaxParser
+  ${round(htmlparser2SaxParserResult.mean / tagSoupSaxParserResult.mean)}✕ faster than htmlparser2
+  ${round(saxParserResult.mean / tagSoupSaxParserResult.mean)}✕ faster than sax
+  
+createHtmlSaxParser
+  ${round(htmlparser2SaxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ faster than htmlparser2
+  ${round(saxParserResult.mean / tagSoupHtmlSaxParserResult.mean)}✕ faster than sax
 `);
 
 console.log('\nDOM parser benchmark\n');
 
 const tagSoupXmlDomParser = createXmlDomParser({});
-const tagSoupXmlDomResult = bench(() => tagSoupXmlDomParser.commit(html), null, domBenchDuration);
+const tagSoupXmlDomResult = bench(() => tagSoupXmlDomParser.parse(html), null, domBenchDuration);
 console.log('createXmlDomParser  ', tagSoupXmlDomResult);
 
 const tagSoupHtmlDomParser = createHtmlDomParser({});
-const tagSoupHtmlDomParserResult = bench(() => tagSoupHtmlDomParser.commit(html), null, domBenchDuration);
+const tagSoupHtmlDomParserResult = bench(() => tagSoupHtmlDomParser.parse(html), null, domBenchDuration);
 console.log('createHtmlDomParser ', tagSoupHtmlDomParserResult);
 
 const htmlparser2DomParser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
@@ -62,11 +62,11 @@ const parse5ParserResult = bench(() => parse5.parse(html), null, domBenchDuratio
 console.log('parse5              ', parse5ParserResult);
 
 console.log(`
-htmlparser2
-  ${round(htmlparser2DomParserResult.mean / tagSoupXmlDomResult.mean)}✕ slower than createXmlDomParser
-  ${round(htmlparser2DomParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ slower than createHtmlDomParser
+createXmlDomParser
+  ${round(htmlparser2DomParserResult.mean / tagSoupXmlDomResult.mean)}✕ faster than htmlparser2
+  ${round(parse5ParserResult.mean / tagSoupXmlDomResult.mean)}✕ faster than parse5
 
-parse5
-  ${round(parse5ParserResult.mean / tagSoupXmlDomResult.mean)}✕ slower than createXmlDomParser
-  ${round(parse5ParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ slower than createHtmlDomParser
+createHtmlDomParser
+  ${round(htmlparser2DomParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ faster htmlparser2 
+  ${round(parse5ParserResult.mean / tagSoupHtmlDomParserResult.mean)}✕ faster than parse5
 `);

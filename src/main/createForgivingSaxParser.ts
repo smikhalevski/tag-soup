@@ -3,28 +3,41 @@ import {createSaxParser, SaxParser, SaxParserCallbacks, SaxParserDialectOptions}
 export interface ForgivingSaxParserDialectOptions extends SaxParserDialectOptions {
 
   /**
-   * If returns `true` than tag would be treated as self-closing.
+   * Determines whether the tag cannot have any content.
+   *
+   * @param tagName The name of the start tag.
+   * @returns If `true` than the tag would be treated as self-closing even if it isn't marked up as such.
    */
-  isVoidContent?: (tagName: string) => boolean;
+  isVoidContent?(tagName: string): boolean;
 
   /**
-   * If returns `true` then `currentTagName` would be closed when `tagName` starts.
+   * Determines whether the container start tag with name `currentTagName` should be closed with corresponding end tag
+   * when tag with name `tagName` is read.
+   *
+   * @param currentTagName The name of the start tag that is currently opened.
+   * @param tagName The name of the start tag that was read.
+   * @returns If `true` than the {@link onEndTag} would be triggered with `currentTagName` before {@link onStartTag}
+   *     with `tagName` is triggered.
    */
-  isImplicitEnd?: (currentTagName: string, tagName: string) => boolean;
+  isImplicitEnd?(currentTagName: string, tagName: string): boolean;
 }
 
 export interface ForgivingSaxParserOptions extends ForgivingSaxParserDialectOptions, SaxParserCallbacks {
 }
 
 /**
- * Creates a streaming SAX parser that guarantees the correct order of start and end tags.
+ * Creates a streaming SAX parser that:
+ * - Can handle tags that were closed in the incorrect order;
+ * - Adds missing close tags;
+ * - Supports implicit tag closing;
+ * - Supports customizable void tags;
  */
 export function createForgivingSaxParser(options: ForgivingSaxParserOptions = {}): SaxParser {
   const {
     onStartTag,
     onEndTag,
     onReset,
-    onCommit,
+    onParse,
     isVoidContent,
     isImplicitEnd,
   } = options;
@@ -80,13 +93,13 @@ export function createForgivingSaxParser(options: ForgivingSaxParserOptions = {}
       onReset?.();
     },
 
-    onCommit(chunk, parsedCharCount) {
+    onParse(chunk, parsedCharCount) {
       if (onEndTag) {
         for (let i = depth - 1; i >= 0; i--) {
           onEndTag(tagNames[i], parsedCharCount, parsedCharCount);
         }
       }
-      onCommit?.(chunk, parsedCharCount);
+      onParse?.(chunk, parsedCharCount);
     },
   };
 

@@ -1,4 +1,4 @@
-import {FromCharName} from './parser-utils';
+import {FromCharName, purify} from './parser-utils';
 
 export interface FromHtmlCharNameOptions {
 
@@ -12,21 +12,20 @@ export interface FromHtmlCharNameOptions {
 }
 
 /**
- * Creates a decoder that converts HTML entity name to a corresponding char.
+ * Creates a mapper from an HTML entity name to a corresponding char.
  *
  * @see createEntitiesDecoder
  */
 export function createFromHtmlCharName(options: FromHtmlCharNameOptions = {}): FromCharName {
-  const {strict = false} = options;
+  const {
+    strict = false,
+  } = options;
+
   return (name, terminated) => terminated ? htmlEntities[name] : strict ? undefined : legacyHtmlEntities[name];
 }
 
-/**
- * Legacy HTML entities that don't require a trailing semicolon.
- *
- * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
- */
-export const legacyHtmlEntities: Record<string, string> = {
+// https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
+const legacyHtmlEntities = purify<Record<string, string>>({
   aacute: '\u00e1',
   Aacute: '\u00c1',
   acirc: '\u00e2',
@@ -133,12 +132,10 @@ export const legacyHtmlEntities: Record<string, string> = {
   Yacute: '\u00dd',
   yen: '\u00a5',
   yuml: '\u00ff',
-};
+});
 
-/**
- * @see https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
- */
-export const htmlEntities: Record<string, string> = {
+// https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
+const htmlEntities = purify<Record<string, string>>({
   abreve: '\u0103',
   Abreve: '\u0102',
   ac: '\u223e',
@@ -2158,6 +2155,6 @@ export const htmlEntities: Record<string, string> = {
   Zscr: '\ud835\udcb5',
   zwj: '\u200d',
   zwnj: '\u200c',
-};
+});
 
 Object.assign(htmlEntities, legacyHtmlEntities);
