@@ -2,6 +2,17 @@
 
 TagSoup is [the fastest](#performance) JS SAX/DOM HTML/XML parser.
 
+## Why use TagSoup?
+
+- [It is the fastest](#performance);
+- [It is the tiniest, just 3 kB gzipped](https://bundlephobia.com/result?p=tag-soup) for XML parsing and 16 kB gzipped for HTML parsing;
+- Zero dependencies;
+- Low memory consumption thanks to object pooling;
+- Has streaming support for both SAX and DOM;
+- Forgives malformed tag nesting and missing end tags;
+- Parses HTML attributes in the same way your browser does;
+- Recognizes CDATA, processing instructions, and DOCTYPE;
+
 ## Documentation
 
 [API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
@@ -56,17 +67,6 @@ const dom = parser.parse('<script>console.log("<foo></foo>")</script>');
 console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
 ```
 
-## Why use TagSoup?
-
-- It is the fastest;
-- It is the tiniest, just 3 KB gzipped for XML parsing and 16 KB gzipped for HTML parsing;
-- Zero dependencies;
-- Low memory consumption thanks to object pooling;
-- Has streaming support for both SAX and DOM;
-- Forgives malformed tag nesting and missing end tags;
-- Parses HTML attributes in the same way your browser does;
-- Recognizes CDATA, processing instructions, and DOCTYPE;
-
 ## Performance
 
 SAX parser benchmark
@@ -111,7 +111,7 @@ For XML parsing use
 const TagSoup = require('tag-soup');
 ```  
 
-This would require a 3 KB (gzipped) bundle with: 
+This would require a 3 kB (gzipped) bundle with: 
 
 - SAX/DOM XML parsing;
 - Convenient builder for DOM parsers which allows altering how elements are created;
@@ -123,7 +123,7 @@ For HTML parsing use
 const TagSoup = require('tag-soup/lib/html');
 ```  
 
-This would require a 16 KB (gzipped) bundle with: 
+This would require a 16 kB (gzipped) bundle with: 
 
 - Everything from XML bundle;
 - Support of implicit void tags like `<img>`;
