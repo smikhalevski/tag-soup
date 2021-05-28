@@ -2,13 +2,19 @@ import {allCharBy, CharCodeChecker} from './parser-dsl';
 import {CharCode, FromCharCode, FromCharName, fromXmlCharName, Rewriter} from './parser-utils';
 
 // [0-9]
-const isNumberChar: CharCodeChecker = (c) => c > 47 && c < 58;
+const isNumberChar: CharCodeChecker = (c) => c >= CharCode['+0'] && c <= CharCode['+9'];
 
 // [0-9A-Fa-f]
-const isHexNumberChar: CharCodeChecker = (c) => isNumberChar(c) || c > 64 && c < 73 || c > 96 && c < 105;
+const isHexNumberChar: CharCodeChecker = (c) =>
+    isNumberChar(c)
+    || c >= CharCode['a'] && c <= CharCode['f']
+    || c >= CharCode['A'] && c <= CharCode['F'];
 
 // [0-9A-Za-z]
-const isAlphaNumericChar: CharCodeChecker = (c) => isNumberChar(c) || c > 64 && c < 91 || c > 96 && c < 123;
+const isAlphaNumericChar: CharCodeChecker = (c) =>
+    isNumberChar(c)
+    || c >= CharCode['a'] && c <= CharCode['z']
+    || c >= CharCode['A'] && c <= CharCode['Z'];
 
 const takeNumber = allCharBy(isNumberChar);
 
@@ -58,11 +64,11 @@ export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rew
       let char;
       let k;
 
-      if (str.charCodeAt(++j) === CharCode.NUM) {
+      if (str.charCodeAt(++j) === CharCode['#']) {
         // Numeric character reference
         let base;
 
-        if (str.charCodeAt(++j) === CharCode.X) {
+        if (str.charCodeAt(++j) === CharCode['x']) {
           k = takeHexNumber(str, ++j);
           base = 16;
         } else {
@@ -72,7 +78,7 @@ export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rew
         if (k !== j) {
           char = fromCharCode(parseInt(str.substring(j, k), base));
         }
-        if (str.charCodeAt(k) === CharCode.SEMI) {
+        if (str.charCodeAt(k) === CharCode[';']) {
           k++;
         }
       } else {
@@ -83,7 +89,7 @@ export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rew
           char = fromCharName(str.substring(j, ++k), false);
         }
 
-        if (str.charCodeAt(k) === CharCode.SEMI) {
+        if (str.charCodeAt(k) === CharCode[';']) {
           if (k !== j && char == null) {
             char = fromCharName(str.substring(j, k), true);
           }

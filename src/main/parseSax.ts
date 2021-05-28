@@ -7,11 +7,11 @@ import {Attribute, DataCallback, SaxParserOptions} from './createSaxParser';
 const isSpaceChar: CharCodeChecker = (c) => c === 0x20 || c === 0x09 || c === 0xD || c === 0xA;
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
-const isTagNameStartChar: CharCodeChecker = (c) => (
-    c >= 97 && c <= 122 // a-z
-    || c >= 65 && c <= 90 // A-Z
-    || c === 95 // "_"
-    || c === 58 // ":"
+const isTagNameStartChar: CharCodeChecker = (c) =>
+    c >= CharCode['a'] && c <= CharCode['z']
+    || c >= CharCode['A'] && c <= CharCode['Z']
+    || c === CharCode['_']
+    || c === CharCode[':']
     || c >= 0xc0 && c <= 0xd6
     || c >= 0xd8 && c <= 0xf6
     || c >= 0xf8 && c <= 0x2ff
@@ -23,19 +23,18 @@ const isTagNameStartChar: CharCodeChecker = (c) => (
     || c >= 0x3001 && c <= 0xd7ff
     || c >= 0xf900 && c <= 0xfdcf
     || c >= 0xfdf0 && c <= 0xfffd
-    || c >= 0x10000 && c <= 0xeffff
-);
+    || c >= 0x10000 && c <= 0xeffff;
 
 /**
  * Check if char should be treated as a whitespace inside tag.
  */
-const isTagSpaceChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode.SLASH;
+const isTagSpaceChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'];
 
-const isNotTagNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode.SLASH || c === CharCode.GT;
+const isNotTagNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'] || c === CharCode['>'];
 
-const isNotAttrNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode.SLASH || c === CharCode.GT || c === CharCode.EQ;
+const isNotAttrNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'] || c === CharCode['>'] || c === CharCode['='];
 
-const isNotUnquotedValueChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode.GT;
+const isNotUnquotedValueChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['>'];
 
 const takeText = untilSubstr('<', false, false);
 
@@ -45,7 +44,7 @@ const takeTagNameStartChar = charBy(isTagNameStartChar);
 const takeTagNameChars = untilCharBy(isNotTagNameChar, false, true);
 
 // <okay
-const takeStartTagOpening = seq(char(CharCode.LT), takeTagNameStartChar, takeTagNameChars);
+const takeStartTagOpening = seq(char(CharCode['<']), takeTagNameStartChar, takeTagNameChars);
 
 // </okay
 const takeEndTagOpening = seq(substr('</'), takeTagNameStartChar, takeTagNameChars);
@@ -57,13 +56,13 @@ const takeAttrName = untilCharBy(isNotAttrNameChar, false, true);
 const takeSpace = allCharBy(isSpaceChar);
 
 // =
-const takeEq = seq(takeSpace, char(CharCode.EQ), takeSpace);
+const takeEq = seq(takeSpace, char(CharCode['=']), takeSpace);
 
 // "okay"
-const takeQuotValue = seq(char(CharCode.QUOT), untilSubstr('"', true, true));
+const takeQuotValue = seq(char(CharCode['"']), untilSubstr('"', true, true));
 
 // 'okay'
-const takeAposValue = seq(char(CharCode.APOS), untilSubstr("'", true, true));
+const takeAposValue = seq(char(CharCode["'"]), untilSubstr("'", true, true));
 
 // okay
 const takeUnquotedValue = untilCharBy(isNotUnquotedValueChar, false, true);
@@ -250,7 +249,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
           return i;
         }
 
-        const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode.SLASH;
+        const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode['/'];
 
         emitText();
         onStartTag?.(tagName, attrs, selfClosing, offset + i, offset + k);

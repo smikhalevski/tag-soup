@@ -14,15 +14,25 @@ export type Mutable<T> = {
  * Char codes that are reused across parsers.
  */
 export const enum CharCode {
-  EQ = 61,
-  GT = 62,
-  LT = 60,
-  QUOT = 34,
-  APOS = 39,
-  NUM = 35,
-  SEMI = 59,
-  SLASH = 47,
-  X = 120,
+  '=' = 61,
+  '>' = 62,
+  '<' = 60,
+  '"' = 34,
+  "'" = 39,
+  '#' = 35,
+  ';' = 59,
+  '/' = 47,
+  '_' = 95,
+  ':' = 58,
+  'x' = 120,
+  '+0' = 48,
+  '+9' = 57,
+  'a' = 97,
+  'f' = 102,
+  'z' = 122,
+  'A' = 65,
+  'F' = 70,
+  'Z' = 90,
 }
 
 /**
