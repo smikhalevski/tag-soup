@@ -1,22 +1,12 @@
 {
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
     "declaration": true,
-    "downlevelIteration": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": [
-      "dom",
-      "esnext"
-    ],
-    "moduleResolution": "node",
-    "noUnusedLocals": false,
-    "preserveSymlinks": true,
-    "removeComments": false,
-    "skipLibCheck": true,
+    "moduleResolution": "Node",
+    "preserveConstEnums": true,
     "strict": true,
-    "target": "es3",
-    "module": "esnext",
+    "target": "ES5",
+    "module": "ES6",
     "rootDir": "./src/main",
     "outDir": "./lib"
   },

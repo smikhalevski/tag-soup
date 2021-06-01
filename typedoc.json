@@ -1,6 +1,5 @@
 {
   "name": "TagSoup",
-  "mode": "library",
   "includeVersion": true,
   "out": "./docs",
   "toc": [

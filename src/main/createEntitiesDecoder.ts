@@ -1,4 +1,4 @@
-import {allCharBy, CharCodeChecker} from './parser-dsl';
+import {allCharBy, CharCodeChecker} from 'tokenizer-dsl';
 import {CharCode, FromCharCode, FromCharName, fromXmlCharName, Rewriter} from './parser-utils';
 
 // [0-9]

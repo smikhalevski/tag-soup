@@ -1,4 +1,4 @@
-import {allCharBy, char, charBy, CharCodeChecker, seq, substr, untilCharBy, untilSubstr} from './parser-dsl';
+import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {CharCode, Mutable, purify, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {Attribute, DataCallback, SaxParserOptions} from './createSaxParser';

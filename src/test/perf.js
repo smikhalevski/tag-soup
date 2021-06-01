@@ -4,8 +4,8 @@ const bench = require('nodemark');
 const htmlparser2 = require('htmlparser2');
 const sax = require('sax');
 const parse5 = require('parse5');
-const {createSaxParser, createXmlDomParser} = require('../../lib');
-const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/html');
+const {createSaxParser, createXmlDomParser} = require('../../lib/index-cjs');
+const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/html-cjs');
 
 const saxBenchDuration = 10000;
 const domBenchDuration = 10000;
