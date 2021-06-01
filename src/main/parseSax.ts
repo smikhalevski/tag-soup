@@ -4,7 +4,11 @@ import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {Attribute, DataCallback, SaxParserOptions} from './createSaxParser';
 
 // https://www.w3.org/TR/xml/#NT-S
-const isSpaceChar: CharCodeChecker = (c) => c === 0x20 || c === 0x09 || c === 0xD || c === 0xA;
+const isSpaceChar: CharCodeChecker = (c) =>
+    c === 0x20
+    || c === CharCode['\t']
+    || c === CharCode['\r']
+    || c === CharCode['\n'];
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const isTagNameStartChar: CharCodeChecker = (c) =>

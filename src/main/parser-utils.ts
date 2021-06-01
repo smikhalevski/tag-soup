@@ -14,11 +14,14 @@ export type Mutable<T> = {
  * Char codes that are reused across parsers.
  */
 export const enum CharCode {
+  '\t' = 9,
+  '\n' = 10,
+  '\r' = 13,
   '=' = 61,
   '>' = 62,
   '<' = 60,
   '"' = 34,
-  "'" = 39,
+  '\'' = 39,
   '#' = 35,
   ';' = 59,
   '/' = 47,
