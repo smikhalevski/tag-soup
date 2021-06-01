@@ -1,12 +1,12 @@
-import {createFromCharCode, FromCharCodeOptions} from './createFromCharCode';
-import {SaxParser, SaxParserCallbacks} from './createSaxParser';
+import {createFromCharCode, IFromCharCodeOptions} from './createFromCharCode';
+import {ISaxParser, ISaxParserCallbacks} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
-import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
+import {createForgivingSaxParser, IForgivingSaxParserOptions} from './createForgivingSaxParser';
 import {purify} from './parser-utils';
 import {lowerCase} from './parseSax';
 
-export interface HtmlSaxParserDialectOptions extends FromCharCodeOptions {
+export interface IHtmlSaxParserDialectOptions extends IFromCharCodeOptions {
 
   /**
    * If set to `true` then:
@@ -29,13 +29,13 @@ export interface HtmlSaxParserDialectOptions extends FromCharCodeOptions {
   strict?: boolean;
 }
 
-export interface HtmlSaxParserOptions extends HtmlSaxParserDialectOptions, SaxParserCallbacks {
+export interface IHtmlSaxParserOptions extends IHtmlSaxParserDialectOptions, ISaxParserCallbacks {
 }
 
 /**
  * Creates preconfigured HTML SAX parser.
  */
-export function createHtmlSaxParser(options: HtmlSaxParserOptions): SaxParser {
+export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser {
   const {
     xhtmlEnabled = false,
   } = options;
@@ -52,7 +52,7 @@ export function createHtmlSaxParser(options: HtmlSaxParserOptions): SaxParser {
     fromCharCode,
   });
 
-  const saxParserOptions: ForgivingSaxParserOptions = {
+  const saxParserOptions: IForgivingSaxParserOptions = {
     xmlEnabled: false,
     selfClosingEnabled: xhtmlEnabled,
     decodeAttr: htmlAttrDecoder,

@@ -1,7 +1,7 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {CharCode, Mutable, purify, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {Attribute, DataCallback, SaxParserOptions} from './createSaxParser';
+import {DataCallback, IAttribute, ISaxParserOptions} from './createSaxParser';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>
@@ -40,9 +40,9 @@ const isNotAttrNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCo
 
 const isNotUnquotedValueChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['>'];
 
-const takeText = untilSubstr('<', false, false);
+const takeText = untilText('<', false, false);
 
-const takeUntilGt = untilSubstr('>', true, false);
+const takeUntilGt = untilText('>', true, false);
 
 const takeTagNameStartChar = charBy(isTagNameStartChar);
 const takeTagNameChars = untilCharBy(isNotTagNameChar, false, true);
@@ -51,7 +51,7 @@ const takeTagNameChars = untilCharBy(isNotTagNameChar, false, true);
 const takeStartTagOpening = seq(char(CharCode['<']), takeTagNameStartChar, takeTagNameChars);
 
 // </okay
-const takeEndTagOpening = seq(substr('</'), takeTagNameStartChar, takeTagNameChars);
+const takeEndTagOpening = seq(text('</'), takeTagNameStartChar, takeTagNameChars);
 
 const takeTagSpace = allCharBy(isTagSpaceChar);
 
@@ -63,39 +63,39 @@ const takeSpace = allCharBy(isSpaceChar);
 const takeEq = seq(takeSpace, char(CharCode['=']), takeSpace);
 
 // "okay"
-const takeQuotValue = seq(char(CharCode['"']), untilSubstr('"', true, true));
+const takeQuotValue = seq(char(CharCode['"']), untilText('"', true, true));
 
 // 'okay'
-const takeAposValue = seq(char(CharCode["'"]), untilSubstr("'", true, true));
+const takeAposValue = seq(char(CharCode["'"]), untilText("'", true, true));
 
 // okay
 const takeUnquotedValue = untilCharBy(isNotUnquotedValueChar, false, true);
 
 // <!--okay-->
-const takeComment = seq(substr('<!--'), untilSubstr('-->', true, true));
+const takeComment = seq(text('<!--'), untilText('-->', true, true));
 
 // <!okay>
-const takeWeirdComment = seq(substr('<!'), untilSubstr('>', true, true));
+const takeWeirdComment = seq(text('<!'), untilText('>', true, true));
 
 // <?okay?>
-const takeProcessingInstruction = seq(substr('<?'), untilSubstr('?>', true, true));
+const takeProcessingInstruction = seq(text('<?'), untilText('?>', true, true));
 
 // <![CDATA[okay]]>
-const takeCdataSection = seq(substr('<![CDATA['), untilSubstr(']]>', true, true));
+const takeCdataSection = seq(text('<![CDATA['), untilText(']]>', true, true));
 
 // <!DOCTYPE html>
-const takeDocumentType = seq(substr('<!DOCTYPE', true), untilSubstr('>', true, true));
+const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true));
 
 /**
  * Parses attributes from string starting from given position.
  *
  * @param str The string to read attributes from.
  * @param i The initial index where attributes' definitions are expected to start.
- * @param attrs An array to which {@link Attribute} objects are added.
+ * @param attrs An array to which {@link IAttribute} objects are added.
  * @param decode The decoder of HTML/XML entities.
  * @param rename The callback that receives an attribute name and returns a new name.
  */
-export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<Attribute>>, decode: Rewriter, rename: Rewriter): number {
+export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAttribute>>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
 
   let attrCount = 0;
@@ -170,7 +170,7 @@ export function identity<T>(value: T): T {
   return value;
 }
 
-export function parseSax(str: string, streaming: boolean, offset: number, options: SaxParserOptions): number {
+export function parseSax(str: string, streaming: boolean, offset: number, options: ISaxParserOptions): number {
   const {
     xmlEnabled = false,
     decodeAttr = xmlDecoder,
@@ -195,7 +195,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
   let startTagName: string | undefined;
 
   // Pool of reusable attribute objects
-  const attrs = purify<Mutable<ArrayLike<Attribute>>>({length: 0});
+  const attrs = purify<Mutable<ArrayLike<IAttribute>>>({length: 0});
 
   // Emits text chunk if any
   const emitText = () => {

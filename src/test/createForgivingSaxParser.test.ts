@@ -1,9 +1,9 @@
-import {SaxParser} from '../main/createSaxParser';
-import {createForgivingSaxParser, ForgivingSaxParserOptions} from '../main/createForgivingSaxParser';
+import {ISaxParser} from '../main/createSaxParser';
+import {createForgivingSaxParser, IForgivingSaxParserOptions} from '../main/createForgivingSaxParser';
 
 describe('createForgivingSaxParser', () => {
 
-  let parser: SaxParser;
+  let parser: ISaxParser;
 
   const onStartTagMock = jest.fn();
   const onEndTagMock = jest.fn();
@@ -13,7 +13,7 @@ describe('createForgivingSaxParser', () => {
   const onCdataSectionMock = jest.fn();
   const onDocumentTypeMock = jest.fn();
 
-  const createParser = (options: ForgivingSaxParserOptions) => createForgivingSaxParser({
+  const createParser = (options: IForgivingSaxParserOptions) => createForgivingSaxParser({
     ...options,
     onStartTag: onStartTagMock,
     onEndTag: onEndTagMock,

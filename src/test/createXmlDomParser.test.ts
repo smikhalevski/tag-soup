@@ -1,8 +1,15 @@
-import {createXmlDomParser, DomAttributeMap, DomElement, DomNode, DomNodeType, DomText} from '../main/createXmlDomParser';
+import {
+  createXmlDomParser,
+  DomNodeType,
+  IDomAttributeMap,
+  IDomElement,
+  IDomNode,
+  IDomText,
+} from '../main/createXmlDomParser';
 
-export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: DomAttributeMap = {}, children: Array<DomNode> = []): DomElement {
+export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: IDomAttributeMap = {}, children: Array<IDomNode> = []): IDomElement {
 
-  const el: DomElement = {
+  const el: IDomElement = {
     nodeType: DomNodeType.ELEMENT,
     parent: null,
     tagName,
@@ -19,7 +26,7 @@ export function el(tagName: string, start: number, end: number, selfClosing = fa
   return el;
 }
 
-export function text(value: string, start: number, end: number): DomText {
+export function text(value: string, start: number, end: number): IDomText {
   return {nodeType: 3, parent: null, data: value, start, end};
 }
 

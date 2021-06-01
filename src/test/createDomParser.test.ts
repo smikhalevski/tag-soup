@@ -1,8 +1,8 @@
-import {createDomParser, DomParser, DomParserOptions} from '../main/createDomParser';
+import {createDomParser, IDomParser, IDomParserOptions} from '../main/createDomParser';
 
 describe('createDomParser', () => {
 
-  let domParserOptions: DomParserOptions<any, any, any> = {
+  let domParserOptions: IDomParserOptions<any, any, any> = {
     createElement(tagName, attrs, selfClosing, start, end) {
       return {tagName, attrs, start, end, children: []};
     },
@@ -17,7 +17,7 @@ describe('createDomParser', () => {
     },
   };
 
-  let parser: DomParser<any>;
+  let parser: IDomParser<any>;
 
   beforeEach(() => {
     parser = createDomParser(domParserOptions);

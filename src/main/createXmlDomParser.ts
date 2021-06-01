@@ -1,4 +1,4 @@
-import {createDomParser, DomParser, DomParserDialectOptions, DomParserFactoryCallbacks} from './createDomParser';
+import {createDomParser, IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './createDomParser';
 
 export const enum DomNodeType {
   ELEMENT = 1,
@@ -9,44 +9,44 @@ export const enum DomNodeType {
   COMMENT = 8,
 }
 
-export interface DomNode {
+export interface IDomNode {
   nodeType: number;
-  parent: DomElement | null;
+  parent: IDomElement | null;
   start: number;
   end: number;
   data?: string;
 }
 
-export interface DomAttributeMap {
+export interface IDomAttributeMap {
   [attrName: string]: string;
 }
 
-export interface DomElement extends DomNode {
+export interface IDomElement extends IDomNode {
   nodeType: DomNodeType.ELEMENT;
   tagName: string;
-  attrs: DomAttributeMap;
+  attrs: IDomAttributeMap;
   selfClosing: boolean;
-  children: Array<DomNode>;
+  children: Array<IDomNode>;
 }
 
-export interface DomText extends DomNode {
+export interface IDomText extends IDomNode {
   nodeType: DomNodeType.TEXT;
   data: string;
 }
 
-function createDomNode(nodeType: number, data: string, start: number, end: number): DomNode {
+function createDomNode(nodeType: number, data: string, start: number, end: number): IDomNode {
   return {nodeType, parent: null, start, end, data};
 }
 
 /**
- * Creates preconfigured Cheerio-compatible XML DOM parser that returns a tree of {@link DomNode}s.
+ * Creates preconfigured Cheerio-compatible XML DOM parser that returns a tree of {@link IDomNode}s.
  */
-export function createXmlDomParser(options: DomParserDialectOptions<DomElement> = {}): DomParser<DomNode, DomElement, DomText> {
+export function createXmlDomParser(options: IDomParserDialectOptions<IDomElement> = {}): IDomParser<IDomNode, IDomElement, IDomText> {
 
-  const domParserFactoryCallbacks: DomParserFactoryCallbacks<DomNode, DomElement, DomText> = {
+  const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElement, IDomText> = {
 
     createElement(tagName, attrs, selfClosing, start, end) {
-      const attrMap: DomAttributeMap = {};
+      const attrMap: IDomAttributeMap = {};
       for (let i = 0, l = attrs.length; i < l; i++) {
         const attr = attrs[i];
         attrMap[attr.name] = attr.value;

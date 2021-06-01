@@ -1,8 +1,8 @@
-import {DomParser, DomParserDialectOptions} from './createDomParser';
-import {createXmlDomParser, DomElement, DomNode, DomText} from './createXmlDomParser';
-import {createHtmlSaxParser, HtmlSaxParserDialectOptions} from './createHtmlSaxParser';
+import {IDomParser, IDomParserDialectOptions} from './createDomParser';
+import {createXmlDomParser, IDomElement, IDomNode, IDomText} from './createXmlDomParser';
+import {createHtmlSaxParser, IHtmlSaxParserDialectOptions} from './createHtmlSaxParser';
 
-export interface HtmlDomParserOptions extends HtmlSaxParserDialectOptions {
+export interface IHtmlDomParserOptions extends IHtmlSaxParserDialectOptions {
 }
 
 /**
@@ -13,8 +13,8 @@ export interface HtmlDomParserOptions extends HtmlSaxParserDialectOptions {
  * @see {@link createXmlDomParser}
  * @see {@link createHtmlDomParser}
  */
-export function createHtmlDomParser(options?: HtmlDomParserOptions): DomParser<DomNode, DomElement, DomText> {
-  const domParserOptions: DomParserDialectOptions<DomElement> = {
+export function createHtmlDomParser(options?: IHtmlDomParserOptions): IDomParser<IDomNode, IDomElement, IDomText> {
+  const domParserOptions: IDomParserDialectOptions<IDomElement> = {
     saxParserFactory: createHtmlSaxParser,
   };
   return createXmlDomParser(Object.assign({}, options, domParserOptions));

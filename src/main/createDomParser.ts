@@ -1,11 +1,11 @@
-import {Attribute, DataCallback, SaxParser, SaxParserCallbacks, SaxParserOptions} from './createSaxParser';
-import {createForgivingSaxParser, ForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
+import {DataCallback, IAttribute, ISaxParser, ISaxParserCallbacks, ISaxParserOptions} from './createSaxParser';
+import {createForgivingSaxParser, IForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
-export interface CustomSaxParserOptions extends SaxParserOptions {
+export interface ICustomSaxParserOptions extends ISaxParserOptions {
   [saxParserOption: string]: unknown;
 }
 
-export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDialectOptions {
+export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDialectOptions {
 
   /**
    * The factory that creates an instance of a SAX parser that would be used for actual parsing of the input strings.
@@ -15,7 +15,7 @@ export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDial
    *
    * @default {@link createForgivingSaxParser}
    */
-  saxParserFactory?(options: CustomSaxParserOptions): SaxParser;
+  saxParserFactory?(options: ICustomSaxParserOptions): ISaxParser;
 
   /**
    * If you use your custom implementation of the SAX parser with {@link saxParserFactory}, you can provide additional
@@ -26,7 +26,7 @@ export interface DomParserDialectOptions<Element> extends ForgivingSaxParserDial
 
 export type DataNodeFactory<Node> = (data: string, start: number, end: number) => Node;
 
-export interface DomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
+export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
 
   /**
    * Creates a new element.
@@ -41,7 +41,7 @@ export interface DomParserFactoryCallbacks<Node, Element extends Node, Text exte
    * @param end The index of a char at which the start tag declaration ends (exclusive) in the source.
    * @see {@link onContainerEnd}
    */
-  createElement(tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number): Element;
+  createElement(tagName: string, attrs: ArrayLike<IAttribute>, selfClosing: boolean, start: number, end: number): Element;
 
   /**
    * Appends `childNode` as the last child to an `element`.
@@ -90,7 +90,7 @@ export interface DomParserFactoryCallbacks<Node, Element extends Node, Text exte
  * @param Element The type of object that describes an element in the DOM tree.
  * @param Text The type of object that describes a text node in the DOM tree.
  */
-export interface DomParserOptions<Node, Element extends Node, Text extends Node> extends DomParserDialectOptions<Element>, DomParserFactoryCallbacks<Node, Element, Text> {
+export interface IDomParserOptions<Node, Element extends Node, Text extends Node> extends IDomParserDialectOptions<Element>, IDomParserFactoryCallbacks<Node, Element, Text> {
 }
 
 /**
@@ -104,7 +104,7 @@ export interface DomParserOptions<Node, Element extends Node, Text extends Node>
  * @see {@link createXmlDomParser}
  * @see {@link createHtmlDomParser}
  */
-export interface DomParser<Node, Element extends Node = Node, Text extends Node = Node> {
+export interface IDomParser<Node, Element extends Node = Node, Text extends Node = Node> {
 
   /**
    * Resets the internal state of the parser.
@@ -141,7 +141,7 @@ export interface DomParser<Node, Element extends Node = Node, Text extends Node 
  * @param Element The type of object that describes an element in the DOM tree.
  * @param Text The type of object that describes a text node in the DOM tree.
  */
-export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: DomParserOptions<Node, Element, Text>): DomParser<Node, Element, Text> {
+export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: IDomParserOptions<Node, Element, Text>): IDomParser<Node, Element, Text> {
   const {
     saxParserFactory = createForgivingSaxParser,
 
@@ -174,7 +174,7 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     }
   };
 
-  const saxParserCallbacks: SaxParserCallbacks = {
+  const saxParserCallbacks: ISaxParserCallbacks = {
 
     onStartTag(tagName, attrs, selfClosing, start, end) {
       const element = createElement(tagName, attrs, selfClosing, start, end);

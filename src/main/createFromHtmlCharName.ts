@@ -1,6 +1,6 @@
 import {FromCharName, purify} from './parser-utils';
 
-export interface FromHtmlCharNameOptions {
+export interface IFromHtmlCharNameOptions {
 
   /**
    * If set to `true` then entities that are not terminated with a semicolon are not decoded. If set to `false` then
@@ -16,7 +16,7 @@ export interface FromHtmlCharNameOptions {
  *
  * @see createEntitiesDecoder
  */
-export function createFromHtmlCharName(options: FromHtmlCharNameOptions = {}): FromCharName {
+export function createFromHtmlCharName(options: IFromHtmlCharNameOptions = {}): FromCharName {
   const {
     strict = false,
   } = options;

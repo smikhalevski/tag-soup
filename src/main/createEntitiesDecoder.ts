@@ -20,7 +20,7 @@ const takeNumber = allCharBy(isNumberChar);
 
 const takeHexNumber = allCharBy(isHexNumberChar);
 
-export interface EntitiesDecoderOptions {
+export interface IEntitiesDecoderOptions {
 
   /**
    * Receives an entity name ("lt", "gt", etc.) and returns a string replacement for it.
@@ -41,7 +41,7 @@ export interface EntitiesDecoderOptions {
 /**
  * Creates a rewriter that maps an encoded HTML entities in given string into corresponding chars.
  */
-export function createEntitiesDecoder(options: EntitiesDecoderOptions = {}): Rewriter {
+export function createEntitiesDecoder(options: IEntitiesDecoderOptions = {}): Rewriter {
   const {
     fromCharName = fromXmlCharName,
     fromCharCode = String.fromCharCode,

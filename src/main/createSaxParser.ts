@@ -1,7 +1,7 @@
 import {Rewriter} from './parser-utils';
 import {parseSax} from './parseSax';
 
-export interface Attribute {
+export interface IAttribute {
 
   /**
    * The name of the attribute.
@@ -33,7 +33,7 @@ export interface Attribute {
  */
 export type DataCallback = (data: string, start: number, end: number) => void;
 
-export interface SaxParserDialectOptions {
+export interface ISaxParserDialectOptions {
 
   /**
    * Determines whether XML rules should be applied during parsing.
@@ -94,7 +94,7 @@ export interface SaxParserDialectOptions {
   isTextContent?(tagName: string): boolean;
 }
 
-export interface SaxParserCallbacks {
+export interface ISaxParserCallbacks {
 
   /**
    * Triggered when a start tag and its attributes were read.
@@ -107,7 +107,7 @@ export interface SaxParserCallbacks {
    * @param start The index of char at which tag declaration starts.
    * @param end The index of char at which tag declaration ends (exclusive).
    */
-  onStartTag?(tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number): void;
+  onStartTag?(tagName: string, attrs: ArrayLike<IAttribute>, selfClosing: boolean, start: number, end: number): void;
 
   /**
    * Triggered when an end tag was read.
@@ -171,10 +171,10 @@ export interface SaxParserCallbacks {
   onParse?(source: string, parsedCharCount: number): void;
 }
 
-export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
+export interface ISaxParserOptions extends ISaxParserDialectOptions, ISaxParserCallbacks {
 }
 
-export interface SaxParser {
+export interface ISaxParser {
 
   /**
    * Resets the internal state of the parser.
@@ -202,7 +202,7 @@ export interface SaxParser {
 /**
  * Creates a streaming SAX parser that emits tags as is.
  */
-export function createSaxParser(options: SaxParserOptions = {}): SaxParser {
+export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   const {
     onReset,
     onWrite,

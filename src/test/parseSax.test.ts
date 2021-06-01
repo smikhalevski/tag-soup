@@ -1,9 +1,9 @@
 import {identity, parseAttrs, parseSax} from '../main/parseSax';
-import {Attribute, SaxParserOptions} from '../main/createSaxParser';
+import {IAttribute, ISaxParserOptions} from '../main/createSaxParser';
 
 describe('parseAttrs', () => {
 
-  let attrs: Array<Attribute>;
+  let attrs: Array<IAttribute>;
 
   beforeEach(() => {
     attrs = [];
@@ -221,7 +221,7 @@ describe('parseSax', () => {
   const onCdataSectionMock = jest.fn();
   const onDocumentTypeMock = jest.fn();
 
-  const saxParserOptionsMock: SaxParserOptions = {
+  const saxParserOptionsMock: ISaxParserOptions = {
     onStartTag: onStartTagMock,
     onEndTag: onEndTagMock,
     onText: onTextMock,

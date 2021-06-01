@@ -1,8 +1,8 @@
-import {createSaxParser, SaxParser} from '../main/createSaxParser';
+import {createSaxParser, ISaxParser} from '../main/createSaxParser';
 
 describe('createSaxParser', () => {
 
-  let parser: SaxParser;
+  let parser: ISaxParser;
 
   const onStartTagMock = jest.fn();
   const onEndTagMock = jest.fn();

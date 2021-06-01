@@ -1,6 +1,6 @@
 import {FromCharCode, purify} from './parser-utils';
 
-export interface FromCharCodeOptions {
+export interface IFromCharCodeOptions {
 
   /**
    * If set to `true` then an error is thrown if decoder meets a disallowed character reference.
@@ -24,7 +24,7 @@ export interface FromCharCodeOptions {
  *
  * @see createEntitiesDecoder
  */
-export function createFromCharCode(options: FromCharCodeOptions = {}): FromCharCode {
+export function createFromCharCode(options: IFromCharCodeOptions = {}): FromCharCode {
   const {
     strict = false,
     replacementChar = '\ufffd',

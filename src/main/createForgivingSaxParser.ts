@@ -1,6 +1,6 @@
-import {createSaxParser, SaxParser, SaxParserCallbacks, SaxParserDialectOptions} from './createSaxParser';
+import {createSaxParser, ISaxParser, ISaxParserCallbacks, ISaxParserDialectOptions} from './createSaxParser';
 
-export interface ForgivingSaxParserDialectOptions extends SaxParserDialectOptions {
+export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOptions {
 
   /**
    * Determines whether the tag cannot have any content.
@@ -22,7 +22,7 @@ export interface ForgivingSaxParserDialectOptions extends SaxParserDialectOption
   isImplicitEnd?(currentTagName: string, tagName: string): boolean;
 }
 
-export interface ForgivingSaxParserOptions extends ForgivingSaxParserDialectOptions, SaxParserCallbacks {
+export interface IForgivingSaxParserOptions extends IForgivingSaxParserDialectOptions, ISaxParserCallbacks {
 }
 
 /**
@@ -32,7 +32,7 @@ export interface ForgivingSaxParserOptions extends ForgivingSaxParserDialectOpti
  * - Supports implicit tag closing;
  * - Supports customizable void tags;
  */
-export function createForgivingSaxParser(options: ForgivingSaxParserOptions = {}): SaxParser {
+export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {}): ISaxParser {
   const {
     onStartTag,
     onEndTag,
@@ -45,7 +45,7 @@ export function createForgivingSaxParser(options: ForgivingSaxParserOptions = {}
   let tagNames: Array<string> = [];
   let depth = 0;
 
-  const saxParserCallbacks: SaxParserCallbacks = {
+  const saxParserCallbacks: ISaxParserCallbacks = {
 
     onStartTag(tagName, attrs, selfClosing, start, end) {
       selfClosing ||= isVoidContent?.(tagName) || false;
