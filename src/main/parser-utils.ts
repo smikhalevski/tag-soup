@@ -27,9 +27,9 @@ export const enum CharCode {
   '/' = 47,
   '_' = 95,
   ':' = 58,
+  '00' = 48,
+  '09' = 57,
   'x' = 120,
-  '+0' = 48,
-  '+9' = 57,
   'a' = 97,
   'f' = 102,
   'z' = 122,
@@ -42,13 +42,13 @@ export const enum CharCode {
  * Creates a new object that has the same fields as `src` but no prototype chain. Use this for creating fast lookup
  * maps.
  */
-export function purify<T>(src: T): T {
+export function clearPrototype<T>(src: T): T {
   return Object.assign(Object.create(null), src);
 }
 
 export const fromXmlCharName: FromCharName = (name, terminated) => terminated ? xmlEntities[name] : undefined;
 
-const xmlEntities = purify<Record<string, string>>({
+const xmlEntities = clearPrototype<Record<string, string>>({
   amp: '&',
   gt: '>',
   lt: '<',

@@ -3,7 +3,7 @@ import {ISaxParser, ISaxParserCallbacks} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createForgivingSaxParser, IForgivingSaxParserOptions} from './createForgivingSaxParser';
-import {purify} from './parser-utils';
+import {clearPrototype} from './parser-utils';
 import {lowerCase} from './parseSax';
 
 export interface IHtmlSaxParserDialectOptions extends IFromCharCodeOptions {
@@ -68,7 +68,7 @@ export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser 
   return createForgivingSaxParser(Object.assign({}, options, saxParserOptions));
 }
 
-const voidTagMap = purify<Record<string, 1>>({
+const voidTagMap = clearPrototype<Record<string, 1>>({
   area: 1,
   base: 1,
   basefont: 1,
@@ -90,13 +90,13 @@ const voidTagMap = purify<Record<string, 1>>({
   wbr: 1,
 });
 
-const textTagMap = purify<Record<string, 1>>({
+const textTagMap = clearPrototype<Record<string, 1>>({
   script: 1,
   style: 1,
   textarea: 1,
 });
 
-const formTagMap = purify<Record<string, 1>>({
+const formTagMap = clearPrototype<Record<string, 1>>({
   input: 1,
   option: 1,
   optgroup: 1,
@@ -106,18 +106,18 @@ const formTagMap = purify<Record<string, 1>>({
   textarea: 1,
 });
 
-const pTagMap = purify<Record<string, 1>>({p: 1});
+const pTagMap = clearPrototype<Record<string, 1>>({p: 1});
 
-const implicitEndMap = purify<Record<string, Record<string, 1>>>({
-  tr: purify({tr: 1, th: 1, td: 1}),
-  th: purify({th: 1}),
-  td: purify({thead: 1, th: 1, td: 1}),
-  body: purify({head: 1, link: 1, script: 1}),
-  li: purify({li: 1}),
-  option: purify({option: 1}),
-  optgroup: purify({optgroup: 1, option: 1}),
-  dd: purify({dt: 1, dd: 1}),
-  dt: purify({dt: 1, dd: 1}),
+const implicitEndMap = clearPrototype<Record<string, Record<string, 1>>>({
+  tr: clearPrototype({tr: 1, th: 1, td: 1}),
+  th: clearPrototype({th: 1}),
+  td: clearPrototype({thead: 1, th: 1, td: 1}),
+  body: clearPrototype({head: 1, link: 1, script: 1}),
+  li: clearPrototype({li: 1}),
+  option: clearPrototype({option: 1}),
+  optgroup: clearPrototype({optgroup: 1, option: 1}),
+  dd: clearPrototype({dt: 1, dd: 1}),
+  dt: clearPrototype({dt: 1, dd: 1}),
   select: formTagMap,
   input: formTagMap,
   output: formTagMap,
@@ -152,8 +152,8 @@ const implicitEndMap = purify<Record<string, Record<string, 1>>>({
   section: pTagMap,
   table: pTagMap,
   ul: pTagMap,
-  rt: purify({rt: 1, rp: 1}),
-  rp: purify({rt: 1, rp: 1}),
-  tbody: purify({thead: 1, tbody: 1}),
-  tfoot: purify({thead: 1, tbody: 1}),
+  rt: clearPrototype({rt: 1, rp: 1}),
+  rp: clearPrototype({rt: 1, rp: 1}),
+  tbody: clearPrototype({thead: 1, tbody: 1}),
+  tfoot: clearPrototype({thead: 1, tbody: 1}),
 });

@@ -1,4 +1,4 @@
-import {FromCharName, purify} from './parser-utils';
+import {clearPrototype, FromCharName} from './parser-utils';
 
 export interface IFromHtmlCharNameOptions {
 
@@ -25,7 +25,7 @@ export function createFromHtmlCharName(options: IFromHtmlCharNameOptions = {}): 
 }
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
-const legacyHtmlEntities = purify<Record<string, string>>({
+const legacyHtmlEntities = clearPrototype<Record<string, string>>({
   aacute: '\u00e1',
   Aacute: '\u00c1',
   acirc: '\u00e2',
@@ -135,7 +135,7 @@ const legacyHtmlEntities = purify<Record<string, string>>({
 });
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
-const htmlEntities = purify<Record<string, string>>({
+const htmlEntities = clearPrototype<Record<string, string>>({
   abreve: '\u0103',
   Abreve: '\u0102',
   ac: '\u223e',

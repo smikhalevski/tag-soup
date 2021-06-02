@@ -2,7 +2,7 @@ import {allCharBy, CharCodeChecker} from 'tokenizer-dsl';
 import {CharCode, FromCharCode, FromCharName, fromXmlCharName, Rewriter} from './parser-utils';
 
 // [0-9]
-const isNumberChar: CharCodeChecker = (c) => c >= CharCode['+0'] && c <= CharCode['+9'];
+const isNumberChar: CharCodeChecker = (c) => c >= CharCode['00'] && c <= CharCode['09'];
 
 // [0-9A-Fa-f]
 const isHexNumberChar: CharCodeChecker = (c) =>

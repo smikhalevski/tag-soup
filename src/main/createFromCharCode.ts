@@ -1,4 +1,4 @@
-import {FromCharCode, purify} from './parser-utils';
+import {clearPrototype, FromCharCode} from './parser-utils';
 
 export interface IFromCharCodeOptions {
 
@@ -55,7 +55,7 @@ export function createFromCharCode(options: IFromCharCodeOptions = {}): FromChar
 }
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
-const replacementCodePoints = purify<Record<number, string>>({
+const replacementCodePoints = clearPrototype<Record<number, string>>({
   0: '\ufffd',
   128: '\u20ac',
   130: '\u201a',

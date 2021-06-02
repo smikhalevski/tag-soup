@@ -1,5 +1,5 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
-import {CharCode, Mutable, purify, Rewriter} from './parser-utils';
+import {CharCode, clearPrototype, Mutable, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {DataCallback, IAttribute, ISaxParserOptions} from './createSaxParser';
 
@@ -195,7 +195,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
   let startTagName: string | undefined;
 
   // Pool of reusable attribute objects
-  const attrs = purify<Mutable<ArrayLike<IAttribute>>>({length: 0});
+  const attrs = clearPrototype<Mutable<ArrayLike<IAttribute>>>({length: 0});
 
   // Emits text chunk if any
   const emitText = () => {
