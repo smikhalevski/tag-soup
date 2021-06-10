@@ -195,7 +195,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
   let startTagName: string | undefined;
 
   // Pool of reusable attribute objects
-  const attrs = clearPrototype<Mutable<ArrayLike<IAttribute>>>({length: 0});
+  let attrs: Mutable<ArrayLike<IAttribute>> | undefined;
 
   // Emits text chunk if any
   const emitText = () => {
@@ -242,6 +242,8 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
         const tagName = renameTag(str.substring(i + 1, j));
+
+        attrs ||= clearPrototype({length: 0});
 
         j = parseAttrs(str, j, attrs, decodeAttr, renameAttr);
 

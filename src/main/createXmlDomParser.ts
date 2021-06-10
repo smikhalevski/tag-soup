@@ -38,55 +38,54 @@ function createDomNode(nodeType: number, data: string, start: number, end: numbe
   return {nodeType, parent: null, start, end, data};
 }
 
+const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElement, IDomText> = {
+
+  createElement(tagName, attrs, selfClosing, start, end) {
+    const attrMap: IDomAttributeMap = {};
+    for (let i = 0, l = attrs.length; i < l; i++) {
+      const attr = attrs[i];
+      attrMap[attr.name] = attr.value;
+    }
+    return {
+      nodeType: DomNodeType.ELEMENT,
+      parent: null,
+      tagName,
+      attrs: attrMap,
+      selfClosing,
+      children: [],
+      start,
+      end,
+    };
+  },
+
+  appendChild(element, childNode) {
+    childNode.parent = element;
+    element.children.push(childNode);
+  },
+
+  onContainerEnd(element, start, end) {
+    element.end = end;
+  },
+
+  createTextNode(value, start, end) {
+    return {
+      nodeType: DomNodeType.TEXT,
+      parent: null,
+      data: value,
+      start,
+      end,
+    };
+  },
+
+  createProcessingInstruction: (data, start, end) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, data, start, end),
+  createCdataSection: (data, start, end) => createDomNode(DomNodeType.CDATA_SECTION, data, start, end),
+  createDocumentType: (data, start, end) => createDomNode(DomNodeType.DOCUMENT_TYPE, data, start, end),
+  createComment: (data, start, end) => createDomNode(DomNodeType.COMMENT, data, start, end),
+};
+
 /**
  * Creates preconfigured Cheerio-compatible XML DOM parser that returns a tree of {@link IDomNode}s.
  */
 export function createXmlDomParser(options: IDomParserDialectOptions<IDomElement> = {}): IDomParser<IDomNode, IDomElement, IDomText> {
-
-  const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElement, IDomText> = {
-
-    createElement(tagName, attrs, selfClosing, start, end) {
-      const attrMap: IDomAttributeMap = {};
-      for (let i = 0, l = attrs.length; i < l; i++) {
-        const attr = attrs[i];
-        attrMap[attr.name] = attr.value;
-      }
-      return {
-        nodeType: DomNodeType.ELEMENT,
-        parent: null,
-        tagName,
-        attrs: attrMap,
-        selfClosing,
-        children: [],
-        start,
-        end,
-      };
-    },
-
-    appendChild(element, childNode) {
-      childNode.parent = element;
-      element.children.push(childNode);
-    },
-
-    onContainerEnd(element, start, end) {
-      element.end = end;
-    },
-
-    createTextNode(value, start, end) {
-      return {
-        nodeType: DomNodeType.TEXT,
-        parent: null,
-        data: value,
-        start,
-        end,
-      };
-    },
-
-    createProcessingInstruction: (data, start, end) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, data, start, end),
-    createCdataSection: (data, start, end) => createDomNode(DomNodeType.CDATA_SECTION, data, start, end),
-    createDocumentType: (data, start, end) => createDomNode(DomNodeType.DOCUMENT_TYPE, data, start, end),
-    createComment: (data, start, end) => createDomNode(DomNodeType.COMMENT, data, start, end),
-  };
-
   return createDomParser(Object.assign({}, options, domParserFactoryCallbacks));
 }

@@ -12,8 +12,8 @@ const domBenchDuration = 10000;
 
 const html = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
 
-function round(v) {
-  return v.toFixed(1);
+function round(value) {
+  return value.toFixed(1);
 }
 
 console.log('SAX parser benchmark\n');
