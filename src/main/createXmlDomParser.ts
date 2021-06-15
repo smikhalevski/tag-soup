@@ -1,4 +1,5 @@
 import {createDomParser, IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './createDomParser';
+import {IDataToken} from './createSaxParser';
 
 export const enum DomNodeType {
   ELEMENT = 1,
@@ -34,27 +35,33 @@ export interface IDomText extends IDomNode {
   data: string;
 }
 
-function createDomNode(nodeType: number, data: string, start: number, end: number): IDomNode {
-  return {nodeType, parent: null, start, end, data};
+function createDomNode(nodeType: number, token: IDataToken): IDomNode {
+  return {
+    nodeType,
+    data: token.data,
+    parent: null,
+    start: token.start,
+    end: token.end,
+  };
 }
 
 const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElement, IDomText> = {
 
-  createElement(tagName, attrs, selfClosing, start, end) {
+  createElement(token) {
     const attrMap: IDomAttributeMap = {};
-    for (let i = 0, l = attrs.length; i < l; i++) {
-      const attr = attrs[i];
+    for (let i = 0, l = token.attrs.length; i < l; i++) {
+      const attr = token.attrs[i];
       attrMap[attr.name] = attr.value;
     }
     return {
       nodeType: DomNodeType.ELEMENT,
       parent: null,
-      tagName,
+      tagName: token.tagName,
       attrs: attrMap,
-      selfClosing,
+      selfClosing: token.selfClosing,
       children: [],
-      start,
-      end,
+      start: token.start,
+      end: token.end,
     };
   },
 
@@ -63,24 +70,24 @@ const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElemen
     element.children.push(childNode);
   },
 
-  onContainerEnd(element, start, end) {
-    element.end = end;
+  onContainerEnd(element, token) {
+    element.end = token.end;
   },
 
-  createTextNode(value, start, end) {
+  createTextNode(token) {
     return {
       nodeType: DomNodeType.TEXT,
       parent: null,
-      data: value,
-      start,
-      end,
+      data: token.data,
+      start: token.start,
+      end: token.end,
     };
   },
 
-  createProcessingInstruction: (data, start, end) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, data, start, end),
-  createCdataSection: (data, start, end) => createDomNode(DomNodeType.CDATA_SECTION, data, start, end),
-  createDocumentType: (data, start, end) => createDomNode(DomNodeType.DOCUMENT_TYPE, data, start, end),
-  createComment: (data, start, end) => createDomNode(DomNodeType.COMMENT, data, start, end),
+  createProcessingInstruction: (token) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, token),
+  createCdataSection: (token) => createDomNode(DomNodeType.CDATA_SECTION, token),
+  createDocumentType: (token) => createDomNode(DomNodeType.DOCUMENT_TYPE, token),
+  createComment: (token) => createDomNode(DomNodeType.COMMENT, token),
 };
 
 /**

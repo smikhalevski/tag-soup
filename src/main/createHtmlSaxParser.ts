@@ -58,9 +58,9 @@ export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser 
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTextDecoder,
 
-    isTextContent: (tagName) => textTagMap[tagName] === 1,
-    isVoidContent: (tagName) => voidTagMap[tagName] === 1,
-    isImplicitEnd: xhtmlEnabled ? undefined : (currentTagName, tagName) => implicitEndMap[currentTagName]?.[tagName] === 1,
+    isTextContent: (token) => textTagMap[token.tagName] === 1,
+    isVoidContent: (token) => voidTagMap[token.tagName] === 1,
+    isImplicitEnd: xhtmlEnabled ? undefined : (token, prevToken) => implicitEndMap[token.tagName]?.[prevToken.tagName] === 1,
 
     renameTag: lowerCase,
   };

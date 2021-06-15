@@ -507,7 +507,7 @@ describe('parseSax', () => {
     it('can enforce case-insensitive CDATA tags in HTML mode', () => {
       parseSax('<script><foo aaa=111></SCRIPT>', false, 0, {
         ...saxParserOptionsMock,
-        isTextContent: (tagName) => tagName === 'script',
+        isTextContent: (token) => token.tagName === 'script',
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
@@ -524,7 +524,7 @@ describe('parseSax', () => {
       parseSax('<script><foo aaa=111></SCRIPT>', false, 0, {
         ...saxParserOptionsMock,
         xmlEnabled: true,
-        isTextContent: (tagName) => tagName === 'script',
+        isTextContent: (token) => token.tagName === 'script',
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
@@ -538,7 +538,7 @@ describe('parseSax', () => {
       parseSax('<script/><foo>', false, 0, {
         ...saxParserOptionsMock,
         selfClosingEnabled: true,
-        isTextContent: (tagName) => tagName === 'script',
+        isTextContent: (token) => token.tagName === 'script',
       });
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);

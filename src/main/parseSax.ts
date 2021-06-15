@@ -1,7 +1,7 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {CharCode, clearPrototype, Mutable, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {DataCallback, IAttribute, ISaxParserOptions} from './createSaxParser';
+import {DataCallback, IAttribute, IDataToken, IEndTagToken, ISaxParserOptions, IStartTagToken} from './createSaxParser';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>
@@ -112,7 +112,12 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
       break;
     }
 
+    const nameStart = k;
+    const nameEnd = j;
     const name = rename(str.substring(k, j));
+
+    let valueStart = j;
+    let valueEnd = j;
 
     k = j;
     j = takeEq(str, k);
@@ -127,13 +132,17 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
         j = takeAposValue(str, k);
       }
       if (j !== -1) {
-        value = decode(str.substring(k + 1, j - 1));
+        valueStart = k + 1;
+        valueEnd = j - 1;
+        value = decode(str.substring(valueStart, valueEnd));
         k = Math.min(j, charCount);
       } else {
 
         // Unquoted value
         j = takeUnquotedValue(str, k);
         if (j !== k) {
+          valueStart = k;
+          valueEnd = j;
           value = decode(str.substring(k, j));
           k = j;
         }
@@ -147,8 +156,21 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
       attr.value = value;
       attr.start = start;
       attr.end = k;
+      attr.nameStart = nameStart;
+      attr.nameEnd = nameEnd;
+      attr.valueStart = valueStart;
+      attr.valueEnd = valueEnd;
     } else {
-      attrs[attrCount] = {name, value, start, end: k};
+      attrs[attrCount] = {
+        name,
+        value,
+        start,
+        end: k,
+        nameStart,
+        nameEnd,
+        valueStart,
+        valueEnd,
+      };
     }
     attrCount++;
 
@@ -169,6 +191,30 @@ export function lowerCase(str: string): string {
 export function identity<T>(value: T): T {
   return value;
 }
+
+const dataToken: IDataToken = {
+  data: '',
+  start: 0,
+  end: 0,
+};
+
+const startTagToken: IStartTagToken = {
+  tagName: '',
+  attrs: [],
+  selfClosing: false,
+  start: 0,
+  end: 0,
+  nameStart: 0,
+  nameEnd: 0,
+};
+
+export const endTagToken: IEndTagToken = {
+  tagName: '',
+  start: 0,
+  end: 0,
+  nameStart: 0,
+  nameEnd: 0,
+};
 
 export function parseSax(str: string, streaming: boolean, offset: number, options: ISaxParserOptions): number {
   const {
@@ -199,19 +245,34 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
 
   // Emits text chunk if any
   const emitText = () => {
-    if (textStart !== -1) {
+    if (textStart === -1) {
+      return;
+    }
+    if (onText) {
       // This substring call would have performance implications in perf test if the result substring is huge
       const text = str.substring(textStart, textEnd);
-      onText?.(decodeText(text), offset + textStart, offset + textEnd);
-      textStart = textEnd = -1;
+
+      dataToken.data = decodeText(text);
+      dataToken.start = offset + textStart;
+      dataToken.end = offset + textEnd;
+
+      onText(dataToken);
     }
+    textStart = textEnd = -1;
   };
 
   const emitData = (cb: DataCallback | undefined, i: number, j: number, di: number, dj: number): number => {
     emitText();
 
     const k = j > charCount ? charCount : j;
-    cb?.(str.substring(i + di, j - dj), offset + i, offset + k);
+
+    if (cb) {
+      dataToken.data = str.substring(i + di, j - dj);
+      dataToken.start = offset + i;
+      dataToken.end = offset + k;
+
+      cb(dataToken);
+    }
     return k;
   };
 
@@ -241,7 +302,10 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
       // Start tag
       j = takeStartTagOpening(str, i);
       if (j !== -1) {
-        const tagName = renameTag(str.substring(i + 1, j));
+        const nameStart = i + 1;
+        const nameEnd = j;
+
+        const tagName = renameTag(str.substring(nameStart, nameEnd));
 
         attrs ||= clearPrototype({length: 0});
 
@@ -258,11 +322,22 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
         const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode['/'];
 
         emitText();
-        onStartTag?.(tagName, attrs, selfClosing, offset + i, offset + k);
+
+        startTagToken.tagName = tagName;
+        startTagToken.attrs = attrs;
+        startTagToken.selfClosing = selfClosing;
+        startTagToken.start = offset + i;
+        startTagToken.end = offset + k;
+        startTagToken.nameStart = nameStart;
+        startTagToken.nameEnd = nameEnd;
+
+        if (onStartTag) {
+          onStartTag(startTagToken);
+        }
 
         if (!selfClosing) {
           startTagName = tagName;
-          tagParsingEnabled = !isTextContent?.(tagName);
+          tagParsingEnabled = !isTextContent?.(startTagToken);
         }
 
         i = k;
@@ -273,7 +348,10 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
     // End tag
     j = takeEndTagOpening(str, i);
     if (j !== -1) {
-      const tagName = renameTag(str.substring(i + 2, j));
+      const nameStart = i + 2;
+      const nameEnd = j;
+
+      const tagName = renameTag(str.substring(nameStart, nameEnd));
 
       if (tagParsingEnabled || startTagName === tagName) {
 
@@ -289,7 +367,15 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
         }
 
         emitText();
-        onEndTag?.(tagName, offset + i, offset + k);
+        if (onEndTag) {
+          endTagToken.tagName = tagName;
+          endTagToken.start = offset + i;
+          endTagToken.end = offset + k;
+          endTagToken.nameStart = nameStart;
+          endTagToken.nameEnd = nameEnd;
+
+          onEndTag(endTagToken);
+        }
 
         i = k;
         continue;

@@ -1,4 +1,12 @@
-import {DataCallback, IAttribute, ISaxParser, ISaxParserCallbacks, ISaxParserOptions} from './createSaxParser';
+import {
+  DataCallback,
+  IDataToken,
+  IEndTagToken,
+  ISaxParser,
+  ISaxParserCallbacks,
+  ISaxParserOptions,
+  IStartTagToken,
+} from './createSaxParser';
 import {createForgivingSaxParser, IForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
 export interface ICustomSaxParserOptions extends ISaxParserOptions {
@@ -24,7 +32,7 @@ export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDi
   [saxParserOption: string]: unknown;
 }
 
-export type DataNodeFactory<Node> = (data: string, start: number, end: number) => Node;
+export type DataNodeFactory<Node> = (token: IDataToken) => Node;
 
 export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
 
@@ -41,7 +49,7 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
    * @param end The index of a char at which the start tag declaration ends (exclusive) in the source.
    * @see {@link onContainerEnd}
    */
-  createElement(tagName: string, attrs: ArrayLike<IAttribute>, selfClosing: boolean, start: number, end: number): Element;
+  createElement(token: IStartTagToken): Element;
 
   /**
    * Appends `childNode` as the last child to an `element`.
@@ -55,7 +63,7 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
    * @param start The index of a char at which the end tag declaration starts in the source.
    * @param end The index of a char at which the end tag declaration ends (exclusive) in the source.
    */
-  onContainerEnd?: (element: Element, start: number, end: number) => void;
+  onContainerEnd?: (element: Element, token: IEndTagToken) => void;
 
   /**
    * Factory that creates a new text node.
@@ -171,25 +179,25 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
 
   const createDataCallback = (factory: DataNodeFactory<Node> | undefined): DataCallback | undefined => {
     if (factory) {
-      return (data, start, end) => pushNode(factory(data, start, end));
+      return (token) => pushNode(factory(token));
     }
   };
 
   const saxParserCallbacks: ISaxParserCallbacks = {
 
-    onStartTag(tagName, attrs, selfClosing, start, end) {
-      const element = createElement(tagName, attrs, selfClosing, start, end);
+    onStartTag(token) {
+      const element = createElement(token);
       pushNode(element);
 
-      if (!selfClosing) {
+      if (!token.selfClosing) {
         elements[depth] = element;
         depth++;
       }
     },
 
-    onEndTag(tagName, start, end) {
+    onEndTag(token) {
       depth--;
-      onContainerEnd?.(elements[depth], start, end);
+      onContainerEnd?.(elements[depth], token);
     },
 
     onText: createDataCallback(createTextNode),

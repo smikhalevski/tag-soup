@@ -22,6 +22,35 @@ export interface IAttribute {
    * The index of the char at which attribute declaration ends (exclusive).
    */
   end: number;
+
+  nameStart: number;
+  nameEnd: number;
+  valueStart: number;
+  valueEnd: number;
+}
+
+export interface IDataToken {
+  data: string;
+  start: number;
+  end: number;
+}
+
+export interface IStartTagToken {
+  tagName: string;
+  attrs: ArrayLike<IAttribute>;
+  selfClosing: boolean;
+  start: number;
+  end: number;
+  nameStart: number;
+  nameEnd: number;
+}
+
+export interface IEndTagToken {
+  tagName: string;
+  start: number;
+  end: number;
+  nameStart: number;
+  nameEnd: number;
 }
 
 /**
@@ -31,7 +60,7 @@ export interface IAttribute {
  * @param start The index of the char at which the `data` substring starts in the source.
  * @param end The index of the char at which the `data` substring ends in the source.
  */
-export type DataCallback = (data: string, start: number, end: number) => void;
+export type DataCallback = (token: IDataToken) => void;
 
 export interface ISaxParserDialectOptions {
 
@@ -91,7 +120,7 @@ export interface ISaxParserDialectOptions {
    * @param tagName The name of the start tag.
    * @returns If `true` than the content inside the container tag would be treated as a plain text.
    */
-  isTextContent?: (tagName: string) => boolean;
+  isTextContent?: (token: IStartTagToken) => boolean;
 }
 
 export interface ISaxParserCallbacks {
@@ -107,7 +136,7 @@ export interface ISaxParserCallbacks {
    * @param start The index of char at which tag declaration starts.
    * @param end The index of char at which tag declaration ends (exclusive).
    */
-  onStartTag?: (tagName: string, attrs: ArrayLike<IAttribute>, selfClosing: boolean, start: number, end: number) => void;
+  onStartTag?: (token: IStartTagToken) => void;
 
   /**
    * Triggered when an end tag was read.
@@ -116,7 +145,7 @@ export interface ISaxParserCallbacks {
    * @param start The index of char at which tag declaration starts.
    * @param end The index of char at which tag declaration ends (exclusive).s
    */
-  onEndTag?: (tagName: string, start: number, end: number) => void;
+  onEndTag?: (token: IEndTagToken) => void;
 
   /**
    * Triggered when a chunk of text was read.

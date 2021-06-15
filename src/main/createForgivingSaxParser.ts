@@ -1,4 +1,11 @@
-import {createSaxParser, ISaxParser, ISaxParserCallbacks, ISaxParserDialectOptions} from './createSaxParser';
+import {
+  createSaxParser,
+  ISaxParser,
+  ISaxParserCallbacks,
+  ISaxParserDialectOptions,
+  IStartTagToken,
+} from './createSaxParser';
+import {endTagToken} from './parseSax';
 
 export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOptions {
 
@@ -8,7 +15,7 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * @param tagName The name of the start tag.
    * @returns If `true` than the tag would be treated as self-closing even if it isn't marked up as such.
    */
-  isVoidContent?: (tagName: string) => boolean;
+  isVoidContent?: (token: IStartTagToken) => boolean;
 
   /**
    * Determines whether the container start tag with name `currentTagName` should be closed with corresponding end tag
@@ -19,7 +26,7 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * @returns If `true` than the {@link onEndTag} would be triggered with `currentTagName` before {@link onStartTag}
    *     with `tagName` is triggered.
    */
-  isImplicitEnd?: (currentTagName: string, tagName: string) => boolean;
+  isImplicitEnd?: (token: IStartTagToken, prevToken: IStartTagToken) => boolean;
 }
 
 export interface IForgivingSaxParserOptions extends IForgivingSaxParserDialectOptions, ISaxParserCallbacks {
@@ -42,21 +49,28 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     isImplicitEnd,
   } = options;
 
-  let tagNames: Array<string> = [];
+  let startTokens: Array<IStartTagToken> = [];
   let depth = 0;
 
   const saxParserCallbacks: ISaxParserCallbacks = {
 
-    onStartTag(tagName, attrs, selfClosing, start, end) {
-      selfClosing ||= isVoidContent?.(tagName) || false;
+    onStartTag(token) {
+      token.selfClosing ||= isVoidContent?.(token) || false;
 
       if (isImplicitEnd) {
         for (let i = depth - 1; i >= 0; i--) {
-          if (isImplicitEnd(tagNames[i], tagName)) {
+          if (isImplicitEnd(startTokens[i], token)) {
 
             if (onEndTag) {
               for (let j = depth - 1; j >= i; j--) {
-                onEndTag(tagNames[j], start, start);
+
+                endTagToken.tagName = startTokens[j].tagName;
+                endTagToken.start = token.start;
+                endTagToken.end = token.start;
+                endTagToken.nameStart = token.start;
+                endTagToken.nameEnd = token.start;
+
+                onEndTag(endTagToken);
               }
             }
             depth = i;
@@ -65,22 +79,30 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
         }
       }
 
-      onStartTag?.(tagName, attrs, selfClosing, start, end);
+      onStartTag?.(token);
 
-      if (!selfClosing) {
-        tagNames[depth++] = tagName;
+      if (!token.selfClosing) {
+        startTokens[depth++] = token;
       }
     },
 
-    onEndTag(tagName, start, end) {
+    onEndTag(token) {
       for (let i = depth - 1; i >= 0; i--) {
-        if (tagNames[i] === tagName) {
+        if (startTokens[i].tagName === token.tagName) {
 
           if (onEndTag) {
             for (let j = depth - 1; j > i; j--) {
-              onEndTag(tagNames[j], start, start);
+
+              endTagToken.tagName = startTokens[j].tagName;
+              endTagToken.start = token.start;
+              endTagToken.end = token.start;
+              endTagToken.nameStart = token.start;
+              endTagToken.nameEnd = token.start;
+
+              onEndTag(endTagToken);
             }
-            onEndTag(tagNames[i], start, end);
+
+            onEndTag(token);
           }
           depth = i;
         }
@@ -88,7 +110,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     },
 
     onReset() {
-      tagNames = [];
+      startTokens = [];
       depth = 0;
       onReset?.();
     },
@@ -96,7 +118,14 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     onParse(chunk, parsedCharCount) {
       if (onEndTag) {
         for (let i = depth - 1; i >= 0; i--) {
-          onEndTag(tagNames[i], parsedCharCount, parsedCharCount);
+
+          endTagToken.tagName = startTokens[i].tagName;
+          endTagToken.start = parsedCharCount;
+          endTagToken.end = parsedCharCount;
+          endTagToken.nameStart = parsedCharCount;
+          endTagToken.nameEnd = parsedCharCount;
+
+          onEndTag(endTagToken);
         }
       }
       onParse?.(chunk, parsedCharCount);
