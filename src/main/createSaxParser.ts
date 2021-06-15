@@ -91,7 +91,7 @@ export interface ISaxParserDialectOptions {
    * @param tagName The name of the start tag.
    * @returns If `true` than the content inside the container tag would be treated as a plain text.
    */
-  isTextContent?(tagName: string): boolean;
+  isTextContent?: (tagName: string) => boolean;
 }
 
 export interface ISaxParserCallbacks {
@@ -107,7 +107,7 @@ export interface ISaxParserCallbacks {
    * @param start The index of char at which tag declaration starts.
    * @param end The index of char at which tag declaration ends (exclusive).
    */
-  onStartTag?(tagName: string, attrs: ArrayLike<IAttribute>, selfClosing: boolean, start: number, end: number): void;
+  onStartTag?: (tagName: string, attrs: ArrayLike<IAttribute>, selfClosing: boolean, start: number, end: number) => void;
 
   /**
    * Triggered when an end tag was read.
@@ -116,7 +116,7 @@ export interface ISaxParserCallbacks {
    * @param start The index of char at which tag declaration starts.
    * @param end The index of char at which tag declaration ends (exclusive).s
    */
-  onEndTag?(tagName: string, start: number, end: number): void;
+  onEndTag?: (tagName: string, start: number, end: number) => void;
 
   /**
    * Triggered when a chunk of text was read.
@@ -150,7 +150,7 @@ export interface ISaxParserCallbacks {
    *
    * @see {@link SaxParser.reset}
    */
-  onReset?(): void;
+  onReset?: () => void;
 
   /**
    * Triggered after parser was provided a new source chunk.
@@ -159,7 +159,7 @@ export interface ISaxParserCallbacks {
    * @param parsedCharCount The total number of characters that were parsed by parser.
    * @see {@link SaxParser.write}
    */
-  onWrite?(sourceChunk: string, parsedCharCount: number): void;
+  onWrite?: (sourceChunk: string, parsedCharCount: number) => void;
 
   /**
    * Triggered when parsing has completed but before the parser is reset.
@@ -168,7 +168,7 @@ export interface ISaxParserCallbacks {
    * @param parsedCharCount The total number of characters that were parsed by parser.
    * @see {@link SaxParser.parse}
    */
-  onParse?(source: string, parsedCharCount: number): void;
+  onParse?: (source: string, parsedCharCount: number) => void;
 }
 
 export interface ISaxParserOptions extends ISaxParserDialectOptions, ISaxParserCallbacks {
@@ -187,16 +187,18 @@ export interface ISaxParser {
    * buffer.
    *
    * @param sourceChunk The source chunk to parse.
+   * @return The number of chars remaining in buffer. If 0 is returned then all chars were read.
    */
-  write(sourceChunk: string): void;
+  write(sourceChunk: string): number;
 
   /**
    * Parses the given source. If there's a leftover in the buffer after the last {@link write} call it is also used
    * for parsing. Parser is reset after this method completes.
    *
    * @param source The source to parse.
+   * @return The number of chars at the end of `source` that weren't read. If 0 is returned then all chars were read.
    */
-  parse(source?: string): void;
+  parse(source?: string): number;
 }
 
 /**
@@ -228,13 +230,19 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
       parsedCharCount += l;
       buffer = buffer.substr(l);
       offset += l;
+      const remainder = buffer.length;
       onWrite?.(chunk, parsedCharCount);
+      return remainder;
     },
 
     parse(chunk = '') {
-      parsedCharCount += parseSax(buffer + chunk, false, offset, options);
+      buffer += chunk;
+      const l = parseSax(buffer, false, offset, options);
+      parsedCharCount += l;
+      const remainder = buffer.length - l;
       onParse?.(chunk, parsedCharCount);
       reset();
+      return remainder;
     },
   };
 }

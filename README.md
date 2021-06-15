@@ -68,7 +68,10 @@ console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
 
 ## Performance
 
+Performance was measured for 3.81 MB HTML file.
+
 SAX parser benchmark
+
 ```
 createSaxParser      31 ops/sec ±0.54% (277 samples)
 createHtmlSaxParser  21 ops/sec ±0.89% (194 samples)
@@ -100,7 +103,7 @@ createHtmlDomParser
   12.0✕ faster than parse5
 ```
 
-To run a performance test use `npm run build` and then `npm run perf`.
+To run a performance test use `npm run build; npm run perf`.
 
 
 ## Bundle size

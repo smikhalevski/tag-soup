@@ -8,7 +8,7 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * @param tagName The name of the start tag.
    * @returns If `true` than the tag would be treated as self-closing even if it isn't marked up as such.
    */
-  isVoidContent?(tagName: string): boolean;
+  isVoidContent?: (tagName: string) => boolean;
 
   /**
    * Determines whether the container start tag with name `currentTagName` should be closed with corresponding end tag
@@ -19,7 +19,7 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * @returns If `true` than the {@link onEndTag} would be triggered with `currentTagName` before {@link onStartTag}
    *     with `tagName` is triggered.
    */
-  isImplicitEnd?(currentTagName: string, tagName: string): boolean;
+  isImplicitEnd?: (currentTagName: string, tagName: string) => boolean;
 }
 
 export interface IForgivingSaxParserOptions extends IForgivingSaxParserDialectOptions, ISaxParserCallbacks {

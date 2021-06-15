@@ -2,7 +2,7 @@ import {DataCallback, IAttribute, ISaxParser, ISaxParserCallbacks, ISaxParserOpt
 import {createForgivingSaxParser, IForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
 export interface ICustomSaxParserOptions extends ISaxParserOptions {
-  [saxParserOption: string]: unknown;
+  [saxParserOption: string]: any;
 }
 
 export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDialectOptions {
@@ -15,7 +15,7 @@ export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDi
    *
    * @default {@link createForgivingSaxParser}
    */
-  saxParserFactory?(options: ICustomSaxParserOptions): ISaxParser;
+  saxParserFactory?: (options: ICustomSaxParserOptions) => ISaxParser;
 
   /**
    * If you use your custom implementation of the SAX parser with {@link saxParserFactory}, you can provide additional
@@ -49,13 +49,13 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
   appendChild(element: Element, childNode: Node): void;
 
   /**
-   * Triggered when the end tag of the container is read from source.
+   * Triggered when the end tag of the container was fully read from source.
    *
    * @param element The element for which the end tag was read.
    * @param start The index of a char at which the end tag declaration starts in the source.
    * @param end The index of a char at which the end tag declaration ends (exclusive) in the source.
    */
-  onContainerEnd?(element: Element, start: number, end: number): void;
+  onContainerEnd?: (element: Element, start: number, end: number) => void;
 
   /**
    * Factory that creates a new text node.
@@ -117,7 +117,8 @@ export interface IDomParser<Node, Element extends Node = Node, Text extends Node
    * buffer.
    *
    * @param sourceChunk The source chunk to parse.
-   * @returns The list of nodes that were parsed after the last call of {@link reset} or {@link parse}.
+   * @returns The list of nodes that were parsed after the last call of {@link reset} or {@link parse}. The reference
+   *     to the same array is returned until {@link reset} is called.
    */
   write(sourceChunk: string): Array<Node>;
 

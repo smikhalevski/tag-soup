@@ -1,4 +1,5 @@
 import {createDomParser, IDomParser, IDomParserOptions} from '../main/createDomParser';
+import {createForgivingSaxParser} from '../main';
 
 describe('createDomParser', () => {
 
@@ -23,6 +24,31 @@ describe('createDomParser', () => {
     parser = createDomParser(domParserOptions);
   });
 
+  it('passes custom properties to saxParserFactory', () => {
+    const saxParserFactoryMock = jest.fn((options) => createForgivingSaxParser(options));
+
+    const options: IDomParserOptions<any, any, any> = {
+      createElement: domParserOptions.createElement,
+      appendChild: domParserOptions.appendChild,
+      saxParserFactory: saxParserFactoryMock,
+      foo: 'bar'
+    };
+
+    createDomParser(options).parse('<a></a>');
+
+    expect(saxParserFactoryMock).toHaveBeenCalledTimes(1);
+    expect(saxParserFactoryMock).toHaveBeenCalledWith({
+      ...options,
+      onCdataSection: undefined,
+      onComment: undefined,
+      onDocumentType: undefined,
+      onEndTag: expect.any(Function),
+      onProcessingInstruction: undefined,
+      onStartTag: expect.any(Function),
+      onText: undefined,
+    });
+  });
+
   describe('in streaming mode', () => {
 
     it('defers text parsing', () => {
@@ -42,6 +68,22 @@ describe('createDomParser', () => {
           ],
         },
       ]);
+    });
+
+    it('returns the same array on every write', () => {
+      const nodes = parser.write('<a>');
+
+      expect(parser.write('</a>')).toBe(nodes);
+
+      expect(nodes).toEqual([
+        {tagName: 'a', start: 0, end: 7, attrs: {length: 0}, children: []},
+      ]);
+    });
+
+    it('returns the new array after reset', () => {
+      const nodes = parser.write('<a>');
+      parser.reset();
+      expect(parser.write('</a>')).not.toBe(nodes);
     });
 
   });
