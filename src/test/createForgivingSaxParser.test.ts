@@ -1,6 +1,9 @@
 import {IDataToken, ISaxParser, IStartTagToken, ITagToken} from '../main/createSaxParser';
 import {createForgivingSaxParser, IForgivingSaxParserOptions} from '../main/createForgivingSaxParser';
 import {cloneDeep} from 'lodash';
+import fs from 'fs';
+import path from 'path';
+import {attrTokenPool, dataTokenPool, endTagTokenPool, prevTagTokenPool, startTagTokenPool} from '../main/token-pools';
 
 describe('createForgivingSaxParser', () => {
 
@@ -26,6 +29,8 @@ describe('createForgivingSaxParser', () => {
   });
 
   beforeEach(() => {
+    parser?.reset();
+
     parser = createParser({});
 
     onStartTagMock.mockReset();
@@ -359,9 +364,20 @@ describe('createForgivingSaxParser', () => {
         tagName: 'p',
         start: 9,
         end: 13,
-        nameStart: 10,
+        nameStart: 11,
         nameEnd: 12,
       });
     });
+  });
+
+  it('can parse test file', () => {
+    const html = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
+    createForgivingSaxParser().parse(html);
+
+    expect(startTagTokenPool.getAllocatedCount()).toBe(0);
+    expect(prevTagTokenPool.getAllocatedCount()).toBe(0);
+    expect(endTagTokenPool.getAllocatedCount()).toBe(0);
+    expect(dataTokenPool.getAllocatedCount()).toBe(0);
+    expect(attrTokenPool.getAllocatedCount()).toBe(0);
   });
 });

@@ -1,4 +1,11 @@
+import {Maybe} from './parser-utils';
+
 export interface IValuePool<T> {
+
+  /**
+   * Returns the number of currently allocated values.
+   */
+  getAllocatedCount(): number;
 
   /**
    * Returns the next free value from the pool. If there's not free value available then `factory` is called to produce
@@ -10,7 +17,7 @@ export interface IValuePool<T> {
    * Returns value to the pool so it can be retrieved using {@link next}. If value doesn't belong to the pool or it was
    * already freed then no-op.
    */
-  free(value: T): void;
+  free(value: Maybe<T>): void;
 }
 
 export function createValuePool<T extends {}>(factory: () => T, reset?: (value: T) => void, preallocatedCount = 0): IValuePool<T> {
@@ -23,12 +30,16 @@ export function createValuePool<T extends {}>(factory: () => T, reset?: (value: 
 
   return {
 
+    getAllocatedCount() {
+      return allocatedCount;
+    },
+
     next() {
       return cache[allocatedCount++] ??= factory();
     },
 
     free(value) {
-      for (let i = 0; i < allocatedCount; i++) {
+      for (let i = allocatedCount - 1; i >= 0; i--) {
         if (cache[i] !== value) {
           continue;
         }

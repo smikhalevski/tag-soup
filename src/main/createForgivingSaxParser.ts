@@ -4,8 +4,9 @@ import {
   ISaxParserCallbacks,
   ISaxParserDialectOptions,
   IStartTagToken,
+  ITagToken,
 } from './createSaxParser';
-import {endTagTokenPool} from './token-pools';
+import {endTagTokenPool, prevTagTokenPool} from './token-pools';
 
 export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOptions {
 
@@ -49,7 +50,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     isImplicitEnd,
   } = options;
 
-  let startTagNames: Array<string> = [];
+  let startTagTokens: Array<ITagToken> = [];
   let depth = 0;
 
   const saxParserCallbacks: ISaxParserCallbacks = {
@@ -59,14 +60,15 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
 
       if (isImplicitEnd) {
         for (let i = depth - 1; i >= 0; i--) {
-          if (isImplicitEnd(startTagNames[i], token)) {
+          if (isImplicitEnd(startTagTokens[i].tagName, token)) {
 
             if (onEndTag) {
               const endTagToken = endTagTokenPool.next();
               try {
                 for (let j = depth - 1; j >= i; j--) {
 
-                  endTagToken.tagName = startTagNames[j];
+                  endTagToken.rawTagName = startTagTokens[j].rawTagName;
+                  endTagToken.tagName = startTagTokens[j].tagName;
                   endTagToken.start = endTagToken.end = token.start;
                   endTagToken.nameStart = endTagToken.nameEnd = -1;
 
@@ -85,20 +87,24 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
       onStartTag?.(token);
 
       if (!token.selfClosing) {
-        startTagNames[depth++] = token.tagName;
+        const token2 = startTagTokens[depth++] ||= prevTagTokenPool.next();
+
+        token2.rawTagName = token.rawTagName;
+        token2.tagName = token.tagName;
       }
     },
 
     onEndTag(token) {
       for (let i = depth - 1; i >= 0; i--) {
-        if (startTagNames[i] === token.tagName) {
+        if (startTagTokens[i].tagName === token.tagName) {
 
           if (onEndTag) {
             const endTagToken = endTagTokenPool.next();
             try {
               for (let j = depth - 1; j > i; j--) {
 
-                endTagToken.tagName = startTagNames[j];
+                endTagToken.rawTagName = startTagTokens[j].rawTagName;
+                endTagToken.tagName = startTagTokens[j].tagName;
                 endTagToken.start = endTagToken.end = token.start;
                 endTagToken.nameStart = endTagToken.nameEnd = -1;
 
@@ -116,7 +122,10 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     },
 
     onReset() {
-      startTagNames = [];
+      for (let i = 0; i < startTagTokens.length; i++) {
+        prevTagTokenPool.free(startTagTokens[i]);
+      }
+      startTagTokens = [];
       depth = 0;
       onReset?.();
     },
@@ -127,7 +136,8 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
         try {
           for (let i = depth - 1; i >= 0; i--) {
 
-            endTagToken.tagName = startTagNames[i];
+            endTagToken.rawTagName = startTagTokens[i].rawTagName;
+            endTagToken.tagName = startTagTokens[i].tagName;
             endTagToken.start = endTagToken.end = parsedCharCount;
             endTagToken.nameStart = endTagToken.nameEnd = -1;
 
