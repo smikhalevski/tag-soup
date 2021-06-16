@@ -1,7 +1,14 @@
 import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
-import {CharCode, clearPrototype, Mutable, Rewriter} from './parser-utils';
+import {CharCode, clearPrototype, Maybe, Mutable, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {DataCallback, IAttribute, IDataToken, IEndTagToken, ISaxParserOptions, IStartTagToken} from './createSaxParser';
+import {
+  DataTokenCallback,
+  IAttributeToken,
+  IDataToken,
+  ISaxParserOptions,
+  IStartTagToken,
+  ITagToken,
+} from './createSaxParser';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>
@@ -91,18 +98,18 @@ const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true)
  *
  * @param str The string to read attributes from.
  * @param i The initial index where attributes' definitions are expected to start.
- * @param attrs An array to which {@link IAttribute} objects are added.
+ * @param attrs An array to which {@link IAttributeToken} objects are added.
  * @param decode The decoder of HTML/XML entities.
  * @param rename The callback that receives an attribute name and returns a new name.
  */
-export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAttribute>>, decode: Rewriter, rename: Rewriter): number {
+export function tokenizeAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAttributeToken>>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
 
   let attrCount = 0;
 
   while (i < charCount) {
 
-    let value = '';
+    let value: Maybe<string>;
     let start = takeTagSpace(str, i);
     let k = start;
     let j = takeAttrName(str, k);
@@ -116,8 +123,8 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
     const nameEnd = j;
     const name = rename(str.substring(k, j));
 
-    let valueStart = j;
-    let valueEnd = j;
+    let valueStart = -1;
+    let valueEnd = -1;
 
     k = j;
     j = takeEq(str, k);
@@ -125,6 +132,7 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
     // Equals sign presents, so there may be a value
     if (j !== -1) {
       k = j;
+      value = null;
 
       // Quoted value
       j = takeQuotValue(str, k);
@@ -132,9 +140,9 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
         j = takeAposValue(str, k);
       }
       if (j !== -1) {
-        valueStart = k + 1;
-        valueEnd = j - 1;
-        value = decode(str.substring(valueStart, valueEnd));
+        valueStart = k;
+        valueEnd = j;
+        value = decode(str.substring(k + 1, j - 1));
         k = Math.min(j, charCount);
       } else {
 
@@ -153,7 +161,11 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
     const attr = attrs[attrCount];
     if (attr) {
       attr.name = name;
+      attr.rawName = '';
       attr.value = value;
+      attr.rawValue = '';
+      attr.quoted = false;
+      attr.quoteChar = '';
       attr.start = start;
       attr.end = k;
       attr.nameStart = nameStart;
@@ -163,7 +175,11 @@ export function parseAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAtt
     } else {
       attrs[attrCount] = {
         name,
+        rawName: '',
         value,
+        rawValue: '',
+        quoted: false,
+        quoteChar: '',
         start,
         end: k,
         nameStart,
@@ -194,13 +210,17 @@ export function identity<T>(value: T): T {
 
 const dataToken: IDataToken = {
   data: '',
+  rawData: '',
   start: 0,
   end: 0,
+  dataStart: 0,
+  dataEnd: 0,
 };
 
 const startTagToken: IStartTagToken = {
   tagName: '',
-  attrs: [],
+  rawTagName: '',
+  attributes: [],
   selfClosing: false,
   start: 0,
   end: 0,
@@ -208,15 +228,16 @@ const startTagToken: IStartTagToken = {
   nameEnd: 0,
 };
 
-export const endTagToken: IEndTagToken = {
+export const endTagToken: ITagToken = {
   tagName: '',
+  rawTagName: '',
   start: 0,
   end: 0,
   nameStart: 0,
   nameEnd: 0,
 };
 
-export function parseSax(str: string, streaming: boolean, offset: number, options: ISaxParserOptions): number {
+export function tokenize(str: string, streaming: boolean, offset: number, options: ISaxParserOptions): number {
   const {
     xmlEnabled = false,
     decodeAttr = xmlDecoder,
@@ -241,7 +262,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
   let startTagName: string | undefined;
 
   // Pool of reusable attribute objects
-  let attrs: Mutable<ArrayLike<IAttribute>> | undefined;
+  let attrs: Mutable<ArrayLike<IAttributeToken>> | undefined;
 
   // Emits text chunk if any
   const emitText = () => {
@@ -261,7 +282,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
     textStart = textEnd = -1;
   };
 
-  const emitData = (cb: DataCallback | undefined, i: number, j: number, di: number, dj: number): number => {
+  const emitData = (cb: DataTokenCallback | undefined, i: number, j: number, di: number, dj: number): number => {
     emitText();
 
     const k = j > charCount ? charCount : j;
@@ -309,7 +330,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
 
         attrs ||= clearPrototype({length: 0});
 
-        j = parseAttrs(str, j, attrs, decodeAttr, renameAttr);
+        j = tokenizeAttrs(str, j, attrs, decodeAttr, renameAttr);
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
@@ -324,7 +345,7 @@ export function parseSax(str: string, streaming: boolean, offset: number, option
         emitText();
 
         startTagToken.tagName = tagName;
-        startTagToken.attrs = attrs;
+        startTagToken.attributes = attrs;
         startTagToken.selfClosing = selfClosing;
         startTagToken.start = offset + i;
         startTagToken.end = offset + k;

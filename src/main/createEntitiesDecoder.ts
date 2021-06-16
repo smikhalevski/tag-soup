@@ -25,7 +25,7 @@ export interface IEntitiesDecoderOptions {
   /**
    * Receives an entity name ("lt", "gt", etc.) and returns a string replacement for it.
    *
-   * @see {@link createFromHtmlCharName}
+   * @see createFromHtmlCharName
    */
   fromCharName?: FromCharName;
 
@@ -33,7 +33,7 @@ export interface IEntitiesDecoderOptions {
    * Receives a numeric code point and should return a string replacement for it.
    *
    * @default String.fromCharCode
-   * @see {@link createFromCharCode}
+   * @see createFromCharCode
    */
   fromCharCode?: FromCharCode;
 }

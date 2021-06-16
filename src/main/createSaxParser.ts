@@ -1,66 +1,159 @@
-import {Rewriter} from './parser-utils';
-import {parseSax} from './parseSax';
+import {Maybe, Rewriter} from './parser-utils';
+import {tokenize} from './tokenize';
 
-export interface IAttribute {
-
-  /**
-   * The name of the attribute.
-   */
-  name: string;
+/**
+ * The token read from the source.
+ */
+export interface IToken {
 
   /**
-   * The decoded value of the attribute. If attribute didn't have a value then an empty string.
-   */
-  value: string;
-
-  /**
-   * The index of the char at which attribute declaration starts.
+   * The index where token starts in the source.
    */
   start: number;
 
   /**
-   * The index of the char at which attribute declaration ends (exclusive).
+   * The index where token ends in the source.
    */
   end: number;
-
-  nameStart: number;
-  nameEnd: number;
-  valueStart: number;
-  valueEnd: number;
 }
 
-export interface IDataToken {
-  data: string;
-  start: number;
-  end: number;
-}
+/**
+ * The tag token read from the source.
+ */
+export interface ITagToken extends IToken {
 
-export interface IStartTagToken {
+  /**
+   * The tag name after {@link renameTag} was applied.
+   */
   tagName: string;
-  attrs: ArrayLike<IAttribute>;
-  selfClosing: boolean;
-  start: number;
-  end: number;
-  nameStart: number;
-  nameEnd: number;
-}
 
-export interface IEndTagToken {
-  tagName: string;
-  start: number;
-  end: number;
+  /**
+   * The tag name as it was read from the source.
+   */
+  rawTagName: string;
+
+  /**
+   * The index where {@link rawTagName} name starts.
+   */
   nameStart: number;
+
+  /**
+   * The index where {@link rawTagName} name ends.
+   */
   nameEnd: number;
 }
 
 /**
- * Type of the callback triggered by SAX parser that should process a plain text data.
- *
- * @param data The text extracted from the source.
- * @param start The index of the char at which the `data` substring starts in the source.
- * @param end The index of the char at which the `data` substring ends in the source.
+ * The start tag token read from the source.
  */
-export type DataCallback = (token: IDataToken) => void;
+export interface IStartTagToken extends ITagToken {
+
+  /**
+   * An array-like object that holds pooled objects that would be revoked after this callback finishes. To preserve
+   * attributes make a deep copy of this object. Object pooling is used to reduce memory consumption during parsing by
+   * avoiding excessive object allocation.
+   */
+  attributes: ArrayLike<IAttributeToken>;
+
+  /**
+   * `true` if tag is self-closing, `false` otherwise. Ensure that {@link selfClosingEnabled} or {@link xmlEnabled} is
+   * set to `true` to support self-closing tags.
+   */
+  selfClosing: boolean;
+}
+
+/**
+ * The text, comment, processing instruction, CDATA or document type token read from the source.
+ */
+export interface IDataToken extends IToken {
+
+  /**
+   * The data after {@link decodeText} was applied.
+   */
+  data: string;
+
+  /**
+   * The data as it was read from the source.
+   */
+  rawData: string;
+
+  /**
+   * The index where the data starts excluding markup.
+   */
+  dataStart: number;
+
+  /**
+   * The index where the data ends excluding markup.
+   */
+  dataEnd: number;
+}
+
+/**
+ * The tag attribute token read from the source.
+ */
+export interface IAttributeToken extends IToken {
+
+  /**
+   * The name of the attribute after {@link renameAttr} was applied.
+   */
+  name: string;
+
+  /**
+   * The name of the attribute as it was read from the source.
+   */
+  rawName: string;
+
+  /**
+   * The value of the attribute after {@link decodeAttr} was applied.
+   *
+   * When {@link xmlEnabled} is set to `false` and an attribute was defined by name only then {@link value} is
+   * `undefined`. If attribute is defined as a name followed by and equals sign, then {@link value} is `null`.
+   */
+  value: Maybe<string>;
+
+  /**
+   * The value of the attribute as it was read from the source.
+   *
+   * When {@link xmlEnabled} is set to `false` and an attribute was defined by name only then {@link value} is
+   * `undefined`. If attribute is defined as a name followed by and equals sign, then {@link value} is `null`.
+   */
+  rawValue: Maybe<string>;
+
+  /**
+   * `true` if value was surrounded by quote chars.
+   */
+  quoted: boolean;
+
+  /**
+   * The char that was used as a quote around {@link rawValue}.
+   */
+  quoteChar: string;
+
+  /**
+   * The index where {@link rawName} name starts.
+   */
+  nameStart: number;
+
+  /**
+   * The index where {@link rawName} name ends.
+   */
+  nameEnd: number;
+
+  /**
+   * The index where {@link rawValue} starts or -1 if attribute name wasn't followed by an equals sign.
+   */
+  valueStart: number;
+
+  /**
+   * The index where {@link rawValue} ends or -1 if attribute name wasn't followed by an equals sign.
+   */
+  valueEnd: number;
+}
+
+/**
+ * Type of the callback triggered by SAX parser that should process a plain text data.
+ */
+export type DataTokenCallback = (token: IDataToken) => void;
 
 export interface ISaxParserDialectOptions {
 
@@ -70,28 +163,38 @@ export interface ISaxParserDialectOptions {
    * If set to `true` then:
    * - CDATA sections and processing instructions are parsed;
    * - Self-closing tags are recognized;
-   * - Tag names are case-sensitive.
+   * - Tag names are case-sensitive;
+   * - Attributes must have explicit values surrounded by double quotes.
    *
    * If set to `false` then:
    * - CDATA sections and processing instructions are emitted as comments;
    * - Self-closing tags are treated as start tags;
-   * - Tag names are case-insensitive.
+   * - Tag names are case-insensitive;
+   * - Attributes may consist of name only or name followed by equality sign;
+   * - Attribute values may be surrounded by single quotes or no quotes at all.
    *
    * @default false
    */
   xmlEnabled?: boolean;
 
   /**
+   * Enables self-closing tags recognition. This is always enabled if {@link xmlEnabled} is set to `true`.
+   *
+   * @default false
+   */
+  selfClosingEnabled?: boolean;
+
+  /**
    * Decodes XML entities in an attribute value. By default, only XML entities are decoded.
    *
-   * @see {@link createEntitiesDecoder}
+   * @see createEntitiesDecoder
    */
   decodeAttr?: Rewriter;
 
   /**
    * Decodes XML entities in plain text value. By default, only XML entities are decoded.
    *
-   * @see {@link createEntitiesDecoder}
+   * @see createEntitiesDecoder
    */
   decodeText?: Rewriter;
 
@@ -107,17 +210,10 @@ export interface ISaxParserDialectOptions {
   renameAttr?: Rewriter;
 
   /**
-   * Enables self-closing tags recognition. This is always enabled if {@link xmlEnabled} is set to `true`.
-   *
-   * @default false
-   */
-  selfClosingEnabled?: boolean;
-
-  /**
    * Determines whether the container tag content should be interpreted as a markup or as a plain text. Useful when
    * parsing `script` and `style` tags. By default, `false` for all tags.
    *
-   * @param tagName The name of the start tag.
+   * @param token The start tag token read from the source.
    * @returns If `true` than the content inside the container tag would be treated as a plain text.
    */
   isTextContent?: (token: IStartTagToken) => boolean;
@@ -127,77 +223,65 @@ export interface ISaxParserCallbacks {
 
   /**
    * Triggered when a start tag and its attributes were read.
-   *
-   * @param tagName The name of the start tag.
-   * @param attrs An array-like object that holds pooled objects that would be revoked after this callback finishes. To
-   *     preserve parsed attributes make a deep copy of `attrs`. Object pooling is used to reduce memory consumption
-   *     during parsing by avoiding excessive allocations.
-   * @param selfClosing `true` if tag is self-closing.
-   * @param start The index of char at which tag declaration starts.
-   * @param end The index of char at which tag declaration ends (exclusive).
    */
   onStartTag?: (token: IStartTagToken) => void;
 
   /**
    * Triggered when an end tag was read.
-   *
-   * @param tagName The name of the end tag.
-   * @param start The index of char at which tag declaration starts.
-   * @param end The index of char at which tag declaration ends (exclusive).s
    */
-  onEndTag?: (token: IEndTagToken) => void;
+  onEndTag?: (token: ITagToken) => void;
 
   /**
    * Triggered when a chunk of text was read.
    */
-  onText?: DataCallback;
+  onText?: DataTokenCallback;
 
   /**
    * Triggered when a comment was read.
    */
-  onComment?: DataCallback;
+  onComment?: DataTokenCallback;
 
   /**
    * Triggered when a processing instruction was read.
    */
-  onProcessingInstruction?: DataCallback;
+  onProcessingInstruction?: DataTokenCallback;
 
   /**
    * Triggered when a CDATA section was read. This is triggered only when `xmlEnabled` is set to `true`, otherwise
    * CDATA sections are treated as plain text.
    */
-  onCdataSection?: DataCallback;
+  onCdataSection?: DataTokenCallback;
 
   /**
    * Triggered when a DOCTYPE was read. This library doesn't process the contents of the DOCTYPE so `data` argument
    * would contain the raw source of the DOCTYPE declaration.
    */
-  onDocumentType?: DataCallback;
-
-  /**
-   * Triggered when parser is reset.
-   *
-   * @see {@link SaxParser.reset}
-   */
-  onReset?: () => void;
+  onDocumentType?: DataTokenCallback;
 
   /**
    * Triggered after parser was provided a new source chunk.
    *
    * @param sourceChunk The chunk of data that was provided to parser.
    * @param parsedCharCount The total number of characters that were parsed by parser.
-   * @see {@link SaxParser.write}
+   * @see ISaxParser.write
    */
   onWrite?: (sourceChunk: string, parsedCharCount: number) => void;
 
   /**
-   * Triggered when parsing has completed but before the parser is reset.
+   * Triggered after parsing was completed but before the parser is reset.
    *
    * @param source The source that was parsed.
    * @param parsedCharCount The total number of characters that were parsed by parser.
-   * @see {@link SaxParser.parse}
+   * @see SaxParser.parse
    */
   onParse?: (source: string, parsedCharCount: number) => void;
+
+  /**
+   * Triggered when parser is reset.
+   *
+   * @see ISaxParser.reset
+   */
+  onReset?: () => void;
 }
 
 export interface ISaxParserOptions extends ISaxParserDialectOptions, ISaxParserCallbacks {
@@ -212,11 +296,10 @@ export interface ISaxParser {
 
   /**
    * Try to parse a given source chunk. If there's an ambiguity during parsing then the parser is paused until the next
-   * {@link write} or {@link parse} invocation. The part of chunk that was not parsed is appended to internal
-   * buffer.
+   * {@link write} or {@link parse} invocation. The part of chunk that was not parsed is appended to an internal buffer.
    *
    * @param sourceChunk The source chunk to parse.
-   * @return The number of chars remaining in buffer. If 0 is returned then all chars were read.
+   * @return The number of chars remaining in buffer after parsing. If 0 is returned then all chars were read.
    */
   write(sourceChunk: string): number;
 
@@ -225,7 +308,7 @@ export interface ISaxParser {
    * for parsing. Parser is reset after this method completes.
    *
    * @param source The source to parse.
-   * @return The number of chars at the end of `source` that weren't read. If 0 is returned then all chars were read.
+   * @return The number of chars that weren't read. If 0 is returned then all chars were read.
    */
   parse(source?: string): number;
 }
@@ -254,22 +337,26 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
     reset,
 
     write(chunk) {
+      chunk ??= '';
       buffer += chunk;
-      const l = parseSax(buffer, true, offset, options);
+      const l = tokenize(buffer, true, offset, options);
       parsedCharCount += l;
+
       buffer = buffer.substr(l);
       offset += l;
       const remainder = buffer.length;
-      onWrite?.(chunk, parsedCharCount);
+      onWrite?.('' + chunk, parsedCharCount);
       return remainder;
     },
 
-    parse(chunk = '') {
+    parse(chunk) {
+      chunk ??= '';
       buffer += chunk;
-      const l = parseSax(buffer, false, offset, options);
+      const l = tokenize(buffer, false, offset, options);
       parsedCharCount += l;
+
       const remainder = buffer.length - l;
-      onParse?.(chunk, parsedCharCount);
+      onParse?.('' + chunk, parsedCharCount);
       reset();
       return remainder;
     },

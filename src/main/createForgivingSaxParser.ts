@@ -5,7 +5,7 @@ import {
   ISaxParserDialectOptions,
   IStartTagToken,
 } from './createSaxParser';
-import {endTagToken} from './parseSax';
+import {endTagToken} from './tokenize';
 
 export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOptions {
 

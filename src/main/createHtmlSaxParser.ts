@@ -4,7 +4,7 @@ import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createForgivingSaxParser, IForgivingSaxParserOptions} from './createForgivingSaxParser';
 import {clearPrototype} from './parser-utils';
-import {lowerCase} from './parseSax';
+import {lowerCase} from './tokenize';
 
 export interface IHtmlSaxParserDialectOptions extends IFromCharCodeOptions {
 

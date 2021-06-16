@@ -1,11 +1,11 @@
 import {
-  DataCallback,
+  DataTokenCallback,
   IDataToken,
-  IEndTagToken,
   ISaxParser,
   ISaxParserCallbacks,
   ISaxParserOptions,
   IStartTagToken,
+  ITagToken,
 } from './createSaxParser';
 import {createForgivingSaxParser, IForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
 
@@ -47,7 +47,7 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
    *     {@link xmlEnabled} is set to `true` to support self-closing tags.
    * @param start The index of a char at which the start tag declaration starts in the source.
    * @param end The index of a char at which the start tag declaration ends (exclusive) in the source.
-   * @see {@link onContainerEnd}
+   * @see onContainerEnd
    */
   createElement(token: IStartTagToken): Element;
 
@@ -63,7 +63,7 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
    * @param start The index of a char at which the end tag declaration starts in the source.
    * @param end The index of a char at which the end tag declaration ends (exclusive) in the source.
    */
-  onContainerEnd?: (element: Element, token: IEndTagToken) => void;
+  onContainerEnd?: (element: Element, token: ITagToken) => void;
 
   /**
    * Factory that creates a new text node.
@@ -108,9 +108,9 @@ export interface IDomParserOptions<Node, Element extends Node, Text extends Node
  * @param Element The type of object that describes an element in the DOM tree.
  * @param Text The type of object that describes a text node in the DOM tree.
  *
- * @see {@link createDomParser}
- * @see {@link createXmlDomParser}
- * @see {@link createHtmlDomParser}
+ * @see createDomParser
+ * @see createXmlDomParser
+ * @see createHtmlDomParser
  */
 export interface IDomParser<Node, Element extends Node = Node, Text extends Node = Node> {
 
@@ -177,7 +177,7 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     }
   };
 
-  const createDataCallback = (factory: DataNodeFactory<Node> | undefined): DataCallback | undefined => {
+  const createDataTokenCallback = (factory: DataNodeFactory<Node> | undefined): DataTokenCallback | undefined => {
     if (factory) {
       return (token) => pushNode(factory(token));
     }
@@ -200,11 +200,11 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
       onContainerEnd?.(elements[depth], token);
     },
 
-    onText: createDataCallback(createTextNode),
-    onProcessingInstruction: createDataCallback(createProcessingInstruction),
-    onCdataSection: createDataCallback(createCdataSection),
-    onDocumentType: createDataCallback(createDocumentType),
-    onComment: createDataCallback(createComment),
+    onText: createDataTokenCallback(createTextNode),
+    onProcessingInstruction: createDataTokenCallback(createProcessingInstruction),
+    onCdataSection: createDataTokenCallback(createCdataSection),
+    onDocumentType: createDataTokenCallback(createDocumentType),
+    onComment: createDataTokenCallback(createComment),
   };
 
   const saxParser = saxParserFactory(Object.assign({}, options, saxParserCallbacks));

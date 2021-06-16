@@ -1,5 +1,6 @@
 import {createDomParser, IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './createDomParser';
 import {IDataToken} from './createSaxParser';
+import {Maybe} from './parser-utils';
 
 export const enum DomNodeType {
   ELEMENT = 1,
@@ -19,7 +20,7 @@ export interface IDomNode {
 }
 
 export interface IDomAttributeMap {
-  [attrName: string]: string;
+  [attrName: string]: Maybe<string>;
 }
 
 export interface IDomElement extends IDomNode {
@@ -49,8 +50,8 @@ const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElemen
 
   createElement(token) {
     const attrMap: IDomAttributeMap = {};
-    for (let i = 0, l = token.attrs.length; i < l; i++) {
-      const attr = token.attrs[i];
+    for (let i = 0, l = token.attributes.length; i < l; i++) {
+      const attr = token.attributes[i];
       attrMap[attr.name] = attr.value;
     }
     return {
