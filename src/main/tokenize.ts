@@ -1,4 +1,4 @@
-import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
+import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText, ResultCode} from 'tokenizer-dsl';
 import {CharCode, clearPrototype, Maybe, Mutable, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {
@@ -102,15 +102,15 @@ const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true)
  * @param decode The decoder of HTML/XML entities.
  * @param rename The callback that receives an attribute name and returns a new name.
  */
-export function tokenizeAttrs(str: string, i: number, attrs: Mutable<ArrayLike<IAttributeToken>>, decode: Rewriter, rename: Rewriter): number {
+export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mutable<ArrayLike<IAttributeToken>>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
 
   let attrCount = 0;
 
   while (i < charCount) {
 
-    let value: Maybe<string>;
     let start = takeTagSpace(str, i);
+
     let k = start;
     let j = takeAttrName(str, k);
 
@@ -121,28 +121,33 @@ export function tokenizeAttrs(str: string, i: number, attrs: Mutable<ArrayLike<I
 
     const nameStart = k;
     const nameEnd = j;
-    const name = rename(str.substring(k, j));
+    const rawName = str.substring(nameStart, nameEnd);
+    const name = rename(rawName);
 
     let valueStart = -1;
     let valueEnd = -1;
+    let rawValue;
+    let value;
+
+    let quoted = false;
 
     k = j;
     j = takeEq(str, k);
 
     // Equals sign presents, so there may be a value
-    if (j !== -1) {
+    if (j !== ResultCode.NO_MATCH) {
       k = j;
-      value = null;
+      value = rawValue = null;
 
       // Quoted value
       j = takeQuotValue(str, k);
-      if (j === -1) {
+      if (j === ResultCode.NO_MATCH) {
         j = takeAposValue(str, k);
       }
-      if (j !== -1) {
-        valueStart = k;
-        valueEnd = j;
-        value = decode(str.substring(k + 1, j - 1));
+      if (j !== ResultCode.NO_MATCH) {
+        valueStart = k + 1;
+        valueEnd = j - 1;
+        quoted = true;
         k = Math.min(j, charCount);
       } else {
 
@@ -151,41 +156,43 @@ export function tokenizeAttrs(str: string, i: number, attrs: Mutable<ArrayLike<I
         if (j !== k) {
           valueStart = k;
           valueEnd = j;
-          value = decode(str.substring(k, j));
           k = j;
         }
       }
+    }
+
+    if (valueStart !== -1) {
+      rawValue = str.substring(valueStart, valueEnd);
+      value = decode(rawValue);
     }
 
     // Populate attributes pool
     const attr = attrs[attrCount];
     if (attr) {
       attr.name = name;
-      attr.rawName = '';
+      attr.rawName = rawName;
       attr.value = value;
-      attr.rawValue = '';
-      attr.quoted = false;
-      attr.quoteChar = '';
-      attr.start = start;
-      attr.end = k;
-      attr.nameStart = nameStart;
-      attr.nameEnd = nameEnd;
-      attr.valueStart = valueStart;
-      attr.valueEnd = valueEnd;
+      attr.rawValue = rawValue;
+      attr.quoted = quoted;
+      attr.start = offset + start;
+      attr.end = offset + k;
+      attr.nameStart = offset + nameStart;
+      attr.nameEnd = offset + nameEnd;
+      attr.valueStart = offset + valueStart;
+      attr.valueEnd = offset + valueEnd;
     } else {
       attrs[attrCount] = {
         name,
-        rawName: '',
+        rawName,
         value,
-        rawValue: '',
-        quoted: false,
-        quoteChar: '',
-        start,
-        end: k,
-        nameStart,
-        nameEnd,
-        valueStart,
-        valueEnd,
+        rawValue,
+        quoted,
+        start: offset + start,
+        end: offset + k,
+        nameStart: offset + nameStart,
+        nameEnd: offset + nameEnd,
+        valueStart: offset + valueStart,
+        valueEnd: offset + valueEnd,
       };
     }
     attrCount++;
@@ -208,7 +215,7 @@ export function identity<T>(value: T): T {
   return value;
 }
 
-const dataToken: IDataToken = {
+export const dataToken: IDataToken = {
   data: '',
   rawData: '',
   start: 0,
@@ -217,10 +224,10 @@ const dataToken: IDataToken = {
   dataEnd: 0,
 };
 
-const startTagToken: IStartTagToken = {
+export const startTagToken: IStartTagToken = {
   tagName: '',
   rawTagName: '',
-  attributes: [],
+  attributes: {length: 0},
   selfClosing: false,
   start: 0,
   end: 0,
@@ -261,8 +268,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
   let tagParsingEnabled = true;
   let startTagName: string | undefined;
 
-  // Pool of reusable attribute objects
-  let attrs: Mutable<ArrayLike<IAttributeToken>> | undefined;
+  const attrs = startTagToken.attributes;
 
   // Emits text chunk if any
   const emitText = () => {
@@ -273,24 +279,32 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
       // This substring call would have performance implications in perf test if the result substring is huge
       const text = str.substring(textStart, textEnd);
 
+      dataToken.rawData = text;
       dataToken.data = decodeText(text);
-      dataToken.start = offset + textStart;
-      dataToken.end = offset + textEnd;
+      dataToken.start = dataToken.dataStart = offset + textStart;
+      dataToken.end = dataToken.dataEnd = offset + textEnd;
 
       onText(dataToken);
     }
     textStart = textEnd = -1;
   };
 
-  const emitData = (cb: DataTokenCallback | undefined, i: number, j: number, di: number, dj: number): number => {
+  const emitData = (cb: DataTokenCallback | undefined, i: number, j: number, di: number, dj: number, decodeEnabled: boolean): number => {
     emitText();
 
     const k = j > charCount ? charCount : j;
 
     if (cb) {
-      dataToken.data = str.substring(i + di, j - dj);
+      const dataStart = i + di;
+      const dataEnd = j - dj;
+      const text = str.substring(dataStart, dataEnd);
+
+      dataToken.data = text;
+      dataToken.rawData = decodeEnabled ? decodeText(text) : text;
       dataToken.start = offset + i;
       dataToken.end = offset + k;
+      dataToken.dataStart = offset + dataStart;
+      dataToken.dataEnd = offset + Math.min(dataEnd, dataToken.end);
 
       cb(dataToken);
     }
@@ -308,7 +322,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
     if (textStart === -1) {
       let k = takeText(str, i);
 
-      if (k === -1 && (k = charCount) && streaming) {
+      if (k === ResultCode.NO_MATCH && (k = charCount) && streaming) {
         break;
       }
       if (k !== i) {
@@ -322,20 +336,19 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
 
       // Start tag
       j = takeStartTagOpening(str, i);
-      if (j !== -1) {
+      if (j !== ResultCode.NO_MATCH) {
         const nameStart = i + 1;
         const nameEnd = j;
 
-        const tagName = renameTag(str.substring(nameStart, nameEnd));
+        const rawTagName = str.substring(nameStart, nameEnd);
+        const tagName = renameTag(rawTagName);
 
-        attrs ||= clearPrototype({length: 0});
-
-        j = tokenizeAttrs(str, j, attrs, decodeAttr, renameAttr);
+        j = tokenizeAttrs(str, j, offset, attrs, decodeAttr, renameAttr);
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
 
-        if (k === -1) {
+        if (k === ResultCode.NO_MATCH) {
           // Unterminated start tag
           return i;
         }
@@ -344,13 +357,13 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
 
         emitText();
 
+        startTagToken.rawTagName = rawTagName;
         startTagToken.tagName = tagName;
-        startTagToken.attributes = attrs;
         startTagToken.selfClosing = selfClosing;
         startTagToken.start = offset + i;
         startTagToken.end = offset + k;
-        startTagToken.nameStart = nameStart;
-        startTagToken.nameEnd = nameEnd;
+        startTagToken.nameStart = offset + nameStart;
+        startTagToken.nameEnd = offset + nameEnd;
 
         if (onStartTag) {
           onStartTag(startTagToken);
@@ -368,11 +381,12 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
 
     // End tag
     j = takeEndTagOpening(str, i);
-    if (j !== -1) {
+    if (j !== ResultCode.NO_MATCH) {
       const nameStart = i + 2;
       const nameEnd = j;
 
-      const tagName = renameTag(str.substring(nameStart, nameEnd));
+      const rawTagName = str.substring(nameStart, nameEnd);
+      const tagName = renameTag(rawTagName);
 
       if (tagParsingEnabled || startTagName === tagName) {
 
@@ -382,18 +396,19 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(str, j);
 
-        if (k === -1) {
+        if (k === ResultCode.NO_MATCH) {
           // Unterminated end tag
           return i;
         }
 
         emitText();
         if (onEndTag) {
+          endTagToken.rawTagName = rawTagName;
           endTagToken.tagName = tagName;
           endTagToken.start = offset + i;
           endTagToken.end = offset + k;
-          endTagToken.nameStart = nameStart;
-          endTagToken.nameEnd = nameEnd;
+          endTagToken.nameStart = offset + nameStart;
+          endTagToken.nameEnd = offset + nameEnd;
 
           onEndTag(endTagToken);
         }
@@ -408,52 +423,52 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
 
       // Comment
       k = j = takeComment(str, i);
-      if (j !== -1) {
+      if (j !== ResultCode.NO_MATCH) {
         if (j > charCount && streaming) {
           return i;
         }
-        i = emitData(onComment, i, j, 4, 3);
+        i = emitData(onComment, i, j, 4, 3, true);
         continue;
       }
 
       // Doctype
       k = j = takeDocumentType(str, i);
-      if (j !== -1) {
+      if (j !== ResultCode.NO_MATCH) {
         if (j > charCount && streaming) {
           return i;
         }
-        i = emitData(onDocumentType, i, j, 9, 1);
+        i = emitData(onDocumentType, i, j, 9, 1, false);
         continue;
       }
 
       // CDATA section
       j = takeCdataSection(str, i);
-      if (j !== -1) {
+      if (j !== ResultCode.NO_MATCH) {
         if (j > charCount && streaming) {
           return i;
         }
-        i = xmlEnabled ? emitData(onCdataSection, i, j, 9, 3) : emitData(onComment, i, j, 2, 1);
+        i = xmlEnabled ? emitData(onCdataSection, i, j, 9, 3, false) : emitData(onComment, i, j, 2, 1, false);
         continue;
       }
 
       // Processing instruction
       j = takeProcessingInstruction(str, i);
-      if (j !== -1) {
+      if (j !== ResultCode.NO_MATCH) {
         if (j > charCount && streaming) {
           return i;
         }
-        i = xmlEnabled ? emitData(onProcessingInstruction, i, j, 2, 2) : emitData(onComment, i, j, 1, 1);
+        i = xmlEnabled ? emitData(onProcessingInstruction, i, j, 2, 2, false) : emitData(onComment, i, j, 1, 1, false);
         continue;
       }
 
       // Weird comments
       if (!xmlEnabled) {
         j = takeWeirdComment(str, i);
-        if (j !== -1) {
+        if (j !== ResultCode.NO_MATCH) {
           if (j > charCount && streaming) {
             return i;
           }
-          i = emitData(onComment, i, j, 2, 1);
+          i = emitData(onComment, i, j, 2, 1, true);
           continue;
         }
       }

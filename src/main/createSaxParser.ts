@@ -23,14 +23,14 @@ export interface IToken {
 export interface ITagToken extends IToken {
 
   /**
-   * The tag name after {@link renameTag} was applied.
-   */
-  tagName: string;
-
-  /**
    * The tag name as it was read from the source.
    */
   rawTagName: string;
+
+  /**
+   * The tag name after {@link renameTag} was applied.
+   */
+  tagName: string;
 
   /**
    * The index where {@link rawTagName} name starts.
@@ -68,14 +68,14 @@ export interface IStartTagToken extends ITagToken {
 export interface IDataToken extends IToken {
 
   /**
-   * The data after {@link decodeText} was applied.
-   */
-  data: string;
-
-  /**
    * The data as it was read from the source.
    */
   rawData: string;
+
+  /**
+   * The data after {@link decodeText} was applied.
+   */
+  data: string;
 
   /**
    * The index where the data starts excluding markup.
@@ -94,22 +94,14 @@ export interface IDataToken extends IToken {
 export interface IAttributeToken extends IToken {
 
   /**
-   * The name of the attribute after {@link renameAttr} was applied.
-   */
-  name: string;
-
-  /**
    * The name of the attribute as it was read from the source.
    */
   rawName: string;
 
   /**
-   * The value of the attribute after {@link decodeAttr} was applied.
-   *
-   * When {@link xmlEnabled} is set to `false` and an attribute was defined by name only then {@link value} is
-   * `undefined`. If attribute is defined as a name followed by and equals sign, then {@link value} is `null`.
+   * The name of the attribute after {@link renameAttr} was applied.
    */
-  value: Maybe<string>;
+  name: string;
 
   /**
    * The value of the attribute as it was read from the source.
@@ -120,14 +112,17 @@ export interface IAttributeToken extends IToken {
   rawValue: Maybe<string>;
 
   /**
+   * The value of the attribute after {@link decodeAttr} was applied.
+   *
+   * When {@link xmlEnabled} is set to `false` and an attribute was defined by name only then {@link value} is
+   * `undefined`. If attribute is defined as a name followed by and equals sign, then {@link value} is `null`.
+   */
+  value: Maybe<string>;
+
+  /**
    * `true` if value was surrounded by quote chars.
    */
   quoted: boolean;
-
-  /**
-   * The char that was used as a quote around {@link rawValue}.
-   */
-  quoteChar: string;
 
   /**
    * The index where {@link rawName} name starts.
@@ -163,15 +158,12 @@ export interface ISaxParserDialectOptions {
    * If set to `true` then:
    * - CDATA sections and processing instructions are parsed;
    * - Self-closing tags are recognized;
-   * - Tag names are case-sensitive;
-   * - Attributes must have explicit values surrounded by double quotes.
+   * - Tag names are case-sensitive.
    *
    * If set to `false` then:
    * - CDATA sections and processing instructions are emitted as comments;
    * - Self-closing tags are treated as start tags;
-   * - Tag names are case-insensitive;
-   * - Attributes may consist of name only or name followed by equality sign;
-   * - Attribute values may be surrounded by single quotes or no quotes at all.
+   * - Tag names are case-insensitive.
    *
    * @default false
    */
@@ -290,6 +282,11 @@ export interface ISaxParserOptions extends ISaxParserDialectOptions, ISaxParserC
 export interface ISaxParser {
 
   /**
+   * Returns the buffered string that would be used during the next {@link write} or {@link parse} call.
+   */
+  getBuffer(): string;
+
+  /**
    * Resets the internal state of the parser.
    */
   reset(): void;
@@ -301,7 +298,7 @@ export interface ISaxParser {
    * @param sourceChunk The source chunk to parse.
    * @return The number of chars remaining in buffer after parsing. If 0 is returned then all chars were read.
    */
-  write(sourceChunk: string): number;
+  write(sourceChunk: string): void;
 
   /**
    * Parses the given source. If there's a leftover in the buffer after the last {@link write} call it is also used
@@ -310,7 +307,7 @@ export interface ISaxParser {
    * @param source The source to parse.
    * @return The number of chars that weren't read. If 0 is returned then all chars were read.
    */
-  parse(source?: string): number;
+  parse(source?: string): void;
 }
 
 /**
@@ -334,6 +331,11 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   };
 
   return {
+
+    getBuffer() {
+      return buffer;
+    },
+
     reset,
 
     write(chunk) {
@@ -344,9 +346,7 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
 
       buffer = buffer.substr(l);
       offset += l;
-      const remainder = buffer.length;
       onWrite?.('' + chunk, parsedCharCount);
-      return remainder;
     },
 
     parse(chunk) {
@@ -355,10 +355,8 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
       const l = tokenize(buffer, false, offset, options);
       parsedCharCount += l;
 
-      const remainder = buffer.length - l;
       onParse?.('' + chunk, parsedCharCount);
       reset();
-      return remainder;
     },
   };
 }

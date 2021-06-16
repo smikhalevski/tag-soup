@@ -1,4 +1,6 @@
-import {createSaxParser, ISaxParser} from '../main/createSaxParser';
+import {createSaxParser, IDataToken, ISaxParser, IStartTagToken, ITagToken} from '../main/createSaxParser';
+import {startTagToken} from '../main/tokenize';
+import {cloneDeep} from 'lodash';
 
 describe('createSaxParser', () => {
 
@@ -13,16 +15,18 @@ describe('createSaxParser', () => {
   const onDocumentTypeMock = jest.fn();
 
   beforeEach(() => {
+    startTagToken.attributes = {length: 0};
+
     parser = createSaxParser({
       selfClosingEnabled: true,
 
-      onStartTag: onStartTagMock,
-      onEndTag: onEndTagMock,
-      onText: onTextMock,
-      onComment: onCommentMock,
-      onProcessingInstruction: onProcessingInstructionMock,
-      onCdataSection: onCdataSectionMock,
-      onDocumentType: onDocumentTypeMock,
+      onStartTag: (token) => onStartTagMock(cloneDeep(token)),
+      onEndTag: (token) => onEndTagMock(cloneDeep(token)),
+      onText: (token) => onTextMock(cloneDeep(token)),
+      onComment: (token) => onCommentMock(cloneDeep(token)),
+      onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
+      onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
+      onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
     });
 
     onStartTagMock.mockReset();
@@ -47,7 +51,14 @@ describe('createSaxParser', () => {
       parser.parse('<!--foo');
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
+      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'foo',
+        data: 'foo',
+        start: 0,
+        end: 7,
+        dataStart: 4,
+        dataEnd: 7,
+      });
     });
   });
 
@@ -57,7 +68,17 @@ describe('createSaxParser', () => {
       parser.write('<a>foo');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      });
+
       expect(onTextMock).not.toHaveBeenCalled();
 
       parser.write('qux');
@@ -67,9 +88,24 @@ describe('createSaxParser', () => {
       parser.write('bar</a>');
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, 'fooquxbar', 3, 12);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'fooquxbar',
+        data: 'fooquxbar',
+        start: 3,
+        end: 12,
+        dataStart: 3,
+        dataEnd: 12,
+      });
+
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 12, 16);
+      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        start: 12,
+        end: 16,
+        nameStart: 14,
+        nameEnd: 15,
+      });
     });
 
     it('defers start tag emit', () => {
@@ -80,10 +116,68 @@ describe('createSaxParser', () => {
       parser.write('/>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'www', {
-        length: 1,
-        0: {name: 'aaa', value: '111', start: 5, end: 12},
-      }, true, 0, 15);
+      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+        rawTagName: 'www',
+        tagName: 'www',
+        attributes: {
+          length: 1,
+          0: {
+            rawName: 'aaa',
+            name: 'aaa',
+            rawValue: '111',
+            value: '111',
+            quoted: false,
+            start: 5,
+            end: 12,
+            nameStart: 5,
+            nameEnd: 8,
+            valueStart: 9,
+            valueEnd: 12,
+          },
+        },
+        selfClosing: true,
+        start: 0,
+        end: 15,
+        nameStart: 1,
+        nameEnd: 4,
+      });
+
+      expect(onEndTagMock).not.toHaveBeenCalled();
+    });
+
+    it('emits attribute with proper offsets', () => {
+      parser.write('<foo>');
+
+      expect(onStartTagMock).toHaveBeenCalledTimes(1);
+
+      parser.write('<bar aaa=111>');
+
+      expect(onStartTagMock).toHaveBeenCalledTimes(2);
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+        rawTagName: 'bar',
+        tagName: 'bar',
+        attributes: {
+          length: 1,
+          0: {
+            rawName: 'aaa',
+            name: 'aaa',
+            rawValue: '111',
+            value: '111',
+            quoted: false,
+            start: 10,
+            end: 17,
+            nameStart: 10,
+            nameEnd: 13,
+            valueStart: 14,
+            valueEnd: 17,
+          },
+        },
+        selfClosing: false,
+        start: 5,
+        end: 18,
+        nameStart: 6,
+        nameEnd: 9,
+      });
 
       expect(onEndTagMock).not.toHaveBeenCalled();
     });
@@ -96,7 +190,14 @@ describe('createSaxParser', () => {
       parser.write('bar-->');
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 13);
+      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'foobar',
+        data: 'foobar',
+        start: 0,
+        end: 13,
+        dataStart: 4,
+        dataEnd: 10,
+      });
     });
 
     it('emits incomplete comment on parse', () => {
@@ -107,7 +208,14 @@ describe('createSaxParser', () => {
       parser.parse();
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foo', 0, 7);
+      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'foo',
+        data: 'foo',
+        start: 0,
+        end: 7,
+        dataStart: 4,
+        dataEnd: 7,
+      });
     });
 
     it('emits tail on parse with an additional data', () => {
@@ -118,7 +226,14 @@ describe('createSaxParser', () => {
       parser.parse('bar');
 
       expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenNthCalledWith(1, 'foobar', 0, 10);
+      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'foobar',
+        data: 'foobar',
+        start: 0,
+        end: 10,
+        dataStart: 4,
+        dataEnd: 10,
+      });
     });
 
     it('can reset the stream', () => {
@@ -130,7 +245,14 @@ describe('createSaxParser', () => {
       parser.parse('bar');
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, 'bar', 0, 3);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'bar',
+        data: 'bar',
+        start: 0,
+        end: 3,
+        dataStart: 0,
+        dataEnd: 3,
+      });
     });
   });
 });

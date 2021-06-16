@@ -48,8 +48,10 @@
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^13.0.0",
     "@types/jest": "^26.0.23",
+    "@types/lodash": "^4.14.170",
     "htmlparser2": "^6.1.0",
     "jest": "^27.0.2",
+    "lodash": "^4.17.21",
     "nodemark": "^0.3.0",
     "parse5": "^6.0.1",
     "rollup": "^2.50.5",
