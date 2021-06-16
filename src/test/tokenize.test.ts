@@ -618,6 +618,25 @@ describe('tokenizeAttrs', () => {
       },
     ]);
   });
+
+  it('respects offset', () => {
+    expect(tokenizeAttrs('aaa=111', 0, 5, attrs, identity, identity)).toBe(7);
+    expect(attrs).toEqual<Array<IAttributeToken>>([
+      {
+        rawName: 'aaa',
+        name: 'aaa',
+        rawValue: '111',
+        value: '111',
+        quoted: false,
+        start: 5 + 0,
+        end: 5 + 7,
+        nameStart: 5 + 0,
+        nameEnd: 5 + 3,
+        valueStart: 5 + 4,
+        valueEnd: 5 + 7,
+      },
+    ]);
+  });
 });
 
 describe('tokenize', () => {

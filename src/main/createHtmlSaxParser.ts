@@ -60,7 +60,7 @@ export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser 
 
     isTextContent: (token) => textTagMap[token.tagName] === 1,
     isVoidContent: (token) => voidTagMap[token.tagName] === 1,
-    isImplicitEnd: xhtmlEnabled ? undefined : (token, prevToken) => implicitEndMap[token.tagName]?.[prevToken.tagName] === 1,
+    isImplicitEnd: xhtmlEnabled ? undefined : (containerTagName, token) => implicitEndMap[containerTagName]?.[token.tagName] === 1,
 
     renameTag: lowerCase,
   };

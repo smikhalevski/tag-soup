@@ -4,8 +4,16 @@ import {createForgivingSaxParser} from '../main';
 describe('createDomParser', () => {
 
   let domParserOptions: IDomParserOptions<any, any, any> = {
-    createElement(tagName, attrs, selfClosing, start, end) {
-      return {tagName, attrs, start, end, children: []};
+    createElement(token) {
+      return {
+        tagName: token.tagName,
+        attrs: Array.from(token.attributes).map((attr) => {
+          return {name: attr.name, }
+        }),
+        start,
+        end,
+        children: [],
+      };
     },
     createTextNode(data, start, end) {
       return {data, start, end};

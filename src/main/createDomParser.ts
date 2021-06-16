@@ -32,6 +32,9 @@ export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDi
   [saxParserOption: string]: unknown;
 }
 
+/**
+ * Callback that creates a DOM node from the data token.
+ */
 export type DataNodeFactory<Node> = (token: IDataToken) => Node;
 
 export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text extends Node> {
@@ -39,14 +42,6 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
   /**
    * Creates a new element.
    *
-   * @param tagName The tag name of an element.
-   * @param attrs An array-like object that holds pooled objects that would be revoked after this callback finishes. To
-   *     preserve parsed attributes make a deep copy of `attrs`. Object pooling is used to reduce memory consumption
-   *     during parsing by avoiding excessive object allocation.
-   * @param selfClosing `true` if tag is self-closing, `false` otherwise. Ensure that {@link selfClosingEnabled} or
-   *     {@link xmlEnabled} is set to `true` to support self-closing tags.
-   * @param start The index of a char at which the start tag declaration starts in the source.
-   * @param end The index of a char at which the start tag declaration ends (exclusive) in the source.
    * @see onContainerEnd
    */
   createElement(token: IStartTagToken): Element;
@@ -60,8 +55,7 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
    * Triggered when the end tag of the container was fully read from source.
    *
    * @param element The element for which the end tag was read.
-   * @param start The index of a char at which the end tag declaration starts in the source.
-   * @param end The index of a char at which the end tag declaration ends (exclusive) in the source.
+   * @param token The token that closes the element.
    */
   onContainerEnd?: (element: Element, token: ITagToken) => void;
 
@@ -94,9 +88,9 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
 /**
  * Options required to create a new DOM parser.
  *
- * @param Node The type of object that describes a node in the DOM tree.
- * @param Element The type of object that describes an element in the DOM tree.
- * @param Text The type of object that describes a text node in the DOM tree.
+ * @template Node The type of object that describes a node in the DOM tree.
+ * @template Element The type of object that describes an element in the DOM tree.
+ * @template Text The type of object that describes a text node in the DOM tree.
  */
 export interface IDomParserOptions<Node, Element extends Node, Text extends Node> extends IDomParserDialectOptions<Element>, IDomParserFactoryCallbacks<Node, Element, Text> {
 }
@@ -104,15 +98,20 @@ export interface IDomParserOptions<Node, Element extends Node, Text extends Node
 /**
  * The DOM parser that creates a tree of nodes that describe the input source.
  *
- * @param Node The type of object that describes a node in the DOM tree.
- * @param Element The type of object that describes an element in the DOM tree.
- * @param Text The type of object that describes a text node in the DOM tree.
+ * @template Node The type of object that describes a node in the DOM tree.
+ * @template Element The type of object that describes an element in the DOM tree.
+ * @template Text The type of object that describes a text node in the DOM tree.
  *
  * @see createDomParser
  * @see createXmlDomParser
  * @see createHtmlDomParser
  */
 export interface IDomParser<Node, Element extends Node = Node, Text extends Node = Node> {
+
+  /**
+   * Returns the buffered string that would be used during the next {@link write} or {@link parse} call.
+   */
+  getBuffer(): string;
 
   /**
    * Resets the internal state of the parser.
@@ -146,9 +145,9 @@ export interface IDomParser<Node, Element extends Node = Node, Text extends Node
  * DOM parser is essentially a thin wrapper around a SAX parser that listens to its events and reconstructs the tree of
  * nodes.
  *
- * @param Node The type of object that describes a node in the DOM tree.
- * @param Element The type of object that describes an element in the DOM tree.
- * @param Text The type of object that describes a text node in the DOM tree.
+ * @template Node The type of object that describes a node in the DOM tree.
+ * @template Element The type of object that describes an element in the DOM tree.
+ * @template Text The type of object that describes a text node in the DOM tree.
  */
 export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: IDomParserOptions<Node, Element, Text>): IDomParser<Node, Element, Text> {
   const {
@@ -217,6 +216,11 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
   };
 
   return {
+
+    getBuffer() {
+      return saxParser.getBuffer();
+    },
+
     reset,
 
     write(str) {

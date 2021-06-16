@@ -1,5 +1,6 @@
-import {ISaxParser} from '../main/createSaxParser';
+import {IDataToken, ISaxParser, IStartTagToken, ITagToken} from '../main/createSaxParser';
 import {createForgivingSaxParser, IForgivingSaxParserOptions} from '../main/createForgivingSaxParser';
+import {cloneDeep} from 'lodash';
 
 describe('createForgivingSaxParser', () => {
 
@@ -15,13 +16,13 @@ describe('createForgivingSaxParser', () => {
 
   const createParser = (options: IForgivingSaxParserOptions) => createForgivingSaxParser({
     ...options,
-    onStartTag: onStartTagMock,
-    onEndTag: onEndTagMock,
-    onText: onTextMock,
-    onComment: onCommentMock,
-    onProcessingInstruction: onProcessingInstructionMock,
-    onCdataSection: onCdataSectionMock,
-    onDocumentType: onDocumentTypeMock,
+    onStartTag: (token) => onStartTagMock(cloneDeep(token)),
+    onEndTag: (token) => onEndTagMock(cloneDeep(token)),
+    onText: (token) => onTextMock(cloneDeep(token)),
+    onComment: (token) => onCommentMock(cloneDeep(token)),
+    onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
+    onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
+    onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
   });
 
   beforeEach(() => {
@@ -43,14 +44,33 @@ describe('createForgivingSaxParser', () => {
       expect(onTextMock).not.toHaveBeenCalled();
 
       parser.parse();
-      expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa', 0, 3);
+
+      expect(onTextMock).toHaveBeenCalledTimes(1);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'aaa',
+        data: 'aaa',
+        start: 0,
+        end: 3,
+        dataStart: 0,
+        dataEnd: 3,
+      });
     });
 
     it('emits the start tag', () => {
       parser.write('<a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      })
+
       expect(onTextMock).not.toHaveBeenCalled();
     });
 
@@ -58,10 +78,16 @@ describe('createForgivingSaxParser', () => {
       parser.write('<a></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 3, 7);
+      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        start: 3,
+        end: 7,
+        nameStart: 5,
+        nameEnd: 6,
+      })
     });
 
     it('does not emit the end tag without corresponding start tag', () => {
@@ -72,41 +98,132 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('emits end tag if the start implicitly closes', () => {
-      parser = createParser({isImplicitEnd: (tagName) => tagName === 'a'});
+      parser = createParser({isImplicitEnd: (containerTagName) => containerTagName === 'a'});
       parser.write('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      })
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+        rawTagName: 'b',
+        tagName: 'b',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 3,
+        end: 6,
+        nameStart: 4,
+        nameEnd: 5,
+      })
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 3, 3);
+      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        start: 3,
+        end: 3,
+        nameStart: -1,
+        nameEnd: -1,
+      })
     });
 
     it('emits end tag for intermediate tags if the start implicitly closes', () => {
-      parser = createParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'a' && tagName === 'c'});
+      parser = createParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'a' && token.tagName === 'c'});
       parser.write('<a><b><c>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(3, 'c', {length: 0}, false, 6, 9);
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      });
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+        rawTagName: 'b',
+        tagName: 'b',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 3,
+        end: 6,
+        nameStart: 4,
+        nameEnd: 5,
+      });
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(3, {
+        rawTagName: 'c',
+        tagName: 'c',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 6,
+        end: 9,
+        nameStart: 7,
+        nameEnd: 8,
+      });
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 6);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(2, 'a', 6, 6);
+      expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(1, {
+        rawTagName: 'b',
+        tagName: 'b',
+        start: 6,
+        end: 6,
+        nameStart: -1,
+        nameEnd: -1,
+      });
+      expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(2, {
+        rawTagName: 'a',
+        tagName: 'a',
+        start: 6,
+        end: 6,
+        nameStart: -1,
+        nameEnd: -1,
+      });
     });
 
     it('recognizes void tags', () => {
-      parser = createParser({isVoidContent: (tagName) => tagName === 'a'});
+      parser = createParser({isVoidContent: (token) => token.tagName === 'a'});
       parser.write('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, true, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: true,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      });
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+        rawTagName: 'b',
+        tagName: 'b',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 3,
+        end: 6,
+        nameStart: 4,
+        nameEnd: 5,
+      });
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 10);
+      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+        rawTagName: 'b',
+        tagName: 'b',
+        start: 6,
+        end: 10,
+        nameStart: 8,
+        nameEnd: 9,
+      });
     });
   });
 
@@ -116,41 +233,135 @@ describe('createForgivingSaxParser', () => {
       parser.parse('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'b', {length: 0}, false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      });
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+        rawTagName: 'b',
+        tagName: 'b',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 3,
+        end: 6,
+        nameStart: 4,
+        nameEnd: 5,
+      });
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'b', 6, 6);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(2, 'a', 6, 6);
+      expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(1, {
+        rawTagName: 'b',
+        tagName: 'b',
+        start: 6,
+        end: 6,
+        nameStart: -1,
+        nameEnd: -1,
+      });
+      expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(2, {
+        rawTagName: 'a',
+        tagName: 'a',
+        start: 6,
+        end: 6,
+        nameStart: -1,
+        nameEnd: -1,
+      });
     });
 
     it('emits text before closing unclosed tags', () => {
       parser.parse('<a>bbb');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'a', {length: 0}, false, 0, 3);
+      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      });
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, 'bbb', 3, 6);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'bbb',
+        data: 'bbb',
+        start: 3,
+        end: 6,
+        dataStart: 3,
+        dataEnd: 6,
+      });
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'a', 6, 6);
+      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+        rawTagName: 'a',
+        tagName: 'a',
+        start: 6,
+        end: 6,
+        nameStart: -1,
+        nameEnd: -1,
+      });
     });
 
     it('implicitly closes current tag with nesting', () => {
-      parser = createParser({isImplicitEnd: (currentTagName, tagName) => currentTagName === 'p' && tagName === 'p'});
+      parser = createParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'p' && token.tagName === 'p'});
       parser.parse('<p><p>aaa</p></p>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'p', {length: 0}, false, 0, 3);
-      expect(onStartTagMock).toHaveBeenNthCalledWith(2, 'p', {length: 0}, false, 3, 6);
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+        rawTagName: 'p',
+        tagName: 'p',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 0,
+        end: 3,
+        nameStart: 1,
+        nameEnd: 2,
+      });
+      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+        rawTagName: 'p',
+        tagName: 'p',
+        attributes: {length: 0},
+        selfClosing: false,
+        start: 3,
+        end: 6,
+        nameStart: 4,
+        nameEnd: 5,
+      });
 
       expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenNthCalledWith(1, 'aaa', 6, 9);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: 'aaa',
+        data: 'aaa',
+        start: 6,
+        end: 9,
+        dataStart: 6,
+        dataEnd: 9,
+      });
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(1, 'p', 3, 3);
-      expect(onEndTagMock).toHaveBeenNthCalledWith(2, 'p', 9, 13);
+      expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(1, {
+        rawTagName: 'p',
+        tagName: 'p',
+        start: 3,
+        end: 3,
+        nameStart: -1,
+        nameEnd: -1,
+      });
+      expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(2, {
+        rawTagName: 'p',
+        tagName: 'p',
+        start: 9,
+        end: 13,
+        nameStart: 10,
+        nameEnd: 12,
+      });
     });
   });
 });

@@ -98,6 +98,7 @@ const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true)
  *
  * @param str The string to read attributes from.
  * @param i The initial index where attributes' definitions are expected to start.
+ * @param offset The offset of the streaming source.
  * @param attrs An array to which {@link IAttributeToken} objects are added.
  * @param decode The decoder of HTML/XML entities.
  * @param rename The callback that receives an attribute name and returns a new name.
@@ -109,9 +110,7 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
 
   while (i < charCount) {
 
-    let start = takeTagSpace(str, i);
-
-    let k = start;
+    let k = takeTagSpace(str, i);
     let j = takeAttrName(str, k);
 
     // No attribute available
@@ -119,9 +118,9 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
       break;
     }
 
-    const nameStart = k;
-    const nameEnd = j;
-    const rawName = str.substring(nameStart, nameEnd);
+    const start = offset + k;
+    const nameEnd = offset + j;
+    const rawName = str.substring(k, j);
     const name = rename(rawName);
 
     let valueStart = -1;
@@ -148,6 +147,7 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
         valueStart = k + 1;
         valueEnd = j - 1;
         quoted = true;
+
         k = Math.min(j, charCount);
       } else {
 
@@ -156,6 +156,7 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
         if (j !== k) {
           valueStart = k;
           valueEnd = j;
+
           k = j;
         }
       }
@@ -164,7 +165,11 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
     if (valueStart !== -1) {
       rawValue = str.substring(valueStart, valueEnd);
       value = decode(rawValue);
+      valueStart += offset;
+      valueEnd += offset;
     }
+
+    const end = offset + k;
 
     // Populate attributes pool
     const attr = attrs[attrCount];
@@ -174,12 +179,12 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
       attr.value = value;
       attr.rawValue = rawValue;
       attr.quoted = quoted;
-      attr.start = offset + start;
-      attr.end = offset + k;
-      attr.nameStart = offset + nameStart;
-      attr.nameEnd = offset + nameEnd;
-      attr.valueStart = offset + valueStart;
-      attr.valueEnd = offset + valueEnd;
+      attr.start = start;
+      attr.end = end;
+      attr.nameStart = start;
+      attr.nameEnd = nameEnd;
+      attr.valueStart = valueStart;
+      attr.valueEnd = valueEnd;
     } else {
       attrs[attrCount] = {
         name,
@@ -187,12 +192,12 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
         value,
         rawValue,
         quoted,
-        start: offset + start,
-        end: offset + k,
-        nameStart: offset + nameStart,
-        nameEnd: offset + nameEnd,
-        valueStart: offset + valueStart,
-        valueEnd: offset + valueEnd,
+        start,
+        end,
+        nameStart: start,
+        nameEnd,
+        valueStart,
+        valueEnd,
       };
     }
     attrCount++;

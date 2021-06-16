@@ -12,7 +12,7 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
   /**
    * Determines whether the tag cannot have any content.
    *
-   * @param tagName The name of the start tag.
+   * @param token The start tag token.
    * @returns If `true` than the tag would be treated as self-closing even if it isn't marked up as such.
    */
   isVoidContent?: (token: IStartTagToken) => boolean;
@@ -21,12 +21,12 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * Determines whether the container start tag with name `currentTagName` should be closed with corresponding end tag
    * when tag with name `tagName` is read.
    *
-   * @param currentTagName The name of the start tag that is currently opened.
-   * @param tagName The name of the start tag that was read.
-   * @returns If `true` than the {@link onEndTag} would be triggered with `currentTagName` before {@link onStartTag}
-   *     with `tagName` is triggered.
+   * @param containerTagName The rewritten tag name of the container that is currently opened.
+   * @param token The name of the start tag that was read.
+   * @returns If `true` than the {@link onEndTag} would be triggered for `containerTagName` before {@link onStartTag}
+   *     with `token` is triggered.
    */
-  isImplicitEnd?: (token: IStartTagToken, prevToken: IStartTagToken) => boolean;
+  isImplicitEnd?: (containerTagName: string, token: IStartTagToken) => boolean;
 }
 
 export interface IForgivingSaxParserOptions extends IForgivingSaxParserDialectOptions, ISaxParserCallbacks {
@@ -49,7 +49,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     isImplicitEnd,
   } = options;
 
-  let startTokens: Array<IStartTagToken> = [];
+  let startTagNames: Array<string> = [];
   let depth = 0;
 
   const saxParserCallbacks: ISaxParserCallbacks = {
@@ -59,16 +59,14 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
 
       if (isImplicitEnd) {
         for (let i = depth - 1; i >= 0; i--) {
-          if (isImplicitEnd(startTokens[i], token)) {
+          if (isImplicitEnd(startTagNames[i], token)) {
 
             if (onEndTag) {
               for (let j = depth - 1; j >= i; j--) {
 
-                endTagToken.tagName = startTokens[j].tagName;
-                endTagToken.start = token.start;
-                endTagToken.end = token.start;
-                endTagToken.nameStart = token.start;
-                endTagToken.nameEnd = token.start;
+                endTagToken.tagName = startTagNames[j];
+                endTagToken.start = endTagToken.end = token.start;
+                endTagToken.nameStart = endTagToken.nameEnd = -1;
 
                 onEndTag(endTagToken);
               }
@@ -82,22 +80,20 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
       onStartTag?.(token);
 
       if (!token.selfClosing) {
-        startTokens[depth++] = token;
+        startTagNames[depth++] = token.tagName;
       }
     },
 
     onEndTag(token) {
       for (let i = depth - 1; i >= 0; i--) {
-        if (startTokens[i].tagName === token.tagName) {
+        if (startTagNames[i] === token.tagName) {
 
           if (onEndTag) {
             for (let j = depth - 1; j > i; j--) {
 
-              endTagToken.tagName = startTokens[j].tagName;
-              endTagToken.start = token.start;
-              endTagToken.end = token.start;
-              endTagToken.nameStart = token.start;
-              endTagToken.nameEnd = token.start;
+              endTagToken.tagName = startTagNames[j];
+              endTagToken.start = endTagToken.end = token.start;
+              endTagToken.nameStart = endTagToken.nameEnd = -1;
 
               onEndTag(endTagToken);
             }
@@ -110,7 +106,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     },
 
     onReset() {
-      startTokens = [];
+      startTagNames = [];
       depth = 0;
       onReset?.();
     },
@@ -119,11 +115,9 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
       if (onEndTag) {
         for (let i = depth - 1; i >= 0; i--) {
 
-          endTagToken.tagName = startTokens[i].tagName;
-          endTagToken.start = parsedCharCount;
-          endTagToken.end = parsedCharCount;
-          endTagToken.nameStart = parsedCharCount;
-          endTagToken.nameEnd = parsedCharCount;
+          endTagToken.tagName = startTagNames[i];
+          endTagToken.start = endTagToken.end = parsedCharCount;
+          endTagToken.nameStart = endTagToken.nameEnd = -1;
 
           onEndTag(endTagToken);
         }
