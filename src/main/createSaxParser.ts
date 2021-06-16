@@ -53,7 +53,7 @@ export interface IStartTagToken extends ITagToken {
    * attributes make a deep copy of this object. Object pooling is used to reduce memory consumption during parsing by
    * avoiding excessive object allocation.
    */
-  attributes: ArrayLike<IAttributeToken>;
+  attributes: ReadonlyArray<IAttributeToken>;
 
   /**
    * `true` if tag is self-closing, `false` otherwise. Ensure that {@link selfClosingEnabled} or {@link xmlEnabled} is
@@ -73,17 +73,17 @@ export interface IDataToken extends IToken {
   rawData: string;
 
   /**
-   * The data after {@link decodeText} was applied.
+   * The data after {@link decodeText} was applied (if applicable).
    */
   data: string;
 
   /**
-   * The index where the data starts excluding markup.
+   * The index where the data starts.
    */
   dataStart: number;
 
   /**
-   * The index where the data ends excluding markup.
+   * The index where the data ends.
    */
   dataEnd: number;
 }

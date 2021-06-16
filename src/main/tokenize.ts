@@ -1,14 +1,8 @@
-import {allCharBy, char, charBy, CharCodeChecker, seq, text, untilCharBy, untilText, ResultCode} from 'tokenizer-dsl';
-import {CharCode, clearPrototype, Maybe, Mutable, Rewriter} from './parser-utils';
+import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
+import {CharCode, Mutable, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {
-  DataTokenCallback,
-  IAttributeToken,
-  IDataToken,
-  ISaxParserOptions,
-  IStartTagToken,
-  ITagToken,
-} from './createSaxParser';
+import {DataTokenCallback, IAttributeToken, ISaxParserOptions} from './createSaxParser';
+import {attrTokenPool, dataTokenPool, endTagTokenPool, startTagTokenPool} from './token-pools';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>
@@ -172,34 +166,19 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
     const end = offset + k;
 
     // Populate attributes pool
-    const attr = attrs[attrCount];
-    if (attr) {
-      attr.name = name;
-      attr.rawName = rawName;
-      attr.value = value;
-      attr.rawValue = rawValue;
-      attr.quoted = quoted;
-      attr.start = start;
-      attr.end = end;
-      attr.nameStart = start;
-      attr.nameEnd = nameEnd;
-      attr.valueStart = valueStart;
-      attr.valueEnd = valueEnd;
-    } else {
-      attrs[attrCount] = {
-        name,
-        rawName,
-        value,
-        rawValue,
-        quoted,
-        start,
-        end,
-        nameStart: start,
-        nameEnd,
-        valueStart,
-        valueEnd,
-      };
-    }
+    const attr = attrs[attrCount] = attrTokenPool.next();
+    attr.name = name;
+    attr.rawName = rawName;
+    attr.value = value;
+    attr.rawValue = rawValue;
+    attr.quoted = quoted;
+    attr.start = start;
+    attr.end = end;
+    attr.nameStart = start;
+    attr.nameEnd = nameEnd;
+    attr.valueStart = valueStart;
+    attr.valueEnd = valueEnd;
+
     attrCount++;
 
     i = k;
@@ -219,35 +198,6 @@ export function lowerCase(str: string): string {
 export function identity<T>(value: T): T {
   return value;
 }
-
-export const dataToken: IDataToken = {
-  data: '',
-  rawData: '',
-  start: 0,
-  end: 0,
-  dataStart: 0,
-  dataEnd: 0,
-};
-
-export const startTagToken: IStartTagToken = {
-  tagName: '',
-  rawTagName: '',
-  attributes: {length: 0},
-  selfClosing: false,
-  start: 0,
-  end: 0,
-  nameStart: 0,
-  nameEnd: 0,
-};
-
-export const endTagToken: ITagToken = {
-  tagName: '',
-  rawTagName: '',
-  start: 0,
-  end: 0,
-  nameStart: 0,
-  nameEnd: 0,
-};
 
 export function tokenize(str: string, streaming: boolean, offset: number, options: ISaxParserOptions): number {
   const {
@@ -273,8 +223,6 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
   let tagParsingEnabled = true;
   let startTagName: string | undefined;
 
-  const attrs = startTagToken.attributes;
-
   // Emits text chunk if any
   const emitText = () => {
     if (textStart === -1) {
@@ -284,12 +232,17 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
       // This substring call would have performance implications in perf test if the result substring is huge
       const text = str.substring(textStart, textEnd);
 
+      const dataToken = dataTokenPool.next();
       dataToken.rawData = text;
       dataToken.data = decodeText(text);
       dataToken.start = dataToken.dataStart = offset + textStart;
       dataToken.end = dataToken.dataEnd = offset + textEnd;
 
-      onText(dataToken);
+      try {
+        onText(dataToken);
+      } finally {
+        dataTokenPool.free(dataToken);
+      }
     }
     textStart = textEnd = -1;
   };
@@ -304,6 +257,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
       const dataEnd = j - dj;
       const text = str.substring(dataStart, dataEnd);
 
+      const dataToken = dataTokenPool.next();
       dataToken.data = text;
       dataToken.rawData = decodeEnabled ? decodeText(text) : text;
       dataToken.start = offset + i;
@@ -311,7 +265,11 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
       dataToken.dataStart = offset + dataStart;
       dataToken.dataEnd = offset + Math.min(dataEnd, dataToken.end);
 
-      cb(dataToken);
+      try {
+        cb(dataToken);
+      } finally {
+        dataTokenPool.free(dataToken);
+      }
     }
     return k;
   };
@@ -348,38 +306,47 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         const rawTagName = str.substring(nameStart, nameEnd);
         const tagName = renameTag(rawTagName);
 
-        j = tokenizeAttrs(str, j, offset, attrs, decodeAttr, renameAttr);
+        const startTagToken = startTagTokenPool.next();
+        const attrs = startTagToken.attributes;
 
-        // Skip malformed content and excessive whitespaces
-        const k = takeUntilGt(str, j);
+        try {
+          j = tokenizeAttrs(str, j, offset, attrs, decodeAttr, renameAttr);
 
-        if (k === ResultCode.NO_MATCH) {
-          // Unterminated start tag
-          return i;
+          // Skip malformed content and excessive whitespaces
+          const k = takeUntilGt(str, j);
+
+          if (k === ResultCode.NO_MATCH) {
+            // Unterminated start tag
+            return i;
+          }
+
+          const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode['/'];
+
+          emitText();
+
+          startTagToken.rawTagName = rawTagName;
+          startTagToken.tagName = tagName;
+          startTagToken.selfClosing = selfClosing;
+          startTagToken.start = offset + i;
+          startTagToken.end = offset + k;
+          startTagToken.nameStart = offset + nameStart;
+          startTagToken.nameEnd = offset + nameEnd;
+
+          if (!selfClosing) {
+            startTagName = tagName;
+            tagParsingEnabled = !isTextContent?.(startTagToken);
+          }
+
+          onStartTag?.(startTagToken);
+          i = k;
+        } finally {
+          // Free memory
+          for (let i = 0; i < attrs.length; i++) {
+            attrTokenPool.free(attrs[i]);
+          }
+          startTagTokenPool.free(startTagToken);
         }
 
-        const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode['/'];
-
-        emitText();
-
-        startTagToken.rawTagName = rawTagName;
-        startTagToken.tagName = tagName;
-        startTagToken.selfClosing = selfClosing;
-        startTagToken.start = offset + i;
-        startTagToken.end = offset + k;
-        startTagToken.nameStart = offset + nameStart;
-        startTagToken.nameEnd = offset + nameEnd;
-
-        if (onStartTag) {
-          onStartTag(startTagToken);
-        }
-
-        if (!selfClosing) {
-          startTagName = tagName;
-          tagParsingEnabled = !isTextContent?.(startTagToken);
-        }
-
-        i = k;
         continue;
       }
     }
@@ -408,6 +375,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
 
         emitText();
         if (onEndTag) {
+          const endTagToken = endTagTokenPool.next();
           endTagToken.rawTagName = rawTagName;
           endTagToken.tagName = tagName;
           endTagToken.start = offset + i;
@@ -415,7 +383,11 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
           endTagToken.nameStart = offset + nameStart;
           endTagToken.nameEnd = offset + nameEnd;
 
-          onEndTag(endTagToken);
+          try {
+            onEndTag(endTagToken);
+          } finally {
+            endTagTokenPool.free(endTagToken);
+          }
         }
 
         i = k;

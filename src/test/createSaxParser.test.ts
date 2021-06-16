@@ -1,5 +1,4 @@
 import {createSaxParser, IDataToken, ISaxParser, IStartTagToken, ITagToken} from '../main/createSaxParser';
-import {startTagToken} from '../main/tokenize';
 import {cloneDeep} from 'lodash';
 
 describe('createSaxParser', () => {
@@ -15,8 +14,6 @@ describe('createSaxParser', () => {
   const onDocumentTypeMock = jest.fn();
 
   beforeEach(() => {
-    startTagToken.attributes = {length: 0};
-
     parser = createSaxParser({
       selfClosingEnabled: true,
 
@@ -71,7 +68,7 @@ describe('createSaxParser', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -119,9 +116,8 @@ describe('createSaxParser', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'www',
         tagName: 'www',
-        attributes: {
-          length: 1,
-          0: {
+        attributes: [
+          {
             rawName: 'aaa',
             name: 'aaa',
             rawValue: '111',
@@ -134,7 +130,7 @@ describe('createSaxParser', () => {
             valueStart: 9,
             valueEnd: 12,
           },
-        },
+        ],
         selfClosing: true,
         start: 0,
         end: 15,
@@ -156,9 +152,8 @@ describe('createSaxParser', () => {
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
         rawTagName: 'bar',
         tagName: 'bar',
-        attributes: {
-          length: 1,
-          0: {
+        attributes: [
+          {
             rawName: 'aaa',
             name: 'aaa',
             rawValue: '111',
@@ -171,7 +166,7 @@ describe('createSaxParser', () => {
             valueStart: 14,
             valueEnd: 17,
           },
-        },
+        ],
         selfClosing: false,
         start: 5,
         end: 18,

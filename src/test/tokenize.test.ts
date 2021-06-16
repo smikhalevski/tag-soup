@@ -1,4 +1,4 @@
-import {identity, startTagToken, tokenize, tokenizeAttrs} from '../main/tokenize';
+import {identity, tokenize, tokenizeAttrs} from '../main/tokenize';
 import {IAttributeToken, IDataToken, ISaxParserOptions, IStartTagToken, ITagToken} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
 
@@ -660,9 +660,6 @@ describe('tokenize', () => {
   };
 
   beforeEach(() => {
-    // This makes tests more strict than use of expect.objectContaining
-    startTagToken.attributes = {length: 0};
-
     onStartTagMock.mockReset();
     onEndTagMock.mockReset();
     onTextMock.mockReset();
@@ -695,7 +692,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -711,9 +708,8 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {
-          length: 3,
-          0: {
+        attributes: [
+          {
             rawName: 'foo',
             name: 'foo',
             rawValue: undefined,
@@ -726,7 +722,7 @@ describe('tokenize', () => {
             valueStart: -1,
             valueEnd: -1,
           },
-          1: {
+          {
             rawName: 'bar',
             name: 'bar',
             rawValue: 'aaa"bbb',
@@ -739,7 +735,7 @@ describe('tokenize', () => {
             valueStart: 12,
             valueEnd: 19,
           },
-          2: {
+          {
             rawName: 'baz',
             name: 'baz',
             rawValue: 'aaa\'bbb',
@@ -752,7 +748,7 @@ describe('tokenize', () => {
             valueStart: 27,
             valueEnd: 34,
           },
-        },
+        ],
         selfClosing: false,
         start: 0,
         end: 36,
@@ -768,7 +764,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 6,
@@ -798,7 +794,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 4,
@@ -819,7 +815,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: true,
         start: 0,
         end: 4,
@@ -840,9 +836,8 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {
-          length: 3,
-          0: {
+        attributes: [
+          {
             rawName: 'foo',
             name: 'foo',
             rawValue: undefined,
@@ -855,7 +850,7 @@ describe('tokenize', () => {
             valueStart: -1,
             valueEnd: -1,
           },
-          1: {
+          {
             rawName: 'bar',
             name: 'bar',
             rawValue: 'aaa"bbb',
@@ -868,7 +863,7 @@ describe('tokenize', () => {
             valueStart: 12,
             valueEnd: 19,
           },
-          2: {
+          {
             rawName: 'baz',
             name: 'baz',
             rawValue: 'aaa\'bbb',
@@ -881,7 +876,7 @@ describe('tokenize', () => {
             valueStart: 27,
             valueEnd: 34,
           },
-        },
+        ],
         selfClosing: true,
         start: 0,
         end: 39,
@@ -899,9 +894,8 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {
-          length: 1,
-          0: {
+        attributes: [
+          {
             rawName: 'foo',
             name: 'foo',
             rawValue: '123//',
@@ -914,7 +908,7 @@ describe('tokenize', () => {
             valueStart: 7,
             valueEnd: 12,
           },
-        },
+        ],
         selfClosing: false,
         start: 0,
         end: 13,
@@ -960,7 +954,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a@#$%*',
         tagName: 'a@#$%*',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 8,
@@ -1004,7 +998,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1040,7 +1034,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'b',
         tagName: 'b',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 11,
         end: 14,
@@ -1056,9 +1050,8 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {
-          length: 2,
-          0: {
+        attributes: [
+          {
             rawName: 'foo',
             name: 'foo',
             rawValue: undefined,
@@ -1071,7 +1064,7 @@ describe('tokenize', () => {
             valueStart: -1,
             valueEnd: -1,
           },
-          1: {
+          {
             rawName: 'bar',
             name: 'bar',
             rawValue: 'eee',
@@ -1084,7 +1077,7 @@ describe('tokenize', () => {
             valueStart: 11,
             valueEnd: 14,
           },
-        },
+        ],
         selfClosing: false,
         start: 0,
         end: 15,
@@ -1323,7 +1316,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'script',
         tagName: 'script',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 8,
@@ -1363,7 +1356,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'script',
         tagName: 'script',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 8,
@@ -1393,7 +1386,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
         rawTagName: 'script',
         tagName: 'script',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: true,
         start: 0,
         end: 9,
@@ -1403,7 +1396,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
         rawTagName: 'foo',
         tagName: 'foo',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 9,
         end: 14,
@@ -1424,7 +1417,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
         rawTagName: 'foo',
         tagName: 'FOO',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 5,
@@ -1434,7 +1427,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
         rawTagName: 'bar',
         tagName: 'BAR',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 5,
         end: 10,
@@ -1450,9 +1443,8 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'foo',
         tagName: 'foo',
-        attributes: {
-          length: 2,
-          0: {
+        attributes: [
+          {
             rawName: 'aaa',
             name: 'AAA',
             rawValue: '111',
@@ -1465,7 +1457,7 @@ describe('tokenize', () => {
             valueStart: 9,
             valueEnd: 12,
           },
-          1: {
+          {
             rawName: 'bbb',
             name: 'BBB',
             rawValue: '222',
@@ -1478,7 +1470,7 @@ describe('tokenize', () => {
             valueStart: 17,
             valueEnd: 20,
           },
-        },
+        ],
         selfClosing: false,
         start: 0,
         end: 21,
@@ -1497,7 +1489,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1513,7 +1505,7 @@ describe('tokenize', () => {
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
         rawTagName: 'a',
         tagName: 'a',
-        attributes: {length: 0},
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
