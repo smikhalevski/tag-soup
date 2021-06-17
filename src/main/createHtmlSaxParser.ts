@@ -1,10 +1,9 @@
 import {createFromCharCode, IFromCharCodeOptions} from './createFromCharCode';
-import {ISaxParser, ISaxParserCallbacks} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
-import {createForgivingSaxParser, IForgivingSaxParserOptions} from './createForgivingSaxParser';
-import {clearPrototype} from './parser-utils';
-import {lowerCase} from './tokenize';
+import {createForgivingSaxParser} from './createForgivingSaxParser';
+import {clearPrototype, lowerCase} from './parser-utils';
+import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax-parser-types';
 
 export interface IHtmlSaxParserDialectOptions extends IFromCharCodeOptions {
 
@@ -58,9 +57,9 @@ export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser 
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTextDecoder,
 
-    isTextContent: (token) => textTagMap[token.tagName] === 1,
-    isVoidContent: (token) => voidTagMap[token.tagName] === 1,
-    isImplicitEnd: xhtmlEnabled ? undefined : (containerTagName, token) => implicitEndMap[containerTagName]?.[token.tagName] === 1,
+    isTextContent: (token) => textTagMap[token.name] === 1,
+    isVoidContent: (token) => voidTagMap[token.name] === 1,
+    isImplicitEnd: xhtmlEnabled ? undefined : (containerToken, token) => implicitEndMap[containerToken.name]?.[token.name] === 1,
 
     renameTag: lowerCase,
   };

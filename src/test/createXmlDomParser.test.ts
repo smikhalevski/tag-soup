@@ -133,7 +133,7 @@ describe('createXmlDomParser', () => {
   });
 
   it('closes void tags', () => {
-    const parser = createXmlDomParser({isVoidContent: (token) => token.tagName === 'a'});
+    const parser = createXmlDomParser({isVoidContent: (token) => token.name === 'a'});
 
     expect(parser.parse('<a><a><a>')).toEqual([
       el('a', 0, 3, true),
@@ -143,7 +143,7 @@ describe('createXmlDomParser', () => {
   });
 
   it('implicitly closes current tag', () => {
-    const parser = createXmlDomParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'p' && token.tagName === 'p'});
+    const parser = createXmlDomParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'p' && token.name === 'p'});
 
     expect(parser.parse('<p>foo<p>bar')).toEqual([
       el('p', 0, 6, false, {}, [
@@ -156,7 +156,7 @@ describe('createXmlDomParser', () => {
   });
 
   it('implicitly closes current tag with nesting', () => {
-    const parser = createXmlDomParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'p' && token.tagName === 'p'});
+    const parser = createXmlDomParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'p' && token.name === 'p'});
 
     expect(parser.parse('<p><p>aaa</p></p>')).toEqual([
       el('p', 0, 3),

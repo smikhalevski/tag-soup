@@ -1,15 +1,8 @@
 import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
-import {CharCode, Mutable, Rewriter} from './parser-utils';
-import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {
-  DataTokenCallback,
-  IAttributeToken,
-  IDataToken,
-  ISaxParserOptions,
-  IStartTagToken,
-  ITagToken,
-} from './createSaxParser';
+import {CharCode, Rewriter} from './parser-utils';
 import {IValuePool} from './createValuePool';
+import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
+import {DataTokenCallback, ISaxParserOptions} from './sax-parser-types';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>
@@ -94,24 +87,35 @@ const takeCdataSection = seq(text('<![CDATA['), untilText(']]>', true, true));
 // <!DOCTYPE html>
 const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true));
 
+export interface IAttrTokenizerOptions {
+  attrTokenPool: IValuePool<IAttrToken>;
+  decodeAttr?: Rewriter;
+  renameAttr?: Rewriter;
+}
+
 /**
- * Parses attributes from string starting from given position.
+ * Reads attributes from the source.
  *
  * @param str The string to read attributes from.
- * @param i The initial index where attributes' definitions are expected to start.
- * @param offset The offset of the streaming source.
- * @param attrs An array to which {@link IAttributeToken} objects are added.
- * @param decode The decoder of HTML/XML entities.
- * @param rename The callback that receives an attribute name and returns a new name.
+ * @param index The index in `str` from which to start reading.
+ * @param offset The offset of the `str` chunk in scope of the stream.
+ * @param attrs An array to which {@link IAttrToken} objects are added.
+ * @param options Other options.
  */
-export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mutable<ArrayLike<IAttributeToken>>, attrTokenPool: IValuePool<IAttributeToken>, decode: Rewriter, rename: Rewriter): number {
+export function tokenizeAttrs(str: string, index: number, offset: number, attrs: Array<IAttrToken>, options: IAttrTokenizerOptions): number {
+  const {
+    attrTokenPool,
+    decodeAttr,
+    renameAttr,
+  } = options;
+
   const charCount = str.length;
 
   let attrCount = 0;
 
-  while (i < charCount) {
+  while (index < charCount) {
 
-    let k = takeTagSpace(str, i);
+    let k = takeTagSpace(str, index);
     let j = takeAttrName(str, k);
 
     // No attribute available
@@ -119,25 +123,27 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
       break;
     }
 
-    const start = offset + k;
-    const nameEnd = offset + j;
+    const attrToken = attrs[attrCount] = attrTokenPool.next();
     const rawName = str.substring(k, j);
-    const name = rename(rawName);
 
-    let valueStart = -1;
-    let valueEnd = -1;
-    let rawValue;
-    let value;
-
-    let quoted = false;
+    attrToken.rawName = rawName;
+    attrToken.name = renameAttr ? renameAttr(rawName) : rawName;
+    attrToken.nameStart = attrToken.start = offset + k;
+    attrToken.nameEnd = offset + j;
 
     k = j;
     j = takeEq(str, k);
 
+    let rawValue;
+    let value;
+    let valueStart = -1;
+    let valueEnd = -1;
+    let quoted = false;
+
     // Equals sign presents, so there may be a value
     if (j !== ResultCode.NO_MATCH) {
       k = j;
-      value = rawValue = null;
+      rawValue = value = null;
 
       // Quoted value
       j = takeQuotValue(str, k);
@@ -148,7 +154,6 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
         valueStart = k + 1;
         valueEnd = j - 1;
         quoted = true;
-
         k = Math.min(j, charCount);
       } else {
 
@@ -157,70 +162,59 @@ export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mut
         if (j !== k) {
           valueStart = k;
           valueEnd = j;
-
           k = j;
         }
       }
+
+      if (valueStart !== -1) {
+        rawValue = str.substring(valueStart, valueEnd);
+        value = decodeAttr ? decodeAttr(rawValue) : rawValue;
+        valueStart += offset;
+        valueEnd += offset;
+      }
     }
 
-    if (valueStart !== -1) {
-      rawValue = str.substring(valueStart, valueEnd);
-      value = decode(rawValue);
-      valueStart += offset;
-      valueEnd += offset;
-    }
-
-    const end = offset + k;
-
-    // Populate attributes pool
-    const attr = attrs[attrCount] = attrTokenPool.next();
-    attr.name = name;
-    attr.rawName = rawName;
-    attr.value = value;
-    attr.rawValue = rawValue;
-    attr.quoted = quoted;
-    attr.start = start;
-    attr.end = end;
-    attr.nameStart = start;
-    attr.nameEnd = nameEnd;
-    attr.valueStart = valueStart;
-    attr.valueEnd = valueEnd;
+    attrToken.rawValue = rawValue;
+    attrToken.value = value;
+    attrToken.valueStart = valueStart;
+    attrToken.valueEnd = valueEnd;
+    attrToken.quoted = quoted;
+    attrToken.end = offset + k;
 
     attrCount++;
 
-    i = k;
+    index = k;
   }
 
   attrs.length = attrCount;
-  return i;
-}
-
-// Default decoder used by SAX parser
-const xmlDecoder = createEntitiesDecoder();
-
-export function lowerCase(str: string): string {
-  return str.toLowerCase();
-}
-
-export function identity<T>(value: T): T {
-  return value;
+  return index;
 }
 
 export interface ITokenizerOptions extends ISaxParserOptions {
-  attrTokenPool: IValuePool<IAttributeToken>;
-  dataTokenPool: IValuePool<IDataToken>;
-  endTagTokenPool: IValuePool<ITagToken>;
-  startTagTokenPool: IValuePool<IStartTagToken>;
+  startTagToken: IStartTagToken;
+  endTagToken: ITagToken;
+  dataToken: IDataToken;
+  attrTokenPool: IValuePool<IAttrToken>;
 }
 
+/**
+ * Reads markup tokens from the string.
+ *
+ * **Note:** This function has no defaults for SAX parser arguments.
+ *
+ * @param str The string to read tokens from.
+ * @param streaming If set to `true` then tokenizer stops when an ambiguous char sequence is met. Ambiguity is
+ *     considered is tokenization result may change if string contained more characters.
+ * @param offset The offset of the `str` chunk in scope of the stream.
+ * @param options Other options.
+ * @returns The offset in `str` right after the last parsed character.
+ */
 export function tokenize(str: string, streaming: boolean, offset: number, options: ITokenizerOptions): number {
   const {
-    xmlEnabled = false,
-    decodeAttr = xmlDecoder,
-    decodeText = xmlDecoder,
-    renameTag = xmlEnabled ? identity : lowerCase,
-    renameAttr = xmlEnabled ? identity : lowerCase,
-    selfClosingEnabled = false,
+    xmlEnabled,
+    decodeText,
+    renameTag,
+    selfClosingEnabled,
     isTextContent,
 
     onStartTag,
@@ -231,10 +225,10 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
     onCdataSection,
     onDocumentType,
 
+    startTagToken,
+    endTagToken,
+    dataToken,
     attrTokenPool,
-    dataTokenPool,
-    endTagTokenPool,
-    startTagTokenPool,
   } = options;
 
   let textStart = -1;
@@ -242,55 +236,33 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
   let tagParsingEnabled = true;
   let startTagName: string | undefined;
 
-  // Emits text chunk if any
-  const emitText = () => {
-    if (textStart === -1) {
-      return;
-    }
-    if (onText) {
-      // This substring call would have performance implications in perf test if the result substring is huge
-      const text = str.substring(textStart, textEnd);
+  const attrs = startTagToken.attrs;
 
-      const dataToken = dataTokenPool.next();
-      dataToken.rawData = text;
-      dataToken.data = decodeText(text);
-      dataToken.start = dataToken.dataStart = offset + textStart;
-      dataToken.end = dataToken.dataEnd = offset + textEnd;
-
-      try {
-        onText(dataToken);
-      } finally {
-        dataTokenPool.free(dataToken);
-      }
+  const emitText = (): void => {
+    if (textStart !== -1) {
+      emitData(onText, textStart, textEnd, 0, 0, true);
+      textStart = textEnd = -1;
     }
-    textStart = textEnd = -1;
   };
 
-  const emitData = (cb: DataTokenCallback | undefined, i: number, j: number, di: number, dj: number, decodeEnabled: boolean): number => {
-    emitText();
+  const emitData = (callback: DataTokenCallback | undefined, start: number, end: number, dataStartOffset: number, dataEndOffset: number, decodeEnabled: boolean): number => {
+    const index = Math.min(end, charCount);
 
-    const k = j > charCount ? charCount : j;
+    if (callback) {
+      const dataStart = start + dataStartOffset;
+      const dataEnd = Math.min(end - dataEndOffset, charCount);
+      const rawData = str.substring(dataStart, dataEnd);
 
-    if (cb) {
-      const dataStart = i + di;
-      const dataEnd = j - dj;
-      const text = str.substring(dataStart, dataEnd);
-
-      const dataToken = dataTokenPool.next();
-      dataToken.data = text;
-      dataToken.rawData = decodeEnabled ? decodeText(text) : text;
-      dataToken.start = offset + i;
-      dataToken.end = offset + k;
+      dataToken.rawData = rawData;
+      dataToken.data = decodeEnabled && decodeText ? decodeText(rawData) : rawData;
+      dataToken.start = offset + start;
+      dataToken.end = offset + index;
       dataToken.dataStart = offset + dataStart;
-      dataToken.dataEnd = offset + Math.min(dataEnd, dataToken.end);
+      dataToken.dataEnd = offset + dataEnd;
 
-      try {
-        cb(dataToken);
-      } finally {
-        dataTokenPool.free(dataToken);
-      }
+      callback(dataToken);
     }
-    return k;
+    return index;
   };
 
   const charCount = str.length;
@@ -323,49 +295,41 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         const nameEnd = j;
 
         const rawTagName = str.substring(nameStart, nameEnd);
-        const tagName = renameTag(rawTagName);
+        const tagName = renameTag ? renameTag(rawTagName) : rawTagName;
 
-        const startTagToken = startTagTokenPool.next();
-        const attrs = startTagToken.attributes;
+        j = tokenizeAttrs(str, j, offset, attrs, options);
 
-        try {
-          j = tokenizeAttrs(str, j, offset, attrs, attrTokenPool, decodeAttr, renameAttr);
+        // Skip malformed content and excessive whitespaces
+        const k = takeUntilGt(str, j);
 
-          // Skip malformed content and excessive whitespaces
-          const k = takeUntilGt(str, j);
-
-          if (k === ResultCode.NO_MATCH) {
-            // Unterminated start tag
-            return i;
-          }
-
-          const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode['/'];
-
-          emitText();
-
-          startTagToken.rawTagName = rawTagName;
-          startTagToken.tagName = tagName;
-          startTagToken.selfClosing = selfClosing;
-          startTagToken.start = offset + i;
-          startTagToken.end = offset + k;
-          startTagToken.nameStart = offset + nameStart;
-          startTagToken.nameEnd = offset + nameEnd;
-
-          if (!selfClosing) {
-            startTagName = tagName;
-            tagParsingEnabled = !isTextContent?.(startTagToken);
-          }
-
-          onStartTag?.(startTagToken);
-          i = k;
-        } finally {
-          // Free memory
-          for (let i = 0; i < attrs.length; i++) {
-            attrTokenPool.free(attrs[i]);
-          }
-          startTagTokenPool.free(startTagToken);
+        if (k === ResultCode.NO_MATCH) {
+          // Unterminated start tag
+          return i;
         }
 
+        const selfClosing = (xmlEnabled || selfClosingEnabled) && k - j >= 2 && str.charCodeAt(k - 2) === CharCode['/'] || false;
+
+        emitText();
+
+        startTagToken.rawName = rawTagName;
+        startTagToken.name = tagName;
+        startTagToken.selfClosing = selfClosing;
+        startTagToken.start = offset + i;
+        startTagToken.end = offset + k;
+        startTagToken.nameStart = offset + nameStart;
+        startTagToken.nameEnd = offset + nameEnd;
+
+        if (!selfClosing) {
+          startTagName = tagName;
+          tagParsingEnabled = !isTextContent?.(startTagToken);
+        }
+
+        onStartTag?.(startTagToken);
+        i = k;
+
+        for (let i = 0; i < attrs.length; i++) {
+          attrTokenPool.free(attrs[i]);
+        }
         continue;
       }
     }
@@ -377,7 +341,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
       const nameEnd = j;
 
       const rawTagName = str.substring(nameStart, nameEnd);
-      const tagName = renameTag(rawTagName);
+      const tagName = renameTag ? renameTag(rawTagName) : rawTagName;
 
       if (tagParsingEnabled || startTagName === tagName) {
 
@@ -393,20 +357,16 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         }
 
         emitText();
+
         if (onEndTag) {
-          const endTagToken = endTagTokenPool.next();
-          endTagToken.rawTagName = rawTagName;
-          endTagToken.tagName = tagName;
+          endTagToken.rawName = rawTagName;
+          endTagToken.name = tagName;
           endTagToken.start = offset + i;
           endTagToken.end = offset + k;
           endTagToken.nameStart = offset + nameStart;
           endTagToken.nameEnd = offset + nameEnd;
 
-          try {
-            onEndTag(endTagToken);
-          } finally {
-            endTagTokenPool.free(endTagToken);
-          }
+          onEndTag(endTagToken);
         }
 
         i = k;
@@ -423,6 +383,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         if (j > charCount && streaming) {
           return i;
         }
+        emitText();
         i = emitData(onComment, i, j, 4, 3, true);
         continue;
       }
@@ -433,6 +394,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         if (j > charCount && streaming) {
           return i;
         }
+        emitText();
         i = emitData(onDocumentType, i, j, 9, 1, false);
         continue;
       }
@@ -443,7 +405,12 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         if (j > charCount && streaming) {
           return i;
         }
-        i = xmlEnabled ? emitData(onCdataSection, i, j, 9, 3, false) : emitData(onComment, i, j, 2, 1, false);
+        emitText();
+        if (xmlEnabled) {
+          i = emitData(onCdataSection, i, j, 9, 3, false);
+        } else {
+          i = emitData(onComment, i, j, 2, 1, false);
+        }
         continue;
       }
 
@@ -453,7 +420,12 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         if (j > charCount && streaming) {
           return i;
         }
-        i = xmlEnabled ? emitData(onProcessingInstruction, i, j, 2, 2, false) : emitData(onComment, i, j, 1, 1, false);
+        emitText();
+        if (xmlEnabled) {
+          i = emitData(onProcessingInstruction, i, j, 2, 2, false);
+        } else {
+          i = emitData(onComment, i, j, 1, 1, false);
+        }
         continue;
       }
 
@@ -464,6 +436,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
           if (j > charCount && streaming) {
             return i;
           }
+          emitText();
           i = emitData(onComment, i, j, 2, 1, true);
           continue;
         }
@@ -491,5 +464,6 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
   }
 
   emitText();
+
   return i;
 }

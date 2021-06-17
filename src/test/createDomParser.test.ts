@@ -6,9 +6,9 @@ describe('createDomParser', () => {
   let domParserOptions: IDomParserOptions<any, any, any> = {
     createElement(token) {
       return {
-        tagName: token.tagName,
-        attrs: Array.from(token.attributes).map((attr) => {
-          return {name: attr.name, }
+        tagName: token.name,
+        attrs: Array.from(token.attrs).map((attr) => {
+          return {name: attr.name};
         }),
         start,
         end,

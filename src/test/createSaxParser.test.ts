@@ -1,5 +1,8 @@
-import {createSaxParser, IDataToken, ISaxParser, IStartTagToken, ITagToken} from '../main/createSaxParser';
+import {createSaxParser} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
+import {IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
+import {ISaxParser, ISaxParserOptions} from '../main/sax-parser-types';
+import {createForgivingSaxParser} from '../main';
 
 describe('createSaxParser', () => {
 
@@ -13,18 +16,19 @@ describe('createSaxParser', () => {
   const onCdataSectionMock = jest.fn();
   const onDocumentTypeMock = jest.fn();
 
-  beforeEach(() => {
-    parser = createSaxParser({
-      selfClosingEnabled: true,
+  const createParser = (options?: ISaxParserOptions) => createForgivingSaxParser({
+    onStartTag: (token) => onStartTagMock(cloneDeep(token)),
+    onEndTag: (token) => onEndTagMock(cloneDeep(token)),
+    onText: (token) => onTextMock(cloneDeep(token)),
+    onComment: (token) => onCommentMock(cloneDeep(token)),
+    onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
+    onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
+    onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
+    ...options,
+  });
 
-      onStartTag: (token) => onStartTagMock(cloneDeep(token)),
-      onEndTag: (token) => onEndTagMock(cloneDeep(token)),
-      onText: (token) => onTextMock(cloneDeep(token)),
-      onComment: (token) => onCommentMock(cloneDeep(token)),
-      onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
-      onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
-      onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
-    });
+  beforeEach(() => {
+    parser = createParser();
 
     onStartTagMock.mockReset();
     onEndTagMock.mockReset();
@@ -57,6 +61,108 @@ describe('createSaxParser', () => {
         dataEnd: 7,
       });
     });
+
+    it('CDATA tags are case-insensitive in HTML mode', () => {
+      const parser = createParser({
+        isTextContent: (token) => token.name === 'script',
+      });
+
+      parser.parse('<script><foo aaa=111></SCRIPT>');
+
+      expect(onStartTagMock).toHaveBeenCalledTimes(1);
+      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+        rawName: 'script',
+        name: 'script',
+        attrs: [],
+        selfClosing: false,
+        start: 0,
+        end: 8,
+        nameStart: 1,
+        nameEnd: 7,
+      });
+
+      expect(onTextMock).toHaveBeenCalledTimes(1);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: '<foo aaa=111>',
+        data: '<foo aaa=111>',
+        start: 8,
+        end: 21,
+        dataStart: 8,
+        dataEnd: 21,
+      });
+
+      expect(onEndTagMock).toHaveBeenCalledTimes(1);
+      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+        rawName: 'SCRIPT',
+        name: 'script',
+        start: 21,
+        end: 30,
+        nameStart: 23,
+        nameEnd: 29,
+      });
+    });
+
+    it('CDATA tags are case-sensitive in XML mode', () => {
+      const parser = createParser({
+        xmlEnabled: true,
+        isTextContent: (token) => token.name === 'script',
+      });
+
+      parser.parse('<script><foo aaa=111></SCRIPT>');
+
+      expect(onStartTagMock).toHaveBeenCalledTimes(1);
+      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+        rawName: 'script',
+        name: 'script',
+        attrs: [],
+        selfClosing: false,
+        start: 0,
+        end: 8,
+        nameStart: 1,
+        nameEnd: 7,
+      });
+
+      expect(onTextMock).toHaveBeenCalledTimes(1);
+      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+        rawData: '<foo aaa=111></SCRIPT>',
+        data: '<foo aaa=111></SCRIPT>',
+        start: 8,
+        end: 30,
+        dataStart: 8,
+        dataEnd: 30,
+      });
+    });
+
+    it('throws errors', () => {
+      const error = new Error('Fail');
+      const parser = createParser({
+        onText() {
+          throw error;
+        },
+      });
+
+      expect(() => parser.parse('foo')).toThrow(error);
+      expect(onTextMock).not.toHaveBeenCalled();
+    });
+
+    it('captures errors', () => {
+      const onErrorMock = jest.fn();
+      const error = new Error('Fail');
+      const parser = createParser({
+        onText() {
+          throw error;
+        },
+        onError: onErrorMock,
+      });
+
+      expect(() => parser.parse('foo')).not.toThrow();
+
+      expect(onTextMock).not.toHaveBeenCalled();
+
+      expect(onErrorMock).toHaveBeenCalledTimes(1);
+      expect(onErrorMock).toHaveBeenCalledWith(error);
+    });
+
   });
 
   describe('in streaming mode', () => {
@@ -66,9 +172,9 @@ describe('createSaxParser', () => {
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -96,8 +202,8 @@ describe('createSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
+        rawName: 'a',
+        name: 'a',
         start: 12,
         end: 16,
         nameStart: 14,
@@ -106,6 +212,8 @@ describe('createSaxParser', () => {
     });
 
     it('defers start tag emit', () => {
+      parser = createParser({selfClosingEnabled: true});
+
       parser.write('<www aaa=111 ');
 
       expect(onStartTagMock).not.toHaveBeenCalled();
@@ -114,9 +222,9 @@ describe('createSaxParser', () => {
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
-        rawTagName: 'www',
-        tagName: 'www',
-        attributes: [
+        rawName: 'www',
+        name: 'www',
+        attrs: [
           {
             rawName: 'aaa',
             name: 'aaa',
@@ -150,9 +258,9 @@ describe('createSaxParser', () => {
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
-        rawTagName: 'bar',
-        tagName: 'bar',
-        attributes: [
+        rawName: 'bar',
+        name: 'bar',
+        attrs: [
           {
             rawName: 'aaa',
             name: 'aaa',

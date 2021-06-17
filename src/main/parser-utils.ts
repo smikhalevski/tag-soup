@@ -55,3 +55,7 @@ const xmlEntities = clearPrototype<Record<string, string>>({
   quot: '"',
   apos: '\'',
 });
+
+export function lowerCase(str: string): string {
+  return str.toLowerCase();
+}

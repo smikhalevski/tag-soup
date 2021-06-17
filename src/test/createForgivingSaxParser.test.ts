@@ -1,8 +1,9 @@
-import {IDataToken, ISaxParser, IStartTagToken, ITagToken} from '../main/createSaxParser';
-import {createForgivingSaxParser, IForgivingSaxParserOptions} from '../main/createForgivingSaxParser';
+import {createForgivingSaxParser} from '../main/createForgivingSaxParser';
 import {cloneDeep} from 'lodash';
 import fs from 'fs';
 import path from 'path';
+import {IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
+import {IForgivingSaxParserOptions, ISaxParser} from '../main/sax-parser-types';
 
 describe('createForgivingSaxParser', () => {
 
@@ -16,8 +17,7 @@ describe('createForgivingSaxParser', () => {
   const onCdataSectionMock = jest.fn();
   const onDocumentTypeMock = jest.fn();
 
-  const createParser = (options: IForgivingSaxParserOptions) => createForgivingSaxParser({
-    ...options,
+  const createParser = (options?: IForgivingSaxParserOptions) => createForgivingSaxParser({
     onStartTag: (token) => onStartTagMock(cloneDeep(token)),
     onEndTag: (token) => onEndTagMock(cloneDeep(token)),
     onText: (token) => onTextMock(cloneDeep(token)),
@@ -25,12 +25,11 @@ describe('createForgivingSaxParser', () => {
     onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
     onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
     onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
+    ...options,
   });
 
   beforeEach(() => {
-    parser?.reset();
-
-    parser = createParser({});
+    parser = createParser();
 
     onStartTagMock.mockReset();
     onEndTagMock.mockReset();
@@ -65,9 +64,9 @@ describe('createForgivingSaxParser', () => {
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -85,8 +84,8 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
+        rawName: 'a',
+        name: 'a',
         start: 3,
         end: 7,
         nameStart: 5,
@@ -102,14 +101,14 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('emits end tag if the start implicitly closes', () => {
-      parser = createParser({isImplicitEnd: (containerTagName) => containerTagName === 'a'});
+      parser = createParser({isImplicitEnd: (containerToken) => containerToken.name === 'a'});
       parser.write('<a><b>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -117,9 +116,9 @@ describe('createForgivingSaxParser', () => {
         nameEnd: 2,
       })
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
-        rawTagName: 'b',
-        tagName: 'b',
-        attributes: [],
+        rawName: 'b',
+        name: 'b',
+        attrs: [],
         selfClosing: false,
         start: 3,
         end: 6,
@@ -129,8 +128,8 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
+        rawName: 'a',
+        name: 'a',
         start: 3,
         end: 3,
         nameStart: -1,
@@ -139,14 +138,14 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('emits end tag for intermediate tags if the start implicitly closes', () => {
-      parser = createParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'a' && token.tagName === 'c'});
+      parser = createParser({isImplicitEnd: (containerToken, token) => containerToken.name === 'a' && token.name === 'c'});
       parser.write('<a><b><c>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(3);
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -154,9 +153,9 @@ describe('createForgivingSaxParser', () => {
         nameEnd: 2,
       });
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
-        rawTagName: 'b',
-        tagName: 'b',
-        attributes: [],
+        rawName: 'b',
+        name: 'b',
+        attrs: [],
         selfClosing: false,
         start: 3,
         end: 6,
@@ -164,9 +163,9 @@ describe('createForgivingSaxParser', () => {
         nameEnd: 5,
       });
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(3, {
-        rawTagName: 'c',
-        tagName: 'c',
-        attributes: [],
+        rawName: 'c',
+        name: 'c',
+        attrs: [],
         selfClosing: false,
         start: 6,
         end: 9,
@@ -176,16 +175,16 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
       expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(1, {
-        rawTagName: 'b',
-        tagName: 'b',
+        rawName: 'b',
+        name: 'b',
         start: 6,
         end: 6,
         nameStart: -1,
         nameEnd: -1,
       });
       expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(2, {
-        rawTagName: 'a',
-        tagName: 'a',
+        rawName: 'a',
+        name: 'a',
         start: 6,
         end: 6,
         nameStart: -1,
@@ -194,14 +193,14 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('recognizes void tags', () => {
-      parser = createParser({isVoidContent: (token) => token.tagName === 'a'});
+      parser = createParser({isVoidContent: (token) => token.name === 'a'});
       parser.write('<a><b></b></a>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: true,
         start: 0,
         end: 3,
@@ -209,9 +208,9 @@ describe('createForgivingSaxParser', () => {
         nameEnd: 2,
       });
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
-        rawTagName: 'b',
-        tagName: 'b',
-        attributes: [],
+        rawName: 'b',
+        name: 'b',
+        attrs: [],
         selfClosing: false,
         start: 3,
         end: 6,
@@ -221,8 +220,8 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
-        rawTagName: 'b',
-        tagName: 'b',
+        rawName: 'b',
+        name: 'b',
         start: 6,
         end: 10,
         nameStart: 8,
@@ -238,9 +237,9 @@ describe('createForgivingSaxParser', () => {
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -248,9 +247,9 @@ describe('createForgivingSaxParser', () => {
         nameEnd: 2,
       });
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
-        rawTagName: 'b',
-        tagName: 'b',
-        attributes: [],
+        rawName: 'b',
+        name: 'b',
+        attrs: [],
         selfClosing: false,
         start: 3,
         end: 6,
@@ -260,16 +259,16 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
       expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(1, {
-        rawTagName: 'b',
-        tagName: 'b',
+        rawName: 'b',
+        name: 'b',
         start: 6,
         end: 6,
         nameStart: -1,
         nameEnd: -1,
       });
       expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(2, {
-        rawTagName: 'a',
-        tagName: 'a',
+        rawName: 'a',
+        name: 'a',
         start: 6,
         end: 6,
         nameStart: -1,
@@ -282,9 +281,9 @@ describe('createForgivingSaxParser', () => {
 
       expect(onStartTagMock).toHaveBeenCalledTimes(1);
       expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
-        attributes: [],
+        rawName: 'a',
+        name: 'a',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -304,8 +303,8 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
-        rawTagName: 'a',
-        tagName: 'a',
+        rawName: 'a',
+        name: 'a',
         start: 6,
         end: 6,
         nameStart: -1,
@@ -314,14 +313,14 @@ describe('createForgivingSaxParser', () => {
     });
 
     it('implicitly closes current tag with nesting', () => {
-      parser = createParser({isImplicitEnd: (containerTagName, token) => containerTagName === 'p' && token.tagName === 'p'});
+      parser = createParser({isImplicitEnd: (containerToken, token) => containerToken.name === 'p' && token.name === 'p'});
       parser.parse('<p><p>aaa</p></p>');
 
       expect(onStartTagMock).toHaveBeenCalledTimes(2);
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
-        rawTagName: 'p',
-        tagName: 'p',
-        attributes: [],
+        rawName: 'p',
+        name: 'p',
+        attrs: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -329,9 +328,9 @@ describe('createForgivingSaxParser', () => {
         nameEnd: 2,
       });
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
-        rawTagName: 'p',
-        tagName: 'p',
-        attributes: [],
+        rawName: 'p',
+        name: 'p',
+        attrs: [],
         selfClosing: false,
         start: 3,
         end: 6,
@@ -351,16 +350,16 @@ describe('createForgivingSaxParser', () => {
 
       expect(onEndTagMock).toHaveBeenCalledTimes(2);
       expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(1, {
-        rawTagName: 'p',
-        tagName: 'p',
+        rawName: 'p',
+        name: 'p',
         start: 3,
         end: 3,
         nameStart: -1,
         nameEnd: -1,
       });
       expect(onEndTagMock).toHaveBeenNthCalledWith<[ITagToken]>(2, {
-        rawTagName: 'p',
-        tagName: 'p',
+        rawName: 'p',
+        name: 'p',
         start: 9,
         end: 13,
         nameStart: 11,

@@ -18,6 +18,11 @@ export interface IValuePool<T> {
    * already freed then no-op.
    */
   free(value: Maybe<T>): void;
+
+  /**
+   * Returns all allocated values to the pool.
+   */
+  freeAll(): void;
 }
 
 export function createValuePool<T extends {}>(factory: () => T, reset?: (value: T) => void, preallocatedCount = 0): IValuePool<T> {
@@ -51,6 +56,15 @@ export function createValuePool<T extends {}>(factory: () => T, reset?: (value: 
         reset?.(value);
         break;
       }
+    },
+
+    freeAll() {
+      if (reset) {
+        for (let i = 0; i < allocatedCount; i++) {
+          reset(cache[i]);
+        }
+      }
+      allocatedCount = 0;
     },
   };
 }

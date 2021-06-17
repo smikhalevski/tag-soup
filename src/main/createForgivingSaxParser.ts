@@ -1,38 +1,8 @@
-import {
-  createSaxParser,
-  ISaxParser,
-  ISaxParserCallbacks,
-  ISaxParserDialectOptions,
-  IStartTagToken,
-  ITagToken,
-} from './createSaxParser';
+import {createSaxParser} from './createSaxParser';
 import {createTagToken} from './token-pools';
 import {createValuePool} from './createValuePool';
-
-export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOptions {
-
-  /**
-   * Determines whether the tag cannot have any content.
-   *
-   * @param token The start tag token.
-   * @returns If `true` than the tag would be treated as self-closing even if it isn't marked up as such.
-   */
-  isVoidContent?: (token: IStartTagToken) => boolean;
-
-  /**
-   * Determines whether the container start tag with name `currentTagName` should be closed with corresponding end tag
-   * when tag with name `tagName` is read.
-   *
-   * @param containerTagName The rewritten tag name of the container that is currently opened.
-   * @param token The name of the start tag that was read.
-   * @returns If `true` than the {@link onEndTag} would be triggered for `containerTagName` before {@link onStartTag}
-   *     with `token` is triggered.
-   */
-  isImplicitEnd?: (containerTagName: string, token: IStartTagToken) => boolean;
-}
-
-export interface IForgivingSaxParserOptions extends IForgivingSaxParserDialectOptions, ISaxParserCallbacks {
-}
+import {ITagToken} from './token-types';
+import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax-parser-types';
 
 /**
  * Creates a streaming SAX parser that:
@@ -47,14 +17,15 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     onEndTag,
     onReset,
     onParse,
+
     isVoidContent,
     isImplicitEnd,
   } = options;
 
-  const prevTagTokenPool = createValuePool(createTagToken);
-  const endTagTokenPool = createValuePool(createTagToken);
+  const containerTagTokenPool = createValuePool(createTagToken);
+  const endTagToken = createTagToken();
 
-  let startTagTokens: Array<ITagToken> = [];
+  let containerTokens: Array<ITagToken> = [];
   let depth = 0;
 
   const saxParserCallbacks: ISaxParserCallbacks = {
@@ -64,24 +35,16 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
 
       if (isImplicitEnd) {
         for (let i = depth - 1; i >= 0; i--) {
-          if (isImplicitEnd(startTagTokens[i].tagName, token)) {
+
+          if (isImplicitEnd(containerTokens[i], token)) {
 
             if (onEndTag) {
-              const endTagToken = endTagTokenPool.next();
-              try {
-                for (let j = depth - 1; j >= i; j--) {
-
-                  endTagToken.rawTagName = startTagTokens[j].rawTagName;
-                  endTagToken.tagName = startTagTokens[j].tagName;
-                  endTagToken.start = endTagToken.end = token.start;
-                  endTagToken.nameStart = endTagToken.nameEnd = -1;
-
-                  onEndTag(endTagToken);
-                }
-              } finally {
-                endTagTokenPool.free(endTagToken);
+              for (let j = depth - 1; j >= i; j--) {
+                assignEndTagToken(endTagToken, containerTokens[j], token.start);
+                onEndTag(endTagToken);
               }
             }
+
             depth = i;
             break;
           }
@@ -91,64 +54,40 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
       onStartTag?.(token);
 
       if (!token.selfClosing) {
-        const token2 = startTagTokens[depth++] ||= prevTagTokenPool.next();
-
-        token2.rawTagName = token.rawTagName;
-        token2.tagName = token.tagName;
+        assignTagToken(containerTokens[depth++] ||= containerTagTokenPool.next(), token);
       }
     },
 
     onEndTag(token) {
       for (let i = depth - 1; i >= 0; i--) {
-        if (startTagTokens[i].tagName === token.tagName) {
+        if (containerTokens[i].name === token.name) {
 
           if (onEndTag) {
-            const endTagToken = endTagTokenPool.next();
-            try {
-              for (let j = depth - 1; j > i; j--) {
-
-                endTagToken.rawTagName = startTagTokens[j].rawTagName;
-                endTagToken.tagName = startTagTokens[j].tagName;
-                endTagToken.start = endTagToken.end = token.start;
-                endTagToken.nameStart = endTagToken.nameEnd = -1;
-
-                onEndTag(endTagToken);
-              }
-            } finally {
-              endTagTokenPool.free(endTagToken);
+            for (let j = depth - 1; j > i; j--) {
+              assignEndTagToken(endTagToken, containerTokens[j], token.start);
+              onEndTag(endTagToken);
             }
-
             onEndTag(token);
           }
+
           depth = i;
         }
       }
     },
 
     onReset() {
-      for (let i = 0; i < startTagTokens.length; i++) {
-        prevTagTokenPool.free(startTagTokens[i]);
+      for (let i = 0; i < containerTokens.length; i++) {
+        containerTagTokenPool.free(containerTokens[i]);
       }
-      startTagTokens = [];
-      depth = 0;
+      containerTokens.length = depth = 0;
       onReset?.();
     },
 
     onParse(chunk, parsedCharCount) {
       if (onEndTag) {
-        const endTagToken = endTagTokenPool.next();
-        try {
-          for (let i = depth - 1; i >= 0; i--) {
-
-            endTagToken.rawTagName = startTagTokens[i].rawTagName;
-            endTagToken.tagName = startTagTokens[i].tagName;
-            endTagToken.start = endTagToken.end = parsedCharCount;
-            endTagToken.nameStart = endTagToken.nameEnd = -1;
-
-            onEndTag(endTagToken);
-          }
-        } finally {
-          endTagTokenPool.free(endTagToken);
+        for (let i = depth - 1; i >= 0; i--) {
+          assignEndTagToken(endTagToken, containerTokens[i], parsedCharCount);
+          onEndTag(endTagToken);
         }
       }
       onParse?.(chunk, parsedCharCount);
@@ -156,4 +95,19 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
   };
 
   return createSaxParser(Object.assign({}, options, saxParserCallbacks));
+}
+
+function assignTagToken(tokenA: ITagToken, tokenB: ITagToken): void {
+  tokenA.rawName = tokenB.rawName;
+  tokenA.name = tokenB.name;
+  tokenA.nameStart = tokenB.nameStart;
+  tokenA.nameEnd = tokenB.nameEnd;
+  tokenA.start = tokenB.start;
+  tokenA.end = tokenB.end;
+}
+
+function assignEndTagToken(endTagToken: ITagToken, containerTagToken: ITagToken, end: number): void {
+  assignTagToken(endTagToken, containerTagToken);
+  endTagToken.start = endTagToken.end = end;
+  endTagToken.nameStart = endTagToken.nameEnd = -1;
 }

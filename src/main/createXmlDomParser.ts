@@ -1,6 +1,6 @@
 import {createDomParser, IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './createDomParser';
-import {IDataToken} from './createSaxParser';
 import {Maybe} from './parser-utils';
+import {IDataToken} from './token-types';
 
 export const enum DomNodeType {
   ELEMENT = 1,
@@ -50,14 +50,14 @@ const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElemen
 
   createElement(token) {
     const attrMap: IDomAttributeMap = {};
-    for (let i = 0, l = token.attributes.length; i < l; i++) {
-      const attr = token.attributes[i];
+    for (let i = 0, l = token.attrs.length; i < l; i++) {
+      const attr = token.attrs[i];
       attrMap[attr.name] = attr.value;
     }
     return {
       nodeType: DomNodeType.ELEMENT,
       parent: null,
-      tagName: token.tagName,
+      tagName: token.name,
       attrs: attrMap,
       selfClosing: token.selfClosing,
       children: [],

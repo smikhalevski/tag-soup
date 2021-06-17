@@ -1,13 +1,12 @@
+import {createForgivingSaxParser} from './createForgivingSaxParser';
+import {IDataToken, IStartTagToken, ITagToken} from './token-types';
 import {
   DataTokenCallback,
-  IDataToken,
+  IForgivingSaxParserDialectOptions,
   ISaxParser,
   ISaxParserCallbacks,
   ISaxParserOptions,
-  IStartTagToken,
-  ITagToken,
-} from './createSaxParser';
-import {createForgivingSaxParser, IForgivingSaxParserDialectOptions} from './createForgivingSaxParser';
+} from './sax-parser-types';
 
 export interface ICustomSaxParserOptions extends ISaxParserOptions {
   [saxParserOption: string]: any;

@@ -1,10 +1,10 @@
-import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './createSaxParser';
+import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
 
 export function createStartTagToken(): IStartTagToken {
   return {
-    tagName: '',
-    rawTagName: '',
-    attributes: [],
+    name: '',
+    rawName: '',
+    attrs: [],
     selfClosing: false,
     start: 0,
     end: 0,
@@ -15,8 +15,8 @@ export function createStartTagToken(): IStartTagToken {
 
 export function createTagToken(): ITagToken {
   return {
-    tagName: '',
-    rawTagName: '',
+    name: '',
+    rawName: '',
     start: 0,
     end: 0,
     nameStart: 0,
@@ -35,7 +35,7 @@ export function createDataToken(): IDataToken {
   };
 }
 
-export function createAttributeToken(): IAttributeToken {
+export function createAttrToken(): IAttrToken {
   return {
     name: '',
     rawName: '',
