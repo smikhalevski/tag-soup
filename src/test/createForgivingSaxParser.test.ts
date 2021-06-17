@@ -72,7 +72,7 @@ describe('createForgivingSaxParser', () => {
         end: 3,
         nameStart: 1,
         nameEnd: 2,
-      })
+      });
 
       expect(onTextMock).not.toHaveBeenCalled();
     });
@@ -90,7 +90,7 @@ describe('createForgivingSaxParser', () => {
         end: 7,
         nameStart: 5,
         nameEnd: 6,
-      })
+      });
     });
 
     it('does not emit the end tag without corresponding start tag', () => {
@@ -114,7 +114,7 @@ describe('createForgivingSaxParser', () => {
         end: 3,
         nameStart: 1,
         nameEnd: 2,
-      })
+      });
       expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
         rawName: 'b',
         name: 'b',
@@ -124,7 +124,7 @@ describe('createForgivingSaxParser', () => {
         end: 6,
         nameStart: 4,
         nameEnd: 5,
-      })
+      });
 
       expect(onEndTagMock).toHaveBeenCalledTimes(1);
       expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
@@ -134,7 +134,7 @@ describe('createForgivingSaxParser', () => {
         end: 3,
         nameStart: -1,
         nameEnd: -1,
-      })
+      });
     });
 
     it('emits end tag for intermediate tags if the start implicitly closes', () => {

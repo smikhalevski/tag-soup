@@ -67,7 +67,7 @@ const takeEq = seq(takeSpace, char(CharCode['=']), takeSpace);
 const takeQuotValue = seq(char(CharCode['"']), untilText('"', true, true));
 
 // 'okay'
-const takeAposValue = seq(char(CharCode["'"]), untilText("'", true, true));
+const takeAposValue = seq(char(CharCode['\'']), untilText('\'', true, true));
 
 // okay
 const takeUnquotedValue = untilCharBy(isNotUnquotedValueChar, false, true);

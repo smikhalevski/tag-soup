@@ -106,5 +106,5 @@ export function createEntitiesDecoder(options: IEntitiesDecoderOptions = {}): Re
     }
 
     return str;
-  }
+  };
 }
