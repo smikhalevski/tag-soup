@@ -1,6 +1,6 @@
-import {IDomParser, IDomParserDialectOptions} from './createDomParser';
 import {createXmlDomParser, IDomElement, IDomNode, IDomText} from './createXmlDomParser';
 import {createHtmlSaxParser, IHtmlSaxParserDialectOptions} from './createHtmlSaxParser';
+import {IDomParser, IDomParserDialectOptions} from './dom-parser-types';
 
 export interface IHtmlDomParserOptions extends IHtmlSaxParserDialectOptions {
 }

@@ -1,5 +1,6 @@
-import {createDomParser, IDomParser, IDomParserOptions} from '../main/createDomParser';
+import {createDomParser} from '../main/createDomParser';
 import {createForgivingSaxParser} from '../main';
+import {IDomParser, IDomParserOptions} from '../main/dom-parser-types';
 
 describe('createDomParser', () => {
 
@@ -7,22 +8,29 @@ describe('createDomParser', () => {
     createElement(token) {
       return {
         tagName: token.name,
-        attrs: Array.from(token.attrs).map((attr) => {
-          return {name: attr.name};
-        }),
-        start,
-        end,
+        attrs: token.attrs.map((attr) => ({
+          name: attr.name,
+          value: attr.value,
+          start: attr.start,
+          end: attr.end,
+        })),
+        start: token.start,
+        end: token.end,
         children: [],
       };
     },
-    createTextNode(data, start, end) {
-      return {data, start, end};
+    createTextNode(token) {
+      return {
+        data: token.data,
+        start: token.start,
+        end: token.end,
+      };
     },
     appendChild(element, childNode) {
       element.children.push(childNode);
     },
-    onContainerEnd(node, start, end) {
-      node.end = end;
+    onContainerEnd(element, token) {
+      element.end = token.end;
     },
   };
 
@@ -62,16 +70,16 @@ describe('createDomParser', () => {
     it('defers text parsing', () => {
 
       expect(parser.write('<a>foo')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attrs: [], children: []},
       ]);
 
       expect(parser.write('bar')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attrs: [], children: []},
       ]);
 
       expect(parser.write('qux</a>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 16, attrs: {length: 0}, children: [
+          tagName: 'a', start: 0, end: 16, attrs: [], children: [
             {data: 'foobarqux', start: 3, end: 12},
           ],
         },
@@ -84,7 +92,7 @@ describe('createDomParser', () => {
       expect(parser.write('</a>')).toBe(nodes);
 
       expect(nodes).toEqual([
-        {tagName: 'a', start: 0, end: 7, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 7, attrs: [], children: []},
       ]);
     });
 
@@ -107,7 +115,7 @@ describe('createDomParser', () => {
     it('parses tag with text', () => {
       expect(parser.parse('<a>okay</a>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 11, attrs: {length: 0}, children: [
+          tagName: 'a', start: 0, end: 11, attrs: [], children: [
             {data: 'okay', start: 3, end: 7},
           ],
         },
@@ -120,7 +128,7 @@ describe('createDomParser', () => {
           tagName: 'a',
           start: 0,
           end: 15,
-          attrs: {length: 1, 0: {name: 'foo', value: 'bar', start: 3, end: 10}},
+          attrs: [{name: 'foo', value: 'bar', start: 3, end: 10}],
           children: [],
         },
       ]);
@@ -129,32 +137,32 @@ describe('createDomParser', () => {
     it('recognizes void elements', () => {
       parser = createDomParser({
         ...domParserOptions,
-        isVoidContent: (tagName) => tagName === 'a',
+        isVoidContent: (token) => token.name === 'a',
       });
 
       expect(parser.parse('<a><a>')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
-        {tagName: 'a', start: 3, end: 6, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attrs: [], children: []},
+        {tagName: 'a', start: 3, end: 6, attrs: [], children: []},
       ]);
     });
 
     it('renders children of void elements as siblings', () => {
       parser = createDomParser({
         ...domParserOptions,
-        isVoidContent: (tagName) => tagName === 'a',
+        isVoidContent: (token) => token.name === 'a',
       });
 
       expect(parser.parse('<a><b></b></a>')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
-        {tagName: 'b', start: 3, end: 10, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attrs: [], children: []},
+        {tagName: 'b', start: 3, end: 10, attrs: [], children: []},
       ]);
     });
 
     it('parses nested tags', () => {
       expect(parser.parse('<a><b></b></a>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 14, attrs: {length: 0}, children: [
-            {tagName: 'b', start: 3, end: 10, attrs: {length: 0}, children: []},
+          tagName: 'a', start: 0, end: 14, attrs: [], children: [
+            {tagName: 'b', start: 3, end: 10, attrs: [], children: []},
           ],
         },
       ]);
@@ -163,8 +171,8 @@ describe('createDomParser', () => {
     it('parses nested tags that are closed in wrong order', () => {
       expect(parser.parse('<a><b></a></b>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 10, attrs: {length: 0}, children: [
-            {tagName: 'b', start: 3, end: 6, attrs: {length: 0}, children: []},
+          tagName: 'a', start: 0, end: 10, attrs: [], children: [
+            {tagName: 'b', start: 3, end: 6, attrs: [], children: []},
           ],
         },
       ]);
@@ -173,10 +181,10 @@ describe('createDomParser', () => {
     it('parses nested tags that are closed in wrong order with matching parent', () => {
       expect(parser.parse('<b><a><b></a></b>')).toEqual([
         {
-          tagName: 'b', start: 0, end: 17, attrs: {length: 0}, children: [
+          tagName: 'b', start: 0, end: 17, attrs: [], children: [
             {
-              tagName: 'a', start: 3, end: 13, attrs: {length: 0}, children: [
-                {tagName: 'b', start: 6, end: 9, attrs: {length: 0}, children: []},
+              tagName: 'a', start: 3, end: 13, attrs: [], children: [
+                {tagName: 'b', start: 6, end: 9, attrs: [], children: []},
               ],
             },
           ],
@@ -189,7 +197,7 @@ describe('createDomParser', () => {
 
       expect(parser.parse('<a></b>eee')).toEqual([
         {
-          tagName: 'a', start: 0, end: 10, attrs: {length: 0}, children: [
+          tagName: 'a', start: 0, end: 10, attrs: [], children: [
             {data: 'eee', start: 7, end: 10},
           ],
         },

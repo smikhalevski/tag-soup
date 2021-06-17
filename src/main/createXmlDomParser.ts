@@ -1,6 +1,7 @@
-import {createDomParser, IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './createDomParser';
+import {createDomParser} from './createDomParser';
 import {Maybe} from './parser-utils';
 import {IDataToken} from './token-types';
+import {IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './dom-parser-types';
 
 export const enum DomNodeType {
   ELEMENT = 1,
