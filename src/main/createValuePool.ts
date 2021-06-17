@@ -3,11 +3,6 @@ import {Maybe} from './parser-utils';
 export interface IValuePool<T> {
 
   /**
-   * Returns the number of currently allocated values.
-   */
-  getAllocatedCount(): number;
-
-  /**
    * Returns the next free value from the pool. If there's not free value available then `factory` is called to produce
    * a new value.
    */
@@ -34,10 +29,6 @@ export function createValuePool<T extends {}>(factory: () => T, reset?: (value: 
   let allocatedCount = 0;
 
   return {
-
-    getAllocatedCount() {
-      return allocatedCount;
-    },
 
     next() {
       return cache[allocatedCount++] ??= factory();

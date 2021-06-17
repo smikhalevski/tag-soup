@@ -76,9 +76,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     },
 
     onReset() {
-      for (let i = 0; i < containerTokens.length; i++) {
-        containerTagTokenPool.free(containerTokens[i]);
-      }
+      containerTagTokenPool.freeAll();
       containerTokens.length = depth = 0;
       onReset?.();
     },

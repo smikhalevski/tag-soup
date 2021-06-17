@@ -54,6 +54,7 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   };
 
   const reset = (): void => {
+    attrTokenPool.freeAll();
     buffer = '';
     offset = 0;
     try {

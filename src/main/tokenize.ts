@@ -327,9 +327,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         onStartTag?.(startTagToken);
         i = k;
 
-        for (let i = 0; i < attrs.length; i++) {
-          attrTokenPool.free(attrs[i]);
-        }
+        attrTokenPool.freeAll();
         continue;
       }
     }
