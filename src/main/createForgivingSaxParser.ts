@@ -6,7 +6,8 @@ import {
   IStartTagToken,
   ITagToken,
 } from './createSaxParser';
-import {endTagTokenPool, prevTagTokenPool} from './token-pools';
+import {createTagToken} from './token-pools';
+import {createValuePool} from './createValuePool';
 
 export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOptions {
 
@@ -49,6 +50,9 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     isVoidContent,
     isImplicitEnd,
   } = options;
+
+  const prevTagTokenPool = createValuePool(createTagToken);
+  const endTagTokenPool = createValuePool(createTagToken);
 
   let startTagTokens: Array<ITagToken> = [];
   let depth = 0;

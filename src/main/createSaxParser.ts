@@ -1,5 +1,7 @@
 import {Maybe, Rewriter} from './parser-utils';
-import {tokenize} from './tokenize';
+import {ITokenizerOptions, tokenize} from './tokenize';
+import {createValuePool} from './createValuePool';
+import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from './token-pools';
 
 /**
  * The token read from the source.
@@ -324,6 +326,13 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   let offset = 0;
   let parsedCharCount = 0;
 
+  const tokenizerOptions: ITokenizerOptions = Object.assign({}, options, {
+    attrTokenPool: createValuePool(createAttributeToken),
+    dataTokenPool: createValuePool(createDataToken),
+    endTagTokenPool: createValuePool(createTagToken),
+    startTagTokenPool: createValuePool(createStartTagToken),
+  });
+
   const reset = () => {
     buffer = '';
     offset = 0;
@@ -341,7 +350,7 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
     write(chunk) {
       chunk ??= '';
       buffer += chunk;
-      const l = tokenize(buffer, true, offset, options);
+      const l = tokenize(buffer, true, offset, tokenizerOptions);
       parsedCharCount += l;
 
       buffer = buffer.substr(l);
@@ -352,7 +361,7 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
     parse(chunk) {
       chunk ??= '';
       buffer += chunk;
-      const l = tokenize(buffer, false, offset, options);
+      const l = tokenize(buffer, false, offset, tokenizerOptions);
       parsedCharCount += l;
 
       onParse?.('' + chunk, parsedCharCount);

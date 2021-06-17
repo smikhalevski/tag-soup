@@ -1,8 +1,15 @@
 import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {CharCode, Mutable, Rewriter} from './parser-utils';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {DataTokenCallback, IAttributeToken, ISaxParserOptions} from './createSaxParser';
-import {attrTokenPool, dataTokenPool, endTagTokenPool, startTagTokenPool} from './token-pools';
+import {
+  DataTokenCallback,
+  IAttributeToken,
+  IDataToken,
+  ISaxParserOptions,
+  IStartTagToken,
+  ITagToken,
+} from './createSaxParser';
+import {IValuePool} from './createValuePool';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>
@@ -97,7 +104,7 @@ const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true)
  * @param decode The decoder of HTML/XML entities.
  * @param rename The callback that receives an attribute name and returns a new name.
  */
-export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mutable<ArrayLike<IAttributeToken>>, decode: Rewriter, rename: Rewriter): number {
+export function tokenizeAttrs(str: string, i: number, offset: number, attrs: Mutable<ArrayLike<IAttributeToken>>, attrTokenPool: IValuePool<IAttributeToken>, decode: Rewriter, rename: Rewriter): number {
   const charCount = str.length;
 
   let attrCount = 0;
@@ -199,7 +206,14 @@ export function identity<T>(value: T): T {
   return value;
 }
 
-export function tokenize(str: string, streaming: boolean, offset: number, options: ISaxParserOptions): number {
+export interface ITokenizerOptions extends ISaxParserOptions {
+  attrTokenPool: IValuePool<IAttributeToken>;
+  dataTokenPool: IValuePool<IDataToken>;
+  endTagTokenPool: IValuePool<ITagToken>;
+  startTagTokenPool: IValuePool<IStartTagToken>;
+}
+
+export function tokenize(str: string, streaming: boolean, offset: number, options: ITokenizerOptions): number {
   const {
     xmlEnabled = false,
     decodeAttr = xmlDecoder,
@@ -216,6 +230,11 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
     onProcessingInstruction,
     onCdataSection,
     onDocumentType,
+
+    attrTokenPool,
+    dataTokenPool,
+    endTagTokenPool,
+    startTagTokenPool,
   } = options;
 
   let textStart = -1;
@@ -310,7 +329,7 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         const attrs = startTagToken.attributes;
 
         try {
-          j = tokenizeAttrs(str, j, offset, attrs, decodeAttr, renameAttr);
+          j = tokenizeAttrs(str, j, offset, attrs, attrTokenPool, decodeAttr, renameAttr);
 
           // Skip malformed content and excessive whitespaces
           const k = takeUntilGt(str, j);

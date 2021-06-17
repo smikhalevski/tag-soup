@@ -1,13 +1,6 @@
-import {createValuePool} from './createValuePool';
 import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './createSaxParser';
 
-export const startTagTokenPool = createValuePool(createStartTagToken);
-export const prevTagTokenPool = createValuePool(createTagToken);
-export const endTagTokenPool = createValuePool(createTagToken);
-export const dataTokenPool = createValuePool(createDataToken);
-export const attrTokenPool = createValuePool(createAttributeToken);
-
-function createStartTagToken(): IStartTagToken {
+export function createStartTagToken(): IStartTagToken {
   return {
     tagName: '',
     rawTagName: '',
@@ -20,7 +13,7 @@ function createStartTagToken(): IStartTagToken {
   };
 }
 
-function createTagToken(): ITagToken {
+export function createTagToken(): ITagToken {
   return {
     tagName: '',
     rawTagName: '',
@@ -31,7 +24,7 @@ function createTagToken(): ITagToken {
   };
 }
 
-function createDataToken(): IDataToken {
+export function createDataToken(): IDataToken {
   return {
     data: '',
     rawData: '',
@@ -42,7 +35,7 @@ function createDataToken(): IDataToken {
   };
 }
 
-function createAttributeToken(): IAttributeToken {
+export function createAttributeToken(): IAttributeToken {
   return {
     name: '',
     rawName: '',
