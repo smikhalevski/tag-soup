@@ -35,18 +35,18 @@ export function createFromCharCode(options: IFromCharCodeOptions = {}): FromChar
   return (codePoint) => {
     if (codePoint >= 0xd800 && codePoint <= 0xdfff || codePoint > 0x10ffff) {
       if (strict) {
-        throw new Error('Character reference outside the permissible Unicode range');
+        throw new SyntaxError('Character reference outside the permissible Unicode range');
       }
       return replacementChar;
     }
     if (replacementCodePoints.has(codePoint)) {
       if (strict) {
-        throw new Error('Disallowed character reference');
+        throw new SyntaxError('Disallowed character reference');
       }
       return replacementCodePoints.get(codePoint);
     }
     if (strict && errorCodePoints.has(codePoint)) {
-      throw new Error('Disallowed character reference');
+      throw new SyntaxError('Disallowed character reference');
     }
     if (codePoint > 0xffff) {
       codePoint -= 0x10000;
