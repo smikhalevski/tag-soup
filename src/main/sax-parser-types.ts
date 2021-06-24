@@ -188,10 +188,18 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * when start tag `token` is read.
    *
    * @param containerToken The token of the currently opened container tag.
-   * @param token The name of the start tag that was read.
+   * @param token The token of the start tag that was read.
    * @returns If `true` than start tag `token` should implicitly close the currently opened container `containerToken`.
    *     This would cause that {@link onEndTag} would be triggered for `containerToken` before {@link onStartTag} with
    *     `token`.
    */
   isImplicitEnd?: (containerToken: ITagToken, token: IStartTagToken) => boolean;
+
+  /**
+   * Determine whether the container `token` denotes a fragment, so implicitly closed tags should not be checked
+   * outside of it.
+   *
+   * @param token The container tag token.
+   */
+  isFragment?: (token: ITagToken) => boolean;
 }

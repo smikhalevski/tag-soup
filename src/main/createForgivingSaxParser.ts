@@ -20,6 +20,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
 
     isVoidContent,
     isImplicitEnd,
+    isFragment,
   } = options;
 
   const containerTagTokenPool = createValuePool(createTagToken);
@@ -35,8 +36,13 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
 
       if (isImplicitEnd) {
         for (let i = depth - 1; i >= 0; i--) {
+          const containerToken = containerTokens[i];
 
-          if (isImplicitEnd(containerTokens[i], token)) {
+          if (isFragment?.(containerToken)) {
+            break;
+          }
+
+          if (isImplicitEnd(containerToken, token)) {
 
             if (onEndTag) {
               for (let j = depth - 1; j >= i; j--) {
