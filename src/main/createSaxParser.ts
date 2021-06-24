@@ -1,7 +1,7 @@
 import {lowerCase} from './parser-utils';
 import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
-import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from './token-pools';
+import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {ISaxParser, ISaxParserOptions} from './sax-parser-types';
 

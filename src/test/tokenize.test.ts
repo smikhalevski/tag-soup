@@ -1,7 +1,7 @@
 import {IAttrTokenizerOptions, ITokenizerOptions, tokenize, tokenizeAttrs} from '../main/tokenize';
 import {cloneDeep} from 'lodash';
 import {createObjectPool} from '../main/createObjectPool';
-import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from '../main/token-pools';
+import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from '../main/tokens';
 import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
 
 describe('tokenizeAttrs', () => {

@@ -1,5 +1,5 @@
 import {createSaxParser} from './createSaxParser';
-import {createTagToken} from './token-pools';
+import {createTagToken} from './tokens';
 import {createObjectPool} from './createObjectPool';
 import {ITagToken} from './token-types';
 import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax-parser-types';
