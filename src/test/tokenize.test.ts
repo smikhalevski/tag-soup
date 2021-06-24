@@ -1,6 +1,6 @@
 import {IAttrTokenizerOptions, ITokenizerOptions, tokenize, tokenizeAttrs} from '../main/tokenize';
 import {cloneDeep} from 'lodash';
-import {createValuePool} from '../main/createValuePool';
+import {createObjectPool} from '../main/createObjectPool';
 import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from '../main/token-pools';
 import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
 
@@ -9,7 +9,7 @@ describe('tokenizeAttrs', () => {
   let attrs: Array<IAttrToken>;
 
   const attrTokenizerOptions: IAttrTokenizerOptions = {
-    attrTokenPool: createValuePool(createAttrToken),
+    attrTokenPool: createObjectPool(createAttrToken),
   };
 
   beforeEach(() => {
@@ -667,7 +667,7 @@ describe('tokenize', () => {
     startTagToken: createStartTagToken(),
     endTagToken: createTagToken(),
     dataToken: createDataToken(),
-    attrTokenPool: createValuePool(createAttrToken),
+    attrTokenPool: createObjectPool(createAttrToken),
   };
 
   beforeEach(() => {

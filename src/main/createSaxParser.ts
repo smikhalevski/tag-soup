@@ -1,6 +1,6 @@
 import {lowerCase} from './parser-utils';
 import {ITokenizerOptions, tokenize} from './tokenize';
-import {createValuePool} from './createValuePool';
+import {createObjectPool} from './createObjectPool';
 import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from './token-pools';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {ISaxParser, ISaxParserOptions} from './sax-parser-types';
@@ -30,7 +30,7 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   let offset = 0;
   let parsedCharCount = 0;
 
-  const attrTokenPool = createValuePool(createAttrToken);
+  const attrTokenPool = createObjectPool(createAttrToken);
 
   const tokenizerOptions: ITokenizerOptions = Object.assign({}, options, {
     decodeAttr,
@@ -45,7 +45,6 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   });
 
   const handleError = (error: any): void => {
-    attrTokenPool.freeAll();
     if (onError) {
       onError(error);
     } else {
@@ -54,7 +53,6 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   };
 
   const reset = (): void => {
-    attrTokenPool.freeAll();
     buffer = '';
     offset = 0;
     try {

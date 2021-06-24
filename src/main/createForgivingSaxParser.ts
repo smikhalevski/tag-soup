@@ -1,6 +1,6 @@
 import {createSaxParser} from './createSaxParser';
 import {createTagToken} from './token-pools';
-import {createValuePool} from './createValuePool';
+import {createObjectPool} from './createObjectPool';
 import {ITagToken} from './token-types';
 import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax-parser-types';
 
@@ -23,7 +23,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     isFragment,
   } = options;
 
-  const containerTagTokenPool = createValuePool(createTagToken);
+  const containerTagTokenPool = createObjectPool(createTagToken);
   const endTagToken = createTagToken();
 
   let containerTokens: Array<ITagToken> = [];
@@ -60,7 +60,7 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
       onStartTag?.(token);
 
       if (!token.selfClosing) {
-        assignTagToken(containerTokens[depth++] ||= containerTagTokenPool.next(), token);
+        assignTagToken(containerTokens[depth++] ||= containerTagTokenPool.take(), token);
       }
     },
 
@@ -82,7 +82,6 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     },
 
     onReset() {
-      containerTagTokenPool.freeAll();
       containerTokens.length = depth = 0;
       onReset?.();
     },

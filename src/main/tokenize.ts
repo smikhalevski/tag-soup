@@ -1,6 +1,6 @@
 import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {CharCode, Rewriter} from './parser-utils';
-import {IValuePool} from './createValuePool';
+import {IObjectPool} from './createObjectPool';
 import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
 import {DataTokenCallback, ISaxParserOptions} from './sax-parser-types';
 
@@ -88,7 +88,7 @@ const takeCdataSection = seq(text('<![CDATA['), untilText(']]>', true, true));
 const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true));
 
 export interface IAttrTokenizerOptions {
-  attrTokenPool: IValuePool<IAttrToken>;
+  attrTokenPool: IObjectPool<IAttrToken>;
   decodeAttr?: Rewriter;
   renameAttr?: Rewriter;
 }
@@ -123,7 +123,7 @@ export function tokenizeAttrs(str: string, index: number, offset: number, attrs:
       break;
     }
 
-    const attrToken = attrs[attrCount] = attrTokenPool.next();
+    const attrToken = attrs[attrCount] = attrTokenPool.take();
     const rawName = str.substring(k, j);
 
     attrToken.rawName = rawName;
@@ -194,7 +194,7 @@ export interface ITokenizerOptions extends ISaxParserOptions {
   startTagToken: IStartTagToken;
   endTagToken: ITagToken;
   dataToken: IDataToken;
-  attrTokenPool: IValuePool<IAttrToken>;
+  attrTokenPool: IObjectPool<IAttrToken>;
 }
 
 /**
@@ -327,7 +327,9 @@ export function tokenize(str: string, streaming: boolean, offset: number, option
         onStartTag?.(startTagToken);
         i = k;
 
-        attrTokenPool.freeAll();
+        for (let i = 0; i < attrs.length; i++) {
+          attrTokenPool.free(attrs[i]);
+        }
         continue;
       }
     }
