@@ -2,7 +2,7 @@ import {createFromCharCode, IFromCharCodeOptions} from './createFromCharCode';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createForgivingSaxParser} from './createForgivingSaxParser';
-import {clearPrototype, lowerCase} from './parser-utils';
+import {lowerCase, toMap, toSet} from './utils';
 import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax-parser-types';
 
 export interface IHtmlSaxParserDialectOptions extends IFromCharCodeOptions {
@@ -57,9 +57,9 @@ export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser 
     decodeAttr: htmlAttrDecoder,
     decodeText: htmlTextDecoder,
 
-    isTextContent: (token) => textTagMap[token.name] === 1,
-    isVoidContent: (token) => voidTagMap[token.name] === 1,
-    isImplicitEnd: xhtmlEnabled ? undefined : (containerToken, token) => implicitEndMap[containerToken.name]?.[token.name] === 1,
+    isTextContent: (token) => textTags.has(token.name),
+    isVoidContent: (token) => voidTags.has(token.name),
+    isImplicitEnd: xhtmlEnabled ? undefined : (containerToken, token) => implicitEndMap.get(containerToken.name)?.has(token.name) === true,
 
     renameTag: lowerCase,
   };
@@ -67,92 +67,60 @@ export function createHtmlSaxParser(options: IHtmlSaxParserOptions): ISaxParser 
   return createForgivingSaxParser(Object.assign({}, options, saxParserOptions));
 }
 
-const voidTagMap = clearPrototype<Record<string, 1>>({
-  area: 1,
-  base: 1,
-  basefont: 1,
-  br: 1,
-  col: 1,
-  command: 1,
-  embed: 1,
-  frame: 1,
-  hr: 1,
-  img: 1,
-  input: 1,
-  isindex: 1,
-  keygen: 1,
-  link: 1,
-  meta: 1,
-  param: 1,
-  source: 1,
-  track: 1,
-  wbr: 1,
-});
+const voidTags = toSet('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');
 
-const textTagMap = clearPrototype<Record<string, 1>>({
-  script: 1,
-  style: 1,
-  textarea: 1,
-});
+const textTags = toSet('script style textarea');
 
-const formTagMap = clearPrototype<Record<string, 1>>({
-  input: 1,
-  option: 1,
-  optgroup: 1,
-  select: 1,
-  button: 1,
-  datalist: 1,
-  textarea: 1,
-});
+const formTags = toSet('input option optgroup select button datalist textarea');
 
-const pTagMap = clearPrototype<Record<string, 1>>({p: 1});
+const pTag = toSet('p');
 
-const implicitEndMap = clearPrototype<Record<string, Record<string, 1>>>({
-  tr: clearPrototype({tr: 1, th: 1, td: 1}),
-  th: clearPrototype({th: 1}),
-  td: clearPrototype({thead: 1, th: 1, td: 1}),
-  body: clearPrototype({head: 1, link: 1, script: 1}),
-  li: clearPrototype({li: 1}),
-  option: clearPrototype({option: 1}),
-  optgroup: clearPrototype({optgroup: 1, option: 1}),
-  dd: clearPrototype({dt: 1, dd: 1}),
-  dt: clearPrototype({dt: 1, dd: 1}),
-  select: formTagMap,
-  input: formTagMap,
-  output: formTagMap,
-  button: formTagMap,
-  datalist: formTagMap,
-  textarea: formTagMap,
-  p: pTagMap,
-  h1: pTagMap,
-  h2: pTagMap,
-  h3: pTagMap,
-  h4: pTagMap,
-  h5: pTagMap,
-  h6: pTagMap,
-  address: pTagMap,
-  article: pTagMap,
-  aside: pTagMap,
-  blockquote: pTagMap,
-  details: pTagMap,
-  div: pTagMap,
-  dl: pTagMap,
-  fieldset: pTagMap,
-  figcaption: pTagMap,
-  figure: pTagMap,
-  footer: pTagMap,
-  form: pTagMap,
-  header: pTagMap,
-  hr: pTagMap,
-  main: pTagMap,
-  nav: pTagMap,
-  ol: pTagMap,
-  pre: pTagMap,
-  section: pTagMap,
-  table: pTagMap,
-  ul: pTagMap,
-  rt: clearPrototype({rt: 1, rp: 1}),
-  rp: clearPrototype({rt: 1, rp: 1}),
-  tbody: clearPrototype({thead: 1, tbody: 1}),
-  tfoot: clearPrototype({thead: 1, tbody: 1}),
+const implicitEndMap = toMap({
+  tr: toSet('tr th td'),
+  th: toSet('th'),
+  td: toSet('thead th td'),
+  body: toSet('head link script'),
+  li: toSet('li'),
+  option: toSet('option'),
+  optgroup: toSet('optgroup option'),
+  dd: toSet('dt dd'),
+  dt: toSet('dt dd'),
+  select: formTags,
+  input: formTags,
+  output: formTags,
+  button: formTags,
+  datalist: formTags,
+  textarea: formTags,
+  p: pTag,
+  h1: pTag,
+  h2: pTag,
+  h3: pTag,
+  h4: pTag,
+  h5: pTag,
+  h6: pTag,
+  address: pTag,
+  article: pTag,
+  aside: pTag,
+  blockquote: pTag,
+  details: pTag,
+  div: pTag,
+  dl: pTag,
+  fieldset: pTag,
+  figcaption: pTag,
+  figure: pTag,
+  footer: pTag,
+  form: pTag,
+  header: pTag,
+  hr: pTag,
+  main: pTag,
+  nav: pTag,
+  ol: pTag,
+  pre: pTag,
+  section: pTag,
+  table: pTag,
+  ul: pTag,
+  rt: toSet('rt rp'),
+  rp: toSet('rt rp'),
+  tbody: toSet('thead tbody'),
+  tfoot: toSet('thead tbody'),
 });

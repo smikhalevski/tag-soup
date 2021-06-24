@@ -1,5 +1,7 @@
 import {allCharBy, CharCodeChecker} from 'tokenizer-dsl';
-import {CharCode, FromCharCode, FromCharName, fromXmlCharName, Rewriter} from './parser-utils';
+import {toMap} from './utils';
+import {CharCode} from './CharCode';
+import {FromCharCode, FromCharName, Rewriter} from './decoder-types';
 
 // [0-9]
 const isNumberChar: CharCodeChecker = (c) => c >= CharCode['00'] && c <= CharCode['09'];
@@ -108,3 +110,13 @@ export function createEntitiesDecoder(options: IEntitiesDecoderOptions = {}): Re
     return str;
   };
 }
+
+const fromXmlCharName: FromCharName = (name, terminated) => terminated ? xmlEntities.get(name) : undefined;
+
+const xmlEntities = toMap({
+  amp: '&',
+  gt: '>',
+  lt: '<',
+  quot: '"',
+  apos: '\'',
+});

@@ -1,4 +1,6 @@
-import {clearPrototype, FromCharCode} from './parser-utils';
+import {FromCharCode} from './decoder-types';
+
+const fromCharCode = String.fromCharCode;
 
 export interface IFromCharCodeOptions {
 
@@ -37,57 +39,57 @@ export function createFromCharCode(options: IFromCharCodeOptions = {}): FromChar
       }
       return replacementChar;
     }
-    if (codePoint in replacementCodePoints) {
+    if (replacementCodePoints.has(codePoint)) {
       if (strict) {
         throw new Error('Disallowed character reference');
       }
-      return replacementCodePoints[codePoint];
+      return replacementCodePoints.get(codePoint);
     }
-    if (strict && errorCodePoints.includes(codePoint)) {
+    if (strict && errorCodePoints.has(codePoint)) {
       throw new Error('Disallowed character reference');
     }
     if (codePoint > 0xffff) {
       codePoint -= 0x10000;
-      return String.fromCharCode(codePoint >>> 10 & 0x3ff | 0xd800) + String.fromCharCode(0xdc00 | codePoint & 0x3ff);
+      return fromCharCode(codePoint >>> 10 & 0x3ff | 0xd800) + fromCharCode(0xdc00 | codePoint & 0x3ff);
     }
-    return String.fromCharCode(codePoint);
+    return fromCharCode(codePoint);
   };
 }
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map-overrides.json
-const replacementCodePoints = clearPrototype<Record<number, string>>({
-  0: '\ufffd',
-  128: '\u20ac',
-  130: '\u201a',
-  131: '\u0192',
-  132: '\u201e',
-  133: '\u2026',
-  134: '\u2020',
-  135: '\u2021',
-  136: '\u02c6',
-  137: '\u2030',
-  138: '\u0160',
-  139: '\u2039',
-  140: '\u0152',
-  142: '\u017d',
-  145: '\u2018',
-  146: '\u2019',
-  147: '\u201c',
-  148: '\u201d',
-  149: '\u2022',
-  150: '\u2013',
-  151: '\u2014',
-  152: '\u02dc',
-  153: '\u2122',
-  154: '\u0161',
-  155: '\u203a',
-  156: '\u0153',
-  158: '\u017e',
-  159: '\u0178',
-});
+const replacementCodePoints = new Map([
+  [0, '\ufffd'],
+  [128, '\u20ac'],
+  [130, '\u201a'],
+  [131, '\u0192'],
+  [132, '\u201e'],
+  [133, '\u2026'],
+  [134, '\u2020'],
+  [135, '\u2021'],
+  [136, '\u02c6'],
+  [137, '\u2030'],
+  [138, '\u0160'],
+  [139, '\u2039'],
+  [140, '\u0152'],
+  [142, '\u017d'],
+  [145, '\u2018'],
+  [146, '\u2019'],
+  [147, '\u201c'],
+  [148, '\u201d'],
+  [149, '\u2022'],
+  [150, '\u2013'],
+  [151, '\u2014'],
+  [152, '\u02dc'],
+  [153, '\u2122'],
+  [154, '\u0161'],
+  [155, '\u203a'],
+  [156, '\u0153'],
+  [158, '\u017e'],
+  [159, '\u0178'],
+]);
 
 // https://github.com/mathiasbynens/he/blob/master/data/invalid-character-reference-code-points.json
-const errorCodePoints = [
+const errorCodePoints = new Set([
   1,
   2,
   3,
@@ -215,4 +217,4 @@ const errorCodePoints = [
   1048575,
   1114110,
   1114111,
-];
+]);

@@ -1,4 +1,5 @@
-import {clearPrototype, FromCharName} from './parser-utils';
+import {toMap} from './utils';
+import {FromCharName} from './decoder-types';
 
 export interface IFromHtmlCharNameOptions {
 
@@ -17,15 +18,13 @@ export interface IFromHtmlCharNameOptions {
  * @see createEntitiesDecoder
  */
 export function createFromHtmlCharName(options: IFromHtmlCharNameOptions = {}): FromCharName {
-  const {
-    strict = false,
-  } = options;
+  const {strict = false} = options;
 
-  return (name, terminated) => terminated ? htmlEntities[name] : strict ? undefined : legacyHtmlEntities[name];
+  return (name, terminated) => terminated ? entityMap.get(name) : strict ? undefined : legacyEntityMap.get(name);
 }
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
-const legacyHtmlEntities = clearPrototype<Record<string, string>>({
+const legacyEntities = {
   aacute: '\u00e1',
   Aacute: '\u00c1',
   acirc: '\u00e2',
@@ -132,10 +131,10 @@ const legacyHtmlEntities = clearPrototype<Record<string, string>>({
   Yacute: '\u00dd',
   yen: '\u00a5',
   yuml: '\u00ff',
-});
+};
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
-const htmlEntities = clearPrototype<Record<string, string>>({
+const entities = {
   abreve: '\u0103',
   Abreve: '\u0102',
   ac: '\u223e',
@@ -2155,6 +2154,8 @@ const htmlEntities = clearPrototype<Record<string, string>>({
   Zscr: '\ud835\udcb5',
   zwj: '\u200d',
   zwnj: '\u200c',
-});
+};
 
-Object.assign(htmlEntities, legacyHtmlEntities);
+const legacyEntityMap = toMap(legacyEntities);
+
+const entityMap = toMap(Object.assign(entities, legacyEntities));

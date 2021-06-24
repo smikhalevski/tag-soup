@@ -1,5 +1,3 @@
-import {Maybe} from './parser-utils';
-
 export const enum DomNodeType {
   ELEMENT = 1,
   TEXT = 3,
@@ -18,7 +16,7 @@ export interface IDomNode {
 }
 
 export interface IDomAttributeMap {
-  [attrName: string]: Maybe<string>;
+  [attrName: string]: string | null | undefined;
 }
 
 export interface IDomElement extends IDomNode {

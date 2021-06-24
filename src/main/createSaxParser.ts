@@ -1,4 +1,4 @@
-import {lowerCase} from './parser-utils';
+import {lowerCase} from './utils';
 import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
 import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from './tokens';

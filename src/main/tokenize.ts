@@ -1,8 +1,9 @@
 import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
-import {CharCode, Rewriter} from './parser-utils';
 import {IObjectPool} from './createObjectPool';
 import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
 import {DataTokenCallback, ISaxParserOptions} from './sax-parser-types';
+import {CharCode} from './CharCode';
+import {Rewriter} from './decoder-types';
 
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (c) =>

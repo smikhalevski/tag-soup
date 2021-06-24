@@ -1,5 +1,5 @@
 import {IDataToken, IStartTagToken, ITagToken} from './token-types';
-import {Rewriter} from './parser-utils';
+import {Rewriter} from './decoder-types';
 
 export interface ISaxParser {
 
