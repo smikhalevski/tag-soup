@@ -62,41 +62,41 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
     }
   };
 
+  const getBuffer = () => buffer;
+
+  const write = (chunk: string) => {
+    chunk ??= '';
+    buffer += chunk;
+    try {
+      const l = tokenize(buffer, true, offset, tokenizerOptions);
+      parsedCharCount += l;
+
+      buffer = buffer.substr(l);
+      offset += l;
+      onWrite?.('' + chunk, parsedCharCount);
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const parse = (str: string) => {
+    str ??= '';
+    buffer += str;
+    try {
+      const l = tokenize(buffer, false, offset, tokenizerOptions);
+      parsedCharCount += l;
+
+      onParse?.('' + str, parsedCharCount);
+    } catch (error) {
+      handleError(error);
+    }
+    reset();
+  };
+
   return {
-
-    getBuffer() {
-      return buffer;
-    },
-
+    getBuffer,
     reset,
-
-    write(chunk) {
-      chunk ??= '';
-      buffer += chunk;
-      try {
-        const l = tokenize(buffer, true, offset, tokenizerOptions);
-        parsedCharCount += l;
-
-        buffer = buffer.substr(l);
-        offset += l;
-        onWrite?.('' + chunk, parsedCharCount);
-      } catch (error) {
-        handleError(error);
-      }
-    },
-
-    parse(chunk) {
-      chunk ??= '';
-      buffer += chunk;
-      try {
-        const l = tokenize(buffer, false, offset, tokenizerOptions);
-        parsedCharCount += l;
-
-        onParse?.('' + chunk, parsedCharCount);
-      } catch (error) {
-        handleError(error);
-      }
-      reset();
-    },
+    write,
+    parse,
   };
 }

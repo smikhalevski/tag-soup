@@ -29,20 +29,20 @@ export interface IDomParser<Node, Element extends Node = Node, Text extends Node
    * {@link write} or {@link parse} invocation. The part of chunk that was not parsed is appended to internal
    * buffer.
    *
-   * @param sourceChunk The source chunk to parse.
+   * @param chunk The source chunk to parse.
    * @returns The list of nodes that were parsed after the last call of {@link reset} or {@link parse}. The reference
    *     to the same array is returned until {@link reset} is called.
    */
-  write(sourceChunk: string): Array<Node>;
+  write(chunk: string): Array<Node>;
 
   /**
    * Parses the given source. If there's a leftover in the buffer after the last {@link write} call it is also used
    * for parsing. Parser is reset after this method completes.
    *
-   * @param source The source to parse.
+   * @param str The source to parse.
    * @returns The list of all nodes that were parsed.
    */
-  parse(source?: string): Array<Node>;
+  parse(str?: string): Array<Node>;
 }
 
 /**

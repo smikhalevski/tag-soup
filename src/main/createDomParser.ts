@@ -78,24 +78,24 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     nodes = [];
   };
 
+  const getBuffer = () => saxParser.getBuffer();
+
+  const write = (chunk: string) => {
+    saxParser.write(chunk);
+    return nodes;
+  };
+
+  const parse = (str: string) => {
+    saxParser.parse(str);
+    const result = nodes;
+    reset();
+    return result;
+  };
+
   return {
-
-    getBuffer() {
-      return saxParser.getBuffer();
-    },
-
+    getBuffer,
     reset,
-
-    write(str) {
-      saxParser.write(str);
-      return nodes;
-    },
-
-    parse(str) {
-      saxParser.parse(str);
-      const result = nodes;
-      reset();
-      return result;
-    },
+    write,
+    parse,
   };
 }

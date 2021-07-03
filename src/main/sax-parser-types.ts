@@ -18,17 +18,17 @@ export interface ISaxParser {
    * next {@link write} or {@link parse} invocation. The part of chunk that was not parsed is appended to an internal
    * buffer.
    *
-   * @param sourceChunk The source chunk to parse.
+   * @param chunk The source chunk to parse.
    */
-  write(sourceChunk: string): void;
+  write(chunk: string): void;
 
   /**
    * Parses the given source. If there's a leftover in the buffer after the last {@link write} call it is also used
    * for parsing. Parser is reset after this method completes.
    *
-   * @param source The source to parse.
+   * @param str The source to parse.
    */
-  parse(source?: string): void;
+  parse(str?: string): void;
 }
 
 export interface ISaxParserOptions extends ISaxParserDialectOptions, ISaxParserCallbacks {
