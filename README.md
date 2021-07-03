@@ -131,10 +131,10 @@ import * as TagSoup from 'tag-soup/lib/html';
 This would require a 16 kB (gzipped) bundle with:
 
 - Everything from XML bundle;
-- Support of implicit void tags like `<img>`;
-- Support all HTML entities (even legacy ones);
-- Decode complex codepoints in numeric XML entities;
-- Support implicit tag closing in TagSoup (like for `<p>foo<p>bar` which is `<p>foo</p><p>bar</p>`);
+- SAX/DOM HTML parsing;
+- Support of HTML implicit void tags like `<img>`;
+- Support of HTML entities;
+- Support of implicit HTML tag closing (like for `<p>foo<p>bar` which is `<p>foo</p><p>bar</p>`);
 - Preconfigured Cheerio-compatible HTML DOM parser.
 
 ## Limitations
