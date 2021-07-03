@@ -179,7 +179,7 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    * Determines whether the tag cannot have any content.
    *
    * @param token The start tag token.
-   * @returns If `true` than the tag would be treated as self-closing even if it isn't marked up as such.
+   * @returns `true` if the tag would be treated as self-closing even if it isn't marked up as such.
    */
   isVoidContent?: (token: IStartTagToken) => boolean;
 
@@ -189,8 +189,8 @@ export interface IForgivingSaxParserDialectOptions extends ISaxParserDialectOpti
    *
    * @param containerToken The token of the currently opened container tag.
    * @param token The token of the start tag that was read.
-   * @returns If `true` than start tag `token` should implicitly close the currently opened container `containerToken`.
-   *     This would cause that {@link onEndTag} would be triggered for `containerToken` before {@link onStartTag} with
+   * @returns `true` if start tag `token` should implicitly close the currently opened container `containerToken`. This
+   *     would cause that {@link onEndTag} would be triggered for `containerToken` before {@link onStartTag} with
    *     `token`.
    */
   isImplicitEnd?: (containerToken: ITagToken, token: IStartTagToken) => boolean;
