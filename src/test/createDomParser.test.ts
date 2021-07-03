@@ -47,7 +47,6 @@ describe('createDomParser', () => {
       createElement: domParserOptions.createElement,
       appendChild: domParserOptions.appendChild,
       saxParserFactory: saxParserFactoryMock,
-      foo: 'bar',
     };
 
     createDomParser(options).parse('<a></a>');
