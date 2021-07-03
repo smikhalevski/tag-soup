@@ -7,8 +7,6 @@ const parse5 = require('parse5');
 const {createSaxParser, createForgivingSaxParser, createXmlDomParser} = require('../../lib/index-cjs');
 const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/html-cjs');
 
-const gc = global.gc || (() => undefined);
-
 const saxBenchDuration = 10_000;
 const domBenchDuration = 10_000;
 
@@ -24,31 +22,21 @@ const tagSoupSaxParser = createSaxParser({});
 const tagSoupSaxParserResult = bench(() => tagSoupSaxParser.parse(html), null, saxBenchDuration);
 console.log('createSaxParser          ', tagSoupSaxParserResult);
 
-gc();
-
 const tagSoupForgivingSaxParser = createForgivingSaxParser({});
 const tagSoupForgivingSaxParserResult = bench(() => tagSoupForgivingSaxParser.parse(html), null, saxBenchDuration);
 console.log('createForgivingSaxParser ', tagSoupForgivingSaxParserResult);
-
-gc();
 
 const tagSoupHtmlSaxParser = createHtmlSaxParser({});
 const tagSoupHtmlSaxParserResult = bench(() => tagSoupHtmlSaxParser.parse(html), null, saxBenchDuration);
 console.log('createHtmlSaxParser      ', tagSoupHtmlSaxParserResult);
 
-gc();
-
 const htmlparser2SaxParser = new htmlparser2.Parser({});
 const htmlparser2SaxParserResult = bench(() => htmlparser2SaxParser.end(html), null, saxBenchDuration);
 console.log('htmlparser2              ', htmlparser2SaxParserResult);
 
-gc();
-
 const saxParser = sax.parser();
 const saxParserResult = bench(() => saxParser.write(html), null, saxBenchDuration);
 console.log('sax                      ', saxParserResult);
-
-gc();
 
 console.log(`
 createSaxParser
@@ -66,19 +54,13 @@ const tagSoupXmlDomParser = createXmlDomParser({});
 const tagSoupXmlDomResult = bench(() => tagSoupXmlDomParser.parse(html), null, domBenchDuration);
 console.log('createXmlDomParser  ', tagSoupXmlDomResult);
 
-gc();
-
 const tagSoupHtmlDomParser = createHtmlDomParser({});
 const tagSoupHtmlDomParserResult = bench(() => tagSoupHtmlDomParser.parse(html), null, domBenchDuration);
 console.log('createHtmlDomParser ', tagSoupHtmlDomParserResult);
 
-gc();
-
 const htmlparser2DomParser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
 const htmlparser2DomParserResult = bench(() => htmlparser2DomParser.end(html), null, domBenchDuration);
 console.log('htmlparser2         ', htmlparser2DomParserResult);
-
-gc();
 
 const parse5ParserResult = bench(() => parse5.parse(html), null, domBenchDuration);
 console.log('parse5              ', parse5ParserResult);
