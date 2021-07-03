@@ -1,8 +1,6 @@
 # TagSoup [![build](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml/badge.svg?branch=master&event=push)](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml)
 
-TagSoup is [the fastest](#performance) pure JS SAX/DOM HTML/XML parser.
-
-## Why use TagSoup?
+TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser.
 
 - [It is the fastest](#performance);
 - [It is the tiniest, just 3 kB gzipped](https://bundlephobia.com/result?p=tag-soup) for XML parsing and 16 kB gzipped for HTML parsing;
@@ -12,105 +10,107 @@ TagSoup is [the fastest](#performance) pure JS SAX/DOM HTML/XML parser.
 - Parses HTML attributes in the same way your browser does;
 - Recognizes CDATA, processing instructions, and DOCTYPE;
 
+```sh
+npm install --save-prod @smikhalevski/tiny-router
+```
+
 ## Documentation
 
 [API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
 
-Parsing XML SAX
-```js
-const TagSoup = require('tag-soup');
+### XML Streaming
 
-const parser = TagSoup.createForgivingSaxParser({
-  onStartTag(tagName, attrs, selfClosing, start, end) {
-    // Process start tag here
+```ts
+import * as TagSoup from 'tag-soup';
+
+const xmlParser = TagSoup.createForgivingSaxParser({
+
+  onStartTag(token) {
+    console.log(token); // → {name: 'foo', …} 
   },
-  onEndTag(tagName, start, end) {
-    // Process end tag here
-  },
-});
-parser.parse('<foo>okay');
-```
 
-Parsing XML DOM
-```js
-const TagSoup = require('tag-soup');
-
-const parser = TagSoup.createXmlDomParser();
-const dom = parser.parse('<foo>okay');
-
-console.log(dom[0].children[0].data); // → 'okay'
-```
-
-Parsing HTML SAX
-```js
-const TagSoup = require('tag-soup/lib/html');
-
-const parser = TagSoup.createHtmlSaxParser({
-  onStartTag(tagName, attrs, selfClosing, start, end) {
-    // Process start tag here
-  },
-  onEndTag(tagName, start, end) {
-    // Process end tag here
+  onEndTag(token) {
+    console.log(token); // → {data: 'okay', …} 
   },
 });
-parser.parse('<script>console.log("<foo></foo>")</script>');
+
+xmlParser.parse('<foo>okay');
 ```
 
-Parsing HTML DOM
+### XML DOM
+
+```ts
+import * as TagSoup from 'tag-soup';
+
+const xmlParser = TagSoup.createXmlDomParser();
+
+const domNode = xmlParser.parse('<foo>okay');
+
+console.log(domNode[0].children[0].data); // → 'okay'
+```
+
+### HTML Streaming
+
+```ts
+import * as TagSoup from 'tag-soup/lib/html';
+
+const htmlParser = TagSoup.createHtmlSaxParser({
+
+  onStartTag(token) {
+    console.log(token); // → {name: 'script', …} 
+  },
+
+  onEndTag(token) {
+    console.log(token); // → {data: 'console.log("<foo></foo>")', …} 
+  },
+});
+
+htmlParser.parse('<script>console.log("<foo></foo>")</script>');
+```
+
+### HTML DOM
+
 ```js
-const TagSoup = require('tag-soup/lib/html');
+import * as TagSoup from 'tag-soup/lib/html';
 
-const parser = TagSoup.createHtmlDomParser();
-const dom = parser.parse('<script>console.log("<foo></foo>")</script>');
+const htmlParser = TagSoup.createHtmlDomParser();
 
-console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
+const domNode = htmlParser.parse('<script>console.log("<foo></foo>")</script>');
+
+console.log(domNode[0].children[0].data); // → 'console.log("<foo></foo>")'
 ```
 
 ## Performance
 
-Performance was measured for 3.81 MB HTML file.
-
-SAX parser benchmark
-
-```
-createSaxParser      31 ops/sec ±0.54% (277 samples)
-createHtmlSaxParser  21 ops/sec ±0.89% (194 samples)
-htmlparser2          15 ops/sec ±0.87% (132 samples)
-sax                  1 ops/sec ±54.91% (10 samples)
-
-createSaxParser
-  2.1✕ faster than htmlparser2
-  22.5✕ faster than sax
-
-createHtmlSaxParser
-  1.5✕ faster than htmlparser2
-  15.8✕ faster than sax
-```
-
-DOM parser benchmark
-```
-createXmlDomParser   7 ops/sec ±59.96% (74 samples)
-createHtmlDomParser  8 ops/sec ±51.76% (72 samples)
-htmlparser2          4 ops/sec ±59.91% (43 samples)
-parse5               1 ops/sec ±56.04% (5 samples)
-
-createXmlDomParser
-  1.8✕ faster than htmlparser2
-  10.2✕ faster than parse5
-
-createHtmlDomParser
-  2.1✕ faster htmlparser2
-  12.0✕ faster than parse5
-```
+Performance was measured when parsing [3.81 MB HTML file](./src/test/test.html).
 
 To run a performance test use `npm run build; npm run perf`.
+
+### Streaming
+
+| Parser  | Ops/sec | Samples |
+| --- | --- | --- |
+| `createSaxParser` | 31 ± 0.54% | 277 |
+| `createHtmlSaxParser` | 21 ± 0.89% | 194 |
+| [htmlparser2](https://github.com/fb55/htmlparser2) | 15 ± 0.87% | 132 |
+| [sax js](https://github.com/isaacs/sax-js) | 1 ± 54.91% | 10 |
+
+### DOM
+
+| Parser  | Ops/sec | Samples |
+| --- | --- | --- |
+| `createSaxParser` | 7 ± 59.96% | 74 |
+| `createHtmlSaxParser` | 8 ± 51.76% | 72 |
+| [htmlparser2](https://github.com/fb55/htmlparser2) | 4 ± 59.91% | 43 |
+| [Parse5](https://github.com/inikulin/parse5) | 1 ± 56.04% | 5 |
 
 
 ## Bundle size
 
-For XML parsing use
+### XML parsing
+
 ```ts
-const TagSoup = require('tag-soup');
+import * as TagSoup from 'tag-soup';
 ```  
 
 This would require a 3 kB (gzipped) bundle with: 
@@ -120,9 +120,10 @@ This would require a 3 kB (gzipped) bundle with:
 - Preconfigured Cheerio-compatible XML DOM parser.
 
 
-For HTML parsing use
+### HTML parsing
+
 ```ts
-const TagSoup = require('tag-soup/lib/html');
+import * as TagSoup from 'tag-soup/lib/html';
 ```  
 
 This would require a 16 kB (gzipped) bundle with: 
