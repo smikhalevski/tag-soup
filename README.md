@@ -99,8 +99,8 @@ To run a performance test use `npm run build; npm run perf`.
 
 | Parser  | Ops/sec | Samples |
 | --- | --- | --- |
-| `createSaxParser` | 7 ± 59.96% | 74 |
-| `createHtmlSaxParser` | 8 ± 51.76% | 72 |
+| `createXmlDomParser` | 7 ± 59.96% | 74 |
+| `createHtmlDomParser` | 8 ± 51.76% | 72 |
 | [htmlparser2](https://github.com/fb55/htmlparser2) | 4 ± 59.91% | 43 |
 | [Parse5](https://github.com/inikulin/parse5) | 1 ± 56.04% | 5 |
 
