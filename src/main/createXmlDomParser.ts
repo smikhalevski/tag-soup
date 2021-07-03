@@ -1,7 +1,7 @@
 import {createDomParser} from './createDomParser';
 import {IDataToken} from './token-types';
 import {IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './dom-parser-types';
-import {DomNodeType, IDomAttributeMap, IDomElement, IDomNode, IDomText} from './dom-types';
+import {DomNodeType, IDomAttrMap, IDomElement, IDomNode, IDomText} from './dom-types';
 
 function createDomNode(nodeType: number, token: IDataToken): IDomNode {
   return {
@@ -16,7 +16,7 @@ function createDomNode(nodeType: number, token: IDataToken): IDomNode {
 const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElement, IDomText> = {
 
   createElement(token) {
-    const attrMap: IDomAttributeMap = {};
+    const attrMap: IDomAttrMap = {};
     for (let i = 0, l = token.attrs.length; i < l; i++) {
       const attr = token.attrs[i];
       attrMap[attr.name] = attr.value;

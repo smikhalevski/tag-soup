@@ -1,7 +1,7 @@
 import {createXmlDomParser} from '../main/createXmlDomParser';
-import {DomNodeType, IDomAttributeMap, IDomElement, IDomNode, IDomText} from '../main/dom-types';
+import {DomNodeType, IDomAttrMap, IDomElement, IDomNode, IDomText} from '../main/dom-types';
 
-export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: IDomAttributeMap = {}, children: Array<IDomNode> = []): IDomElement {
+export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: IDomAttrMap = {}, children: Array<IDomNode> = []): IDomElement {
 
   const el: IDomElement = {
     nodeType: DomNodeType.ELEMENT,

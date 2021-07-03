@@ -15,14 +15,14 @@ export interface IDomNode {
   data?: string;
 }
 
-export interface IDomAttributeMap {
+export interface IDomAttrMap {
   [attrName: string]: string | null | undefined;
 }
 
 export interface IDomElement extends IDomNode {
   nodeType: DomNodeType.ELEMENT;
   tagName: string;
-  attrs: IDomAttributeMap;
+  attrs: IDomAttrMap;
   selfClosing: boolean;
   children: Array<IDomNode>;
 }
