@@ -83,7 +83,7 @@ console.log(domNode[0].children[0].data); // → 'console.log("<foo></foo>")'
 
 ## Performance
 
-Performance was measured when parsing [3.81 MB HTML file](./src/test/test.html).
+Performance was measured in node@14.15.5 when parsing [3.81 MB HTML file](./src/test/test.html).
 
 To run a performance test use `npm run build; npm run perf`.
 
