@@ -55,10 +55,6 @@ export interface IDomParser<Node, Element extends Node = Node, Text extends Node
 export interface IDomParserOptions<Node, Element extends Node, Text extends Node> extends IDomParserDialectOptions<Element>, IDomParserFactoryCallbacks<Node, Element, Text> {
 }
 
-export interface ICustomSaxParserOptions extends ISaxParserOptions {
-  [saxParserOption: string]: any;
-}
-
 export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDialectOptions {
 
   /**
@@ -69,13 +65,7 @@ export interface IDomParserDialectOptions<Element> extends IForgivingSaxParserDi
    *
    * @default {@link createForgivingSaxParser}
    */
-  saxParserFactory?: (options: ICustomSaxParserOptions) => ISaxParser;
-
-  /**
-   * If you use your custom implementation of the SAX parser with {@link saxParserFactory}, you can provide additional
-   * options to it using this indexer.
-   */
-  [saxParserOption: string]: unknown;
+  saxParserFactory?: (options: ISaxParserOptions) => ISaxParser;
 }
 
 /**
