@@ -54,7 +54,7 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
 
   const reset = (): void => {
     buffer = '';
-    offset = 0;
+    offset = parsedCharCount = 0;
     try {
       onReset?.();
     } catch (error) {
