@@ -10,9 +10,9 @@
   "scripts": {
     "build": "set -e; npm run tsc; npm run rollup; npm run terser",
     "tsc": "tsc --module commonjs",
-    "rollup": "for p in ./src/main/{index,html}.ts; do rollup --input $p --dir ./lib --format cjs --plugin @rollup/plugin-typescript; done",
-    "terser": "for p in ./lib/{index,html}.js; do terser --compress --mangle toplevel --output $p -- $p; done",
-    "clean": "rm -rf ./{lib,docs}",
+    "rollup": "for p in ./src/main/index.ts ./src/main/html.ts; do rollup --input $p --dir ./lib --format cjs --plugin @rollup/plugin-typescript; done",
+    "terser": "for p in ./lib/index.js ./lib/html.js; do terser --compress --mangle toplevel --output $p -- $p; done",
+    "clean": "rm -rf ./lib ./docs",
     "test": "jest",
     "perf": "node --max-old-space-size=4096 ./src/test/perf.js",
     "docs": "typedoc ./src/main/html.ts",
