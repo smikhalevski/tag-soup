@@ -80,12 +80,12 @@ export interface IDomParserFactoryCallbacks<Node, Element extends Node, Text ext
    *
    * @see onContainerEnd
    */
-  createElement(token: IStartTagToken): Element;
+  createElement: (token: IStartTagToken) => Element;
 
   /**
    * Appends `childNode` as the last child to an `element`.
    */
-  appendChild(element: Element, childNode: Node): void;
+  appendChild: (element: Element, childNode: Node) => void;
 
   /**
    * Triggered when the end tag of the container was fully read from source.
