@@ -13,7 +13,7 @@
     "build": "set -e; tsc; npm run rollup; npm run terser",
     "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve; done",
     "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js; do terser --compress --mangle toplevel --output $p -- $p; done",
-    "clean": "rm -rf ./{lib,docs}",
+    "clean": "rm -rf ./lib ./docs",
     "test": "jest --detectOpenHandles",
     "perf": "node --expose-gc --max-old-space-size=4096 ./src/test/perf.js",
     "docs": "typedoc ./src/main/html.ts",
