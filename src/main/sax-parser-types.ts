@@ -66,18 +66,18 @@ export interface ISaxParserDialectOptions {
   selfClosingEnabled?: boolean;
 
   /**
-   * Decodes XML entities in an attribute value. By default, only XML entities are decoded.
-   *
-   * @see createEntitiesDecoder
-   */
-  decodeAttr?: Rewriter;
-
-  /**
    * Decodes XML entities in plain text value. By default, only XML entities are decoded.
    *
    * @see createEntitiesDecoder
    */
   decodeText?: Rewriter;
+
+  /**
+   * Decodes XML entities in an attribute value. By default, uses rewriter from {@link decodeText}.
+   *
+   * @see createEntitiesDecoder
+   */
+  decodeAttr?: Rewriter;
 
   /**
    * Rewrites tag name. By default, in XML mode tags aren't renamed while in non-XML mode tags are converted to lower

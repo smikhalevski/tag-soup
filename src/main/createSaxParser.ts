@@ -15,8 +15,8 @@ const xmlDecoder = createEntitiesDecoder();
 export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   const {
     xmlEnabled,
-    decodeAttr = xmlDecoder,
     decodeText = xmlDecoder,
+    decodeAttr = decodeText,
     renameTag = xmlEnabled ? undefined : lowerCase,
     renameAttr = xmlEnabled ? undefined : lowerCase,
 
