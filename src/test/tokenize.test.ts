@@ -1,24 +1,62 @@
-import {IAttrTokenizerOptions, ITokenizerOptions, tokenize, tokenizeAttrs} from '../main/tokenize';
-import {cloneDeep} from 'lodash';
+import {ITokenizerOptions, tokenize, tokenizeAttributes} from '../main/tokenize';
 import {createObjectPool} from '../main/createObjectPool';
-import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from '../main/tokens';
-import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
+import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from '../main/tokens';
+import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
+import {IParserOptions, IXmlSaxHandler} from '../main/parser-types';
+import {cloneDeep} from 'lodash';
 
-describe('tokenizeAttrs', () => {
+const startTagMock = jest.fn();
+const endTagMock = jest.fn();
+const textMock = jest.fn();
+const commentMock = jest.fn();
+const processingInstructionMock = jest.fn();
+const cdataMock = jest.fn();
+const doctypeMock = jest.fn();
 
-  let attrs: Array<IAttrToken>;
+let tokenizerOptions: ITokenizerOptions;
+let parserOptions: IParserOptions;
 
-  const attrTokenizerOptions: IAttrTokenizerOptions = {
-    attrTokenPool: createObjectPool(createAttrToken),
+let handler: IXmlSaxHandler = {
+  startTag: (token) => startTagMock(cloneDeep(token)),
+  endTag: (token) => endTagMock(cloneDeep(token)),
+  text: (token) => textMock(cloneDeep(token)),
+  comment: (token) => commentMock(cloneDeep(token)),
+  doctype: (token) => doctypeMock(cloneDeep(token)),
+  error: () => undefined,
+  processingInstruction: (token) => processingInstructionMock(cloneDeep(token)),
+  cdata: (token) => cdataMock(cloneDeep(token)),
+};
+
+beforeEach(() => {
+  tokenizerOptions = {
+    startTagTokenPool: createObjectPool(createStartTagToken),
+    endTagToken: createTagToken(),
+    dataToken: createDataToken(),
+    attributeTokenPool: createObjectPool(createAttributeToken),
   };
 
+  parserOptions = {};
+
+  startTagMock.mockReset();
+  endTagMock.mockReset();
+  textMock.mockReset();
+  commentMock.mockReset();
+  processingInstructionMock.mockReset();
+  cdataMock.mockReset();
+  doctypeMock.mockReset();
+});
+
+describe('tokenizeAttributes', () => {
+
+  let attributes: Array<IAttributeToken>;
+
   beforeEach(() => {
-    attrs = [];
+    attributes = [];
   });
 
-  it('reads a double quoted attr', () => {
-    expect(tokenizeAttrs('aaa="111"', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads a double quoted attribute', () => {
+    expect(tokenizeAttributes('aaa="111"', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -35,9 +73,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads a single quoted attr', () => {
-    expect(tokenizeAttrs('aaa=\'111\'', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads a single quoted attribute', () => {
+    expect(tokenizeAttributes('aaa=\'111\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -54,9 +92,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads an unquoted attr', () => {
-    expect(tokenizeAttrs('aaa=111', 0, 0, attrs, attrTokenizerOptions)).toBe(7);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads an unquoted attribute', () => {
+    expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -73,9 +111,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads mixed attrs separated by spaces', () => {
-    expect(tokenizeAttrs('aaa=111 bbb="222" ccc=\'333\'', 0, 0, attrs, attrTokenizerOptions)).toBe(27);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads mix of quoted attributes separated by spaces', () => {
+    expect(tokenizeAttributes('aaa=111 bbb="222" ccc=\'333\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(27);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -118,9 +156,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads quoted attrs separated by slashes', () => {
-    expect(tokenizeAttrs('aaa="111"//bbb=\'222\'//', 0, 0, attrs, attrTokenizerOptions)).toBe(20);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads quoted attributes separated by slashes', () => {
+    expect(tokenizeAttributes('aaa="111"//bbb=\'222\'//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(20);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -150,9 +188,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads non-separated quoted attrs', () => {
-    expect(tokenizeAttrs('aaa="111"bbb=\'222\'', 0, 0, attrs, attrTokenizerOptions)).toBe(18);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads non-separated quoted attributes', () => {
+    expect(tokenizeAttributes('aaa="111"bbb=\'222\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(18);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -182,9 +220,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads an attr without the value', () => {
-    expect(tokenizeAttrs('aaa', 0, 0, attrs, attrTokenizerOptions)).toBe(3);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads an attribute without the value', () => {
+    expect(tokenizeAttributes('aaa', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(3);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -201,9 +239,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads a attr with an equals char and without the value', () => {
-    expect(tokenizeAttrs('aaa=', 0, 0, attrs, attrTokenizerOptions)).toBe(4);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads an attribute with an equals char and without the value', () => {
+    expect(tokenizeAttributes('aaa=', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(4);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -220,9 +258,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats the slash char as the whitespace in the attr name', () => {
-    expect(tokenizeAttrs('aaa/bbb="222"', 0, 0, attrs, attrTokenizerOptions)).toBe(13);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats the slash char as the whitespace in the attribute name', () => {
+    expect(tokenizeAttributes('aaa/bbb="222"', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(13);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -253,8 +291,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('ignores leading slashes', () => {
-    expect(tokenizeAttrs('//aaa=111', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes('//aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -272,8 +310,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('ignores leading space chars', () => {
-    expect(tokenizeAttrs(' \taaa=111', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes(' \taaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -290,9 +328,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('trailing slashes are the part of the unquoted attr value', () => {
-    expect(tokenizeAttrs('aaa=111//', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('trailing slashes are the part of the unquoted attribute value', () => {
+    expect(tokenizeAttributes('aaa=111//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -310,8 +348,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('trailing slashes are treated as an unquoted value', () => {
-    expect(tokenizeAttrs('aaa=//', 0, 0, attrs, attrTokenizerOptions)).toBe(6);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes('aaa=//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(6);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -329,8 +367,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('trailing slashes after the quoted value are ignored', () => {
-    expect(tokenizeAttrs('aaa="111"//', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes('aaa="111"//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -348,8 +386,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('trailing slash without the preceding equals char is ignored', () => {
-    expect(tokenizeAttrs('aaa/', 0, 0, attrs, attrTokenizerOptions)).toBe(3);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes('aaa/', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(3);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -366,9 +404,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('ignores training spaces', () => {
-    expect(tokenizeAttrs('aaa=111  ', 0, 0, attrs, attrTokenizerOptions)).toBe(7);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('ignores trailing spaces', () => {
+    expect(tokenizeAttributes('aaa=111  ', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -386,8 +424,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('ignores spaces around the equals char', () => {
-    expect(tokenizeAttrs('aaa  =  111', 0, 0, attrs, attrTokenizerOptions)).toBe(11);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes('aaa  =  111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -404,9 +442,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats the equals char as the part of the attr value', () => {
-    expect(tokenizeAttrs('aaa=111=111', 0, 0, attrs, attrTokenizerOptions)).toBe(11);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats the equals char as the part of the attribute value', () => {
+    expect(tokenizeAttributes('aaa=111=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -423,9 +461,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats the quote char as the part of the attr value', () => {
-    expect(tokenizeAttrs('aaa=111"111', 0, 0, attrs, attrTokenizerOptions)).toBe(11);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats the quote char as the part of the attribute value', () => {
+    expect(tokenizeAttributes('aaa=111"111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -442,9 +480,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats single quot as the part of attr value', () => {
-    expect(tokenizeAttrs('aaa=111\'111', 0, 0, attrs, attrTokenizerOptions)).toBe(11);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats single quot as the part of the attribute value', () => {
+    expect(tokenizeAttributes('aaa=111\'111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -461,9 +499,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats slash followed by the equals char as the part of the attr value', () => {
-    expect(tokenizeAttrs('aaa=111/=111 bbb=222', 0, 0, attrs, attrTokenizerOptions)).toBe(20);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats slash followed by the equals char as the part of the attribute value', () => {
+    expect(tokenizeAttributes('aaa=111/=111 bbb=222', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(20);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -493,9 +531,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats leading quotes as the part of the attr name', () => {
-    expect(tokenizeAttrs('""""aaa=111', 0, 0, attrs, attrTokenizerOptions)).toBe(11);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats leading quotes as the part of the attribute name', () => {
+    expect(tokenizeAttributes('""""aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: '""""aaa',
         name: '""""aaa',
@@ -512,9 +550,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('treats trailing quotes as the part of the attr name', () => {
-    expect(tokenizeAttrs('aaa=""""""bbb=222', 0, 0, attrs, attrTokenizerOptions)).toBe(17);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('treats trailing quotes as the part of the attribute name', () => {
+    expect(tokenizeAttributes('aaa=""""""bbb=222', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(17);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -544,9 +582,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads the attr with the weird name', () => {
-    expect(tokenizeAttrs('@#$%*=000', 0, 0, attrs, attrTokenizerOptions)).toBe(9);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads the attribute with the weird name', () => {
+    expect(tokenizeAttributes('@#$%*=000', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: '@#$%*',
         name: '@#$%*',
@@ -563,9 +601,9 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('reads the attr that starts with the less-than char', () => {
-    expect(tokenizeAttrs('<=000', 0, 0, attrs, attrTokenizerOptions)).toBe(5);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('reads the attribute that starts with the less-than char', () => {
+    expect(tokenizeAttributes('<=000', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(5);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: '<',
         name: '<',
@@ -583,13 +621,15 @@ describe('tokenizeAttrs', () => {
   });
 
   it('does not read after the greater-than char', () => {
-    expect(tokenizeAttrs('  >aaa=111', 0, 0, attrs, attrTokenizerOptions)).toBe(0);
-    expect(attrs).toEqual<Array<IAttrToken>>([]);
+    expect(tokenizeAttributes('  >aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(0);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[]);
   });
 
-  it('decodes the value', () => {
-    expect(tokenizeAttrs('aaa=111', 0, 0, attrs, {...attrTokenizerOptions, decodeAttr: () => '222222'})).toBe(7);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('decodes the attribute value', () => {
+    parserOptions.decodeAttribute = () => '222222';
+
+    expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -606,9 +646,11 @@ describe('tokenizeAttrs', () => {
     ]);
   });
 
-  it('renames the attr', () => {
-    expect(tokenizeAttrs('aaa=111', 0, 0, attrs, {...attrTokenizerOptions, renameAttr: () => 'bbbbbb'})).toBe(7);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+  it('renames the attribute', () => {
+    parserOptions.renameAttribute = () => 'bbbbbb';
+
+    expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'bbbbbb',
@@ -626,8 +668,8 @@ describe('tokenizeAttrs', () => {
   });
 
   it('respects offset', () => {
-    expect(tokenizeAttrs('aaa=111', 0, 5, attrs, attrTokenizerOptions)).toBe(7);
-    expect(attrs).toEqual<Array<IAttrToken>>([
+    expect(tokenizeAttributes('aaa=111', 0, 5, attributes, tokenizerOptions, parserOptions)).toBe(7);
+    expect(attributes).toEqual(<Array<IAttributeToken>>[
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -647,46 +689,13 @@ describe('tokenizeAttrs', () => {
 
 describe('tokenize', () => {
 
-  const onStartTagMock = jest.fn();
-  const onEndTagMock = jest.fn();
-  const onTextMock = jest.fn();
-  const onCommentMock = jest.fn();
-  const onProcessingInstructionMock = jest.fn();
-  const onCdataSectionMock = jest.fn();
-  const onDocumentTypeMock = jest.fn();
-
-  const tokenizerOptions: ITokenizerOptions = {
-    onStartTag: (token) => onStartTagMock(cloneDeep(token)),
-    onEndTag: (token) => onEndTagMock(cloneDeep(token)),
-    onText: (token) => onTextMock(cloneDeep(token)),
-    onComment: (token) => onCommentMock(cloneDeep(token)),
-    onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
-    onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
-    onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
-
-    startTagToken: createStartTagToken(),
-    endTagToken: createTagToken(),
-    dataToken: createDataToken(),
-    attrTokenPool: createObjectPool(createAttrToken),
-  };
-
-  beforeEach(() => {
-    onStartTagMock.mockReset();
-    onEndTagMock.mockReset();
-    onTextMock.mockReset();
-    onCommentMock.mockReset();
-    onProcessingInstructionMock.mockReset();
-    onCdataSectionMock.mockReset();
-    onDocumentTypeMock.mockReset();
-  });
-
   describe('in non-streaming mode', () => {
 
     it('parses text', () => {
-      tokenize('aaa', false, 0, tokenizerOptions);
+      tokenize('aaa', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'aaa',
         data: 'aaa',
         start: 0,
@@ -696,14 +705,14 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses the start tag without attrs', () => {
-      tokenize('<a>', false, 0, tokenizerOptions);
+    it('parses the start tag without attributes', () => {
+      tokenize('<a>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -712,14 +721,14 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses the start tag with attrs', () => {
-      tokenize('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', false, 0, tokenizerOptions);
+    it('parses the start tag with attributes', () => {
+      tokenize('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [
+        attributes: [
           {
             rawName: 'foo',
             name: 'foo',
@@ -768,14 +777,14 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses the start tag without attrs and with spaces before the greater-then char', () => {
-      tokenize('<a   >', false, 0, tokenizerOptions);
+    it('parses the start tag without attributes and with spaces before the greater-then char', () => {
+      tokenize('<a   >', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 6,
@@ -785,10 +794,10 @@ describe('tokenize', () => {
     });
 
     it('parses the end tag', () => {
-      tokenize('</a   >', false, 0, tokenizerOptions);
+      tokenize('</a   >', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+      expect(endTagMock).toHaveBeenCalledTimes(1);
+      expect(endTagMock).toHaveBeenCalledWith(<ITagToken>{
         rawName: 'a',
         name: 'a',
         start: 0,
@@ -799,13 +808,13 @@ describe('tokenize', () => {
     });
 
     it('does not emit self-closing tags by default', () => {
-      tokenize('<a/>', false, 0, tokenizerOptions);
+      tokenize('<a/>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 4,
@@ -813,20 +822,19 @@ describe('tokenize', () => {
         nameEnd: 2,
       });
 
-      expect(onEndTagMock).not.toHaveBeenCalled();
+      expect(endTagMock).not.toHaveBeenCalled();
     });
 
-    it('parses the self-closing tag without attrs', () => {
-      tokenize('<a/>', false, 0, {
-        ...tokenizerOptions,
-        selfClosingEnabled: true,
-      });
+    it('parses the self-closing tag without attributes', () => {
+      parserOptions.selfClosingEnabled = true;
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      tokenize('<a/>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: true,
         start: 0,
         end: 4,
@@ -834,20 +842,19 @@ describe('tokenize', () => {
         nameEnd: 2,
       });
 
-      expect(onEndTagMock).not.toHaveBeenCalled();
+      expect(endTagMock).not.toHaveBeenCalled();
     });
 
-    it('parses the self-closing tag with attrs', () => {
-      tokenize('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb"  />', false, 0, {
-        ...tokenizerOptions,
-        selfClosingEnabled: true,
-      });
+    it('parses the self-closing tag with attributes', () => {
+      parserOptions.selfClosingEnabled = true;
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      tokenize('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb"  />', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [
+        attributes: [
           {
             rawName: 'foo',
             name: 'foo',
@@ -895,17 +902,17 @@ describe('tokenize', () => {
         nameEnd: 2,
       });
 
-      expect(onEndTagMock).not.toHaveBeenCalled();
+      expect(endTagMock).not.toHaveBeenCalled();
     });
 
-    it('does not parse self-closing tag with the unquoted attr that ends with a slash', () => {
-      tokenize('<a foo=123//>', false, 0, tokenizerOptions);
+    it('does not parse self-closing tag with the unquoted attribute that ends with a slash', () => {
+      tokenize('<a foo=123//>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [
+        attributes: [
           {
             rawName: 'foo',
             name: 'foo',
@@ -927,14 +934,14 @@ describe('tokenize', () => {
         nameEnd: 2,
       });
 
-      expect(onEndTagMock).not.toHaveBeenCalled();
+      expect(endTagMock).not.toHaveBeenCalled();
     });
 
     it('parses the start tag with the invalid syntax as a text', () => {
-      tokenize('< a>', false, 0, tokenizerOptions);
+      tokenize('< a>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '< a>',
         data: '< a>',
         start: 0,
@@ -944,11 +951,11 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses the start tag that start with the weird char as text', () => {
-      tokenize('<@#$%*>', false, 0, tokenizerOptions);
+    it('parses the start tag that starts with the weird char as text', () => {
+      tokenize('<@#$%*>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '<@#$%*>',
         data: '<@#$%*>',
         start: 0,
@@ -959,13 +966,13 @@ describe('tokenize', () => {
     });
 
     it('parses the start tag that contain weird chars and starts with the valid name char', () => {
-      tokenize('<a@#$%*>', false, 0, tokenizerOptions);
+      tokenize('<a@#$%*>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a@#$%*',
         name: 'a@#$%*',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 8,
@@ -975,10 +982,10 @@ describe('tokenize', () => {
     });
 
     it('parses the end tag with the invalid syntax as text', () => {
-      tokenize('</ a>', false, 0, tokenizerOptions);
+      tokenize('</ a>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '</ a>',
         data: '</ a>',
         start: 0,
@@ -989,10 +996,10 @@ describe('tokenize', () => {
     });
 
     it('ignores bullshit in closing tags', () => {
-      tokenize('</a @#$%*/>', false, 0, tokenizerOptions);
+      tokenize('</a @#$%*/>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onEndTagMock).toHaveBeenCalledTimes(1);
-      expect(onEndTagMock).toHaveBeenCalledWith<[ITagToken]>({
+      expect(endTagMock).toHaveBeenCalledTimes(1);
+      expect(endTagMock).toHaveBeenCalledWith(<ITagToken>{
         rawName: 'a',
         name: 'a',
         start: 0,
@@ -1003,13 +1010,13 @@ describe('tokenize', () => {
     });
 
     it('parses the trailing text', () => {
-      tokenize('<a>okay', false, 0, tokenizerOptions);
+      tokenize('<a>okay', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1017,8 +1024,8 @@ describe('tokenize', () => {
         nameEnd: 2,
       });
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'okay',
         data: 'okay',
         start: 3,
@@ -1029,10 +1036,10 @@ describe('tokenize', () => {
     });
 
     it('malformed tag becomes part of text', () => {
-      tokenize('aaa< /a>bbb<b>', false, 0, tokenizerOptions);
+      tokenize('aaa< /a>bbb<b>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'aaa< /a>bbb',
         data: 'aaa< /a>bbb',
         start: 0,
@@ -1041,11 +1048,11 @@ describe('tokenize', () => {
         dataEnd: 11,
       });
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'b',
         name: 'b',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 11,
         end: 14,
@@ -1054,14 +1061,14 @@ describe('tokenize', () => {
       });
     });
 
-    it('emits start tag with attrs', () => {
-      tokenize('<a foo bar=eee>', false, 0, tokenizerOptions);
+    it('emits start tag with attributes', () => {
+      tokenize('<a foo bar=eee>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [
+        attributes: [
           {
             rawName: 'foo',
             name: 'foo',
@@ -1098,10 +1105,10 @@ describe('tokenize', () => {
     });
 
     it('parses terminated XML comments', () => {
-      tokenize('<!--foo-->', false, 0, tokenizerOptions);
+      tokenize('<!--foo-->', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'foo',
         data: 'foo',
         start: 0,
@@ -1112,10 +1119,10 @@ describe('tokenize', () => {
     });
 
     it('parses unterminated XML comments', () => {
-      tokenize('<!--foo', false, 0, tokenizerOptions);
+      tokenize('<!--foo', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'foo',
         data: 'foo',
         start: 0,
@@ -1125,11 +1132,13 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses terminated HTML comments', () => {
-      tokenize('<!foo>', false, 0, tokenizerOptions);
+    it('parses terminated quirky comments', () => {
+      parserOptions.quirkyCommentsEnabled = true;
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      tokenize('<!foo>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'foo',
         data: 'foo',
         start: 0,
@@ -1139,11 +1148,13 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses unterminated HTML comments', () => {
-      tokenize('<!foo', false, 0, tokenizerOptions);
+    it('parses unterminated quirky comments', () => {
+      parserOptions.quirkyCommentsEnabled = true;
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      tokenize('<!foo', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'foo',
         data: 'foo',
         start: 0,
@@ -1153,11 +1164,11 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses HTML comments as text in XML mode', () => {
-      tokenize('<!foo>', false, 0, {...tokenizerOptions, xmlEnabled: true});
+    it('parses quirky comments as text when disabled', () => {
+      tokenize('<!foo>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '<!foo>',
         data: '<!foo>',
         start: 0,
@@ -1168,10 +1179,10 @@ describe('tokenize', () => {
     });
 
     it('parses XML comments that contain minuses', () => {
-      tokenize('<!-- foo---->', false, 0, tokenizerOptions);
+      tokenize('<!-- foo---->', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: ' foo--',
         data: ' foo--',
         start: 0,
@@ -1181,11 +1192,13 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses processing instructions in XML mode', () => {
-      tokenize('<?xml version="1.0"?>', false, 0, {...tokenizerOptions, xmlEnabled: true});
+    it('parses processing instructions', () => {
+      parserOptions.processingInstructionsEnabled = true;
 
-      expect(onProcessingInstructionMock).toHaveBeenCalledTimes(1);
-      expect(onProcessingInstructionMock).toHaveBeenCalledWith<[IDataToken]>({
+      tokenize('<?xml version="1.0"?>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(processingInstructionMock).toHaveBeenCalledTimes(1);
+      expect(processingInstructionMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'xml version="1.0"',
         data: 'xml version="1.0"',
         start: 0,
@@ -1196,10 +1209,10 @@ describe('tokenize', () => {
     });
 
     it('parses terminated processing instructions as comments', () => {
-      tokenize('<?xml version="1.0"?>', false, 0, tokenizerOptions);
+      tokenize('<?xml version="1.0"?>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '?xml version="1.0"?',
         data: '?xml version="1.0"?',
         start: 0,
@@ -1210,10 +1223,10 @@ describe('tokenize', () => {
     });
 
     it('parses unterminated processing instructions as comments', () => {
-      tokenize('<?xml version="1.0"', false, 0, tokenizerOptions);
+      tokenize('<?xml version="1.0"', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '?xml version="1.0"',
         data: '?xml version="1.0"',
         start: 0,
@@ -1223,11 +1236,13 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses CDATA blocks in XML mode', () => {
-      tokenize('<![CDATA[hello]]>', false, 0, {...tokenizerOptions, xmlEnabled: true});
+    it('parses CDATA blocks', () => {
+      parserOptions.cdataSectionsEnabled = true;
 
-      expect(onCdataSectionMock).toHaveBeenCalledTimes(1);
-      expect(onCdataSectionMock).toHaveBeenCalledWith<[IDataToken]>({
+      tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(cdataMock).toHaveBeenCalledTimes(1);
+      expect(cdataMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'hello',
         data: 'hello',
         start: 0,
@@ -1238,10 +1253,10 @@ describe('tokenize', () => {
     });
 
     it('parses CDATA blocks as comments', () => {
-      tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions);
+      tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onCommentMock).toHaveBeenCalledTimes(1);
-      expect(onCommentMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(commentMock).toHaveBeenCalledTimes(1);
+      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '[CDATA[hello]]',
         data: '[CDATA[hello]]',
         start: 0,
@@ -1252,10 +1267,10 @@ describe('tokenize', () => {
     });
 
     it('parses doctype', () => {
-      tokenize('<!DOCTYPE html>', false, 0, tokenizerOptions);
+      tokenize('<!DOCTYPE html>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
-      expect(onDocumentTypeMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(doctypeMock).toHaveBeenCalledTimes(1);
+      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: ' html',
         data: ' html',
         start: 0,
@@ -1266,10 +1281,10 @@ describe('tokenize', () => {
     });
 
     it('parses doctype without spaces', () => {
-      tokenize('<!DOCTYPEhtml>', false, 0, tokenizerOptions);
+      tokenize('<!DOCTYPEhtml>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
-      expect(onDocumentTypeMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(doctypeMock).toHaveBeenCalledTimes(1);
+      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: 'html',
         data: 'html',
         start: 0,
@@ -1280,10 +1295,10 @@ describe('tokenize', () => {
     });
 
     it('parses doctype without value', () => {
-      tokenize('<!DOCTYPE>', false, 0, tokenizerOptions);
+      tokenize('<!DOCTYPE>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
-      expect(onDocumentTypeMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(doctypeMock).toHaveBeenCalledTimes(1);
+      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: '',
         data: '',
         start: 0,
@@ -1294,10 +1309,10 @@ describe('tokenize', () => {
     });
 
     it('does not parse DTD', () => {
-      tokenize('<!DOCTYPE greeting [<!ELEMENT greeting (#PCDATA)>]>', false, 0, tokenizerOptions);
+      tokenize('<!DOCTYPE greeting [<!ELEMENT greeting (#PCDATA)>]>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onDocumentTypeMock).toHaveBeenCalledTimes(1);
-      expect(onDocumentTypeMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(doctypeMock).toHaveBeenCalledTimes(1);
+      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: ' greeting [<!ELEMENT greeting (#PCDATA)',
         data: ' greeting [<!ELEMENT greeting (#PCDATA)',
         start: 0,
@@ -1306,8 +1321,8 @@ describe('tokenize', () => {
         dataEnd: 48,
       });
 
-      expect(onTextMock).toHaveBeenCalledTimes(1);
-      expect(onTextMock).toHaveBeenCalledWith<[IDataToken]>({
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
         rawData: ']>',
         data: ']>',
         start: 49,
@@ -1318,27 +1333,26 @@ describe('tokenize', () => {
     });
 
     it('can enforce CDATA in self-closing tags', () => {
-      tokenize('<script/><foo>', false, 0, {
-        ...tokenizerOptions,
-        selfClosingEnabled: true,
-        isTextContent: (token) => token.name === 'script',
-      });
+      parserOptions.selfClosingEnabled = true;
+      parserOptions.checkCdataTag = (token) => token.name === 'script';
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+      tokenize('<script/><foo>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(startTagMock).toHaveBeenCalledTimes(2);
+      expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'script',
         name: 'script',
-        attrs: [],
+        attributes: [],
         selfClosing: true,
         start: 0,
         end: 9,
         nameStart: 1,
         nameEnd: 7,
       });
-      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+      expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'foo',
         name: 'foo',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 9,
         end: 14,
@@ -1346,30 +1360,29 @@ describe('tokenize', () => {
         nameEnd: 13,
       });
 
-      expect(onEndTagMock).not.toHaveBeenCalled();
+      expect(endTagMock).not.toHaveBeenCalled();
     });
 
     it('can rewrite tag names', () => {
-      tokenize('<foo><bar>', false, 0, {
-        ...tokenizerOptions,
-        renameTag: (name) => name.toUpperCase(),
-      });
+      parserOptions.renameTag = (name) => name.toUpperCase();
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(2);
-      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(1, {
+      tokenize('<foo><bar>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(startTagMock).toHaveBeenCalledTimes(2);
+      expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'foo',
         name: 'FOO',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 5,
         nameStart: 1,
         nameEnd: 4,
       });
-      expect(onStartTagMock).toHaveBeenNthCalledWith<[IStartTagToken]>(2, {
+      expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'bar',
         name: 'BAR',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 5,
         end: 10,
@@ -1378,14 +1391,16 @@ describe('tokenize', () => {
       });
     });
 
-    it('can rewrite attr names', () => {
-      tokenize('<foo aaa=111 bbb=222>', false, 0, {...tokenizerOptions, renameAttr: (name) => name.toUpperCase()});
+    it('can rewrite attribute names', () => {
+      parserOptions.renameAttribute = (name) => name.toUpperCase();
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      tokenize('<foo aaa=111 bbb=222>', false, 0, tokenizerOptions, parserOptions, handler);
+
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'foo',
         name: 'foo',
-        attrs: [
+        attributes: [
           {
             rawName: 'aaa',
             name: 'AAA',
@@ -1424,14 +1439,14 @@ describe('tokenize', () => {
 
   describe('in streaming mode', () => {
 
-    it('parses the start tag without attrs', () => {
-      tokenize('<a>', true, 0, tokenizerOptions);
+    it('parses the start tag without attributes', () => {
+      tokenize('<a>', true, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1441,13 +1456,13 @@ describe('tokenize', () => {
     });
 
     it('does not emit the trailing text', () => {
-      tokenize('<a>okay', true, 0, tokenizerOptions);
+      tokenize('<a>okay', true, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(onStartTagMock).toHaveBeenCalledTimes(1);
-      expect(onStartTagMock).toHaveBeenCalledWith<[IStartTagToken]>({
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attrs: [],
+        attributes: [],
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1455,22 +1470,22 @@ describe('tokenize', () => {
         nameEnd: 2,
       });
 
-      expect(onTextMock).not.toHaveBeenCalled();
+      expect(textMock).not.toHaveBeenCalled();
     });
 
     it('does not emit unterminated XML comments', () => {
-      tokenize('<!--foo', true, 0, tokenizerOptions);
-      expect(onCommentMock).not.toHaveBeenCalled();
+      tokenize('<!--foo', true, 0, tokenizerOptions, parserOptions, handler);
+      expect(commentMock).not.toHaveBeenCalled();
     });
 
-    it('does not emit unterminated HTML comments', () => {
-      tokenize('<!foo', true, 0, tokenizerOptions);
-      expect(onCommentMock).not.toHaveBeenCalled();
+    it('does not emit unterminated quirky comments', () => {
+      tokenize('<!foo', true, 0, tokenizerOptions, parserOptions, handler);
+      expect(commentMock).not.toHaveBeenCalled();
     });
 
     it('does not emit unterminated processing instructions as comments', () => {
-      tokenize('<?xml version="1.0"', true, 0, tokenizerOptions);
-      expect(onCommentMock).not.toHaveBeenCalled();
+      tokenize('<?xml version="1.0"', true, 0, tokenizerOptions, parserOptions, handler);
+      expect(commentMock).not.toHaveBeenCalled();
     });
   });
 });

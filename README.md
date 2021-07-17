@@ -26,11 +26,11 @@ import * as TagSoup from 'tag-soup';
 
 const xmlParser = TagSoup.createForgivingSaxParser({
 
-  onStartTag(token) {
+  startTag(token) {
     console.log(token); // → {name: 'foo', …} 
   },
 
-  onEndTag(token) {
+  endTag(token) {
     console.log(token); // → {data: 'okay', …} 
   },
 });
@@ -57,11 +57,11 @@ import * as TagSoup from 'tag-soup/lib/html';
 
 const htmlParser = TagSoup.createHtmlSaxParser({
 
-  onStartTag(token) {
+  startTag(token) {
     console.log(token); // → {name: 'script', …} 
   },
 
-  onEndTag(token) {
+  endTag(token) {
     console.log(token); // → {data: 'console.log("<foo></foo>")', …} 
   },
 });

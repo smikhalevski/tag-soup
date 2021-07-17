@@ -1,12 +1,12 @@
 import {createSaxParser} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
 import {IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
-import {ISaxParser, ISaxParserOptions} from '../main/sax-parser-types';
+import {IParser, ISaxParserOptions} from '../main/parser-types';
 import {createForgivingSaxParser} from '../main';
 
 describe('createSaxParser', () => {
 
-  let parser: ISaxParser;
+  let parser: IParser;
 
   const onStartTagMock = jest.fn();
   const onEndTagMock = jest.fn();
@@ -17,13 +17,13 @@ describe('createSaxParser', () => {
   const onDocumentTypeMock = jest.fn();
 
   const createParser = (options?: ISaxParserOptions) => createForgivingSaxParser({
-    onStartTag: (token) => onStartTagMock(cloneDeep(token)),
-    onEndTag: (token) => onEndTagMock(cloneDeep(token)),
-    onText: (token) => onTextMock(cloneDeep(token)),
-    onComment: (token) => onCommentMock(cloneDeep(token)),
-    onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
-    onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
-    onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
+    startTag: (token) => onStartTagMock(cloneDeep(token)),
+    endTag: (token) => onEndTagMock(cloneDeep(token)),
+    text: (token) => onTextMock(cloneDeep(token)),
+    comment: (token) => onCommentMock(cloneDeep(token)),
+    processingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
+    cdata: (token) => onCdataSectionMock(cloneDeep(token)),
+    doctype: (token) => onDocumentTypeMock(cloneDeep(token)),
     ...options,
   });
 
@@ -64,7 +64,7 @@ describe('createSaxParser', () => {
 
     it('CDATA tags are case-insensitive in HTML mode', () => {
       const parser = createParser({
-        isTextContent: (token) => token.name === 'script',
+        checkCdataTag: (token) => token.name === 'script',
       });
 
       parser.parse('<script><foo aaa=111></SCRIPT>');
@@ -105,7 +105,7 @@ describe('createSaxParser', () => {
     it('CDATA tags are case-sensitive in XML mode', () => {
       const parser = createParser({
         xmlEnabled: true,
-        isTextContent: (token) => token.name === 'script',
+        checkCdataTag: (token) => token.name === 'script',
       });
 
       parser.parse('<script><foo aaa=111></SCRIPT>');
@@ -136,7 +136,7 @@ describe('createSaxParser', () => {
     it('throws errors', () => {
       const error = new Error('Fail');
       const parser = createParser({
-        onText() {
+        text() {
           throw error;
         },
       });
@@ -149,10 +149,10 @@ describe('createSaxParser', () => {
       const onErrorMock = jest.fn();
       const error = new Error('Fail');
       const parser = createParser({
-        onText() {
+        text() {
           throw error;
         },
-        onError: onErrorMock,
+        error: onErrorMock,
       });
 
       expect(() => parser.parse('foo')).not.toThrow();

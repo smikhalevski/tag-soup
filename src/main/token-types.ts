@@ -25,19 +25,19 @@ export interface ITagToken extends IToken {
   rawName: string;
 
   /**
-   * The tag name after {@link renameTag} was applied.
+   * The tag name after {@link IParserOptions.renameTag} was applied.
    */
   name: string;
 
   /**
    * The index where the {@link rawName} starts or -1 if this tag doesn't actually present in the source.
    */
-  nameStart: number | -1;
+  nameStart: number;
 
   /**
    * The index where the {@link rawName} ends or -1 if this tag doesn't actually present in the source.
    */
-  nameEnd: number | -1;
+  nameEnd: number;
 }
 
 /**
@@ -46,21 +46,22 @@ export interface ITagToken extends IToken {
 export interface IStartTagToken extends ITagToken {
 
   /**
-   * An array that holds pooled objects that would be revoked after the {@link onStartTag} callback finishes. An array
-   * itself is also a part of the object pool so make a deep copy of this array to preserve attributes if needed.
-   * Object pooling is used to reduce memory consumption during parsing by avoiding excessive object allocation.
+   * An array that holds pooled objects that would be revoked after the handler callback finishes. An array itself is
+   * also a part of the object pool so make a deep copy of this array to preserve attributes, if needed. Object pooling
+   * is used to reduce memory consumption during parsing by avoiding excessive object allocation.
    */
-  attrs: Array<IAttrToken>;
+  attributes: Array<IAttributeToken>;
 
   /**
-   * `true` if tag is self-closing, `false` otherwise. Ensure that {@link selfClosingEnabled} or {@link xmlEnabled} is
-   * set to `true` to support self-closing tags.
+   * `true` if tag is self-closing, `false` otherwise.
+   *
+   * @see {@link IParserOptions.selfClosingEnabled}
    */
   selfClosing: boolean;
 }
 
 /**
- * The text, comment, processing instruction, CDATA or document type token read from the source.
+ * The character data token read from the source.
  */
 export interface IDataToken extends IToken {
 
@@ -70,8 +71,7 @@ export interface IDataToken extends IToken {
   rawData: string;
 
   /**
-   * For text, comment, processing instruction and document type this is the data after {@link decodeText} was applied.
-   * For CDATA this is the same as {@link rawData}.
+   * The data after {@link IParserOptions.decodeText} was applied.
    */
   data: string;
 
@@ -89,7 +89,7 @@ export interface IDataToken extends IToken {
 /**
  * The tag attribute token read from the source.
  */
-export interface IAttrToken extends IToken {
+export interface IAttributeToken extends IToken {
 
   /**
    * The name of the attribute as it was read from the source.
@@ -97,7 +97,7 @@ export interface IAttrToken extends IToken {
   rawName: string;
 
   /**
-   * The name of the attribute after {@link renameAttr} was applied.
+   * The name of the attribute after {@link IParserOptions.renameAttribute} was applied.
    */
   name: string;
 
@@ -120,7 +120,7 @@ export interface IAttrToken extends IToken {
   rawValue: string | null | undefined;
 
   /**
-   * The value of the attribute after {@link decodeAttr} was applied.
+   * The value of the attribute after {@link IParserOptions.decodeAttribute} was applied.
    *
    * If value is omitted and name is followed by "=" char (`foo=`) then {@link value} is `null`. If value is omitted
    * and name isn't followed by a "=" char (`foo`) then {@link value} is `undefined`.
@@ -130,12 +130,12 @@ export interface IAttrToken extends IToken {
   /**
    * The index where {@link rawValue} starts or -1 if value was omitted.
    */
-  valueStart: number | -1;
+  valueStart: number;
 
   /**
    * The index where {@link rawValue} ends or -1 if value was omitted.
    */
-  valueEnd: number | -1;
+  valueEnd: number;
 
   /**
    * `true` is {@link rawValue} was surrounded with quotes.

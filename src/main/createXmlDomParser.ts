@@ -1,6 +1,6 @@
 import {createDomParser} from './createDomParser';
 import {IDataToken} from './token-types';
-import {IDomParser, IDomParserDialectOptions, IDomParserFactoryCallbacks} from './dom-parser-types';
+import {IDomParser, IDomParserDialectOptions, IDomHandler} from './dom-parser-types';
 import {DomNodeType, IDomAttrMap, IDomElement, IDomNode, IDomText} from './dom-types';
 
 function createDomNode(nodeType: number, token: IDataToken): IDomNode {
@@ -13,12 +13,12 @@ function createDomNode(nodeType: number, token: IDataToken): IDomNode {
   };
 }
 
-const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElement, IDomText> = {
+const domParserFactoryCallbacks: IDomHandler<IDomNode, IDomElement, IDomText> = {
 
-  createElement(token) {
+  element(token) {
     const attrMap: IDomAttrMap = {};
-    for (let i = 0, l = token.attrs.length; i < l; i++) {
-      const attr = token.attrs[i];
+    for (let i = 0, l = token.attributes.length; i < l; i++) {
+      const attr = token.attributes[i];
       attrMap[attr.name] = attr.value;
     }
     return {
@@ -33,16 +33,16 @@ const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElemen
     };
   },
 
-  appendChild(element, childNode) {
+  child(element, childNode) {
     childNode.parent = element;
     element.children.push(childNode);
   },
 
-  onContainerEnd(element, token) {
+  elementEnd(element, token) {
     element.end = token.end;
   },
 
-  createTextNode(token) {
+  text(token) {
     return {
       nodeType: DomNodeType.TEXT,
       parent: null,
@@ -54,8 +54,8 @@ const domParserFactoryCallbacks: IDomParserFactoryCallbacks<IDomNode, IDomElemen
 
   createProcessingInstruction: (token) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, token),
   createCdataSection: (token) => createDomNode(DomNodeType.CDATA_SECTION, token),
-  createDocumentType: (token) => createDomNode(DomNodeType.DOCUMENT_TYPE, token),
-  createComment: (token) => createDomNode(DomNodeType.COMMENT, token),
+  doctype: (token) => createDomNode(DomNodeType.DOCUMENT_TYPE, token),
+  comment: (token) => createDomNode(DomNodeType.COMMENT, token),
 };
 
 /**

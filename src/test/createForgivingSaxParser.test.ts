@@ -3,11 +3,11 @@ import {cloneDeep} from 'lodash';
 import fs from 'fs';
 import path from 'path';
 import {IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
-import {IForgivingSaxParserOptions, ISaxParser} from '../main/sax-parser-types';
+import {IForgivingSaxParserOptions, IParser} from '../main/parser-types';
 
 describe('createForgivingSaxParser', () => {
 
-  let parser: ISaxParser;
+  let parser: IParser;
 
   const onStartTagMock = jest.fn();
   const onEndTagMock = jest.fn();
@@ -18,13 +18,13 @@ describe('createForgivingSaxParser', () => {
   const onDocumentTypeMock = jest.fn();
 
   const createParser = (options?: IForgivingSaxParserOptions) => createForgivingSaxParser({
-    onStartTag: (token) => onStartTagMock(cloneDeep(token)),
-    onEndTag: (token) => onEndTagMock(cloneDeep(token)),
-    onText: (token) => onTextMock(cloneDeep(token)),
-    onComment: (token) => onCommentMock(cloneDeep(token)),
-    onProcessingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
-    onCdataSection: (token) => onCdataSectionMock(cloneDeep(token)),
-    onDocumentType: (token) => onDocumentTypeMock(cloneDeep(token)),
+    startTag: (token) => onStartTagMock(cloneDeep(token)),
+    endTag: (token) => onEndTagMock(cloneDeep(token)),
+    text: (token) => onTextMock(cloneDeep(token)),
+    comment: (token) => onCommentMock(cloneDeep(token)),
+    processingInstruction: (token) => onProcessingInstructionMock(cloneDeep(token)),
+    cdata: (token) => onCdataSectionMock(cloneDeep(token)),
+    doctype: (token) => onDocumentTypeMock(cloneDeep(token)),
     ...options,
   });
 

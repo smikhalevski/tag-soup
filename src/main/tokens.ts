@@ -1,10 +1,10 @@
-import {IAttrToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
+import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
 
 export function createStartTagToken(): IStartTagToken {
   return {
     name: '',
     rawName: '',
-    attrs: [],
+    attributes: [],
     selfClosing: false,
     start: 0,
     end: 0,
@@ -35,7 +35,7 @@ export function createDataToken(): IDataToken {
   };
 }
 
-export function createAttrToken(): IAttrToken {
+export function createAttributeToken(): IAttributeToken {
   return {
     name: '',
     rawName: '',

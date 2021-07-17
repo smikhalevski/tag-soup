@@ -8,7 +8,7 @@ describe('createDomParser', () => {
     createElement(token) {
       return {
         tagName: token.name,
-        attrs: token.attrs.map((attr) => ({
+        attrs: token.attributes.map((attr) => ({
           name: attr.name,
           value: attr.value,
           start: attr.start,

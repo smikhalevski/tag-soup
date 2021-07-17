@@ -6,5 +6,5 @@ export * from './createEntitiesDecoder';
 export * from './decoder-types';
 export * from './dom-parser-types';
 export * from './dom-types';
-export * from './sax-parser-types';
+export * from './parser-types';
 export * from './token-types';

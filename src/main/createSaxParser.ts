@@ -1,9 +1,9 @@
 import {lowerCase} from './utils';
 import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
-import {createAttrToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
+import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {ISaxParser, ISaxParserOptions} from './sax-parser-types';
+import {IParser, ISaxParserOptions} from './parser-types';
 
 const xmlDecoder = createEntitiesDecoder();
 
@@ -12,31 +12,31 @@ const xmlDecoder = createEntitiesDecoder();
  *
  * @see createForgivingSaxParser
  */
-export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
+export function createSaxParser(options: ISaxParserOptions = {}): IParser {
   const {
     xmlEnabled,
     decodeText = xmlDecoder,
-    decodeAttr = decodeText,
+    decodeAttribute = decodeText,
     renameTag = xmlEnabled ? undefined : lowerCase,
-    renameAttr = xmlEnabled ? undefined : lowerCase,
+    renameAttribute = xmlEnabled ? undefined : lowerCase,
 
     onReset,
     onWrite,
     onParse,
-    onError,
+    error,
   } = options;
 
   let buffer = '';
   let offset = 0;
   let parsedCharCount = 0;
 
-  const attrTokenPool = createObjectPool(createAttrToken);
+  const attrTokenPool = createObjectPool(createAttributeToken);
 
   const tokenizerOptions: ITokenizerOptions = Object.assign({}, options, {
-    decodeAttr,
+    decodeAttribute: decodeAttr,
     decodeText,
     renameTag,
-    renameAttr,
+    renameAttribute: renameAttr,
 
     startTagToken: createStartTagToken(),
     endTagToken: createTagToken(),
@@ -45,8 +45,8 @@ export function createSaxParser(options: ISaxParserOptions = {}): ISaxParser {
   });
 
   const handleError = (error: any): void => {
-    if (onError) {
-      onError(error);
+    if (error) {
+      error(error);
     } else {
       throw error;
     }

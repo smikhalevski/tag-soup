@@ -1,6 +1,6 @@
 import {createForgivingSaxParser} from './createForgivingSaxParser';
-import {DataTokenCallback, ISaxParserCallbacks} from './sax-parser-types';
-import {DataNodeFactory, IDomParser, IDomParserOptions} from './dom-parser-types';
+import {DataTokenCallback, IXmlSaxHandler} from './parser-types';
+import {DataNodeCallback, IDomParser, IDomParserOptions} from './dom-parser-types';
 
 /**
  * Creates a new streaming DOM parser.
@@ -39,15 +39,15 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
     }
   };
 
-  const createDataTokenCallback = (factory: DataNodeFactory<Node> | undefined): DataTokenCallback | undefined => {
+  const createDataTokenCallback = (factory: DataNodeCallback<Node> | undefined): DataTokenCallback | undefined => {
     if (factory) {
       return (token) => pushNode(factory(token));
     }
   };
 
-  const saxParserCallbacks: ISaxParserCallbacks = {
+  const saxParserCallbacks: IXmlSaxHandler = {
 
-    onStartTag(token) {
+    startTag(token) {
       const element = createElement(token);
       pushNode(element);
 
@@ -57,16 +57,16 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
       }
     },
 
-    onEndTag(token) {
+    endTag(token) {
       depth--;
       onContainerEnd?.(elements[depth], token);
     },
 
-    onText: createDataTokenCallback(createTextNode),
-    onProcessingInstruction: createDataTokenCallback(createProcessingInstruction),
-    onCdataSection: createDataTokenCallback(createCdataSection),
-    onDocumentType: createDataTokenCallback(createDocumentType),
-    onComment: createDataTokenCallback(createComment),
+    text: createDataTokenCallback(createTextNode),
+    processingInstruction: createDataTokenCallback(createProcessingInstruction),
+    cdata: createDataTokenCallback(createCdataSection),
+    doctype: createDataTokenCallback(createDocumentType),
+    comment: createDataTokenCallback(createComment),
   };
 
   const saxParser = saxParserFactory(Object.assign({}, options, saxParserCallbacks));

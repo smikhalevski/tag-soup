@@ -2,7 +2,7 @@ import {createSaxParser} from './createSaxParser';
 import {createTagToken} from './tokens';
 import {createObjectPool} from './createObjectPool';
 import {ITagToken} from './token-types';
-import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax-parser-types';
+import {IForgivingSaxParserOptions, IParser, IXmlSaxHandler} from './parser-types';
 
 /**
  * Creates a streaming SAX parser that:
@@ -11,10 +11,10 @@ import {IForgivingSaxParserOptions, ISaxParser, ISaxParserCallbacks} from './sax
  * - Supports implicit tag closing;
  * - Supports customizable void tags;
  */
-export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {}): ISaxParser {
+export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {}): IParser {
   const {
-    onStartTag,
-    onEndTag,
+    startTag,
+    endTag,
     onReset,
     onParse,
 
@@ -29,9 +29,9 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
   let containerTokens: Array<ITagToken> = [];
   let depth = 0;
 
-  const saxParserCallbacks: ISaxParserCallbacks = {
+  const saxParserCallbacks: IXmlSaxHandler = {
 
-    onStartTag(token) {
+    startTag(token) {
       token.selfClosing ||= isVoidContent?.(token) || false;
 
       if (isImplicitEnd) {
@@ -44,10 +44,10 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
 
           if (isImplicitEnd(containerToken, token)) {
 
-            if (onEndTag) {
+            if (endTag) {
               for (let j = depth - 1; j >= i; j--) {
                 assignEndTagToken(endTagToken, containerTokens[j], token.start);
-                onEndTag(endTagToken);
+                endTag(endTagToken);
               }
             }
 
@@ -57,23 +57,23 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
         }
       }
 
-      onStartTag?.(token);
+      startTag?.(token);
 
       if (!token.selfClosing) {
         assignTagToken(containerTokens[depth++] ||= containerTagTokenPool.take(), token);
       }
     },
 
-    onEndTag(token) {
+    endTag(token) {
       for (let i = depth - 1; i >= 0; i--) {
         if (containerTokens[i].name === token.name) {
 
-          if (onEndTag) {
+          if (endTag) {
             for (let j = depth - 1; j > i; j--) {
               assignEndTagToken(endTagToken, containerTokens[j], token.start);
-              onEndTag(endTagToken);
+              endTag(endTagToken);
             }
-            onEndTag(token);
+            endTag(token);
           }
 
           depth = i;
@@ -87,10 +87,10 @@ export function createForgivingSaxParser(options: IForgivingSaxParserOptions = {
     },
 
     onParse(chunk, parsedCharCount) {
-      if (onEndTag) {
+      if (endTag) {
         for (let i = depth - 1; i >= 0; i--) {
           assignEndTagToken(endTagToken, containerTokens[i], parsedCharCount);
-          onEndTag(endTagToken);
+          endTag(endTagToken);
         }
       }
       onParse?.(chunk, parsedCharCount);
