@@ -201,7 +201,7 @@ export interface ITokenizerOptions {
  * @param options Tokenization options.
  * @param parserOptions Parsing options.
  * @param handler SAX handler that is notified about parsed tokens.
- * @returns The offset in `chunk` right after the last parsed character.
+ * @returns The index in `chunk` right after the last parsed character.
  */
 export function tokenize(chunk: string, streaming: boolean, offset: number, options: ITokenizerOptions, parserOptions: IParserOptions, handler: IXmlSaxHandler): number {
 
@@ -222,13 +222,13 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
   } = parserOptions;
 
   const {
-    startTag,
-    endTag,
-    text,
-    comment,
-    processingInstruction,
-    cdata,
-    doctype,
+    startTag: startTagCallback,
+    endTag: endTagCallback,
+    text: textCallback,
+    comment: commentCallback,
+    processingInstruction: processingInstructionCallback,
+    cdata: cdataCallback,
+    doctype: doctypeCallback,
   } = handler;
 
   let textStart = -1;
@@ -238,7 +238,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
 
   const emitText = (): void => {
     if (textStart !== -1) {
-      emitData(text, textStart, textEnd, 0, 0, true);
+      emitData(textCallback, textStart, textEnd, 0, 0, true);
       textStart = textEnd = -1;
     }
   };
@@ -325,7 +325,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         }
 
         i = k;
-        startTag?.(startTagToken);
+        startTagCallback?.(startTagToken);
         continue;
       }
     }
@@ -341,7 +341,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
 
       if (tagParsingEnabled || startTagName === tagName) {
 
-        // Resume tag parsing if text content tag has ended
+        // Resume tag parsing if cdata content tag has ended
         tagParsingEnabled = true;
 
         // Skip malformed content and excessive whitespaces
@@ -354,7 +354,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
 
         emitText();
 
-        if (endTag) {
+        if (endTagCallback) {
           endTagToken.rawName = rawTagName;
           endTagToken.name = tagName;
           endTagToken.start = offset + i;
@@ -362,7 +362,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
           endTagToken.nameStart = offset + nameStart;
           endTagToken.nameEnd = offset + nameEnd;
 
-          endTag(endTagToken);
+          endTagCallback(endTagToken);
         }
 
         i = k;
@@ -380,7 +380,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
           return i;
         }
         emitText();
-        i = emitData(comment, i, j, 4, 3, true);
+        i = emitData(commentCallback, i, j, 4, 3, true);
         continue;
       }
 
@@ -391,7 +391,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
           return i;
         }
         emitText();
-        i = emitData(doctype, i, j, 9, 1, false);
+        i = emitData(doctypeCallback, i, j, 9, 1, false);
         continue;
       }
 
@@ -403,9 +403,9 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         }
         emitText();
         if (cdataSectionsEnabled) {
-          i = emitData(cdata, i, j, 9, 3, false);
+          i = emitData(cdataCallback, i, j, 9, 3, false);
         } else {
-          i = emitData(comment, i, j, 2, 1, false);
+          i = emitData(commentCallback, i, j, 2, 1, false);
         }
         continue;
       }
@@ -418,9 +418,9 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         }
         emitText();
         if (processingInstructionsEnabled) {
-          i = emitData(processingInstruction, i, j, 2, 2, false);
+          i = emitData(processingInstructionCallback, i, j, 2, 2, false);
         } else {
-          i = emitData(comment, i, j, 1, 1, false);
+          i = emitData(commentCallback, i, j, 1, 1, false);
         }
         continue;
       }
@@ -433,7 +433,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
             return i;
           }
           emitText();
-          i = emitData(comment, i, j, 2, 1, true);
+          i = emitData(commentCallback, i, j, 2, 1, true);
           continue;
         }
       }

@@ -124,13 +124,12 @@ export interface IParserOptions {
    * Checks whether the container should be implicitly closed with corresponding end tag when start tag is read. Useful
    * when parsing such tags as `p`, `li`, `td` and others.
    *
-   * @param containerToken The token of the currently opened container tag.
+   * @param ancestorToken The token of the currently opened container tag.
    * @param token The token of the start tag that was read.
-   * @returns `true` if start tag `token` should implicitly close the currently opened container `containerToken`. This
-   *     would cause that {@link endTag} would be triggered for `containerToken` before {@link startTag} with
-   *     `token`.
+   * @returns `true` if start tag `token` should implicitly close the currently opened container `ancestorToken`. This
+   *     would cause that {@link endTag} would be triggered for `ancestorToken` before {@link startTag} with `token`.
    */
-  checkImplicitEndTag?: (containerToken: ITagToken, token: IStartTagToken) => boolean;
+  checkImplicitEndTag?: (ancestorToken: IStartTagToken, token: IStartTagToken) => boolean;
 
   /**
    * Checks whether the container `token` is a document fragment boundary, so implicitly closed tags shouldn't be
@@ -139,23 +138,6 @@ export interface IParserOptions {
    * @param token The container tag token.
    */
   checkFragmentTag?: (token: ITagToken) => boolean;
-}
-
-/**
- * Options of a SAX parser.
- */
-export interface ISaxParserOptions extends IParserOptions {
-
-  /**
-   * Enables forgiving mode.In forgiving mode callbacks for tags that are closed in an incorrect are invoked in a
-   * correct order and callbacks for missing close tags are invoked.
-   *
-   * If set to `false` then tags are processed without any order and existence checks. This may result in a better
-   * parsing performance.
-   *
-   * @default false
-   */
-  forgiving?: boolean;
 }
 
 /**
@@ -187,11 +169,6 @@ export interface ISaxHandler {
    * Triggered when a DOCTYPE was read.
    */
   doctype?: (token: IDataToken) => void;
-
-  /**
-   * Triggered when an error has occurred during parsing.
-   */
-  error?: (error: any) => void;
 }
 
 /**

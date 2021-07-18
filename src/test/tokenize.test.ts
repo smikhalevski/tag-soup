@@ -15,17 +15,7 @@ const doctypeMock = jest.fn();
 
 let tokenizerOptions: ITokenizerOptions;
 let parserOptions: IParserOptions;
-
-let handler: IXmlSaxHandler = {
-  startTag: (token) => startTagMock(cloneDeep(token)),
-  endTag: (token) => endTagMock(cloneDeep(token)),
-  text: (token) => textMock(cloneDeep(token)),
-  comment: (token) => commentMock(cloneDeep(token)),
-  doctype: (token) => doctypeMock(cloneDeep(token)),
-  error: () => undefined,
-  processingInstruction: (token) => processingInstructionMock(cloneDeep(token)),
-  cdata: (token) => cdataMock(cloneDeep(token)),
-};
+let handler: IXmlSaxHandler;
 
 beforeEach(() => {
   tokenizerOptions = {
@@ -36,6 +26,16 @@ beforeEach(() => {
   };
 
   parserOptions = {};
+
+  handler = {
+    startTag: (token) => startTagMock(cloneDeep(token)),
+    endTag: (token) => endTagMock(cloneDeep(token)),
+    text: (token) => textMock(cloneDeep(token)),
+    comment: (token) => commentMock(cloneDeep(token)),
+    doctype: (token) => doctypeMock(cloneDeep(token)),
+    processingInstruction: (token) => processingInstructionMock(cloneDeep(token)),
+    cdata: (token) => cdataMock(cloneDeep(token)),
+  };
 
   startTagMock.mockReset();
   endTagMock.mockReset();
