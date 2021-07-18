@@ -1,67 +1,38 @@
-import {createFromCharCode, IFromCharCodeOptions} from './createFromCharCode';
+import {IParser, IParserOptions, ISaxHandler} from './parser-types';
+import {createSaxParser} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
-import {createForgivingSaxParser} from './createForgivingSaxParser';
+import {createFromCharCode} from './createFromCharCode';
 import {lowerCase} from './utils';
-import {IForgivingSaxParserOptions, IParser, IXmlSaxHandler} from './parser-types';
-import {isHtmlImplicitEnd, isHtmlTextContent, isHtmlVoidContent} from './html-utils';
+import {checkHtmlCdataTag, checkHtmlImplicitEndTag, checkHtmlVoidTag} from './html-utils';
 
-export interface IHtmlSaxParserDialectOptions extends IFromCharCodeOptions {
-
-  /**
-   * If set to `true` then:
-   * - Self-closing tags are parsed;
-   * - All non-void elements are expected to be closed.
-   *
-   * @default false
-   */
-  xhtmlEnabled?: boolean;
-
-  /**
-   * If set to `true` then:
-   * - Doesn't recognize non-terminated and legacy HTML entities;
-   * - Throw an error if the decoder meets a disallowed character reference.
-   *
-   * **Note:** Using this option may slow parsing because additional checks are involved.
-   *
-   * @default false
-   */
-  strict?: boolean;
+export function createHtmlSaxParser(options?: IParserOptions): IParser<ISaxHandler, void> {
+  return createSaxParser(Object.assign({}, htmlParserOptions, options));
 }
 
-export interface IHtmlSaxParserOptions extends IHtmlSaxParserDialectOptions, IXmlSaxHandler {
-}
+const fromCharCode = createFromCharCode();
 
-/**
- * Creates preconfigured HTML SAX parser.
- */
-export function createHtmlSaxParser(options: IHtmlSaxParserOptions): IParser {
-  const {xhtmlEnabled = false} = options;
+const htmlAttributeDecoder = createEntitiesDecoder({
+  fromCharName: createFromHtmlCharName(),
+  fromCharCode,
+});
 
-  const fromCharCode = createFromCharCode(options);
+const htmlTextDecoder = createEntitiesDecoder({
+  fromCharName: createFromHtmlCharName(),
+  fromCharCode,
+});
 
-  const htmlAttrDecoder = createEntitiesDecoder({
-    fromCharName: createFromHtmlCharName(options),
-    fromCharCode,
-  });
-
-  const htmlTextDecoder = createEntitiesDecoder({
-    fromCharName: createFromHtmlCharName(),
-    fromCharCode,
-  });
-
-  const saxParserOptions: IForgivingSaxParserOptions = {
-    xmlEnabled: false,
-    selfClosingEnabled: xhtmlEnabled,
-    decodeAttribute: htmlAttrDecoder,
-    decodeText: htmlTextDecoder,
-
-    isTextContent: isHtmlTextContent,
-    isVoidContent: isHtmlVoidContent,
-    isImplicitEnd: xhtmlEnabled ? undefined : isHtmlImplicitEnd,
-
-    renameTag: lowerCase,
-  };
-
-  return createForgivingSaxParser(Object.assign({}, options, saxParserOptions));
-}
+export const htmlParserOptions: IParserOptions = {
+  // cdataSectionsEnabled,
+  // processingInstructionsEnabled,
+  quirkyCommentsEnabled: true,
+  // selfClosingEnabled
+  decodeText: htmlTextDecoder,
+  decodeAttribute: htmlAttributeDecoder,
+  renameTag: lowerCase,
+  // renameAttribute
+  checkCdataTag: checkHtmlCdataTag,
+  checkVoidTag: checkHtmlVoidTag,
+  checkImplicitEndTag: checkHtmlImplicitEndTag,
+  // checkFragmentTag
+};

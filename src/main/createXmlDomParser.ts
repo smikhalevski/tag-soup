@@ -1,31 +1,28 @@
 import {createDomParser} from './createDomParser';
+import {IParser, IParserOptions, IXmlDomHandler} from './parser-types';
+import {xmlParserOptions} from './createXmlSaxParser';
+import {DomNodeType, IDomAttributeMap, IDomElement, IDomNode, IDomText} from './dom-types';
 import {IDataToken} from './token-types';
-import {IDomParser, IDomParserDialectOptions, IDomHandler} from './dom-parser-types';
-import {DomNodeType, IDomAttrMap, IDomElement, IDomNode, IDomText} from './dom-types';
 
-function createDomNode(nodeType: number, token: IDataToken): IDomNode {
-  return {
-    nodeType,
-    data: token.data,
-    parent: null,
-    start: token.start,
-    end: token.end,
-  };
+export function createXmlDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options?: IParserOptions): IParser<IXmlDomHandler<Node, Element, Text>, Array<Node>> {
+  return createDomParser<Node, Element, Text>(Object.assign({}, xmlParserOptions, options));
 }
 
-const domParserFactoryCallbacks: IDomHandler<IDomNode, IDomElement, IDomText> = {
+export const cheerioDomHandler: IXmlDomHandler<IDomNode, IDomElement, IDomText> = {
 
-  element(token) {
-    const attrMap: IDomAttrMap = {};
-    for (let i = 0, l = token.attributes.length; i < l; i++) {
-      const attr = token.attributes[i];
-      attrMap[attr.name] = attr.value;
+  element(token): IDomElement {
+    const attributeMap: IDomAttributeMap = Object.create(null);
+
+    for (let i = 0; i < token.attributes.length; i++) {
+      const attribute = token.attributes[i];
+      attributeMap[attribute.name] = attribute.value;
     }
+
     return {
       nodeType: DomNodeType.ELEMENT,
       parent: null,
       tagName: token.name,
-      attrs: attrMap,
+      attributes: attributeMap,
       selfClosing: token.selfClosing,
       children: [],
       start: token.start,
@@ -33,13 +30,9 @@ const domParserFactoryCallbacks: IDomHandler<IDomNode, IDomElement, IDomText> = 
     };
   },
 
-  child(element, childNode) {
+  elementChild(element, childNode) {
     childNode.parent = element;
     element.children.push(childNode);
-  },
-
-  elementEnd(element, token) {
-    element.end = token.end;
   },
 
   text(token) {
@@ -52,15 +45,18 @@ const domParserFactoryCallbacks: IDomHandler<IDomNode, IDomElement, IDomText> = 
     };
   },
 
-  createProcessingInstruction: (token) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, token),
-  createCdataSection: (token) => createDomNode(DomNodeType.CDATA_SECTION, token),
+  processingInstruction: (token) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, token),
+  cdata: (token) => createDomNode(DomNodeType.CDATA_SECTION, token),
   doctype: (token) => createDomNode(DomNodeType.DOCUMENT_TYPE, token),
   comment: (token) => createDomNode(DomNodeType.COMMENT, token),
 };
 
-/**
- * Creates preconfigured Cheerio-compatible XML DOM parser that returns a tree of {@link IDomNode}s.
- */
-export function createXmlDomParser(options: IDomParserDialectOptions<IDomElement> = {}): IDomParser<IDomNode, IDomElement, IDomText> {
-  return createDomParser(Object.assign({}, options, domParserFactoryCallbacks));
+function createDomNode(nodeType: number, token: IDataToken): IDomNode {
+  return {
+    nodeType,
+    data: token.data,
+    parent: null,
+    start: token.start,
+    end: token.end,
+  };
 }

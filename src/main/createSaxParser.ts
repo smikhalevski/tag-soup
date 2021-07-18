@@ -71,6 +71,11 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
       if (!token.selfClosing) {
         assignTagToken(containerTokens[depth++] ||= containerTagTokenPool.take(), token);
       }
+
+      startTagTokenPool.free(token);
+      for (const attributeToken of token.attributes) {
+        attributeTokenPool.free(attributeToken);
+      }
     };
 
     forgivingHandler.endTag = (token) => {

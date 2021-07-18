@@ -1,7 +1,7 @@
 import {allCharBy, CharCodeChecker} from 'tokenizer-dsl';
 import {toMap} from './utils';
 import {CharCode} from './CharCode';
-import {FromCharCode, FromCharName, Rewriter} from './decoder-types';
+import {FromCharCode, FromCharName} from './decoder-types';
 
 // [0-9]
 const isNumberChar: CharCodeChecker = (c) => c >= CharCode['00'] && c <= CharCode['09'];
@@ -43,7 +43,7 @@ export interface IEntitiesDecoderOptions {
 /**
  * Creates a rewriter that maps an encoded HTML entities in given string into corresponding chars.
  */
-export function createEntitiesDecoder(options: IEntitiesDecoderOptions = {}): Rewriter {
+export function createEntitiesDecoder(options: IEntitiesDecoderOptions = {}): (str: string) => string {
   const {
     fromCharName = fromXmlCharName,
     fromCharCode = String.fromCharCode,
