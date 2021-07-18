@@ -5,13 +5,13 @@ import {IParser, IParserOptions, IXmlSaxHandler} from './parser-types';
 import {ITagToken} from './token-types';
 
 /**
+ * Creates a new streaming forgiving SAX parser.
  */
 export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHandler, void> {
   const {
     checkVoidTag,
-
-      checkImplicitEndTag,
-      checkFragmentTag,
+    checkImplicitEndTag,
+    checkFragmentTag,
   } = options;
 
   let buffer = '';
@@ -88,7 +88,7 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
           depth = i;
         }
       }
-    }
+    };
 
     return forgivingHandler;
   };

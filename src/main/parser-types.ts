@@ -198,17 +198,17 @@ export interface IDomHandler<Node, Element extends Node = Node, Text extends Nod
   element: (token: IStartTagToken) => Element;
 
   /**
+   * Triggered when `childNode` must be added to the list of children of an `element`.
+   */
+  elementChild: (element: Element, childNode: Node) => void;
+
+  /**
    * Triggered when the end tag of the container was fully read from source.
    *
    * @param element The element for which the end tag was read.
    * @param token The token that closes the element.
    */
   elementEnd?: (element: Element, token: ITagToken) => void;
-
-  /**
-   * Triggered when `childNode` must be added to the list of children of an `element`.
-   */
-  elementChild: (element: Element, childNode: Node) => void;
 
   /**
    * Factory that creates a new text node.
