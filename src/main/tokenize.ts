@@ -138,7 +138,7 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
     const rawName = chunk.substring(k, j);
 
     token.rawName = rawName;
-    token.name = renameAttribute ? renameAttribute(rawName) : rawName;
+    token.name = renameAttribute != null ? renameAttribute(rawName) : rawName;
     token.nameStart = token.start = offset + k;
     token.nameEnd = offset + j;
 
@@ -179,7 +179,7 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
 
       if (valueStart !== -1) {
         rawValue = chunk.substring(valueStart, valueEnd);
-        value = decodeAttribute ? decodeAttribute(rawValue) : rawValue;
+        value = decodeAttribute != null ? decodeAttribute(rawValue) : rawValue;
         valueStart += offset;
         valueEnd += offset;
       }
@@ -207,6 +207,10 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
 }
 
 export interface ITokenizerOptions {
+
+  /**
+   * Tokenizer doesn't return allocated tokens back to this pool.
+   */
   startTagTokenPool: IObjectPool<IStartTagToken>;
   endTagTokenPool: IObjectPool<ITagToken>;
   dataTokenPool: IObjectPool<IDataToken>;
@@ -230,7 +234,6 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
     startTagTokenPool,
     endTagTokenPool,
     dataTokenPool,
-    attributeTokenPool,
   } = options;
 
   const {
@@ -272,7 +275,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
   const triggerDataCallback = (callback: ((token: IDataToken) => void) | undefined, start: number, end: number, deltaStart: number, deltaEnd: number, decode?: (data: string) => string): number => {
     const index = min(end, charCount);
 
-    if (!callback) {
+    if (callback == null) {
       return index;
     }
 
@@ -283,7 +286,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
     const token = dataTokenPool.take();
 
     token.rawData = rawData;
-    token.data = decode ? decode(rawData) : rawData;
+    token.data = decode != null ? decode(rawData) : rawData;
     token.start = chunkOffset + start;
     token.end = chunkOffset + index;
     token.dataStart = chunkOffset + dataStart;
@@ -326,7 +329,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         const nameEnd = j;
 
         const rawTagName = chunk.substring(nameStart, nameEnd);
-        const tagName = renameTag ? renameTag(rawTagName) : rawTagName;
+        const tagName = renameTag != null ? renameTag(rawTagName) : rawTagName;
 
         j = tokenizeAttributes(chunk, j, chunkOffset, attributes, options, parserOptions);
 
@@ -358,11 +361,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         i = k;
         startTagCallback?.(token);
 
-        // Free taken tokens
-        startTagTokenPool.free(token);
-        for (let i = 0; i < attributes.length; ++i) {
-          attributeTokenPool.free(attributes[i]);
-        }
+        // Start tag token and its attributes must be returned to the pool owner
         continue;
       }
     }
@@ -374,7 +373,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
       const nameEnd = j;
 
       const rawTagName = chunk.substring(nameStart, nameEnd);
-      const tagName = renameTag ? renameTag(rawTagName) : rawTagName;
+      const tagName = renameTag != null ? renameTag(rawTagName) : rawTagName;
 
       if (tagParsingEnabled || startTagName === tagName) {
 

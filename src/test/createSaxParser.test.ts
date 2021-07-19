@@ -1,6 +1,14 @@
 import {createSaxParser} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
-import {IDataToken, IParser, ISaxHandler, IStartTagToken, ITagToken} from '../main/parser-types';
+import {IArrayLike, IDataToken, IParser, ISaxHandler, IStartTagToken, ITagToken} from '../main/parser-types';
+
+function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
+  const arrLike: IArrayLike<T> = {length: arr.length};
+  for (let i = 0; i < arr.length; ++i) {
+    arrLike[i] = arr[i];
+  }
+  return arrLike;
+}
 
 describe('createSaxParser', () => {
 
@@ -38,6 +46,32 @@ describe('createSaxParser', () => {
   });
 
   describe('in non-streaming mode', () => {
+
+    it('parses tag', () => {
+      parser.parse(handler, '<foo></foo>');
+
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        rawName: 'foo',
+        name: 'foo',
+        attributes: toArrayLike([]),
+        selfClosing: false,
+        start: 0,
+        end: 5,
+        nameStart: 1,
+        nameEnd: 4,
+      });
+
+      expect(endTagMock).toHaveBeenCalledTimes(1);
+      expect(endTagMock).toHaveBeenCalledWith(<ITagToken>{
+        rawName: 'foo',
+        name: 'foo',
+        start: 5,
+        end: 11,
+        nameStart: 7,
+        nameEnd: 10,
+      });
+    });
 
     it('throws errors', () => {
       handler.text = () => {
@@ -80,7 +114,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'script',
         name: 'script',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 8,
@@ -116,7 +150,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -126,7 +160,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'b',
         name: 'b',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 3,
         end: 6,
@@ -160,7 +194,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -200,7 +234,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'p',
         name: 'p',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -210,7 +244,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'p',
         name: 'p',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 3,
         end: 6,
@@ -257,7 +291,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -307,7 +341,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'www',
         name: 'www',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'aaa',
             name: 'aaa',
@@ -321,7 +355,7 @@ describe('createSaxParser', () => {
             valueStart: 9,
             valueEnd: 12,
           },
-        ],
+        ]),
         selfClosing: true,
         start: 0,
         end: 15,
@@ -343,7 +377,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'bar',
         name: 'bar',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'aaa',
             name: 'aaa',
@@ -357,7 +391,7 @@ describe('createSaxParser', () => {
             valueStart: 14,
             valueEnd: 17,
           },
-        ],
+        ]),
         selfClosing: false,
         start: 5,
         end: 18,
@@ -466,7 +500,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -511,7 +545,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -521,7 +555,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'b',
         name: 'b',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 3,
         end: 6,
@@ -552,7 +586,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -562,7 +596,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'b',
         name: 'b',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 3,
         end: 6,
@@ -572,7 +606,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(3, <IStartTagToken>{
         rawName: 'c',
         name: 'c',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 6,
         end: 9,
@@ -610,7 +644,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: true,
         start: 0,
         end: 3,
@@ -620,7 +654,7 @@ describe('createSaxParser', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'b',
         name: 'b',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 3,
         end: 6,
