@@ -1,7 +1,7 @@
 import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {IObjectPool} from './createObjectPool';
 import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
-import {IParserOptions, IXmlSaxHandler} from './parser-types';
+import {IParserOptions, ISaxHandler} from './parser-types';
 import {CharCode} from './CharCode';
 
 // https://www.w3.org/TR/xml/#NT-S
@@ -31,7 +31,7 @@ const isTagNameStartChar: CharCodeChecker = (c) =>
     || c >= 0x10000 && c <= 0xeffff;
 
 /**
- * Check if char should be treated as a whitespace inside tag.
+ * Check if char should be treated as a whitespace inside a tag.
  */
 const isTagSpaceChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'];
 
@@ -76,7 +76,7 @@ const takeUnquotedValue = untilCharBy(isNotUnquotedValueChar, false, true);
 const takeComment = seq(text('<!--'), untilText('-->', true, true));
 
 // <!okay>
-const takeQuirkyComment = seq(text('<!'), untilText('>', true, true));
+const takeDtd = seq(text('<!'), untilText('>', true, true));
 
 // <?okay?>
 const takeProcessingInstruction = seq(text('<?'), untilText('?>', true, true));
@@ -197,13 +197,13 @@ export interface ITokenizerOptions {
  *
  * @param chunk The chunk of the input to read tokens from.
  * @param streaming If set to `true` then tokenizer stops when an ambiguous char sequence is met.
- * @param offset The offset of the `chunk` in scope of the whole input.
+ * @param chunkOffset The offset of the `chunk` in scope of the whole input.
  * @param options Tokenization options.
  * @param parserOptions Parsing options.
  * @param handler SAX handler that is notified about parsed tokens.
  * @returns The index in `chunk` right after the last parsed character.
  */
-export function tokenize(chunk: string, streaming: boolean, offset: number, options: ITokenizerOptions, parserOptions: IParserOptions, handler: IXmlSaxHandler): number {
+export function tokenize(chunk: string, streaming: boolean, chunkOffset: number, options: ITokenizerOptions, parserOptions: IParserOptions, handler: ISaxHandler): number {
 
   const {
     startTagTokenPool,
@@ -212,9 +212,8 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
   } = options;
 
   const {
-    cdataSectionsEnabled,
+    cdataEnabled,
     processingInstructionsEnabled,
-    quirkyCommentsEnabled,
     selfClosingEnabled,
     decodeText,
     renameTag,
@@ -253,10 +252,10 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
 
       dataToken.rawData = rawData;
       dataToken.data = decodeEnabled && decodeText ? decodeText(rawData) : rawData;
-      dataToken.start = offset + start;
-      dataToken.end = offset + index;
-      dataToken.dataStart = offset + dataStart;
-      dataToken.dataEnd = offset + dataEnd;
+      dataToken.start = chunkOffset + start;
+      dataToken.end = chunkOffset + index;
+      dataToken.dataStart = chunkOffset + dataStart;
+      dataToken.dataEnd = chunkOffset + dataEnd;
 
       callback(dataToken);
     }
@@ -297,7 +296,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         const rawTagName = chunk.substring(nameStart, nameEnd);
         const tagName = renameTag ? renameTag(rawTagName) : rawTagName;
 
-        j = tokenizeAttributes(chunk, j, offset, startTagToken.attributes, options, parserOptions);
+        j = tokenizeAttributes(chunk, j, chunkOffset, startTagToken.attributes, options, parserOptions);
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(chunk, j);
@@ -314,10 +313,10 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         startTagToken.rawName = rawTagName;
         startTagToken.name = tagName;
         startTagToken.selfClosing = selfClosing;
-        startTagToken.start = offset + i;
-        startTagToken.end = offset + k;
-        startTagToken.nameStart = offset + nameStart;
-        startTagToken.nameEnd = offset + nameEnd;
+        startTagToken.start = chunkOffset + i;
+        startTagToken.end = chunkOffset + k;
+        startTagToken.nameStart = chunkOffset + nameStart;
+        startTagToken.nameEnd = chunkOffset + nameEnd;
 
         if (!selfClosing) {
           startTagName = tagName;
@@ -357,10 +356,10 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         if (endTagCallback) {
           endTagToken.rawName = rawTagName;
           endTagToken.name = tagName;
-          endTagToken.start = offset + i;
-          endTagToken.end = offset + k;
-          endTagToken.nameStart = offset + nameStart;
-          endTagToken.nameEnd = offset + nameEnd;
+          endTagToken.start = chunkOffset + i;
+          endTagToken.end = chunkOffset + k;
+          endTagToken.nameStart = chunkOffset + nameStart;
+          endTagToken.nameEnd = chunkOffset + nameEnd;
 
           endTagCallback(endTagToken);
         }
@@ -402,7 +401,7 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
           return i;
         }
         emitText();
-        if (cdataSectionsEnabled) {
+        if (cdataEnabled) {
           i = emitData(cdataCallback, i, j, 9, 3, false);
         } else {
           i = emitData(commentCallback, i, j, 2, 1, false);
@@ -425,17 +424,19 @@ export function tokenize(chunk: string, streaming: boolean, offset: number, opti
         continue;
       }
 
-      // Quirky comments
-      if (quirkyCommentsEnabled) {
-        j = takeQuirkyComment(chunk, i);
-        if (j !== ResultCode.NO_MATCH) {
-          if (j > charCount && streaming) {
-            return i;
-          }
-          emitText();
-          i = emitData(commentCallback, i, j, 2, 1, true);
-          continue;
+      // DTD
+      j = takeDtd(chunk, i);
+      if (j !== ResultCode.NO_MATCH) {
+        if (j > charCount && streaming) {
+          return i;
         }
+        emitText();
+        if (cdataEnabled) {
+          i = Math.min(j, charCount);
+        } else {
+          i = emitData(commentCallback, i, j, 2, 1, true);
+        }
+        continue;
       }
     }
 

@@ -10,12 +10,12 @@
     "README.md"
   ],
   "scripts": {
-    "build": "set -e; tsc; npm run rollup; npm run terser",
-    "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve; done",
+    "build": "set -e; tsc; npm run rollup",
+    "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --external domhandler,domelementtype --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve; done",
     "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js; do terser --compress --mangle toplevel --output $p -- $p; done",
     "clean": "rm -rf ./lib ./docs",
     "test": "jest --detectOpenHandles",
-    "perf": "node --expose-gc --max-old-space-size=4096 ./src/test/perf.js",
+    "perf": "[ -d ./lib ] || npm run build; node --expose-gc --max-old-space-size=4096 ./src/test/perf.js",
     "docs": "typedoc ./src/main/html.ts",
     "publish-docs": "set -ex; [ -d ./docs ]; [[ ! $(git status --porcelain) ]]; branch=$(git rev-parse --abbrev-ref HEAD); sha=$(git rev-parse --short HEAD); t=$(mktemp -d); cp -R ./docs/ $t; git checkout ghpages; ls -A | grep -wv .git | xargs rm -rf; cp -R $t/ .; git add .; git commit -m \"Updated docs ($sha)\"; git push; git checkout $branch",
     "release-docs": "set -e; npm run clean; npm run docs; npm run publish-docs"
@@ -50,6 +50,9 @@
     "@types/jest": "^26.0.23",
     "@types/lodash": "^4.14.170",
     "chalk": "^4.1.1",
+    "cheerio": "^1.0.0-rc.10",
+    "domhandler": "^4.2.0",
+    "htmlparser-benchmark": "^1.1.3",
     "htmlparser2": "^6.1.0",
     "jest": "^27.0.2",
     "lodash": "^4.17.21",

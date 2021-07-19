@@ -1,4 +1,4 @@
-import {IDataToken, IStartTagToken, ITagToken} from './token-types';
+import {IDataToken, IStartTagToken, ITagToken, IToken} from './token-types';
 
 /**
  * The streaming parser.
@@ -20,7 +20,7 @@ export interface IParser<Handler, Result> {
    * for parsing. Parser is reset after parsing is completed.
    *
    * @param handler The parsing handler.
-   * @param source The source to parse.
+   * @param source The source to parse. If omitted then content of the internal buffer is parsed.
    */
   parse(handler: Handler, source?: string): Result;
 
@@ -36,51 +36,40 @@ export interface IParser<Handler, Result> {
 export interface IParserOptions {
 
   /**
-   * Enables CDATA sections recognition. If set to `false` then CDATA sections are treated as comments.
-   *
-   * @default false
-   * @see {@link IXmlSaxHandler.cdata}
-   */
-  cdataSectionsEnabled?: boolean;
-
-  /**
-   * Enables processing instructions recognition. If set to `false` then processing instructions are treated as
+   * Toggles CDATA sections recognition (`<![CDATA[foo]]>`). If set to `false` then CDATA sections are treated as
    * comments.
    *
-   * @default false
-   * @see {@link IXmlSaxHandler.processingInstruction}
+   * @see {@link ISaxHandler.cdata}
+   */
+  cdataEnabled?: boolean;
+
+  /**
+   * Toggles processing instructions recognition (`<?foo?>`). If set to `false` then processing instructions are
+   * treated as comments.
+   *
+   * @see {@link ISaxHandler.processingInstruction}
    */
   processingInstructionsEnabled?: boolean;
 
   /**
-   * Enables processing of quirky comments (`<!foo>`). If set to `false` then quirky comments are treated as text.
+   * Toggles self-closing tags recognition (`<foo/>`). If set to `false` then slash in self closing tags is ignored or
+   * processed as a part of an attribute value, depending on the markup.
    *
-   * @default false
-   */
-  quirkyCommentsEnabled?: boolean;
-
-  /**
-   * Enables self-closing tags recognition. If set to `false` then slash in self closing tags is ignored or processed
-   * as a part of an attribute value, depending on the markup.
-   *
-   * @default false
    * @see {@link checkVoidTag}
    */
   selfClosingEnabled?: boolean;
 
   /**
-   * Decodes XML entities to plain text value. If `undefined` then no decoding is done.
+   * Decodes XML entities in a plain text value.
    *
    * @see {@link createEntitiesDecoder}
-   * @default undefined
    */
   decodeText?: (text: string) => string;
 
   /**
-   * Decodes XML entities to an attribute value. If `undefined` then {@link decodeText} callback is used.
+   * Decodes XML entities in an attribute value. If omitted then {@link decodeText} callback is used.
    *
    * @see {@link createEntitiesDecoder}
-   * @default undefined
    */
   decodeAttribute?: (value: string) => string;
 
@@ -88,32 +77,27 @@ export interface IParserOptions {
    * Rewrites a tag name. Start and end tags are matched via tag name comparison. Provide a rewriter to support
    * case-insensitive tag matching.
    *
-   * @see {@link xmlEnabled}
    * @see {@link ITagToken.rawName}
-   * @default undefined
    */
   renameTag?: (name: string) => string;
 
   /**
-   * Rewrites an attribute name. If `undefined` then no rewriting is done.
-   * @default undefined
+   * Rewrites an attribute name.
    */
   renameAttribute?: (name: string) => string;
 
   /**
    * Checks whether the content of the container tag should be interpreted as a markup or as a character data. Entities
    * aren't decoded in the content of character data tags. Useful when parsing such tags as `script`, `style` and
-   * others. If `undefined` then content of all tags is interpreted as a markup.
+   * others.
    *
    * @param token The start tag token read from the source.
    * @returns `true` to interpret the contents of the `token` container tag as a character data, `false` otherwise.
-   * @default undefined
    */
   checkCdataTag?: (token: IStartTagToken) => boolean;
 
   /**
-   * Checks whether the tag has no content. Useful when parsing such tags as `hr`, `img` and others. If `undefined`
-   * then no tags are interpreted as void.
+   * Checks whether the tag has no content. Useful when parsing such tags as `hr`, `img` and others.
    *
    * @param token The start tag token.
    * @returns `true` to interpret tag as self-closing even if it isn't marked up as such, `false` otherwise.
@@ -124,24 +108,27 @@ export interface IParserOptions {
    * Checks whether the container should be implicitly closed with corresponding end tag when start tag is read. Useful
    * when parsing such tags as `p`, `li`, `td` and others.
    *
-   * @param ancestorToken The token of the currently opened container tag.
+   * @param ancestorToken The token of an opened container tag.
    * @param token The token of the start tag that was read.
    * @returns `true` if start tag `token` should implicitly close the currently opened container `ancestorToken`. This
-   *     would cause that {@link endTag} would be triggered for `ancestorToken` before {@link startTag} with `token`.
+   *     causes {@link endTag} to be triggered for `ancestorToken` before {@link startTag} is triggered with `token`.
    */
-  checkImplicitEndTag?: (ancestorToken: IStartTagToken, token: IStartTagToken) => boolean;
+  checkImplicitEndTag?: (ancestorTagToken: IStartTagToken, token: IStartTagToken) => boolean;
 
   /**
-   * Checks whether the container `token` is a document fragment boundary, so implicitly closed tags shouldn't be
-   * checked outside of it.
+   * Checks whether the container `token` is a boundary. Implicitly closed tags are checked in scope of the enclosing
+   * boundary. For example, you can create custom boundary tags that would allow nesting `p` tags.
    *
    * @param token The container tag token.
    */
-  checkFragmentTag?: (token: ITagToken) => boolean;
+  checkBoundaryTag?: (token: ITagToken) => boolean;
 }
 
 /**
- * Defines callbacks that are invoked during SAX parsing of an XML or an HTML document.
+ * Defines callbacks that are invoked during SAX parsing.
+ *
+ * **Note:** Don't keep references to tokens! Tokens passed to the handler callbacks are pooled objects that are reused
+ * by the parser after callback finishes. Make a deep copy to retain a token.
  */
 export interface ISaxHandler {
 
@@ -169,12 +156,6 @@ export interface ISaxHandler {
    * Triggered when a DOCTYPE was read.
    */
   doctype?: (token: IDataToken) => void;
-}
-
-/**
- * Defines callbacks that are invoked during SAX parsing of an XML document.
- */
-export interface IXmlSaxHandler extends ISaxHandler {
 
   /**
    * Triggered when a processing instruction was read.
@@ -188,56 +169,53 @@ export interface IXmlSaxHandler extends ISaxHandler {
 }
 
 /**
- * Defines callbacks that are invoked during DOM parsing of an XML or an HTML document.
+ * Defines node factories and callbacks that are invoked during DOM parsing.
+ *
+ * **Note:** Don't keep references to tokens! Tokens passed to some of the handler callbacks are pooled objects that
+ * are reused by the parser after callback finishes. Make a deep copy to retain a token.
  */
-export interface IDomHandler<Node, Element extends Node = Node, Text extends Node = Node> {
+export interface IDomHandler<Node, ContainerNode extends Node> {
 
   /**
    * Creates a new element node.
    */
-  element: (token: IStartTagToken) => Element;
+  element: (token: IStartTagToken) => ContainerNode;
 
   /**
-   * Triggered when `childNode` must be added to the list of children of an `element`.
+   * Triggered when the `node` must be added to the list of children of the `parentNode`.
    */
-  elementChild: (element: Element, childNode: Node) => void;
+  appendChild: (parentNode: ContainerNode, node: Node) => void;
 
   /**
-   * Triggered when the end tag of the container was fully read from source.
+   * Triggered when an element or a document was fully read from source.
    *
-   * @param element The element for which the end tag was read.
-   * @param token The token that closes the element.
+   * @param node The element or document node for which the end token was read.
+   * @param token The token that closes the container.
    */
-  elementEnd?: (element: Element, token: ITagToken) => void;
+  containerEnd?: (node: ContainerNode, token: IToken) => void;
 
   /**
-   * Factory that creates a new text node.
+   * Creates a new text node.
    */
-  text?: (token: IDataToken) => Text;
+  text?: (token: IDataToken) => Node;
 
   /**
-   * Factory that creates a new DOCTYPE node.
+   * Creates a new document node when a DOCTYPE was read.
    */
-  doctype?: (token: IDataToken) => Node;
+  document?: (doctypeToken: IDataToken) => ContainerNode;
 
   /**
-   * Factory that creates a new comment node.
+   * Creates a new comment node.
    */
   comment?: (token: IDataToken) => Node;
-}
-
-/**
- * Defines callbacks that are invoked during DOM parsing of an XML document.
- */
-export interface IXmlDomHandler<Node, Element extends Node = Node, Text extends Node = Node> extends IDomHandler<Node, Element, Text> {
 
   /**
-   * Factory that creates a new processing instruction.
+   * Creates a new processing instruction node.
    */
   processingInstruction?: (token: IDataToken) => Node;
 
   /**
-   * Factory that creates a new CDATA section node.
+   * Creates a new CDATA section node.
    */
   cdata?: (token: IDataToken) => Node;
 }

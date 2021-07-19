@@ -2,7 +2,7 @@ import {ITokenizerOptions, tokenize, tokenizeAttributes} from '../main/tokenize'
 import {createObjectPool} from '../main/createObjectPool';
 import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from '../main/tokens';
 import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
-import {IParserOptions, IXmlSaxHandler} from '../main/parser-types';
+import {IParserOptions, ISaxHandler} from '../main/parser-types';
 import {cloneDeep} from 'lodash';
 
 const startTagMock = jest.fn();
@@ -15,7 +15,7 @@ const doctypeMock = jest.fn();
 
 let tokenizerOptions: ITokenizerOptions;
 let parserOptions: IParserOptions;
-let handler: IXmlSaxHandler;
+let handler: ISaxHandler;
 
 beforeEach(() => {
   tokenizerOptions = {
@@ -1132,8 +1132,8 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses terminated quirky comments', () => {
-      parserOptions.quirkyCommentsEnabled = true;
+    it('parses DTD as comments when CDATA sections are disabled', () => {
+      parserOptions.cdataEnabled = false;
 
       tokenize('<!foo>', false, 0, tokenizerOptions, parserOptions, handler);
 
@@ -1148,8 +1148,8 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses unterminated quirky comments', () => {
-      parserOptions.quirkyCommentsEnabled = true;
+    it('parses incomplete DTD as comments when CDATA sections are disabled', () => {
+      parserOptions.cdataEnabled = false;
 
       tokenize('<!foo', false, 0, tokenizerOptions, parserOptions, handler);
 
@@ -1164,18 +1164,13 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses quirky comments as text when disabled', () => {
+    it('ignores DTD when CDATA is enabled', () => {
+      parserOptions.cdataEnabled = true;
+
       tokenize('<!foo>', false, 0, tokenizerOptions, parserOptions, handler);
 
-      expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
-        rawData: '<!foo>',
-        data: '<!foo>',
-        start: 0,
-        end: 6,
-        dataStart: 0,
-        dataEnd: 6,
-      });
+      expect(commentMock).not.toHaveBeenCalledTimes(1);
+      expect(textMock).not.toHaveBeenCalledTimes(1);
     });
 
     it('parses XML comments that contain minuses', () => {
@@ -1237,7 +1232,7 @@ describe('tokenize', () => {
     });
 
     it('parses CDATA blocks', () => {
-      parserOptions.cdataSectionsEnabled = true;
+      parserOptions.cdataEnabled = true;
 
       tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
 
@@ -1478,7 +1473,7 @@ describe('tokenize', () => {
       expect(commentMock).not.toHaveBeenCalled();
     });
 
-    it('does not emit unterminated quirky comments', () => {
+    it('does not emit unterminated DTD when CDATA is disabled', () => {
       tokenize('<!foo', true, 0, tokenizerOptions, parserOptions, handler);
       expect(commentMock).not.toHaveBeenCalled();
     });

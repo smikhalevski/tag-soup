@@ -1,7 +1,7 @@
 import {createSaxParser} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
 import {IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
-import {IParser, IXmlSaxHandler} from '../main/parser-types';
+import {IParser, ISaxHandler} from '../main/parser-types';
 
 describe('createSaxParser', () => {
 
@@ -13,8 +13,8 @@ describe('createSaxParser', () => {
   const cdataMock = jest.fn();
   const doctypeMock = jest.fn();
 
-  let parser: IParser<IXmlSaxHandler, void>;
-  let handler: IXmlSaxHandler;
+  let parser: IParser<ISaxHandler, void>;
+  let handler: ISaxHandler;
 
   beforeEach(() => {
     parser = createSaxParser();

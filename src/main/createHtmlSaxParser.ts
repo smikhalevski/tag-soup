@@ -23,9 +23,8 @@ const htmlTextDecoder = createEntitiesDecoder({
 });
 
 export const htmlParserOptions: IParserOptions = {
-  // cdataSectionsEnabled,
+  // cdataEnabled,
   // processingInstructionsEnabled,
-  quirkyCommentsEnabled: true,
   // selfClosingEnabled
   decodeText: htmlTextDecoder,
   decodeAttribute: htmlAttributeDecoder,
@@ -34,5 +33,5 @@ export const htmlParserOptions: IParserOptions = {
   checkCdataTag: checkHtmlCdataTag,
   checkVoidTag: checkHtmlVoidTag,
   checkImplicitEndTag: checkHtmlImplicitEndTag,
-  // checkFragmentTag
+  // checkBoundaryTag
 };

@@ -1,11 +1,11 @@
 import {createDomParser} from '../main/createDomParser';
-import {IParser, IParserOptions, IXmlDomHandler} from '../main';
+import {IParser, IParserOptions, IDomHandler} from '../main';
 
 describe('createDomParser', () => {
 
   let options: IParserOptions;
-  let parser: IParser<IXmlDomHandler<any>, any>;
-  let handler: IXmlDomHandler<any>;
+  let parser: IParser<IDomHandler<any>, any>;
+  let handler: IDomHandler<any>;
 
   beforeEach(() => {
     options = {};
@@ -27,7 +27,7 @@ describe('createDomParser', () => {
           children: [],
         };
       },
-      elementChild(element, childNode) {
+      appendChild(element, childNode) {
         element.children.push(childNode);
       },
       elementEnd(element, token) {

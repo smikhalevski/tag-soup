@@ -1,4 +1,4 @@
-import {IParser, IParserOptions, IXmlDomHandler, IXmlSaxHandler} from './parser-types';
+import {IParser, IParserOptions, IDomHandler, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
 import {IDataToken} from './token-types';
 
@@ -9,28 +9,28 @@ import {IDataToken} from './token-types';
  * @template Element The type of object that describes an element in the DOM tree.
  * @template Text The type of object that describes a text node in the DOM tree.
  */
-export function createDomParser<Node, Element extends Node = Node, Text extends Node = Node>(options: IParserOptions): IParser<IXmlDomHandler<Node, Element, Text>, Array<Node>> {
-  let elements: Array<Element> = [];
-  let depth = 0;
+export function createDomParser<Node, ContainerNode extends Node>(options: IParserOptions): IParser<IDomHandler<Node, ContainerNode>, Array<Node>> {
+  let ancestors: Array<ContainerNode> = [];
+  let nestingDepth = 0;
   let nodes: Array<Node> = [];
 
   const saxParser = createSaxParser(options);
 
-  const createSaxHandler = (handler: IXmlDomHandler<Node, Element, Text>): IXmlSaxHandler => {
+  const createSaxHandler = (handler: IDomHandler<Node, ContainerNode>): ISaxHandler => {
     const {
       element: elementCallback,
-      elementEnd: elementEndCallback,
-      elementChild: elementChildCallback,
+      containerEnd: containerEndCallback,
+      appendChild: appendChildCallback,
       text: textCallback,
-      doctype: doctypeCallback,
+      document: documentCallback,
       comment: commentCallback,
       processingInstruction: processingInstructionCallback,
       cdata: cdataCallback,
     } = handler;
 
     const pushNode = (node: Node) => {
-      if (depth > 0) {
-        elementChildCallback(elements[depth - 1], node);
+      if (nestingDepth > 0) {
+        appendChildCallback(ancestors[nestingDepth - 1], node);
       } else {
         nodes.push(node);
       }
@@ -49,30 +49,38 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
         pushNode(element);
 
         if (!token.selfClosing) {
-          elements[depth] = element;
-          depth++;
+          ancestors[nestingDepth] = element;
+          nestingDepth++;
         }
       },
 
       endTag(token) {
-        depth--;
-        elementEndCallback?.(elements[depth], token);
+        nestingDepth--;
+        containerEndCallback?.(ancestors[nestingDepth], token);
       },
 
       text: createDataTokenCallback(textCallback),
       processingInstruction: createDataTokenCallback(processingInstructionCallback),
       cdata: createDataTokenCallback(cdataCallback),
-      doctype: createDataTokenCallback(doctypeCallback),
+      doctype(token) {
+        if (documentCallback) {
+          const element = documentCallback(token);
+          pushNode(element);
+
+          ancestors[nestingDepth] = element;
+          nestingDepth++;
+        }
+      },
       comment: createDataTokenCallback(commentCallback),
     };
   };
 
-  const write = (handler: IXmlDomHandler<Node, Element, Text>, chunk: string) => {
+  const write = (handler: IDomHandler<Node, ContainerNode>, chunk: string) => {
     saxParser.write(createSaxHandler(handler), chunk);
     return nodes;
   };
 
-  const parse = (handler: IXmlDomHandler<Node, Element, Text>, str: string) => {
+  const parse = (handler: IDomHandler<Node, ContainerNode>, str: string) => {
     saxParser.parse(createSaxHandler(handler), str);
     const result = nodes;
     reset();
@@ -81,8 +89,8 @@ export function createDomParser<Node, Element extends Node = Node, Text extends 
 
   const reset = () => {
     saxParser.reset();
-    elements = [];
-    depth = 0;
+    ancestors = [];
+    nestingDepth = 0;
     nodes = [];
   };
 

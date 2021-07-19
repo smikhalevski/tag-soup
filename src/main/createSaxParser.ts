@@ -1,21 +1,24 @@
 import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
 import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
-import {IParser, IParserOptions, IXmlSaxHandler} from './parser-types';
+import {IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {ITagToken} from './token-types';
 
 /**
- * Creates a new streaming forgiving SAX parser.
+ * Creates a new SAX parser.
  */
-export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHandler, void> {
+export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandler, void> {
   const {
     checkVoidTag,
     checkImplicitEndTag,
-    checkFragmentTag,
+    checkBoundaryTag,
   } = options;
 
   let buffer = '';
-  let offset = 0;
+  let chunkOffset = 0;
+  let nestingDepth = 0;
+
+  const ancestorTokens: Array<ITagToken> = [];
 
   const startTagTokenPool = createObjectPool(createStartTagToken);
   const attributeTokenPool = createObjectPool(createAttributeToken);
@@ -29,10 +32,7 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
   const containerTagTokenPool = createObjectPool(createTagToken);
   const endTagToken = createTagToken();
 
-  let containerTokens: Array<ITagToken> = [];
-  let depth = 0;
-
-  const createForgivingHandler = (handler: IXmlSaxHandler): IXmlSaxHandler => {
+  const createForgivingHandler = (handler: ISaxHandler): ISaxHandler => {
     const {
       startTag: startTagCallback,
       endTag: endTagCallback,
@@ -44,23 +44,23 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
       token.selfClosing ||= checkVoidTag?.(token) || false;
 
       if (checkImplicitEndTag) {
-        for (let i = depth - 1; i >= 0; i--) {
-          const containerToken = containerTokens[i];
+        for (let i = nestingDepth - 1; i >= 0; i--) {
+          const containerToken = ancestorTokens[i];
 
-          if (checkFragmentTag?.(containerToken)) {
+          if (checkBoundaryTag?.(containerToken)) {
             break;
           }
 
           if (checkImplicitEndTag(containerToken as any, token)) {
 
             if (endTagCallback) {
-              for (let j = depth - 1; j >= i; j--) {
-                assignEndTagToken(endTagToken, containerTokens[j], token.start);
+              for (let j = nestingDepth - 1; j >= i; j--) {
+                assignEndTagToken(endTagToken, ancestorTokens[j], token.start);
                 endTagCallback(endTagToken);
               }
             }
 
-            depth = i;
+            nestingDepth = i;
             break;
           }
         }
@@ -69,7 +69,7 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
       startTagCallback?.(token);
 
       if (!token.selfClosing) {
-        assignTagToken(containerTokens[depth++] ||= containerTagTokenPool.take(), token);
+        assignTagToken(ancestorTokens[nestingDepth++] ||= containerTagTokenPool.take(), token);
       }
 
       startTagTokenPool.free(token);
@@ -79,18 +79,18 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
     };
 
     forgivingHandler.endTag = (token) => {
-      for (let i = depth - 1; i >= 0; i--) {
-        if (containerTokens[i].name === token.name) {
+      for (let i = nestingDepth - 1; i >= 0; i--) {
+        if (ancestorTokens[i].name === token.name) {
 
           if (endTagCallback) {
-            for (let j = depth - 1; j > i; j--) {
-              assignEndTagToken(endTagToken, containerTokens[j], token.start);
+            for (let j = nestingDepth - 1; j > i; j--) {
+              assignEndTagToken(endTagToken, ancestorTokens[j], token.start);
               endTagCallback(endTagToken);
             }
             endTagCallback(token);
           }
 
-          depth = i;
+          nestingDepth = i;
         }
       }
     };
@@ -98,22 +98,22 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
     return forgivingHandler;
   };
 
-  const write = (handler: IXmlSaxHandler, chunk: string) => {
+  const write = (handler: ISaxHandler, chunk: string) => {
     chunk ||= '';
     buffer += chunk;
-    const index = tokenize(buffer, true, offset, tokenizerOptions, options, createForgivingHandler(handler));
+    const index = tokenize(buffer, true, chunkOffset, tokenizerOptions, options, createForgivingHandler(handler));
     buffer = buffer.substr(index);
-    offset += index;
+    chunkOffset += index;
   };
 
-  const parse = (handler: IXmlSaxHandler, chunk: string) => {
+  const parse = (handler: ISaxHandler, chunk: string) => {
     chunk ||= '';
     buffer += chunk;
-    const index = tokenize(buffer, false, offset, tokenizerOptions, options, createForgivingHandler(handler));
+    const index = tokenize(buffer, false, chunkOffset, tokenizerOptions, options, createForgivingHandler(handler));
 
     if (handler.endTag) {
-      for (let i = depth - 1; i >= 0; i--) {
-        assignEndTagToken(endTagToken, containerTokens[i], offset + index);
+      for (let i = nestingDepth - 1; i >= 0; i--) {
+        assignEndTagToken(endTagToken, ancestorTokens[i], chunkOffset + index);
         handler.endTag(endTagToken);
       }
     }
@@ -123,8 +123,8 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
 
   const reset = (): void => {
     buffer = '';
-    offset = 0;
-    containerTokens.length = depth = 0;
+    chunkOffset = 0;
+    ancestorTokens.length = nestingDepth = 0;
   };
 
   return {
@@ -133,6 +133,14 @@ export function createSaxParser(options: IParserOptions = {}): IParser<IXmlSaxHa
     parse,
   };
 }
+
+
+
+
+
+
+
+
 
 function assignTagToken(tokenA: ITagToken, tokenB: ITagToken): void {
   tokenA.rawName = tokenB.rawName;

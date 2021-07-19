@@ -1,17 +1,16 @@
-import {IParser, IParserOptions, IXmlSaxHandler} from './parser-types';
+import {IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 
-export function createXmlSaxParser(options?: IParserOptions): IParser<IXmlSaxHandler, void> {
+export function createXmlSaxParser(options?: IParserOptions): IParser<ISaxHandler, void> {
   return createSaxParser(Object.assign({}, xmlParserOptions, options));
 }
 
 export const xmlDecoder = createEntitiesDecoder();
 
 export const xmlParserOptions: IParserOptions = {
-  cdataSectionsEnabled: true,
+  cdataEnabled: true,
   processingInstructionsEnabled: true,
-  // quirkyCommentsEnabled
   selfClosingEnabled: true,
   decodeText: xmlDecoder,
   decodeAttribute: xmlDecoder,
@@ -20,5 +19,5 @@ export const xmlParserOptions: IParserOptions = {
   // checkCdataTag
   // checkVoidTag
   // checkImplicitEndTag
-  // checkFragmentTag
+  // checkBoundaryTag
 };
