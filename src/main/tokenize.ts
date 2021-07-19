@@ -134,13 +134,13 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
       break;
     }
 
-    const attributeToken = attributes[attributeCount] ||= attributeTokenPool.take();
+    const token = attributes[attributeCount] ||= attributeTokenPool.take();
     const rawName = chunk.substring(k, j);
 
-    attributeToken.rawName = rawName;
-    attributeToken.name = renameAttribute ? renameAttribute(rawName) : rawName;
-    attributeToken.nameStart = attributeToken.start = offset + k;
-    attributeToken.nameEnd = offset + j;
+    token.rawName = rawName;
+    token.name = renameAttribute ? renameAttribute(rawName) : rawName;
+    token.nameStart = token.start = offset + k;
+    token.nameEnd = offset + j;
 
     k = j;
     j = takeEq(chunk, k);
@@ -185,20 +185,20 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
       }
     }
 
-    attributeToken.rawValue = rawValue;
-    attributeToken.value = value;
-    attributeToken.valueStart = valueStart;
-    attributeToken.valueEnd = valueEnd;
-    attributeToken.quoted = quoted;
-    attributeToken.end = offset + k;
+    token.rawValue = rawValue;
+    token.value = value;
+    token.valueStart = valueStart;
+    token.valueEnd = valueEnd;
+    token.quoted = quoted;
+    token.end = offset + k;
 
-    attributeCount++;
+    ++attributeCount;
 
     index = k;
   }
 
   // Clean up array-like object
-  for (let i = attributeCount; i < attributes.length; i++) {
+  for (let i = attributeCount; i < attributes.length; ++i) {
     attributes[i] = undefined as unknown as IAttributeToken;
   }
 
@@ -230,6 +230,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
     startTagTokenPool,
     endTagTokenPool,
     dataTokenPool,
+    attributeTokenPool,
   } = options;
 
   const {
@@ -252,7 +253,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
   } = handler;
 
   let textStart = -1;
-  let textEnd = -1;
+  let textEnd = 0;
   let tagParsingEnabled = true;
   let startTagName: string | undefined;
 
@@ -260,6 +261,41 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
   let i = 0;
   let j;
+
+  const triggerTextCallback = () => {
+    if (textStart !== -1) {
+      triggerDataCallback(textCallback, textStart, textEnd, 0, 0, decodeText);
+      textStart = -1;
+    }
+  };
+
+  const triggerDataCallback = (callback: ((token: IDataToken) => void) | undefined, start: number, end: number, deltaStart: number, deltaEnd: number, decode?: (data: string) => string): number => {
+    const index = min(end, charCount);
+
+    if (!callback) {
+      return index;
+    }
+
+    const dataStart = start + deltaStart;
+    const dataEnd = min(end - deltaEnd, charCount);
+    const rawData = chunk.substring(dataStart, dataEnd);
+
+    const token = dataTokenPool.take();
+
+    token.rawData = rawData;
+    token.data = decode ? decode(rawData) : rawData;
+    token.start = chunkOffset + start;
+    token.end = chunkOffset + index;
+    token.dataStart = chunkOffset + dataStart;
+    token.dataEnd = chunkOffset + dataEnd;
+
+    callback(token);
+
+    // Free taken tokens
+    dataTokenPool.free(token);
+
+    return index;
+  };
 
   while (i < charCount) {
 
@@ -282,7 +318,9 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
       // Start tag
       j = takeStartTagOpening(chunk, i);
       if (j !== ResultCode.NO_MATCH) {
-        const startTagToken = startTagTokenPool.take();
+
+        const token = startTagTokenPool.take();
+        const attributes = token.attributes;
 
         const nameStart = i + 1;
         const nameEnd = j;
@@ -290,7 +328,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         const rawTagName = chunk.substring(nameStart, nameEnd);
         const tagName = renameTag ? renameTag(rawTagName) : rawTagName;
 
-        j = tokenizeAttributes(chunk, j, chunkOffset, startTagToken.attributes, options, parserOptions);
+        j = tokenizeAttributes(chunk, j, chunkOffset, attributes, options, parserOptions);
 
         // Skip malformed content and excessive whitespaces
         const k = takeUntilGt(chunk, j);
@@ -302,27 +340,29 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
         const selfClosing = selfClosingEnabled && k - j >= 2 && chunk.charCodeAt(k - 2) === CharCode['/'] || false;
 
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
+        triggerTextCallback();
 
-
-        startTagToken.rawName = rawTagName;
-        startTagToken.name = tagName;
-        startTagToken.selfClosing = selfClosing;
-        startTagToken.start = chunkOffset + i;
-        startTagToken.end = chunkOffset + k;
-        startTagToken.nameStart = chunkOffset + nameStart;
-        startTagToken.nameEnd = chunkOffset + nameEnd;
+        token.rawName = rawTagName;
+        token.name = tagName;
+        token.selfClosing = selfClosing;
+        token.start = chunkOffset + i;
+        token.end = chunkOffset + k;
+        token.nameStart = chunkOffset + nameStart;
+        token.nameEnd = chunkOffset + nameEnd;
 
         if (!selfClosing) {
           startTagName = tagName;
-          tagParsingEnabled = !checkCdataTag?.(startTagToken);
+          tagParsingEnabled = !checkCdataTag?.(token);
         }
 
         i = k;
-        startTagCallback?.(startTagToken);
+        startTagCallback?.(token);
+
+        // Free taken tokens
+        startTagTokenPool.free(token);
+        for (let i = 0; i < attributes.length; ++i) {
+          attributeTokenPool.free(attributes[i]);
+        }
         continue;
       }
     }
@@ -349,23 +389,22 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
           return i;
         }
 
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
-
+        triggerTextCallback();
 
         if (endTagCallback) {
-          const endTagToken = endTagTokenPool.take();
-          endTagToken.rawName = rawTagName;
-          endTagToken.name = tagName;
-          endTagToken.start = chunkOffset + i;
-          endTagToken.end = chunkOffset + k;
-          endTagToken.nameStart = chunkOffset + nameStart;
-          endTagToken.nameEnd = chunkOffset + nameEnd;
+          const token = endTagTokenPool.take();
 
-          endTagCallback(endTagToken);
-          endTagTokenPool.free(endTagToken);
+          token.rawName = rawTagName;
+          token.name = tagName;
+          token.start = chunkOffset + i;
+          token.end = chunkOffset + k;
+          token.nameStart = chunkOffset + nameStart;
+          token.nameEnd = chunkOffset + nameEnd;
+
+          endTagCallback(token);
+
+          // Free taken tokens
+          endTagTokenPool.free(token);
         }
 
         i = k;
@@ -382,12 +421,8 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
-
-        i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 4, 3, decodeText);
+        triggerTextCallback();
+        i = triggerDataCallback(commentCallback, i, j, 4, 3, decodeText);
         continue;
       }
 
@@ -397,12 +432,8 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
-
-        i = emitData(chunkOffset,chunk,dataTokenPool,doctypeCallback, i, j, 9, 1, undefined);
+        triggerTextCallback();
+        i = triggerDataCallback(doctypeCallback, i, j, 9, 1);
         continue;
       }
 
@@ -412,15 +443,12 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
+        triggerTextCallback();
 
         if (cdataEnabled) {
-          i = emitData(chunkOffset,chunk,dataTokenPool,cdataCallback, i, j, 9, 3, undefined);
+          i = triggerDataCallback(cdataCallback, i, j, 9, 3);
         } else {
-          i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 2, 1, undefined);
+          i = triggerDataCallback(commentCallback, i, j, 2, 1);
         }
         continue;
       }
@@ -431,15 +459,12 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
+        triggerTextCallback();
 
         if (processingInstructionsEnabled) {
-          i = emitData(chunkOffset,chunk,dataTokenPool,processingInstructionCallback, i, j, 2, 2, undefined);
+          i = triggerDataCallback(processingInstructionCallback, i, j, 2, 2);
         } else {
-          i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 1, 1, undefined);
+          i = triggerDataCallback(commentCallback, i, j, 1, 1);
         }
         continue;
       }
@@ -450,15 +475,12 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        if (textStart !== -1) {
-          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-          textStart = textEnd = -1;
-        }
+        triggerTextCallback();
 
         if (cdataEnabled) {
-          i = Math.min(j, charCount);
+          i = min(j, charCount);
         } else {
-          i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 2, 1, decodeText);
+          i = triggerDataCallback(commentCallback, i, j, 2, 1, decodeText);
         }
         continue;
       }
@@ -484,36 +506,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
     return i;
   }
 
-  if (textStart !== -1) {
-    emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
-    textStart = textEnd = -1;
-  }
-
+  triggerTextCallback();
 
   return i;
 }
-
-const emitData = (chunkOffset: number, chunk: string, dataTokenPool: IObjectPool<IDataToken>, callback: ((token: IDataToken) => void) | undefined, start: number, end: number, dataStartOffset: number, dataEndOffset: number, decoder: ((str: string) => string) | undefined): number => {
-
-  const charCount = chunk.length;
-  const index = Math.min(end, charCount);
-
-  if (callback) {
-    const dataStart = start + dataStartOffset;
-    const dataEnd = Math.min(end - dataEndOffset, charCount);
-    const rawData = chunk.substring(dataStart, dataEnd);
-
-    const dataToken = dataTokenPool.take();
-
-    dataToken.rawData = rawData;
-    dataToken.data = decoder ? decoder(rawData) : rawData;
-    dataToken.start = chunkOffset + start;
-    dataToken.end = chunkOffset + index;
-    dataToken.dataStart = chunkOffset + dataStart;
-    dataToken.dataEnd = chunkOffset + dataEnd;
-
-    callback(dataToken);
-    dataTokenPool.free(dataToken);
-  }
-  return index;
-};
