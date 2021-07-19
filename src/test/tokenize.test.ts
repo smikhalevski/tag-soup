@@ -1,8 +1,15 @@
 import {ITokenizerOptions, tokenize, tokenizeAttributes} from '../main/tokenize';
 import {createObjectPool} from '../main/createObjectPool';
 import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from '../main/tokens';
-import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
-import {IParserOptions, ISaxHandler} from '../main/parser-types';
+import {
+  IArrayLike,
+  IAttributeToken,
+  IDataToken,
+  IParserOptions,
+  ISaxHandler,
+  IStartTagToken,
+  ITagToken,
+} from '../main/parser-types';
 import {cloneDeep} from 'lodash';
 
 const startTagMock = jest.fn();
@@ -17,11 +24,19 @@ let tokenizerOptions: ITokenizerOptions;
 let parserOptions: IParserOptions;
 let handler: ISaxHandler;
 
+function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
+  const arrLike: IArrayLike<T> = {length: arr.length};
+  for (let i = 0; i < arr.length; ++i) {
+    arrLike[i] = arr[i];
+  }
+  return arrLike;
+}
+
 beforeEach(() => {
   tokenizerOptions = {
     startTagTokenPool: createObjectPool(createStartTagToken),
-    endTagToken: createTagToken(),
-    dataToken: createDataToken(),
+    endTagTokenPool: createObjectPool(createTagToken),
+    dataTokenPool: createObjectPool(createDataToken),
     attributeTokenPool: createObjectPool(createAttributeToken),
   };
 
@@ -48,15 +63,15 @@ beforeEach(() => {
 
 describe('tokenizeAttributes', () => {
 
-  let attributes: Array<IAttributeToken>;
+  let attributes: IArrayLike<IAttributeToken>;
 
   beforeEach(() => {
-    attributes = [];
+    attributes = {length: 0};
   });
 
   it('reads a double quoted attribute', () => {
     expect(tokenizeAttributes('aaa="111"', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -70,12 +85,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 5,
         valueEnd: 8,
       },
-    ]);
+    ]));
   });
 
   it('reads a single quoted attribute', () => {
     expect(tokenizeAttributes('aaa=\'111\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -89,12 +104,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 5,
         valueEnd: 8,
       },
-    ]);
+    ]));
   });
 
   it('reads an unquoted attribute', () => {
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -108,12 +123,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 7,
       },
-    ]);
+    ]));
   });
 
   it('reads mix of quoted attributes separated by spaces', () => {
     expect(tokenizeAttributes('aaa=111 bbb="222" ccc=\'333\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(27);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -153,12 +168,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 23,
         valueEnd: 26,
       },
-    ]);
+    ]));
   });
 
   it('reads quoted attributes separated by slashes', () => {
     expect(tokenizeAttributes('aaa="111"//bbb=\'222\'//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(20);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -185,12 +200,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 16,
         valueEnd: 19,
       },
-    ]);
+    ]));
   });
 
   it('reads non-separated quoted attributes', () => {
     expect(tokenizeAttributes('aaa="111"bbb=\'222\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(18);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -217,12 +232,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 14,
         valueEnd: 17,
       },
-    ]);
+    ]));
   });
 
   it('reads an attribute without the value', () => {
     expect(tokenizeAttributes('aaa', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(3);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -236,12 +251,12 @@ describe('tokenizeAttributes', () => {
         valueStart: -1,
         valueEnd: -1,
       },
-    ]);
+    ]));
   });
 
   it('reads an attribute with an equals char and without the value', () => {
     expect(tokenizeAttributes('aaa=', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(4);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -255,12 +270,12 @@ describe('tokenizeAttributes', () => {
         valueStart: -1,
         valueEnd: -1,
       },
-    ]);
+    ]));
   });
 
   it('treats the slash char as the whitespace in the attribute name', () => {
     expect(tokenizeAttributes('aaa/bbb="222"', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(13);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -287,12 +302,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 9,
         valueEnd: 12,
       },
-    ]);
+    ]));
   });
 
   it('ignores leading slashes', () => {
     expect(tokenizeAttributes('//aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -306,12 +321,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 6,
         valueEnd: 9,
       },
-    ]);
+    ]));
   });
 
   it('ignores leading space chars', () => {
     expect(tokenizeAttributes(' \taaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -325,12 +340,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 6,
         valueEnd: 9,
       },
-    ]);
+    ]));
   });
 
   it('trailing slashes are the part of the unquoted attribute value', () => {
     expect(tokenizeAttributes('aaa=111//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -344,12 +359,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 9,
       },
-    ]);
+    ]));
   });
 
   it('trailing slashes are treated as an unquoted value', () => {
     expect(tokenizeAttributes('aaa=//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(6);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -363,12 +378,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 6,
       },
-    ]);
+    ]));
   });
 
   it('trailing slashes after the quoted value are ignored', () => {
     expect(tokenizeAttributes('aaa="111"//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -382,12 +397,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 5,
         valueEnd: 8,
       },
-    ]);
+    ]));
   });
 
   it('trailing slash without the preceding equals char is ignored', () => {
     expect(tokenizeAttributes('aaa/', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(3);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -401,12 +416,12 @@ describe('tokenizeAttributes', () => {
         valueStart: -1,
         valueEnd: -1,
       },
-    ]);
+    ]));
   });
 
   it('ignores trailing spaces', () => {
     expect(tokenizeAttributes('aaa=111  ', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -420,12 +435,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 7,
       },
-    ]);
+    ]));
   });
 
   it('ignores spaces around the equals char', () => {
     expect(tokenizeAttributes('aaa  =  111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -439,12 +454,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 8,
         valueEnd: 11,
       },
-    ]);
+    ]));
   });
 
   it('treats the equals char as the part of the attribute value', () => {
     expect(tokenizeAttributes('aaa=111=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -458,12 +473,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 11,
       },
-    ]);
+    ]));
   });
 
   it('treats the quote char as the part of the attribute value', () => {
     expect(tokenizeAttributes('aaa=111"111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -477,12 +492,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 11,
       },
-    ]);
+    ]));
   });
 
   it('treats single quot as the part of the attribute value', () => {
     expect(tokenizeAttributes('aaa=111\'111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -496,12 +511,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 11,
       },
-    ]);
+    ]));
   });
 
   it('treats slash followed by the equals char as the part of the attribute value', () => {
     expect(tokenizeAttributes('aaa=111/=111 bbb=222', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(20);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -528,12 +543,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 17,
         valueEnd: 20,
       },
-    ]);
+    ]));
   });
 
   it('treats leading quotes as the part of the attribute name', () => {
     expect(tokenizeAttributes('""""aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: '""""aaa',
         name: '""""aaa',
@@ -547,12 +562,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 8,
         valueEnd: 11,
       },
-    ]);
+    ]));
   });
 
   it('treats trailing quotes as the part of the attribute name', () => {
     expect(tokenizeAttributes('aaa=""""""bbb=222', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(17);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -579,12 +594,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 14,
         valueEnd: 17,
       },
-    ]);
+    ]));
   });
 
   it('reads the attribute with the weird name', () => {
     expect(tokenizeAttributes('@#$%*=000', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: '@#$%*',
         name: '@#$%*',
@@ -598,12 +613,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 6,
         valueEnd: 9,
       },
-    ]);
+    ]));
   });
 
   it('reads the attribute that starts with the less-than char', () => {
     expect(tokenizeAttributes('<=000', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(5);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: '<',
         name: '<',
@@ -617,19 +632,19 @@ describe('tokenizeAttributes', () => {
         valueStart: 2,
         valueEnd: 5,
       },
-    ]);
+    ]));
   });
 
   it('does not read after the greater-than char', () => {
     expect(tokenizeAttributes('  >aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(0);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[]);
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([]));
   });
 
   it('decodes the attribute value', () => {
     parserOptions.decodeAttribute = () => '222222';
 
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -643,14 +658,14 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 7,
       },
-    ]);
+    ]));
   });
 
   it('renames the attribute', () => {
     parserOptions.renameAttribute = () => 'bbbbbb';
 
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'bbbbbb',
@@ -664,12 +679,12 @@ describe('tokenizeAttributes', () => {
         valueStart: 4,
         valueEnd: 7,
       },
-    ]);
+    ]));
   });
 
   it('respects offset', () => {
     expect(tokenizeAttributes('aaa=111', 0, 5, attributes, tokenizerOptions, parserOptions)).toBe(7);
-    expect(attributes).toEqual(<Array<IAttributeToken>>[
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
         rawName: 'aaa',
         name: 'aaa',
@@ -683,7 +698,7 @@ describe('tokenizeAttributes', () => {
         valueStart: 5 + 4,
         valueEnd: 5 + 7,
       },
-    ]);
+    ]));
   });
 });
 
@@ -712,7 +727,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -728,7 +743,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'foo',
             name: 'foo',
@@ -768,7 +783,7 @@ describe('tokenize', () => {
             valueStart: 27,
             valueEnd: 34,
           },
-        ],
+        ]),
         selfClosing: false,
         start: 0,
         end: 36,
@@ -784,7 +799,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 6,
@@ -814,7 +829,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 4,
@@ -834,7 +849,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: true,
         start: 0,
         end: 4,
@@ -854,7 +869,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'foo',
             name: 'foo',
@@ -894,7 +909,7 @@ describe('tokenize', () => {
             valueStart: 27,
             valueEnd: 34,
           },
-        ],
+        ]),
         selfClosing: true,
         start: 0,
         end: 39,
@@ -912,7 +927,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'foo',
             name: 'foo',
@@ -926,7 +941,7 @@ describe('tokenize', () => {
             valueStart: 7,
             valueEnd: 12,
           },
-        ],
+        ]),
         selfClosing: false,
         start: 0,
         end: 13,
@@ -972,7 +987,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a@#$%*',
         name: 'a@#$%*',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 8,
@@ -1016,7 +1031,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1052,7 +1067,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'b',
         name: 'b',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 11,
         end: 14,
@@ -1068,7 +1083,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'foo',
             name: 'foo',
@@ -1095,7 +1110,7 @@ describe('tokenize', () => {
             valueStart: 11,
             valueEnd: 14,
           },
-        ],
+        ]),
         selfClosing: false,
         start: 0,
         end: 15,
@@ -1337,7 +1352,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'script',
         name: 'script',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: true,
         start: 0,
         end: 9,
@@ -1347,7 +1362,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'foo',
         name: 'foo',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 9,
         end: 14,
@@ -1367,7 +1382,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
         rawName: 'foo',
         name: 'FOO',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 5,
@@ -1377,7 +1392,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
         rawName: 'bar',
         name: 'BAR',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 5,
         end: 10,
@@ -1395,7 +1410,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'foo',
         name: 'foo',
-        attributes: [
+        attributes: toArrayLike([
           {
             rawName: 'aaa',
             name: 'AAA',
@@ -1422,7 +1437,7 @@ describe('tokenize', () => {
             valueStart: 17,
             valueEnd: 20,
           },
-        ],
+        ]),
         selfClosing: false,
         start: 0,
         end: 21,
@@ -1441,7 +1456,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,
@@ -1457,7 +1472,7 @@ describe('tokenize', () => {
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
         rawName: 'a',
         name: 'a',
-        attributes: [],
+        attributes: toArrayLike([]),
         selfClosing: false,
         start: 0,
         end: 3,

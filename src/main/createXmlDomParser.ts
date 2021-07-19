@@ -1,8 +1,7 @@
 import {createDomParser} from './createDomParser';
-import {IParser, IParserOptions, IDomHandler} from './parser-types';
+import {IParser, IParserOptions, IDomHandler, IDataToken} from './parser-types';
 import {xmlParserOptions} from './createXmlSaxParser';
 import {DomNodeType, IDomAttributeMap, IDomElement, IDomNode, IDomText} from './dom-types';
-import {IDataToken} from './token-types';
 import {Comment, Element, Node, NodeWithChildren, Document, ProcessingInstruction, Text} from 'domhandler';
 import {ElementType} from 'domelementtype';
 
@@ -14,8 +13,8 @@ export const domHandler: IDomHandler<Node, NodeWithChildren> = {
 
   element(token) {
     const attributes = Object.create(null);
-    for (const attributeToken of token.attributes) {
-      attributes[attributeToken.name] = attributeToken.value;
+    for (let i = 0; i < token.attributes.length; i++) {
+      attributes[token.attributes[i].name] = token.attributes[i].value;
     }
     const node = new Element(token.name, attributes);
     node.startIndex = token.start;

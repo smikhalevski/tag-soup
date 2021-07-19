@@ -1,45 +1,61 @@
 import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
 import {IObjectPool} from './createObjectPool';
-import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
-import {IParserOptions, ISaxHandler} from './parser-types';
+import {
+  IArrayLike,
+  IAttributeToken,
+  IDataToken,
+  IParserOptions,
+  ISaxHandler,
+  IStartTagToken,
+  ITagToken,
+} from './parser-types';
 import {CharCode} from './CharCode';
 
+const min = Math.min;
+
 // https://www.w3.org/TR/xml/#NT-S
-const isSpaceChar: CharCodeChecker = (c) =>
-    c === 0x20
-    || c === CharCode['\t']
-    || c === CharCode['\r']
-    || c === CharCode['\n'];
+const isSpaceChar: CharCodeChecker = (charCode) =>
+    charCode === CharCode[' ']
+    || charCode === CharCode['\t']
+    || charCode === CharCode['\r']
+    || charCode === CharCode['\n'];
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
-const isTagNameStartChar: CharCodeChecker = (c) =>
-    c >= CharCode['a'] && c <= CharCode['z']
-    || c >= CharCode['A'] && c <= CharCode['Z']
-    || c === CharCode['_']
-    || c === CharCode[':']
-    || c >= 0xc0 && c <= 0xd6
-    || c >= 0xd8 && c <= 0xf6
-    || c >= 0xf8 && c <= 0x2ff
-    || c >= 0x370 && c <= 0x37d
-    || c >= 0x37f && c <= 0x1fff
-    || c >= 0x200c && c <= 0x200d
-    || c >= 0x2070 && c <= 0x218f
-    || c >= 0x2c00 && c <= 0x2fef
-    || c >= 0x3001 && c <= 0xd7ff
-    || c >= 0xf900 && c <= 0xfdcf
-    || c >= 0xfdf0 && c <= 0xfffd
-    || c >= 0x10000 && c <= 0xeffff;
+const isTagNameStartChar: CharCodeChecker = (charCode) =>
+    charCode >= CharCode['a'] && charCode <= CharCode['z']
+    || charCode >= CharCode['A'] && charCode <= CharCode['Z']
+    || charCode === CharCode['_']
+    || charCode === CharCode[':']
+    || charCode >= 0xc0 && charCode <= 0xd6
+    || charCode >= 0xd8 && charCode <= 0xf6
+    || charCode >= 0xf8 && charCode <= 0x2ff
+    || charCode >= 0x370 && charCode <= 0x37d
+    || charCode >= 0x37f && charCode <= 0x1fff
+    || charCode >= 0x200c && charCode <= 0x200d
+    || charCode >= 0x2070 && charCode <= 0x218f
+    || charCode >= 0x2c00 && charCode <= 0x2fef
+    || charCode >= 0x3001 && charCode <= 0xd7ff
+    || charCode >= 0xf900 && charCode <= 0xfdcf
+    || charCode >= 0xfdf0 && charCode <= 0xfffd
+    || charCode >= 0x10000 && charCode <= 0xeffff;
 
 /**
  * Check if char should be treated as a whitespace inside a tag.
  */
-const isTagSpaceChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'];
+const isTagSpaceChar: CharCodeChecker = (charCode) => isSpaceChar(charCode) || charCode === CharCode['/'];
 
-const isNotTagNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'] || c === CharCode['>'];
+const isNotTagNameChar: CharCodeChecker = (charCode) =>
+    isSpaceChar(charCode)
+    || charCode === CharCode['/']
+    || charCode === CharCode['>'];
 
-const isNotAttributeNameChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['/'] || c === CharCode['>'] || c === CharCode['='];
+const isNotAttributeNameChar: CharCodeChecker = (charCode) =>
+    isSpaceChar(charCode)
+    || charCode === CharCode['/']
+    || charCode === CharCode['>']
+    || charCode === CharCode['='];
 
-const isNotUnquotedValueChar: CharCodeChecker = (c) => isSpaceChar(c) || c === CharCode['>'];
+const isNotUnquotedValueChar: CharCodeChecker = (charCode) => isSpaceChar(charCode) || charCode === CharCode['>'];
 
 const takeText = untilText('<', false, false);
 
@@ -54,9 +70,9 @@ const takeStartTagOpening = seq(char(CharCode['<']), takeTagNameStartChar, takeT
 // </okay
 const takeEndTagOpening = seq(text('</'), takeTagNameStartChar, takeTagNameChars);
 
-const takeTagSpace = allCharBy(isTagSpaceChar);
-
 const takeAttributeName = untilCharBy(isNotAttributeNameChar, false, true);
+
+const takeTagSpace = allCharBy(isTagSpaceChar);
 
 const takeSpace = allCharBy(isSpaceChar);
 
@@ -82,10 +98,10 @@ const takeDtd = seq(text('<!'), untilText('>', true, true));
 const takeProcessingInstruction = seq(text('<?'), untilText('?>', true, true));
 
 // <![CDATA[okay]]>
-const takeCdataSection = seq(text('<![CDATA['), untilText(']]>', true, true));
+const takeCdata = seq(text('<![CDATA['), untilText(']]>', true, true));
 
 // <!DOCTYPE html>
-const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true));
+const takeDoctype = seq(text('<!DOCTYPE', true), untilText('>', true, true));
 
 /**
  * Reads attributes from the source.
@@ -96,8 +112,10 @@ const takeDocumentType = seq(text('<!DOCTYPE', true), untilText('>', true, true)
  * @param attributes An array to which {@link IAttributeToken} objects are added.
  * @param options Tokenization options.
  * @param parserOptions Parsing options.
+ *
+ * @returns The index in `chunk` at which reading was completed.
  */
-export function tokenizeAttributes(chunk: string, index: number, offset: number, attributes: Array<IAttributeToken>, options: ITokenizerOptions, parserOptions: IParserOptions): number {
+export function tokenizeAttributes(chunk: string, index: number, offset: number, attributes: IArrayLike<IAttributeToken>, options: ITokenizerOptions, parserOptions: IParserOptions): number {
 
   const {attributeTokenPool} = options;
   const {decodeAttribute, renameAttribute} = parserOptions;
@@ -147,7 +165,7 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
         valueStart = k + 1;
         valueEnd = j - 1;
         quoted = true;
-        k = Math.min(j, charCount);
+        k = min(j, charCount);
       } else {
 
         // Unquoted value
@@ -179,21 +197,24 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
     index = k;
   }
 
+  // Clean up array-like object
+  for (let i = attributeCount; i < attributes.length; i++) {
+    attributes[i] = undefined as unknown as IAttributeToken;
+  }
+
   attributes.length = attributeCount;
   return index;
 }
 
 export interface ITokenizerOptions {
   startTagTokenPool: IObjectPool<IStartTagToken>;
-  endTagToken: ITagToken;
-  dataToken: IDataToken;
+  endTagTokenPool: IObjectPool<ITagToken>;
+  dataTokenPool: IObjectPool<IDataToken>;
   attributeTokenPool: IObjectPool<IAttributeToken>;
 }
 
 /**
  * Reads markup tokens from the string.
- *
- * **Note:** Pooled objects must be returned back to the pool by the pool owner.
  *
  * @param chunk The chunk of the input to read tokens from.
  * @param streaming If set to `true` then tokenizer stops when an ambiguous char sequence is met.
@@ -207,8 +228,8 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
   const {
     startTagTokenPool,
-    endTagToken,
-    dataToken,
+    endTagTokenPool,
+    dataTokenPool,
   } = options;
 
   const {
@@ -234,33 +255,6 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
   let textEnd = -1;
   let tagParsingEnabled = true;
   let startTagName: string | undefined;
-
-  const emitText = (): void => {
-    if (textStart !== -1) {
-      emitData(textCallback, textStart, textEnd, 0, 0, true);
-      textStart = textEnd = -1;
-    }
-  };
-
-  const emitData = (callback: ((token: IDataToken) => void) | undefined, start: number, end: number, dataStartOffset: number, dataEndOffset: number, decodeEnabled: boolean): number => {
-    const index = Math.min(end, charCount);
-
-    if (callback) {
-      const dataStart = start + dataStartOffset;
-      const dataEnd = Math.min(end - dataEndOffset, charCount);
-      const rawData = chunk.substring(dataStart, dataEnd);
-
-      dataToken.rawData = rawData;
-      dataToken.data = decodeEnabled && decodeText ? decodeText(rawData) : rawData;
-      dataToken.start = chunkOffset + start;
-      dataToken.end = chunkOffset + index;
-      dataToken.dataStart = chunkOffset + dataStart;
-      dataToken.dataEnd = chunkOffset + dataEnd;
-
-      callback(dataToken);
-    }
-    return index;
-  };
 
   const charCount = chunk.length;
 
@@ -308,7 +302,11 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
         const selfClosing = selfClosingEnabled && k - j >= 2 && chunk.charCodeAt(k - 2) === CharCode['/'] || false;
 
-        emitText();
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
 
         startTagToken.rawName = rawTagName;
         startTagToken.name = tagName;
@@ -351,9 +349,14 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
           return i;
         }
 
-        emitText();
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
 
         if (endTagCallback) {
+          const endTagToken = endTagTokenPool.take();
           endTagToken.rawName = rawTagName;
           endTagToken.name = tagName;
           endTagToken.start = chunkOffset + i;
@@ -362,6 +365,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
           endTagToken.nameEnd = chunkOffset + nameEnd;
 
           endTagCallback(endTagToken);
+          endTagTokenPool.free(endTagToken);
         }
 
         i = k;
@@ -378,33 +382,45 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        emitText();
-        i = emitData(commentCallback, i, j, 4, 3, true);
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
+        i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 4, 3, decodeText);
         continue;
       }
 
       // Doctype
-      k = j = takeDocumentType(chunk, i);
+      k = j = takeDoctype(chunk, i);
       if (j !== ResultCode.NO_MATCH) {
         if (j > charCount && streaming) {
           return i;
         }
-        emitText();
-        i = emitData(doctypeCallback, i, j, 9, 1, false);
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
+        i = emitData(chunkOffset,chunk,dataTokenPool,doctypeCallback, i, j, 9, 1, undefined);
         continue;
       }
 
       // CDATA section
-      j = takeCdataSection(chunk, i);
+      j = takeCdata(chunk, i);
       if (j !== ResultCode.NO_MATCH) {
         if (j > charCount && streaming) {
           return i;
         }
-        emitText();
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
         if (cdataEnabled) {
-          i = emitData(cdataCallback, i, j, 9, 3, false);
+          i = emitData(chunkOffset,chunk,dataTokenPool,cdataCallback, i, j, 9, 3, undefined);
         } else {
-          i = emitData(commentCallback, i, j, 2, 1, false);
+          i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 2, 1, undefined);
         }
         continue;
       }
@@ -415,11 +431,15 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        emitText();
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
         if (processingInstructionsEnabled) {
-          i = emitData(processingInstructionCallback, i, j, 2, 2, false);
+          i = emitData(chunkOffset,chunk,dataTokenPool,processingInstructionCallback, i, j, 2, 2, undefined);
         } else {
-          i = emitData(commentCallback, i, j, 1, 1, false);
+          i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 1, 1, undefined);
         }
         continue;
       }
@@ -430,11 +450,15 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
-        emitText();
+        if (textStart !== -1) {
+          emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+          textStart = textEnd = -1;
+        }
+
         if (cdataEnabled) {
           i = Math.min(j, charCount);
         } else {
-          i = emitData(commentCallback, i, j, 2, 1, true);
+          i = emitData(chunkOffset,chunk,dataTokenPool,commentCallback, i, j, 2, 1, decodeText);
         }
         continue;
       }
@@ -460,7 +484,36 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
     return i;
   }
 
-  emitText();
+  if (textStart !== -1) {
+    emitData(chunkOffset,chunk,dataTokenPool,textCallback, textStart, textEnd, 0, 0, decodeText);
+    textStart = textEnd = -1;
+  }
+
 
   return i;
 }
+
+const emitData = (chunkOffset: number, chunk: string, dataTokenPool: IObjectPool<IDataToken>, callback: ((token: IDataToken) => void) | undefined, start: number, end: number, dataStartOffset: number, dataEndOffset: number, decoder: ((str: string) => string) | undefined): number => {
+
+  const charCount = chunk.length;
+  const index = Math.min(end, charCount);
+
+  if (callback) {
+    const dataStart = start + dataStartOffset;
+    const dataEnd = Math.min(end - dataEndOffset, charCount);
+    const rawData = chunk.substring(dataStart, dataEnd);
+
+    const dataToken = dataTokenPool.take();
+
+    dataToken.rawData = rawData;
+    dataToken.data = decoder ? decoder(rawData) : rawData;
+    dataToken.start = chunkOffset + start;
+    dataToken.end = chunkOffset + index;
+    dataToken.dataStart = chunkOffset + dataStart;
+    dataToken.dataEnd = chunkOffset + dataEnd;
+
+    callback(dataToken);
+    dataTokenPool.free(dataToken);
+  }
+  return index;
+};

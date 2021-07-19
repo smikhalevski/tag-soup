@@ -1,4 +1,5 @@
 export const enum CharCode {
+  ' ' = 32,
   '\t' = 9,
   '\n' = 10,
   '\r' = 13,

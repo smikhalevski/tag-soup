@@ -1,3 +1,5 @@
+import {IArrayLike} from './parser-types';
+
 export interface IObjectPool<T> {
 
   /**
@@ -19,41 +21,40 @@ export interface IObjectPool<T> {
 }
 
 /**
- * The value pool that streamlines value reuse.
+ * The blazing fast object pool implementation. Inspired by {@link https://github.com/getify/deePool deePool}.
  *
  * @param factory The factory that produces new values.
  * @param reset The callback that is invoked when value is returned to the pool via {@link free}.
- * @see https://github.com/getify/deePool
  */
 export function createObjectPool<T>(factory: () => T, reset?: (value: T) => void): IObjectPool<T> {
-  const cache: Array<T> = [];
+  const cachedValues: IArrayLike<T> = {length: 0};
 
   let takenCount = 0;
 
   const take = (): T => {
-    if (takenCount === cache.length) {
+    if (takenCount === cachedValues.length) {
       allocate();
     }
-    const value = cache[takenCount];
-    cache[takenCount++] = null as unknown as T;
+    const value = cachedValues[takenCount];
+    cachedValues[takenCount++] = undefined as unknown as T;
     return value;
   };
 
   const free = (value: T): void => {
     reset?.(value);
-    cache[takenCount === 0 ? cache.length : --takenCount] = value;
+    cachedValues[takenCount === 0 ? cachedValues.length : --takenCount] = value;
   };
 
-  const allocate = (count = cache.length + 1): void => {
+  const allocate = (count = cachedValues.length + 1): void => {
     count |= 0;
     if (count <= 0) {
       return;
     }
-    const prevLength = cache.length;
-    const nextLength = cache.length += count;
+    const prevLength = cachedValues.length;
+    const nextLength = cachedValues.length += count;
 
     for (let i = prevLength; i < nextLength; i++) {
-      cache[i] = factory();
+      cachedValues[i] = factory();
     }
   };
 

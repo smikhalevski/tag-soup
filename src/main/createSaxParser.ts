@@ -1,8 +1,10 @@
 import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
 import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
-import {IParser, IParserOptions, ISaxHandler} from './parser-types';
-import {ITagToken} from './token-types';
+import {IParser, IParserOptions, ISaxHandler, ITagToken} from './parser-types';
+
+
+
 
 /**
  * Creates a new SAX parser.
@@ -16,16 +18,16 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
 
   let buffer = '';
   let chunkOffset = 0;
-  let nestingDepth = 0;
 
-  const ancestorTokens: Array<ITagToken> = [];
+  const ancestorTokens: any = {};
+  ancestorTokens.length = 0;
 
   const startTagTokenPool = createObjectPool(createStartTagToken);
   const attributeTokenPool = createObjectPool(createAttributeToken);
   const tokenizerOptions: ITokenizerOptions = {
     startTagTokenPool,
-    endTagToken: createTagToken(),
-    dataToken: createDataToken(),
+    endTagTokenPool: createObjectPool(createTagToken),
+    dataTokenPool: createObjectPool(createDataToken),
     attributeTokenPool,
   };
 
@@ -44,7 +46,7 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
       token.selfClosing ||= checkVoidTag?.(token) || false;
 
       if (checkImplicitEndTag) {
-        for (let i = nestingDepth - 1; i >= 0; i--) {
+        for (let i = ancestorTokens.length - 1; i >= 0; i--) {
           const containerToken = ancestorTokens[i];
 
           if (checkBoundaryTag?.(containerToken)) {
@@ -54,13 +56,13 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
           if (checkImplicitEndTag(containerToken as any, token)) {
 
             if (endTagCallback) {
-              for (let j = nestingDepth - 1; j >= i; j--) {
+              for (let j = ancestorTokens.length - 1; j >= i; j--) {
                 assignEndTagToken(endTagToken, ancestorTokens[j], token.start);
                 endTagCallback(endTagToken);
               }
             }
 
-            nestingDepth = i;
+            ancestorTokens.length = i;
             break;
           }
         }
@@ -69,28 +71,28 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
       startTagCallback?.(token);
 
       if (!token.selfClosing) {
-        assignTagToken(ancestorTokens[nestingDepth++] ||= containerTagTokenPool.take(), token);
+        assignTagToken(ancestorTokens[ancestorTokens.length++] ||= containerTagTokenPool.take(), token);
       }
 
       startTagTokenPool.free(token);
-      for (const attributeToken of token.attributes) {
-        attributeTokenPool.free(attributeToken);
+      for (let i = 0; i < token.attributes.length; i++) {
+        attributeTokenPool.free(token.attributes[i]);
       }
     };
 
     forgivingHandler.endTag = (token) => {
-      for (let i = nestingDepth - 1; i >= 0; i--) {
+      for (let i = ancestorTokens.length - 1; i >= 0; i--) {
         if (ancestorTokens[i].name === token.name) {
 
           if (endTagCallback) {
-            for (let j = nestingDepth - 1; j > i; j--) {
+            for (let j = ancestorTokens.length - 1; j > i; j--) {
               assignEndTagToken(endTagToken, ancestorTokens[j], token.start);
               endTagCallback(endTagToken);
             }
             endTagCallback(token);
           }
 
-          nestingDepth = i;
+          ancestorTokens.length = i;
         }
       }
     };
@@ -112,7 +114,7 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
     const index = tokenize(buffer, false, chunkOffset, tokenizerOptions, options, createForgivingHandler(handler));
 
     if (handler.endTag) {
-      for (let i = nestingDepth - 1; i >= 0; i--) {
+      for (let i = ancestorTokens.length - 1; i >= 0; i--) {
         assignEndTagToken(endTagToken, ancestorTokens[i], chunkOffset + index);
         handler.endTag(endTagToken);
       }
@@ -124,7 +126,7 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
   const reset = (): void => {
     buffer = '';
     chunkOffset = 0;
-    ancestorTokens.length = nestingDepth = 0;
+    ancestorTokens.length = ancestorTokens.length = 0;
   };
 
   return {

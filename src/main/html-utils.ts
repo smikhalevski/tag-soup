@@ -1,5 +1,6 @@
-import {IStartTagToken, ITagToken} from './token-types';
+
 import {toMap, toSet} from './utils';
+import {IStartTagToken, ITagToken} from './parser-types';
 
 export function checkHtmlCdataTag(token: IStartTagToken): boolean {
   return htmlCdataTagNames.has(token.name);

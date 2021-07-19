@@ -1,10 +1,10 @@
-import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './token-types';
+import {IAttributeToken, IDataToken, IStartTagToken, ITagToken} from './parser-types';
 
 export function createStartTagToken(): IStartTagToken {
   return {
     name: '',
     rawName: '',
-    attributes: [],
+    attributes: {length: 0},
     selfClosing: false,
     start: 0,
     end: 0,

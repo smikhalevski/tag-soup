@@ -1,7 +1,6 @@
 import {createSaxParser} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
-import {IDataToken, IStartTagToken, ITagToken} from '../main/token-types';
-import {IParser, ISaxHandler} from '../main/parser-types';
+import {IDataToken, IParser, ISaxHandler, IStartTagToken, ITagToken} from '../main/parser-types';
 
 describe('createSaxParser', () => {
 

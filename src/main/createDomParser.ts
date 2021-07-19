@@ -1,6 +1,5 @@
-import {IParser, IParserOptions, IDomHandler, ISaxHandler} from './parser-types';
+import {IParser, IParserOptions, IDomHandler, ISaxHandler, IDataToken} from './parser-types';
 import {createSaxParser} from './createSaxParser';
-import {IDataToken} from './token-types';
 
 /**
  * Creates a new streaming forgiving DOM parser.
