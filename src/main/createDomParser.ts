@@ -9,7 +9,7 @@ import {createSaxParser} from './createSaxParser';
  */
 export function createDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>> {
 
-  let nodes: Array<Node> = [];
+  const nodes: Array<Node> = [];
 
   const saxParser = createSaxParser(createSaxHandler(nodes, handler), options);
 
@@ -27,13 +27,13 @@ export function createDomParser<Node, ContainerNode extends Node>(handler: IDomH
 
   const reset = (): void => {
     saxParser.reset();
-    nodes = [];
+    nodes.length = 0;
   };
 
   return {
-    reset,
     write,
     parse,
+    reset,
   };
 }
 
@@ -91,9 +91,9 @@ function createSaxHandler<Node, ContainerNode extends Node>(nodes: Array<Node>, 
 
     doctype(token) {
       if (documentFactory && nodes.length === 0) {
-        const element = documentFactory(token);
-        pushNode(element);
-        ancestors[ancestors.length++] = element;
+        const node = documentFactory(token);
+        pushNode(node);
+        ancestors[ancestors.length++] = node;
       }
     },
 
