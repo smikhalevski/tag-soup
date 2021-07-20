@@ -16,7 +16,7 @@ describe('createObjectPool', () => {
     const pool = createObjectPool(() => i++);
 
     expect(pool.take()).toBe(0);
-    pool.free(0);
+    pool.release(0);
     expect(pool.take()).toBe(0);
   });
 
@@ -28,7 +28,7 @@ describe('createObjectPool', () => {
     expect(pool.take()).toBe(1);
     expect(pool.take()).toBe(2);
 
-    pool.free(1);
+    pool.release(1);
 
     expect(pool.take()).toBe(1);
   });
@@ -41,8 +41,8 @@ describe('createObjectPool', () => {
     expect(pool.take()).toBe(1);
     expect(pool.take()).toBe(2);
 
-    pool.free(0);
-    pool.free(2);
+    pool.release(0);
+    pool.release(2);
 
     expect(pool.take()).toBe(2);
     expect(pool.take()).toBe(0);

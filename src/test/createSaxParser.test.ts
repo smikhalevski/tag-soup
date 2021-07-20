@@ -225,7 +225,7 @@ describe('createSaxParser', () => {
 
     it('implicitly closes current tag with nesting', () => {
       parser = createSaxParser({
-        checkImplicitEndTag: (containerToken, token) => containerToken.name === 'p' && token.name === 'p',
+        endsAncestorAt: (containerToken, token) => containerToken.name === 'p' && token.name === 'p',
       });
 
       parser.parse(handler, '<p><p>aaa</p></p>');
@@ -536,7 +536,7 @@ describe('createSaxParser', () => {
 
     it('emits end tag if the start implicitly closes', () => {
       parser = createSaxParser({
-        checkImplicitEndTag: (containerToken) => containerToken.name === 'a',
+        endsAncestorAt: (containerToken) => containerToken.name === 'a',
       });
 
       parser.write(handler, '<a><b>');
@@ -577,7 +577,7 @@ describe('createSaxParser', () => {
     it('emits end tag for intermediate tags if the start implicitly closes', () => {
 
       parser = createSaxParser({
-        checkImplicitEndTag: (containerToken, token) => containerToken.name === 'a' && token.name === 'c',
+        endsAncestorAt: (containerToken, token) => containerToken.name === 'a' && token.name === 'c',
       });
 
       parser.write(handler, '<a><b><c>');  // <a><b></b></a><b><c></c></b>

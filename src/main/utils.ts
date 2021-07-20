@@ -11,7 +11,3 @@ export function toMap<V>(record: Record<string, V>): Map<string, V> {
   }
   return map;
 }
-
-export function lowerCase(str: string): string {
-  return str.toLowerCase();
-}

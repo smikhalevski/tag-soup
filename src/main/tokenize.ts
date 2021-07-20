@@ -108,14 +108,13 @@ const takeDoctype = seq(text('<!DOCTYPE', true), untilText('>', true, true));
  *
  * @param chunk The string to read attributes from.
  * @param index The index in `chunk` from which to start reading.
- * @param offset The offset of the `chunk` in scope of the whole input.
- * @param attributes An array to which {@link IAttributeToken} objects are added.
+ * @param chunkOffset The offset of the `chunk` in scope of the whole input.
+ * @param attributes An array-like object to which {@link IAttributeToken} objects are added.
  * @param options Tokenization options.
  * @param parserOptions Parsing options.
- *
  * @returns The index in `chunk` at which reading was completed.
  */
-export function tokenizeAttributes(chunk: string, index: number, offset: number, attributes: IArrayLike<IAttributeToken>, options: ITokenizerOptions, parserOptions: IParserOptions): number {
+export function tokenizeAttributes(chunk: string, index: number, chunkOffset: number, attributes: IArrayLike<IAttributeToken>, options: ITokenizerOptions, parserOptions: IParserOptions): number {
 
   const {attributeTokenPool} = options;
   const {decodeAttribute, renameAttribute} = parserOptions;
@@ -139,8 +138,8 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
 
     token.rawName = rawName;
     token.name = renameAttribute != null ? renameAttribute(rawName) : rawName;
-    token.nameStart = token.start = offset + k;
-    token.nameEnd = offset + j;
+    token.nameStart = token.start = chunkOffset + k;
+    token.nameEnd = chunkOffset + j;
 
     k = j;
     j = takeEq(chunk, k);
@@ -180,8 +179,8 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
       if (valueStart !== -1) {
         rawValue = chunk.substring(valueStart, valueEnd);
         value = decodeAttribute != null ? decodeAttribute(rawValue) : rawValue;
-        valueStart += offset;
-        valueEnd += offset;
+        valueStart += chunkOffset;
+        valueEnd += chunkOffset;
       }
     }
 
@@ -190,7 +189,7 @@ export function tokenizeAttributes(chunk: string, index: number, offset: number,
     token.valueStart = valueStart;
     token.valueEnd = valueEnd;
     token.quoted = quoted;
-    token.end = offset + k;
+    token.end = chunkOffset + k;
 
     ++attributeCount;
 
@@ -267,37 +266,9 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
   const triggerTextCallback = () => {
     if (textStart !== -1) {
-      triggerDataCallback(textCallback, textStart, textEnd, 0, 0, decodeText);
+      triggerDataCallback(chunk, chunkOffset, dataTokenPool, textCallback, textStart, textEnd, 0, 0, decodeText);
       textStart = -1;
     }
-  };
-
-  const triggerDataCallback = (callback: ((token: IDataToken) => void) | undefined, start: number, end: number, deltaStart: number, deltaEnd: number, decode?: (data: string) => string): number => {
-    const index = min(end, charCount);
-
-    if (callback == null) {
-      return index;
-    }
-
-    const dataStart = start + deltaStart;
-    const dataEnd = min(end - deltaEnd, charCount);
-    const rawData = chunk.substring(dataStart, dataEnd);
-
-    const token = dataTokenPool.take();
-
-    token.rawData = rawData;
-    token.data = decode != null ? decode(rawData) : rawData;
-    token.start = chunkOffset + start;
-    token.end = chunkOffset + index;
-    token.dataStart = chunkOffset + dataStart;
-    token.dataEnd = chunkOffset + dataEnd;
-
-    callback(token);
-
-    // Free taken tokens
-    dataTokenPool.free(token);
-
-    return index;
   };
 
   while (i < charCount) {
@@ -343,6 +314,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
         const selfClosing = selfClosingEnabled && k - j >= 2 && chunk.charCodeAt(k - 2) === CharCode['/'] || false;
 
+        /*@__INLINE__*/
         triggerTextCallback();
 
         token.rawName = rawTagName;
@@ -388,6 +360,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
           return i;
         }
 
+        /*@__INLINE__*/
         triggerTextCallback();
 
         if (endTagCallback) {
@@ -401,9 +374,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
           token.nameEnd = chunkOffset + nameEnd;
 
           endTagCallback(token);
-
-          // Free taken tokens
-          endTagTokenPool.free(token);
+          endTagTokenPool.release(token);
         }
 
         i = k;
@@ -420,8 +391,9 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
+        /*@__INLINE__*/
         triggerTextCallback();
-        i = triggerDataCallback(commentCallback, i, j, 4, 3, decodeText);
+        i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, commentCallback, i, j, 4, 3, decodeText);
         continue;
       }
 
@@ -431,8 +403,9 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
+        /*@__INLINE__*/
         triggerTextCallback();
-        i = triggerDataCallback(doctypeCallback, i, j, 9, 1);
+        i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, doctypeCallback, i, j, 9, 1);
         continue;
       }
 
@@ -442,12 +415,13 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
+        /*@__INLINE__*/
         triggerTextCallback();
 
         if (cdataEnabled) {
-          i = triggerDataCallback(cdataCallback, i, j, 9, 3);
+          i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, cdataCallback, i, j, 9, 3);
         } else {
-          i = triggerDataCallback(commentCallback, i, j, 2, 1);
+          i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, commentCallback, i, j, 2, 1);
         }
         continue;
       }
@@ -458,12 +432,13 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
+        /*@__INLINE__*/
         triggerTextCallback();
 
         if (processingInstructionsEnabled) {
-          i = triggerDataCallback(processingInstructionCallback, i, j, 2, 2);
+          i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, processingInstructionCallback, i, j, 2, 2);
         } else {
-          i = triggerDataCallback(commentCallback, i, j, 1, 1);
+          i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, commentCallback, i, j, 1, 1);
         }
         continue;
       }
@@ -474,12 +449,13 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
         if (j > charCount && streaming) {
           return i;
         }
+        /*@__INLINE__*/
         triggerTextCallback();
 
         if (cdataEnabled) {
           i = min(j, charCount);
         } else {
-          i = triggerDataCallback(commentCallback, i, j, 2, 1, decodeText);
+          i = triggerDataCallback(chunk, chunkOffset, dataTokenPool, commentCallback, i, j, 2, 1, decodeText);
         }
         continue;
       }
@@ -505,7 +481,38 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
     return i;
   }
 
+  /*@__INLINE__*/
   triggerTextCallback();
 
   return i;
+}
+
+/**
+ * Takes a data token from `dataTokenPool` and passes it to `dataCallback`.
+ */
+function triggerDataCallback(chunk: string, chunkOffset: number, dataTokenPool: IObjectPool<IDataToken>, dataCallback: ((token: IDataToken) => void) | undefined, start: number, end: number, offsetStart: number, offsetEnd: number, decode?: (data: string) => string): number {
+  const charCount = chunk.length;
+  const index = min(end, charCount);
+
+  if (!dataCallback) {
+    return index;
+  }
+
+  const dataStart = start + offsetStart;
+  const dataEnd = min(end - offsetEnd, charCount);
+  const rawData = chunk.substring(dataStart, dataEnd);
+
+  const token = dataTokenPool.take();
+
+  token.rawData = rawData;
+  token.data = decode != null ? decode(rawData) : rawData;
+  token.start = chunkOffset + start;
+  token.end = chunkOffset + index;
+  token.dataStart = chunkOffset + dataStart;
+  token.dataEnd = chunkOffset + dataEnd;
+
+  dataCallback(token);
+  dataTokenPool.release(token);
+
+  return index;
 }

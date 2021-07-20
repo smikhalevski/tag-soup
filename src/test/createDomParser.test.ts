@@ -4,8 +4,8 @@ import {IParser, IParserOptions, IDomHandler} from '../main';
 describe('createDomParser', () => {
 
   let options: IParserOptions;
-  let parser: IParser<IDomHandler<any>, any>;
-  let handler: IDomHandler<any>;
+  let parser: IParser<IDomHandler<any, any>, any>;
+  let handler: IDomHandler<any, any>;
 
   beforeEach(() => {
     options = {};
@@ -14,7 +14,7 @@ describe('createDomParser', () => {
       element(token) {
         return {
           tagName: token.name,
-          attributes: token.attributes.map((attribute) => {
+          attributes: Array.from(token.attributes).map((attribute) => {
             return {
               name: attribute.name,
               value: attribute.value,
@@ -30,7 +30,7 @@ describe('createDomParser', () => {
       appendChild(element, childNode) {
         element.children.push(childNode);
       },
-      elementEnd(element, token) {
+      containerEnd(element, token) {
         element.end = token.end;
       },
       text(token) {

@@ -20,6 +20,6 @@ describe('createEntitiesDecoder', () => {
   });
 
   it('does not require trailing semicolon', () => {
-    expect(createEntitiesDecoder({fromCharName: createFromHtmlCharName()})('&ltfoo')).toBe('<foo');
+    expect(createEntitiesDecoder(createFromHtmlCharName())('&ltfoo')).toBe('<foo');
   });
 });

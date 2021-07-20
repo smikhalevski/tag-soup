@@ -42,18 +42,51 @@ function test(label, cb, parser, timeout) {
   // console.log(label + hz.toFixed(1) + ' ops/sec');
 }
 
-console.log(chalk.bold('SAX benchmark'));
+const lightHandler = {};
 
-test('createSaxParser     ', (parser, html) => parser.parse({}, html), createSaxParser(), 5000);
-// test('createXmlSaxParser  ', (parser, html) => parser.parse({}, html), createXmlSaxParser({}), 5000);
-// test('createHtmlSaxParser ', (parser, html) => parser.parse({}, html), createHtmlSaxParser({}), 5000);
-test('htmlparser2         ', (parser, html) => parser.end(html), new htmlparser2.Parser({}), 5000);
-test('sax                 ', (parser, html) => parser.write(html), sax.parser(), 5000);
+const heavyHandler1 = {
+  startTag() {},
+  endTag() {},
+  text() {},
+  comment() {},
+  doctype() {},
+  processingInstruction() {},
+  cdata() {},
+};
+
+const heavyHandler2 = {
+  onparserinit() {},
+  onreset() {},
+  onend() {},
+  onerror() {},
+  onclosetag() {},
+  onopentagname() {},
+  onattribute() {},
+  onopentag() {},
+  ontext() {},
+  oncomment() {},
+  oncdatastart() {},
+  oncdataend() {},
+  oncommentend() {},
+  onprocessinginstruction() {}
+};
+
+console.log(chalk.bold('SAX benchmark'), '* – light handler');
+
+test('createSaxParser *     ', (parser, html) => parser.parse(lightHandler, html), createSaxParser(), 2000);
+test('createXmlSaxParser *  ', (parser, html) => parser.parse(lightHandler, html), createXmlSaxParser(), 2000);
+test('createHtmlSaxParser * ', (parser, html) => parser.parse(lightHandler, html), createHtmlSaxParser(), 2000);
+test('createSaxParser       ', (parser, html) => parser.parse(heavyHandler1, html), createSaxParser(), 2000);
+test('createXmlSaxParser    ', (parser, html) => parser.parse(heavyHandler1, html), createXmlSaxParser(), 2000);
+test('createHtmlSaxParser   ', (parser, html) => parser.parse(heavyHandler1, html), createHtmlSaxParser(), 2000);
+test('htmlparser2 *         ', (parser, html) => parser.end(html), new htmlparser2.Parser(lightHandler), 2000);
+test('htmlparser2           ', (parser, html) => parser.end(html), new htmlparser2.Parser(heavyHandler2), 2000);
+test('sax                   ', (parser, html) => parser.write(html), sax.parser(), 2000);
 
 console.log(chalk.bold('\nDOM benchmark'));
 
-test('createDomParser     ', (parser, html) => parser.parse(domHandler, html), createDomParser(), 5000);
-// test('createXmlDomParser  ', (parser, html) => parser.parse(domHandler, html), createXmlDomParser(), 5000);
-// test('createHtmlDomParser ', (parser, html) => parser.parse(domHandler, html), createHtmlDomParser(), 5000);
-test('htmlparser2         ', (parser, html) => parser.end(html), new htmlparser2.Parser(new htmlparser2.DomHandler(() => null)), 5000);
-test('parse5              ', () => parse5.parse(html), null, 5000);
+test('createDomParser       ', (parser, html) => parser.parse(domHandler, html), createDomParser(), 2000);
+test('createXmlDomParser    ', (parser, html) => parser.parse(domHandler, html), createXmlDomParser(), 2000);
+test('createHtmlDomParser   ', (parser, html) => parser.parse(domHandler, html), createHtmlDomParser(), 2000);
+test('htmlparser2           ', (parser, html) => parser.end(html), new htmlparser2.Parser(new htmlparser2.DomHandler(() => null)), 2000);
+test('parse5                ', () => parse5.parse(html), null, 2000);

@@ -264,15 +264,7 @@ export interface IParserOptions {
    * @returns `true` if start tag `token` should implicitly close the currently opened container `ancestorToken`. This
    *     causes {@link endTag} to be triggered for `ancestorToken` before {@link startTag} is triggered with `token`.
    */
-  checkImplicitEndTag?: (ancestorTagToken: IStartTagToken, token: IStartTagToken) => boolean;
-
-  /**
-   * Checks whether the container `token` is a boundary. Implicitly closed tags are checked in scope of the enclosing
-   * boundary. For example, you can create custom boundary tags that would allow nesting `p` tags.
-   *
-   * @param token The container tag token.
-   */
-  checkBoundaryTag?: (token: ITagToken) => boolean;
+  endsAncestorAt?: (ancestors: Readonly<IArrayLike<IStartTagToken>>, token: IStartTagToken) => number;
 }
 
 /**

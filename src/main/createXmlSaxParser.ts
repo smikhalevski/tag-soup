@@ -14,10 +14,4 @@ export const xmlParserOptions: IParserOptions = {
   selfClosingEnabled: true,
   decodeText: xmlDecoder,
   decodeAttribute: xmlDecoder,
-  // renameTag
-  // renameAttribute
-  // checkCdataTag
-  // checkVoidTag
-  // checkImplicitEndTag
-  // checkBoundaryTag
 };

@@ -12,7 +12,7 @@
   "scripts": {
     "build": "set -e; tsc; npm run rollup; npm run terser",
     "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --external domhandler,domelementtype --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve; done",
-    "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js; do terser --compress --mangle toplevel --output $p -- $p; done",
+    "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js ./lib/tokenize.js; do terser --compress --mangle toplevel --output $p -- $p; done",
     "clean": "rm -rf ./lib ./docs",
     "test": "jest --detectOpenHandles",
     "perf": "[ -d ./lib ] || npm run build; node --expose-gc --max-old-space-size=4096 ./src/test/perf.js",
@@ -66,6 +66,7 @@
     "typescript": "4.2.4"
   },
   "dependencies": {
+    "entities": "^2.2.0",
     "tokenizer-dsl": "1.0.0"
   }
 }

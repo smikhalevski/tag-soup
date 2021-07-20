@@ -3,16 +3,17 @@ import {IArrayLike} from './parser-types';
 export interface IObjectPool<T> {
 
   /**
-   * Returns the next value from the pool. If there's not free value available then `factory` is called to produce a
-   * new value.
+   * Returns the next value from the pool. If there's no value available then `factory` is called to produce a new
+   * value which is added to the pool.
    */
   take(): T;
 
   /**
-   * Returns value to the pool so it can be retrieved using {@link take}. If value doesn't belong to the pool or it was
-   * already freed then no-op.
+   * Returns a value to the pool so it can be retrieved using {@link take}. There's no check that value was already
+   * returned to the pool and no check that value was in the pool previously. So ensure you don't release the same
+   * value twice or release a value that doesn't belong to the pool.
    */
-  free(value: T): void;
+  release(value: T): void;
 
   /**
    * Populates pool with `count` number of new values produced by `factory`.
@@ -21,10 +22,10 @@ export interface IObjectPool<T> {
 }
 
 /**
- * The blazing fast object pool implementation. Inspired by {@link https://github.com/getify/deePool deePool}.
+ * The fast object pool implementation. Inspired by {@link https://github.com/getify/deePool deePool}.
  *
  * @param factory The factory that produces new values.
- * @param reset The callback that is invoked when value is returned to the pool via {@link free}.
+ * @param reset The callback that is invoked when value is returned to the pool via {@link release}.
  */
 export function createObjectPool<T>(factory: () => T, reset?: (value: T) => void): IObjectPool<T> {
   const cachedValues: IArrayLike<T> = {length: 0};
@@ -40,7 +41,7 @@ export function createObjectPool<T>(factory: () => T, reset?: (value: T) => void
     return value;
   };
 
-  const free = (value: T): void => {
+  const release = (value: T): void => {
     reset?.(value);
     cachedValues[takenCount === 0 ? cachedValues.length : --takenCount] = value;
   };
@@ -58,5 +59,9 @@ export function createObjectPool<T>(factory: () => T, reset?: (value: T) => void
     }
   };
 
-  return {take, free, allocate};
+  return {
+    take,
+    release,
+    allocate,
+  };
 }

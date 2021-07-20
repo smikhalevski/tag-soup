@@ -1,4 +1,4 @@
-import {IParser, IParserOptions, IDomHandler, ISaxHandler, IDataToken} from './parser-types';
+import {IArrayLike, IDataToken, IDomHandler, IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
 
 /**
@@ -9,8 +9,7 @@ import {createSaxParser} from './createSaxParser';
  * @template Text The type of object that describes a text node in the DOM tree.
  */
 export function createDomParser<Node, ContainerNode extends Node>(options: IParserOptions): IParser<IDomHandler<Node, ContainerNode>, Array<Node>> {
-  let ancestors: Array<ContainerNode> = [];
-  let nestingDepth = 0;
+  let ancestors: IArrayLike<ContainerNode> = {length: 0};
   let nodes: Array<Node> = [];
 
   const saxParser = createSaxParser(options);
@@ -27,18 +26,23 @@ export function createDomParser<Node, ContainerNode extends Node>(options: IPars
       cdata: cdataCallback,
     } = handler;
 
+    if (elementCallback == null) {
+      throw new Error('Missing `element` callback');
+    }
+    if (appendChildCallback == null) {
+      throw new Error('Missing `appendChild` callback');
+    }
+
     const pushNode = (node: Node) => {
-      if (nestingDepth > 0) {
-        appendChildCallback(ancestors[nestingDepth - 1], node);
+      if (ancestors.length !== 0) {
+        appendChildCallback(ancestors[ancestors.length - 1], node);
       } else {
         nodes.push(node);
       }
     };
 
     const createDataTokenCallback = (callback: ((token: IDataToken) => Node) | undefined): ((token: IDataToken) => void) | undefined => {
-      if (callback) {
-        return (token) => pushNode(callback(token));
-      }
+      return callback != null ? (token) => pushNode(callback(token)) : undefined;
     };
 
     return {
@@ -48,48 +52,49 @@ export function createDomParser<Node, ContainerNode extends Node>(options: IPars
         pushNode(element);
 
         if (!token.selfClosing) {
-          ancestors[nestingDepth] = element;
-          nestingDepth++;
+          ancestors[ancestors.length++] = element;
         }
       },
 
       endTag(token) {
-        nestingDepth--;
-        containerEndCallback?.(ancestors[nestingDepth], token);
+        --ancestors.length;
+        containerEndCallback?.(ancestors[ancestors.length], token);
+      },
+
+      doctype(token) {
+        if (documentCallback && nodes.length === 0) {
+          const element = documentCallback(token);
+          pushNode(element);
+          ancestors[ancestors.length++] = element;
+        }
       },
 
       text: createDataTokenCallback(textCallback),
       processingInstruction: createDataTokenCallback(processingInstructionCallback),
       cdata: createDataTokenCallback(cdataCallback),
-      doctype(token) {
-        if (documentCallback) {
-          const element = documentCallback(token);
-          pushNode(element);
-
-          ancestors[nestingDepth] = element;
-          nestingDepth++;
-        }
-      },
       comment: createDataTokenCallback(commentCallback),
     };
   };
 
-  const write = (handler: IDomHandler<Node, ContainerNode>, chunk: string) => {
+  const write = (handler: IDomHandler<Node, ContainerNode>, chunk: string): Array<Node> => {
     saxParser.write(createSaxHandler(handler), chunk);
     return nodes;
   };
 
-  const parse = (handler: IDomHandler<Node, ContainerNode>, str: string) => {
-    saxParser.parse(createSaxHandler(handler), str);
-    const result = nodes;
-    reset();
+  const parse = (handler: IDomHandler<Node, ContainerNode>, chunk: string): Array<Node> => {
+    let result;
+    try {
+      saxParser.parse(createSaxHandler(handler), chunk);
+      result = nodes;
+    } finally {
+      reset();
+    }
     return result;
   };
 
-  const reset = () => {
+  const reset = (): void => {
     saxParser.reset();
-    ancestors = [];
-    nestingDepth = 0;
+    ancestors.length = 0;
     nodes = [];
   };
 

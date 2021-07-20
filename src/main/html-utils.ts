@@ -1,6 +1,6 @@
 
 import {toMap, toSet} from './utils';
-import {IStartTagToken, ITagToken} from './parser-types';
+import {IArrayLike, IStartTagToken, ITagToken} from './parser-types';
 
 export function checkHtmlCdataTag(token: IStartTagToken): boolean {
   return htmlCdataTagNames.has(token.name);
@@ -10,8 +10,16 @@ export function checkHtmlVoidTag(token: IStartTagToken): boolean {
   return htmlVoidTagNames.has(token.name);
 }
 
-export function checkHtmlImplicitEndTag(containerToken: ITagToken, token: IStartTagToken): boolean {
-  return htmlImplicitEndTagNameMap.get(containerToken.name)?.has(token.name) === true;
+export function checkHtmlImplicitEndTag(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
+  const a = htmlImplicitEndTagNameMap.get(token.name);
+  if (a !== undefined) {
+    for (let i = containerToken.length - 1; i >= 0; --i) {
+      if (a.has(containerToken[i].name)) {
+        return i;
+      }
+    }
+  }
+  return -1;
 }
 
 const htmlVoidTagNames = toSet('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');

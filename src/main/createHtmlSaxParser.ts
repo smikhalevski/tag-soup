@@ -3,35 +3,22 @@ import {createSaxParser} from './createSaxParser';
 import {createEntitiesDecoder} from './createEntitiesDecoder';
 import {createFromHtmlCharName} from './createFromHtmlCharName';
 import {createFromCharCode} from './createFromCharCode';
-import {lowerCase} from './utils';
 import {checkHtmlCdataTag, checkHtmlImplicitEndTag, checkHtmlVoidTag} from './html-utils';
+import * as e from 'entities';
 
 export function createHtmlSaxParser(options?: IParserOptions): IParser<ISaxHandler, void> {
   return createSaxParser(Object.assign({}, htmlParserOptions, options));
 }
 
-const fromCharCode = createFromCharCode();
-
-const htmlAttributeDecoder = createEntitiesDecoder({
-  fromCharName: createFromHtmlCharName(),
-  fromCharCode,
-});
-
-const htmlTextDecoder = createEntitiesDecoder({
-  fromCharName: createFromHtmlCharName(),
-  fromCharCode,
-});
+const htmlDecoder = createEntitiesDecoder(createFromHtmlCharName(), createFromCharCode());
 
 export const htmlParserOptions: IParserOptions = {
-  // cdataEnabled,
-  // processingInstructionsEnabled,
-  // selfClosingEnabled
-  decodeText: htmlTextDecoder,
-  decodeAttribute: htmlAttributeDecoder,
-  renameTag: lowerCase,
-  // renameAttribute
+  decodeText: htmlDecoder,
+  decodeAttribute: htmlDecoder,
+  // decodeText: e.decodeHTML5,
+  // decodeAttribute: e.decodeHTML5,
+  // renameTag: (name) => name.toLowerCase(),
   checkCdataTag: checkHtmlCdataTag,
   checkVoidTag: checkHtmlVoidTag,
-  checkImplicitEndTag: checkHtmlImplicitEndTag,
-  // checkBoundaryTag
+  endsAncestorAt: checkHtmlImplicitEndTag,
 };

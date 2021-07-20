@@ -4,19 +4,18 @@ import {createAttributeToken, createDataToken, createStartTagToken, createTagTok
 import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken, ITagToken} from './parser-types';
 
 /**
- * Creates a new SAX parser.
+ * Creates a new stateful SAX parser.
  */
 export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandler, void> {
   const {
     checkVoidTag,
-    checkImplicitEndTag,
-    checkBoundaryTag,
+    endsAncestorAt,
   } = options;
 
   let buffer = '';
   let chunkOffset = 0;
 
-  const ancestorTokens: IArrayLike<IStartTagToken> = {length: 0};
+  const ancestorTagTokens: IArrayLike<IStartTagToken> = {length: 0};
 
   const startTagTokenPool = createObjectPool(createStartTagToken);
   const endTagTokenPool = createObjectPool(createTagToken);
@@ -30,35 +29,46 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
   };
 
   const freeStartTagToken = (token: IStartTagToken): void => {
-    startTagTokenPool.free(token);
+    startTagTokenPool.release(token);
 
     for (let i = 0; i < token.attributes.length; i++) {
-      attributeTokenPool.free(token.attributes[i]);
+      attributeTokenPool.release(token.attributes[i]);
     }
   };
 
+
+
+
   const triggerEndTagCallbackForAncestors = (endTagCallback: ((token: ITagToken) => void) | undefined, ancestorIndex: number, end: number) => {
-    const ancestorCount = ancestorTokens.length;
+    const ancestorCount = ancestorTagTokens.length;
 
     if (endTagCallback != null && ancestorCount > ancestorIndex) {
       const token = endTagTokenPool.take();
 
       for (let i = ancestorCount - 1; i >= ancestorIndex; --i) {
 
-        token.rawName = ancestorTokens[i].rawName;
-        token.name = ancestorTokens[i].name;
+        token.rawName = ancestorTagTokens[i].rawName;
+        token.name = ancestorTagTokens[i].name;
         token.start = token.end = end;
         token.nameStart = token.nameEnd = -1;
 
         endTagCallback(token);
       }
-      endTagTokenPool.free(token);
+      endTagTokenPool.release(token);
     }
     for (let i = ancestorIndex; i < ancestorCount; ++i) {
-      freeStartTagToken(ancestorTokens[i]);
+      freeStartTagToken(ancestorTagTokens[i]);
     }
-    ancestorTokens.length = ancestorIndex;
+    ancestorTagTokens.length = ancestorIndex;
   };
+
+
+
+
+
+
+
+
 
   const createForgivingHandler = (handler: ISaxHandler): ISaxHandler => {
     const {
@@ -71,15 +81,12 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
     forgivingHandler.startTag = (token) => {
       token.selfClosing ||= checkVoidTag?.(token) || false;
 
-      if (checkImplicitEndTag) {
-        for (let i = ancestorTokens.length - 1; i >= 0; i--) {
-          if (checkBoundaryTag?.(ancestorTokens[i])) {
-            break;
-          }
-          if (checkImplicitEndTag(ancestorTokens[i], token)) {
-            triggerEndTagCallbackForAncestors(endTagCallback, i, token.start);
-            break;
-          }
+      if (endsAncestorAt != null && ancestorTagTokens.length !== 0) {
+
+        const i = endsAncestorAt(ancestorTagTokens, token);
+
+        if (i >= 0 && i < ancestorTagTokens.length) {
+          triggerEndTagCallbackForAncestors(endTagCallback, i, token.start);
         }
       }
 
@@ -88,19 +95,19 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
       if (token.selfClosing) {
         freeStartTagToken(token);
       } else {
-        ancestorTokens[ancestorTokens.length++] = token;
+        ancestorTagTokens[ancestorTagTokens.length++] = token;
       }
     };
 
     forgivingHandler.endTag = (token) => {
-      for (let i = ancestorTokens.length - 1; i >= 0; --i) {
-        if (ancestorTokens[i].name !== token.name) {
+      for (let i = ancestorTagTokens.length - 1; i >= 0; --i) {
+        if (ancestorTagTokens[i].name !== token.name) {
           continue;
         }
         triggerEndTagCallbackForAncestors(endTagCallback, i + 1, token.start);
         endTagCallback?.(token);
-        freeStartTagToken(ancestorTokens[i]);
-        ancestorTokens.length = i;
+        freeStartTagToken(ancestorTagTokens[i]);
+        ancestorTagTokens.length = i;
         break;
       }
     };
@@ -135,11 +142,11 @@ export function createSaxParser(options: IParserOptions = {}): IParser<ISaxHandl
   };
 
   const reset = (): void => {
-    for (let i = 0; i < ancestorTokens.length; ++i) {
-      freeStartTagToken(ancestorTokens[i]);
+    for (let i = 0; i < ancestorTagTokens.length; ++i) {
+      freeStartTagToken(ancestorTagTokens[i]);
     }
     buffer = '';
-    ancestorTokens.length = chunkOffset = 0;
+    ancestorTagTokens.length = chunkOffset = 0;
   };
 
   return {

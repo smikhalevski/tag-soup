@@ -33,6 +33,7 @@ function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
 }
 
 beforeEach(() => {
+
   tokenizerOptions = {
     startTagTokenPool: createObjectPool(createStartTagToken),
     endTagTokenPool: createObjectPool(createTagToken),
@@ -126,7 +127,7 @@ describe('tokenizeAttributes', () => {
     ]));
   });
 
-  it('reads mix of quoted attributes separated by spaces', () => {
+  it('reads a mix of quoted attributes separated by spaces', () => {
     expect(tokenizeAttributes('aaa=111 bbb="222" ccc=\'333\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(27);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
@@ -700,6 +701,32 @@ describe('tokenizeAttributes', () => {
       },
     ]));
   });
+
+  it('cleans up the array-like object', () => {
+
+    attributes = toArrayLike([
+      {} as unknown as IAttributeToken,
+      {} as unknown as IAttributeToken,
+      {} as unknown as IAttributeToken,
+    ]);
+
+    expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
+    expect(attributes).toEqual(toArrayLike<IAttributeToken>([
+      {
+        rawName: 'aaa',
+        name: 'aaa',
+        rawValue: '111',
+        value: '111',
+        quoted: false,
+        start: 0,
+        end: 7,
+        nameStart: 0,
+        nameEnd: 3,
+        valueStart: 4,
+        valueEnd: 7,
+      },
+    ]));
+  });
 });
 
 describe('tokenize', () => {
@@ -1246,7 +1273,7 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses CDATA blocks', () => {
+    it('parses CDATA sections', () => {
       parserOptions.cdataEnabled = true;
 
       tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
@@ -1262,7 +1289,7 @@ describe('tokenize', () => {
       });
     });
 
-    it('parses CDATA blocks as comments', () => {
+    it('parses CDATA sections as comments', () => {
       tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
@@ -1342,7 +1369,7 @@ describe('tokenize', () => {
       });
     });
 
-    it('can enforce CDATA in self-closing tags', () => {
+    it('parses self-closing CDATA tags', () => {
       parserOptions.selfClosingEnabled = true;
       parserOptions.checkCdataTag = (token) => token.name === 'script';
 
