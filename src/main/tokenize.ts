@@ -211,9 +211,9 @@ export interface ITokenizerOptions {
    * Tokenizer doesn't return allocated tokens back to this pool.
    */
   startTagTokenPool: IObjectPool<IStartTagToken>;
+  attributeTokenPool: IObjectPool<IAttributeToken>;
   endTagTokenPool: IObjectPool<ITagToken>;
   dataTokenPool: IObjectPool<IDataToken>;
-  attributeTokenPool: IObjectPool<IAttributeToken>;
 }
 
 /**

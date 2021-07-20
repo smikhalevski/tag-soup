@@ -5,8 +5,8 @@ import {DomNodeType, IDomAttributeMap, IDomElement, IDomNode, IDomText} from './
 import {Comment, Element, Node, NodeWithChildren, DataNode, Document, ProcessingInstruction, Text} from 'domhandler';
 import {ElementType} from 'domelementtype';
 
-export function createXmlDomParser<Node, ContainerNode extends Node>(options?: IParserOptions): IParser<IDomHandler<Node, ContainerNode>, Array<Node>> {
-  return createDomParser<Node, ContainerNode>(Object.assign({}, xmlParserOptions, options));
+export function createXmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>> {
+  return createDomParser(handler, Object.assign({}, xmlParserOptions, options));
 }
 
 

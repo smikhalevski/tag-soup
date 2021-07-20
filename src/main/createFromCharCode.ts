@@ -24,15 +24,15 @@ export interface IFromCharCodeOptions {
 /**
  * Creates decoder for numeric-encoded XML entities.
  *
- * @see createEntitiesDecoder
+ * @see createDecoder
  */
-export function createFromCharCode(options: IFromCharCodeOptions = {}): FromCharCode {
+export function createFromCharCode(options: IFromCharCodeOptions = {}) {
   const {
     strict = false,
     replacementChar = '\ufffd',
   } = options;
 
-  return (codePoint) => {
+  return (codePoint: number): string => {
     if (codePoint >= 0xd800 && codePoint <= 0xdfff || codePoint > 0x10ffff) {
       if (strict) {
         throw new SyntaxError('Character reference outside the permissible Unicode range');
@@ -43,7 +43,7 @@ export function createFromCharCode(options: IFromCharCodeOptions = {}): FromChar
       if (strict) {
         throw new SyntaxError('Disallowed character reference');
       }
-      return replacementCodePoints.get(codePoint);
+      return replacementCodePoints.get(codePoint)!;
     }
     if (strict && errorCodePoints.has(codePoint)) {
       throw new SyntaxError('Disallowed character reference');

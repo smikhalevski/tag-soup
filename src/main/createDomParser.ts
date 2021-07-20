@@ -8,11 +8,9 @@ import {createSaxParser} from './createSaxParser';
  * @template Element The type of object that describes an element in the DOM tree.
  * @template Text The type of object that describes a text node in the DOM tree.
  */
-export function createDomParser<Node, ContainerNode extends Node>(options: IParserOptions): IParser<IDomHandler<Node, ContainerNode>, Array<Node>> {
+export function createDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options: IParserOptions): IParser<Array<Node>> {
   let ancestors: IArrayLike<ContainerNode> = {length: 0};
   let nodes: Array<Node> = [];
-
-  const saxParser = createSaxParser(options);
 
   const createSaxHandler = (handler: IDomHandler<Node, ContainerNode>): ISaxHandler => {
     const {
@@ -76,15 +74,17 @@ export function createDomParser<Node, ContainerNode extends Node>(options: IPars
     };
   };
 
-  const write = (handler: IDomHandler<Node, ContainerNode>, chunk: string): Array<Node> => {
-    saxParser.write(createSaxHandler(handler), chunk);
+  const saxParser = createSaxParser(createSaxHandler(handler), options);
+
+  const write = (chunk: string): Array<Node> => {
+    saxParser.write(chunk);
     return nodes;
   };
 
-  const parse = (handler: IDomHandler<Node, ContainerNode>, chunk: string): Array<Node> => {
+  const parse = (chunk: string): Array<Node> => {
     let result;
     try {
-      saxParser.parse(createSaxHandler(handler), chunk);
+      saxParser.parse(chunk);
       result = nodes;
     } finally {
       reset();

@@ -1,6 +1,13 @@
 import {allCharBy, CharCodeChecker} from 'tokenizer-dsl';
 import {CharCode} from './CharCode';
-import {FromCharCode, FromCharName} from './decoder-types';
+
+/**
+ * Returns the string that corresponds to the entity with the given name.
+ *
+ * @param name The name of the entity to decode.
+ * @param terminated `true` if an entity was terminated with a semicolon.
+ */
+export type FromEntityName = (name: string, terminated: boolean) => string | null | undefined;
 
 // [0-9]
 const isNumberChar: CharCodeChecker = (c) => c >= 48 && c <= 57;
@@ -22,9 +29,9 @@ const takeNumber = allCharBy(isNumberChar);
 const takeHexNumber = allCharBy(isHexNumberChar);
 
 /**
- * Creates a rewriter that maps an encoded HTML entities in given string into corresponding chars.
+ * Creates an HTML/XML entity decoder.
  */
-export function createEntitiesDecoder(fromCharName: FromCharName = fromXmlCharName, fromCharCode: FromCharCode = String.fromCharCode): (str: string) => string {
+export function createDecoder(fromEntityName: FromEntityName, fromCharCode = String.fromCharCode): (str: string) => string {
 
   return (str) => {
     let result = '';
@@ -70,12 +77,12 @@ export function createEntitiesDecoder(fromCharName: FromCharName = fromXmlCharNa
         let name;
         while (k < charCount && char == null && isAlphaNumericChar(str.charCodeAt(k))) {
           name = str.substring(j, ++k);
-          char = fromCharName(name, false);
+          char = fromEntityName(name, false);
         }
 
         if (str.charCodeAt(k) === CharCode[';']) {
           if (char == null && name != null) {
-            char = fromCharName(name, true);
+            char = fromEntityName(name, true);
           }
           k++;
         }
@@ -96,13 +103,3 @@ export function createEntitiesDecoder(fromCharName: FromCharName = fromXmlCharNa
     return result;
   };
 }
-
-const fromXmlCharName: FromCharName = (name, terminated) => terminated ? xmlEntities[name] : undefined;
-
-const xmlEntities: Record<string, string> = {
-  amp: '&',
-  gt: '>',
-  lt: '<',
-  quot: '"',
-  apos: '\'',
-};

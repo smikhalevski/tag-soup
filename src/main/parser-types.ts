@@ -58,7 +58,7 @@ export interface IStartTagToken extends ITagToken {
    * the handler callback finishes. So if you want to preserve the token be sure to make a deep copy. Object pooling is
    * used to reduce memory consumption during parsing by avoiding excessive object allocation.
    */
-  attributes: IArrayLike<IAttributeToken>;
+  attributes: ArrayLike<IAttributeToken>;
 
   /**
    * `true` if tag is self-closing, `false` otherwise.
@@ -154,26 +154,24 @@ export interface IAttributeToken extends IToken {
 /**
  * The streaming parser.
  */
-export interface IParser<Handler, Result> {
+export interface IParser<Result> {
 
   /**
    * Tries to parse a given source chunk. If there's an ambiguity during parsing then the parser is paused until the
    * next {@link write} or {@link parse} invocation. The part of chunk that wasn't parsed is appended to an internal
    * buffer.
    *
-   * @param handler The parsing handler.
    * @param sourceChunk The source chunk to parse.
    */
-  write(handler: Handler, sourceChunk: string): Result;
+  write(sourceChunk: string): Result;
 
   /**
    * Parses the source. If there's a leftover in the internal buffer after the last {@link write} call it is also used
    * for parsing. Parser is reset after parsing is completed.
    *
-   * @param handler The parsing handler.
    * @param source The source to parse. If omitted then content of the internal buffer is parsed.
    */
-  parse(handler: Handler, source?: string): Result;
+  parse(source?: string): Result;
 
   /**
    * Clears the internal buffer and resets the parser state.
@@ -213,14 +211,14 @@ export interface IParserOptions {
   /**
    * Decodes XML entities in a plain text value.
    *
-   * @see {@link createEntitiesDecoder}
+   * @see {@link createDecoder}
    */
   decodeText?: (text: string) => string;
 
   /**
    * Decodes XML entities in an attribute value. If omitted then {@link decodeText} callback is used.
    *
-   * @see {@link createEntitiesDecoder}
+   * @see {@link createDecoder}
    */
   decodeAttribute?: (value: string) => string;
 
@@ -256,15 +254,15 @@ export interface IParserOptions {
   checkVoidTag?: (token: IStartTagToken) => boolean;
 
   /**
-   * Checks whether the container should be implicitly closed with corresponding end tag when start tag is read. Useful
-   * when parsing such tags as `p`, `li`, `td` and others.
+   * Inspects ancestors and returns an index of an ancestor for which end tag is implied. Useful when parsing such tags
+   * as `p`, `li`, `td` and others.
    *
-   * @param ancestorToken The token of an opened container tag.
+   * @param ancestorTokens The list of start tag tokens of current ancestors.
    * @param token The token of the start tag that was read.
-   * @returns `true` if start tag `token` should implicitly close the currently opened container `ancestorToken`. This
-   *     causes {@link endTag} to be triggered for `ancestorToken` before {@link startTag} is triggered with `token`.
+   * @returns The index among `ancestorTokens` that points to an ancestor for which an end tag is implied or -1 if no
+   *     implicit end detected.
    */
-  endsAncestorAt?: (ancestors: Readonly<IArrayLike<IStartTagToken>>, token: IStartTagToken) => number;
+  endsAncestorAt?: (ancestorTokens: ArrayLike<IStartTagToken>, token: IStartTagToken) => number;
 }
 
 /**
@@ -309,6 +307,18 @@ export interface ISaxHandler {
    * Triggered when a CDATA section was read.
    */
   cdata?: (token: IDataToken) => void;
+
+  /**
+   * Triggered when parser internal state was reset.
+   */
+  reset?: () => void;
+
+  /**
+   * Triggered when parsing was completed.
+   *
+   * @param sourceLength The number of chars that parser processed.
+   */
+  eof?: (sourceLength: number) => void;
 }
 
 /**

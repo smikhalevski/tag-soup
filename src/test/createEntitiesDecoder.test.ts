@@ -1,25 +1,25 @@
-import {createEntitiesDecoder} from '../main/createEntitiesDecoder';
+import {createDecoder} from '../main/createDecoder';
 import {createFromHtmlCharName} from '../main/createFromHtmlCharName';
 
-describe('createEntitiesDecoder', () => {
+describe('createDecoder', () => {
 
   it('decodes decimal entities', () => {
-    expect(createEntitiesDecoder()('&#60;')).toBe('<');
+    expect(createDecoder()('&#60;')).toBe('<');
   });
 
   it('decodes hex entities', () => {
-    expect(createEntitiesDecoder()('&#x3c;')).toBe('<');
+    expect(createDecoder()('&#x3c;')).toBe('<');
   });
 
   it('decodes known named entities', () => {
-    expect(createEntitiesDecoder()('&lt;')).toBe('<');
+    expect(createDecoder()('&lt;')).toBe('<');
   });
 
   it('decodes all entities in the string', () => {
-    expect(createEntitiesDecoder()('&lt;&#34;&gt;')).toBe('<">');
+    expect(createDecoder()('&lt;&#34;&gt;')).toBe('<">');
   });
 
   it('does not require trailing semicolon', () => {
-    expect(createEntitiesDecoder(createFromHtmlCharName())('&ltfoo')).toBe('<foo');
+    expect(createDecoder(createFromHtmlCharName())('&ltfoo')).toBe('<foo');
   });
 });

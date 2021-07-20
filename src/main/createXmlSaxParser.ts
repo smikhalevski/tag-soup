@@ -1,12 +1,13 @@
 import {IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
-import {createEntitiesDecoder} from './createEntitiesDecoder';
+import {createDecoder} from './createDecoder';
+import {fromXmlEntityName} from './xml-decoder';
 
-export function createXmlSaxParser(options?: IParserOptions): IParser<ISaxHandler, void> {
-  return createSaxParser(Object.assign({}, xmlParserOptions, options));
+export function createXmlSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
+  return createSaxParser(handler, Object.assign({}, xmlParserOptions, options));
 }
 
-export const xmlDecoder = createEntitiesDecoder();
+export const xmlDecoder = createDecoder(fromXmlEntityName);
 
 export const xmlParserOptions: IParserOptions = {
   cdataEnabled: true,

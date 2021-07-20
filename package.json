@@ -66,7 +66,6 @@
     "typescript": "4.2.4"
   },
   "dependencies": {
-    "entities": "^2.2.0",
     "tokenizer-dsl": "1.0.0"
   }
 }

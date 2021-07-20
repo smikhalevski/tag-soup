@@ -6,14 +6,14 @@ import {FromCharName} from './decoder-types';
  * @param [strict = false] If set to `true` then entities that are not terminated with a semicolon are not decoded. If
  *     set to `false` then legacy HTML entities are decoded even if they are not terminated with a semicolon.
  *
- * @see createEntitiesDecoder
+ * @see createDecoder
  */
 export function createFromHtmlCharName(strict?: boolean): FromCharName {
-  return (name, terminated) => terminated ? legacyEntities[name] || entities[name] : strict ? undefined : legacyEntities[name];
+  return (name, terminated) => terminated ? legacyHtmlEntities[name] || htmlEntities[name] : strict ? undefined : legacyHtmlEntities[name];
 }
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map-legacy.json
-const legacyEntities = decodeEntities({
+const legacyHtmlEntities = decodeEntities({
   aacute: 225,
   Aacute: 193,
   acirc: 226,
@@ -123,7 +123,7 @@ const legacyEntities = decodeEntities({
 });
 
 // https://github.com/mathiasbynens/he/blob/master/data/decode-map.json
-const entities = decodeEntities({
+const htmlEntities = decodeEntities({
   abreve: 259,
   Abreve: 258,
   ac: 8766,
