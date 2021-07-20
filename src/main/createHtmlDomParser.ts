@@ -1,21 +1,26 @@
-import {DomParser, DomParserDialectOptions} from './createDomParser';
-import {createXmlDomParser, DomElement, DomNode, DomText} from './createXmlDomParser';
-import {createHtmlSaxParser, HtmlSaxParserDialectOptions} from './createHtmlSaxParser';
-
-export interface HtmlDomParserOptions extends HtmlSaxParserDialectOptions {
-}
+import {IDomHandler, IParser, IParserOptions} from './parser-types';
+import {createDomParser} from './createDomParser';
+import {htmlParserOptions} from './createHtmlSaxParser';
+import {domHandler} from './createXmlDomParser';
+import {INode} from './dom-types';
 
 /**
- * Preconfigured Cheerio-compatible HTML DOM parser. In contrast with {@link createXmlDomParser} this one knows how to
- * handle HTML void tags and which HTML tags should be implicitly closed.
+ * Creates a pre-configured HTML DOM parser that uses {@link domHandler}.
  *
- * @see {@link createDomParser}
- * @see {@link createXmlDomParser}
- * @see {@link createHtmlDomParser}
+ * @see {@link domHandler}
  */
-export function createHtmlDomParser(options?: HtmlDomParserOptions): DomParser<DomNode, DomElement, DomText> {
-  const domParserOptions: DomParserDialectOptions<DomElement> = {
-    saxParserFactory: createHtmlSaxParser,
-  };
-  return createXmlDomParser(Object.assign({}, options, domParserOptions));
+export function createHtmlDomParser(): IParser<Array<INode>>;
+
+/**
+ * Creates a pre-configured HTML DOM parser.
+ *
+ * @param handler The parsing handler.
+ * @param options Options that override the defaults.
+ *
+ * @see {@link domHandler}
+ */
+export function createHtmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>>;
+
+export function createHtmlDomParser(handler = domHandler, options?: IParserOptions) {
+  return createDomParser(handler, Object.assign({}, htmlParserOptions, options));
 }

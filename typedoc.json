@@ -1,42 +1,5 @@
 {
   "name": "TagSoup",
-  "mode": "library",
   "includeVersion": true,
-  "out": "./docs",
-  "toc": [
-    "DomParserOptions",
-    "DomParser",
-    "createDomParser",
-    "createXmlDomParser",
-    "createHtmlDomParser",
-
-    "ForgivingSaxParserOptions",
-    "createForgivingSaxParser",
-
-    "EntitiesDecoderOptions",
-    "createEntitiesDecoder",
-
-    "FromCharCodeOptions",
-    "createFromCharCode",
-
-    "FromHtmlCharNameOptions",
-    "createFromHtmlCharName",
-
-    "HtmlDomParserOptions",
-    "createHtmlDomParser",
-
-    "HtmlSaxParserOptions",
-    "createHtmlSaxParser",
-
-    "DomNodeType",
-    "DomNode",
-    "DomAttrMap",
-    "DomElement",
-    "DomText",
-    "createXmlDomParser",
-
-    "SaxParserOptions",
-    "SaxParser",
-    "createSaxParser"
-  ]
+  "out": "./docs"
 }
