@@ -2,12 +2,16 @@ import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
 import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
 import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken, ITagToken} from './parser-types';
+import {shallowCopy} from './utils';
 
 /**
  * Creates a new stateful SAX parser.
+ *
+ * @param handler The parsing handler.
+ * @param options Parsing options.
  */
-export function createSaxParser(handler: ISaxHandler, options: IParserOptions = {}): IParser<void> {
-  options = Object.assign({}, options);
+export function createSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
+  const opts = shallowCopy(options);
 
   let buffer = '';
   let chunkOffset = 0;
@@ -19,12 +23,12 @@ export function createSaxParser(handler: ISaxHandler, options: IParserOptions = 
     dataTokenPool: createObjectPool(createDataToken),
   };
 
-  handler = createForgivingHandler(handler, tokenizerOptions, options);
+  const forgivingHandler = createForgivingHandler(handler, tokenizerOptions, opts);
 
   const write = (sourceChunk: string): void => {
     sourceChunk ||= '';
     buffer += sourceChunk;
-    const index = tokenize(buffer, true, chunkOffset, tokenizerOptions, options, handler);
+    const index = tokenize(buffer, true, chunkOffset, tokenizerOptions, opts, forgivingHandler);
     buffer = buffer.substr(index);
     chunkOffset += index;
   };
@@ -32,15 +36,15 @@ export function createSaxParser(handler: ISaxHandler, options: IParserOptions = 
   const parse = (source?: string): void => {
     source ||= '';
     buffer += source;
-    const index = tokenize(buffer, false, chunkOffset, tokenizerOptions, options, handler);
-    handler.eof?.(chunkOffset + index);
+    const index = tokenize(buffer, false, chunkOffset, tokenizerOptions, opts, forgivingHandler);
+    forgivingHandler.sourceEnd?.(chunkOffset + index);
     reset();
   };
 
   const reset = (): void => {
     buffer = '';
     chunkOffset = 0;
-    handler.reset?.();
+    forgivingHandler.reset?.();
   };
 
   return {
@@ -55,7 +59,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     startTag: startTagCallback,
     endTag: endTagCallback,
     reset: resetCallback,
-    eof: eofCallback,
+    sourceEnd: sourceEndCallback,
   } = handler;
 
   const {
@@ -69,7 +73,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     endsAncestorAt,
   } = options;
 
-  const forgivingHandler = Object.assign({}, handler);
+  const forgivingHandler = shallowCopy(handler);
   const ancestors: IArrayLike<IStartTagToken> = {length: 0};
 
   const releaseStartTag = (token: IStartTagToken): void => {
@@ -89,34 +93,32 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
   };
 
   const triggerImplicitEnd = (endTagCallback: ((token: ITagToken) => void) | undefined, ancestorIndex: number, end: number) => {
-    const ancestorCount = ancestors.length;
-
-    if (ancestorIndex < 0 || ancestorIndex >= ancestorCount) {
+    if (ancestorIndex < 0 || ancestorIndex >= ancestors.length) {
       return;
     }
-    if (endTagCallback != null) {
-      const token = endTagTokenPool.take();
-
-      for (let i = ancestorCount - 1; i >= ancestorIndex; --i) {
-
-        token.rawName = ancestors[i].rawName;
-        token.name = ancestors[i].name;
-        token.start = token.end = end;
-        token.nameStart = token.nameEnd = -1;
-
-        endTagCallback(token);
-      }
-      endTagTokenPool.release(token);
+    if (!endTagCallback) {
+      releaseAncestors(ancestorIndex);
+      return;
     }
+
+    const token = endTagTokenPool.take();
+    for (let i = ancestors.length - 1; i >= ancestorIndex; --i) {
+
+      token.rawName = ancestors[i].rawName;
+      token.name = ancestors[i].name;
+      token.start = token.end = end;
+      token.nameStart = token.nameEnd = -1;
+
+      endTagCallback(token);
+    }
+    endTagTokenPool.release(token);
     releaseAncestors(ancestorIndex);
   };
 
   forgivingHandler.startTag = (token) => {
-    const ancestorCount = ancestors.length;
-
     token.selfClosing ||= checkVoidTag?.(token) || false;
 
-    if (endsAncestorAt != null && ancestorCount !== 0) {
+    if (endsAncestorAt != null && ancestors.length !== 0) {
       triggerImplicitEnd(endTagCallback, endsAncestorAt(ancestors, token), token.start);
     }
 
@@ -142,9 +144,9 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     }
   };
 
-  forgivingHandler.eof = (sourceLength) => {
+  forgivingHandler.sourceEnd = (sourceLength) => {
     triggerImplicitEnd(endTagCallback, 0, sourceLength);
-    eofCallback?.(sourceLength);
+    sourceEndCallback?.(sourceLength);
   };
 
   forgivingHandler.reset = () => {

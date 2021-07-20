@@ -11,3 +11,7 @@ export function toMap<V>(record: Record<string, V>): Map<string, V> {
   }
   return map;
 }
+
+export function shallowCopy<T extends object>(value: T | null | undefined): T {
+  return Object.assign({}, value);
+}

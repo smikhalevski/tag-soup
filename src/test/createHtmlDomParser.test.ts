@@ -1,13 +1,13 @@
-import {DomNodeType, IDomAttributeMap, IDomElement, IDomNode, IDomText} from '../main';
+import {IElement, INode, IParser, IText, NodeType} from '../main';
 import {createHtmlDomParser} from '../main/createHtmlDomParser';
 
-export function el(tagName: string, start: number, end: number, selfClosing = false, attrs: IDomAttributeMap = {}, children: Array<IDomNode> = []): IDomElement {
+export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElement {
 
-  const el: IDomElement = {
-    nodeType: DomNodeType.ELEMENT,
+  const elementNode: IElement = {
+    nodeType: NodeType.ELEMENT,
     parent: null,
     tagName,
-    attributes: attrs,
+    attributes,
     selfClosing,
     children,
     start,
@@ -15,23 +15,41 @@ export function el(tagName: string, start: number, end: number, selfClosing = fa
   };
 
   for (const child of children) {
-    child.parent = el;
+    child.parent = elementNode;
   }
-  return el;
+  return elementNode;
 }
 
-export function text(value: string, start: number, end: number): IDomText {
-  return {nodeType: 3, parent: null, data: value, start, end};
+export function text(data: string, start: number, end: number): IText {
+  return {
+    nodeType: NodeType.TEXT,
+    parent: null,
+    data,
+    start,
+    end,
+  };
 }
 
 describe('createHtmlDomParser', () => {
 
-  it('implicitly closes paragraph', () => {
-    const parser = createHtmlDomParser();
+  let parser: IParser<Array<INode>>;
 
+  beforeEach(() => {
+    parser = createHtmlDomParser();
+  });
+
+  it('parses self-closing tag as a start tag', () => {
+    expect(parser.parse('<a/>foo')).toEqual([
+      element('a', 0, 7, false, {}, [
+        text('foo', 4, 7),
+      ]),
+    ]);
+  });
+
+  it('implicitly closes paragraph', () => {
     expect(parser.parse('<p><p>aaa</p></p>')).toEqual([
-      el('p', 0, 3),
-      el('p', 3, 13, false, {}, [
+      element('p', 0, 3),
+      element('p', 3, 13, false, {}, [
         text('aaa', 6, 9),
       ]),
     ]);

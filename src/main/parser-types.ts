@@ -257,12 +257,30 @@ export interface IParserOptions {
    * Inspects ancestors and returns an index of an ancestor for which end tag is implied. Useful when parsing such tags
    * as `p`, `li`, `td` and others.
    *
-   * @param ancestorTokens The list of start tag tokens of current ancestors.
+   * @param ancestors The list of start tag tokens of current ancestors.
    * @param token The token of the start tag that was read.
-   * @returns The index among `ancestorTokens` that points to an ancestor for which an end tag is implied or -1 if no
+   * @returns The index among `ancestors` that points to an ancestor for which an end tag is implied or -1 if no
    *     implicit end detected.
    */
-  endsAncestorAt?: (ancestorTokens: ArrayLike<IStartTagToken>, token: IStartTagToken) => number;
+  endsAncestorAt?: (ancestors: ArrayLike<IStartTagToken>, token: IStartTagToken) => number;
+}
+
+/**
+ * Parser-related handler callbacks.
+ */
+export interface IHandler {
+
+  /**
+   * Triggered when parsing of the source is completed.
+   *
+   * @param sourceLength The number of chars that were read from the source.
+   */
+  sourceEnd?: (sourceLength: number) => void;
+
+  /**
+   * Triggered when the parser internal state was reset.
+   */
+  reset?: () => void;
 }
 
 /**
@@ -271,7 +289,7 @@ export interface IParserOptions {
  * **Note:** Don't keep references to tokens! Tokens passed to the handler callbacks are pooled objects that are reused
  * by the parser after callback finishes. Make a deep copy to retain a token.
  */
-export interface ISaxHandler {
+export interface ISaxHandler extends IHandler {
 
   /**
    * Triggered when a start tag and its attributes were read.
@@ -307,18 +325,6 @@ export interface ISaxHandler {
    * Triggered when a CDATA section was read.
    */
   cdata?: (token: IDataToken) => void;
-
-  /**
-   * Triggered when parser internal state was reset.
-   */
-  reset?: () => void;
-
-  /**
-   * Triggered when parsing was completed.
-   *
-   * @param sourceLength The number of chars that parser processed.
-   */
-  eof?: (sourceLength: number) => void;
 }
 
 /**
@@ -327,7 +333,7 @@ export interface ISaxHandler {
  * **Note:** Don't keep references to tokens! Tokens passed to some of the handler callbacks are pooled objects that
  * are reused by the parser after callback finishes. Make a deep copy to retain a token.
  */
-export interface IDomHandler<Node, ContainerNode extends Node> {
+export interface IDomHandler<Node, ContainerNode extends Node> extends IHandler {
 
   /**
    * Creates a new element node.

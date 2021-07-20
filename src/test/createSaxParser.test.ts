@@ -1,6 +1,8 @@
 import {createSaxParser} from '../main/createSaxParser';
 import {cloneDeep} from 'lodash';
 import {IArrayLike, IDataToken, IParser, ISaxHandler, IStartTagToken, ITagToken} from '../main/parser-types';
+import fs from 'fs';
+import path from 'path';
 
 function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
   const arrLike: IArrayLike<T> = {length: arr.length};
@@ -19,12 +21,13 @@ describe('createSaxParser', () => {
   const processingInstructionMock = jest.fn();
   const cdataMock = jest.fn();
   const doctypeMock = jest.fn();
+  const sourceEndMock = jest.fn();
+  const resetMock = jest.fn();
 
-  let parser: IParser<ISaxHandler, void>;
+  let parser: IParser<void>;
   let handler: ISaxHandler;
 
   beforeEach(() => {
-    parser = createSaxParser();
 
     handler = {
       startTag: (token) => startTagMock(cloneDeep(token)),
@@ -34,7 +37,11 @@ describe('createSaxParser', () => {
       doctype: (token) => doctypeMock(cloneDeep(token)),
       processingInstruction: (token) => processingInstructionMock(cloneDeep(token)),
       cdata: (token) => cdataMock(cloneDeep(token)),
+      sourceEnd: sourceEndMock,
+      reset: resetMock,
     };
+
+    parser = createSaxParser(handler);
 
     startTagMock.mockReset();
     endTagMock.mockReset();
@@ -43,12 +50,14 @@ describe('createSaxParser', () => {
     processingInstructionMock.mockReset();
     cdataMock.mockReset();
     doctypeMock.mockReset();
+    sourceEndMock.mockReset();
+    resetMock.mockReset();
   });
 
   describe('in non-streaming mode', () => {
 
     it('parses tag', () => {
-      parser.parse(handler, '<foo></foo>');
+      parser.parse('<foo></foo>');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
@@ -78,19 +87,21 @@ describe('createSaxParser', () => {
         throw new Error();
       };
 
-      expect(() => parser.parse(handler, 'foo')).toThrow();
+      parser = createSaxParser(handler);
+
+      expect(() => parser.parse('foo')).toThrow();
       expect(textMock).not.toHaveBeenCalled();
     });
 
     it('does not emit incomplete start tags', () => {
-      parser.parse(handler, '<www aaa=111 ');
+      parser.parse('<www aaa=111 ');
 
       expect(startTagMock).not.toHaveBeenCalled();
       expect(textMock).not.toHaveBeenCalled();
     });
 
     it('emits incomplete comment', () => {
-      parser.parse(handler, '<!--foo');
+      parser.parse('<!--foo');
 
       expect(commentMock).toHaveBeenCalledTimes(1);
       expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
@@ -104,11 +115,11 @@ describe('createSaxParser', () => {
     });
 
     it('emits CDATA tags', () => {
-      parser = createSaxParser({
+      parser = createSaxParser(handler, {
         checkCdataTag: (token) => token.name === 'script',
       });
 
-      parser.parse(handler, '<script><foo aaa=111></script>');
+      parser.parse('<script><foo aaa=111></script>');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
@@ -144,7 +155,7 @@ describe('createSaxParser', () => {
     });
 
     it('emits end tags for unclosed start tags', () => {
-      parser.parse(handler, '<a><b>');
+      parser.parse('<a><b>');
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
@@ -188,7 +199,7 @@ describe('createSaxParser', () => {
     });
 
     it('emits text before closing unclosed tags', () => {
-      parser.parse(handler, '<a>bbb');
+      parser.parse('<a>bbb');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
@@ -224,11 +235,11 @@ describe('createSaxParser', () => {
     });
 
     it('implicitly closes current tag with nesting', () => {
-      parser = createSaxParser({
-        endsAncestorAt: (containerToken, token) => containerToken.name === 'p' && token.name === 'p',
+      parser = createSaxParser(handler, {
+        endsAncestorAt: (ancestors, token) => ancestors[0].name === 'p' && token.name === 'p' ? 0 : -1,
       });
 
-      parser.parse(handler, '<p><p>aaa</p></p>');
+      parser.parse('<p><p>aaa</p></p>');
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
@@ -280,12 +291,32 @@ describe('createSaxParser', () => {
         nameEnd: 12,
       });
     });
+
+    it('emits source end', () => {
+      parser.parse('<a></a>');
+
+      expect(sourceEndMock).toHaveBeenCalledTimes(1);
+      expect(sourceEndMock).toHaveBeenCalledWith(7);
+    });
+
+    it('source end does not include trailing non-closed start tag', () => {
+      parser.parse('<a><b');
+
+      expect(sourceEndMock).toHaveBeenCalledTimes(1);
+      expect(sourceEndMock).toHaveBeenCalledWith(3);
+    });
+
+    it('emits reset', () => {
+      parser.reset();
+
+      expect(resetMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('in streaming mode', () => {
 
     it('defers text emit', () => {
-      parser.write(handler, '<a>foo');
+      parser.write('<a>foo');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
@@ -301,11 +332,11 @@ describe('createSaxParser', () => {
 
       expect(textMock).not.toHaveBeenCalled();
 
-      parser.write(handler, 'qux');
+      parser.write('qux');
 
       expect(textMock).not.toHaveBeenCalled();
 
-      parser.write(handler, 'bar</a>');
+      parser.write('bar</a>');
 
       expect(textMock).toHaveBeenCalledTimes(1);
       expect(textMock).toHaveBeenCalledWith(<IDataToken>{
@@ -329,13 +360,13 @@ describe('createSaxParser', () => {
     });
 
     it('defers start tag emit', () => {
-      parser = createSaxParser({selfClosingEnabled: true});
+      parser = createSaxParser(handler, {selfClosingEnabled: true});
 
-      parser.write(handler, '<www aaa=111 ');
+      parser.write('<www aaa=111 ');
 
       expect(startTagMock).not.toHaveBeenCalled();
 
-      parser.write(handler, '/>');
+      parser.write('/>');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
@@ -367,11 +398,11 @@ describe('createSaxParser', () => {
     });
 
     it('emits attribute with proper offsets', () => {
-      parser.write(handler, '<foo>');
+      parser.write('<foo>');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
 
-      parser.write(handler, '<bar aaa=111>');
+      parser.write('<bar aaa=111>');
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
@@ -403,11 +434,11 @@ describe('createSaxParser', () => {
     });
 
     it('defers comment emit', () => {
-      parser.write(handler, '<!--foo');
+      parser.write('<!--foo');
 
       expect(commentMock).not.toHaveBeenCalled();
 
-      parser.write(handler, 'bar-->');
+      parser.write('bar-->');
 
       expect(commentMock).toHaveBeenCalledTimes(1);
       expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
@@ -421,11 +452,11 @@ describe('createSaxParser', () => {
     });
 
     it('emits incomplete comment on parse', () => {
-      parser.write(handler, '<!--foo');
+      parser.write('<!--foo');
 
       expect(commentMock).not.toHaveBeenCalled();
 
-      parser.parse(handler);
+      parser.parse();
 
       expect(commentMock).toHaveBeenCalledTimes(1);
       expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
@@ -439,11 +470,11 @@ describe('createSaxParser', () => {
     });
 
     it('emits tail on parse with an additional data', () => {
-      parser.write(handler, '<!--foo');
+      parser.write('<!--foo');
 
       expect(commentMock).not.toHaveBeenCalled();
 
-      parser.parse(handler, 'bar');
+      parser.parse('bar');
 
       expect(commentMock).toHaveBeenCalledTimes(1);
       expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
@@ -457,12 +488,12 @@ describe('createSaxParser', () => {
     });
 
     it('can reset the stream', () => {
-      parser.write(handler, 'foo');
+      parser.write('foo');
 
       expect(textMock).not.toHaveBeenCalled();
 
       parser.reset();
-      parser.parse(handler, 'bar');
+      parser.parse('bar');
 
       expect(textMock).toHaveBeenCalledTimes(1);
       expect(textMock).toHaveBeenCalledWith(<IDataToken>{
@@ -477,10 +508,10 @@ describe('createSaxParser', () => {
 
 
     it('defers text emit', () => {
-      parser.write(handler, 'aaa');
+      parser.write('aaa');
       expect(textMock).not.toHaveBeenCalled();
 
-      parser.parse(handler);
+      parser.parse();
 
       expect(textMock).toHaveBeenCalledTimes(1);
       expect(textMock).toHaveBeenCalledWith(<IDataToken>{
@@ -494,7 +525,7 @@ describe('createSaxParser', () => {
     });
 
     it('emits the start tag', () => {
-      parser.write(handler, '<a>');
+      parser.write('<a>');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
@@ -512,7 +543,7 @@ describe('createSaxParser', () => {
     });
 
     it('emits the end tag', () => {
-      parser.write(handler, '<a></a>');
+      parser.write('<a></a>');
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
 
@@ -528,18 +559,18 @@ describe('createSaxParser', () => {
     });
 
     it('does not emit the end tag without corresponding start tag', () => {
-      parser.write(handler, '</a>');
+      parser.write('</a>');
 
       expect(startTagMock).not.toHaveBeenCalled();
       expect(endTagMock).not.toHaveBeenCalled();
     });
 
     it('emits end tag if the start implicitly closes', () => {
-      parser = createSaxParser({
-        endsAncestorAt: (containerToken) => containerToken.name === 'a',
+      parser = createSaxParser(handler, {
+        endsAncestorAt: (ancestors) => ancestors[0].name === 'a' ? 0 : -1,
       });
 
-      parser.write(handler, '<a><b>');
+      parser.write('<a><b>');
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
@@ -576,11 +607,11 @@ describe('createSaxParser', () => {
 
     it('emits end tag for intermediate tags if the start implicitly closes', () => {
 
-      parser = createSaxParser({
-        endsAncestorAt: (containerToken, token) => containerToken.name === 'a' && token.name === 'c',
+      parser = createSaxParser(handler, {
+        endsAncestorAt: (ancestors, token) => ancestors[0].name === 'a' && token.name === 'c' ? 0 : -1,
       });
 
-      parser.write(handler, '<a><b><c>');  // <a><b></b></a><b><c></c></b>
+      parser.write('<a><b><c>');  // <a><b></b></a><b><c></c></b>
 
       expect(startTagMock).toHaveBeenCalledTimes(3);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
@@ -634,11 +665,11 @@ describe('createSaxParser', () => {
     });
 
     it('recognizes void tags', () => {
-      parser = createSaxParser({
+      parser = createSaxParser(handler, {
         checkVoidTag: (token) => token.name === 'a',
       });
 
-      parser.write(handler, '<a><b></b></a>');
+      parser.write('<a><b></b></a>');
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
@@ -674,8 +705,7 @@ describe('createSaxParser', () => {
     });
   });
 
-  // it('can parse test file', () => {
-  //   const html = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
-  //   createForgivingSaxParser().parse(html);
-  // });
+  it('can parse a huge file', () => {
+    parser.parse(fs.readFileSync(path.join(__dirname, './test.html'), 'utf8'));
+  });
 });

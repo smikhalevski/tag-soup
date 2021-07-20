@@ -1,4 +1,3 @@
-import {FromCharCode} from './decoder-types';
 
 const fromCharCode = String.fromCharCode;
 
