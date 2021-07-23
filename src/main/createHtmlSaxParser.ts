@@ -1,9 +1,7 @@
 import {IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
-import {createDecoder} from './createDecoder';
-import {createFromHtmlCharName} from './createFromHtmlCharName';
-import {createFromCharCode} from './createFromCharCode';
 import {checkHtmlCdataTag, checkHtmlImplicitEndTag, checkHtmlVoidTag} from './html-utils';
+import {decodeHtml} from 'speedy-entities';
 
 /**
  * Creates a pre-configured HTML SAX parser.
@@ -15,11 +13,9 @@ export function createHtmlSaxParser(handler: ISaxHandler, options?: IParserOptio
   return createSaxParser(handler, Object.assign({}, htmlParserOptions, options));
 }
 
-const htmlDecoder = createDecoder(createFromHtmlCharName(), createFromCharCode());
-
 export const htmlParserOptions: IParserOptions = {
-  decodeText: htmlDecoder,
-  decodeAttribute: htmlDecoder,
+  decodeText: decodeHtml,
+  decodeAttribute: decodeHtml,
   renameTag: (name) => name.toLowerCase(),
   checkCdataTag: checkHtmlCdataTag,
   checkVoidTag: checkHtmlVoidTag,

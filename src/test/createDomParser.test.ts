@@ -69,10 +69,10 @@ describe('createDomParser', () => {
       ]);
     });
 
-    it('returns the same array on every write', () => {
+    it('returns the new array on every write', () => {
       const nodes = parser.write('<a>');
 
-      expect(parser.write('</a>')).toBe(nodes);
+      expect(parser.write('</a>')).not.toBe(nodes);
 
       expect(nodes).toEqual([
         {tagName: 'a', start: 0, end: 7, attributes: [], children: []},

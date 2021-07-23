@@ -10,7 +10,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "set -e; tsc; npm run rollup; npm run terser",
+    "build": "set -e; tsc; npm run rollup",
     "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --external domhandler,domelementtype --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve; done",
     "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js ./lib/tokenize.js; do terser --compress --mangle toplevel --output $p -- $p; done",
     "clean": "rm -rf ./lib ./docs",

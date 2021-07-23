@@ -15,14 +15,14 @@ export function createDomParser<Node, ContainerNode extends Node>(handler: IDomH
 
   const write = (sourceChunk: string): Array<Node> => {
     saxParser.write(sourceChunk);
-    return nodes;
+    return nodes.slice(0);
   };
 
   const parse = (source: string): Array<Node> => {
     saxParser.parse(source);
-    const outputNodes = nodes;
+    const result = nodes.slice(0);
     reset();
-    return outputNodes;
+    return result;
   };
 
   const reset = (): void => {

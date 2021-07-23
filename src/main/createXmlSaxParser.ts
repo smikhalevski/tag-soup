@@ -1,7 +1,6 @@
 import {IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
-import {createDecoder} from './createDecoder';
-import {fromXmlEntityName} from './xml-decoder';
+import {decodeXml} from 'speedy-entities';
 
 /**
  * Creates a pre-configured XML SAX parser.
@@ -13,8 +12,6 @@ export function createXmlSaxParser(handler: ISaxHandler, options?: IParserOption
   return createSaxParser(handler, Object.assign({}, xmlParserOptions, options));
 }
 
-const xmlDecoder = createDecoder(fromXmlEntityName);
-
 /**
  * The default XML SAX parser options.
  */
@@ -22,6 +19,6 @@ export const xmlParserOptions: IParserOptions = {
   cdataEnabled: true,
   processingInstructionsEnabled: true,
   selfClosingEnabled: true,
-  decodeText: xmlDecoder,
-  decodeAttribute: xmlDecoder,
+  decodeText: decodeXml,
+  decodeAttribute: decodeXml,
 };

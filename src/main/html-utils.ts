@@ -1,4 +1,3 @@
-
 import {toMap, toSet} from './utils';
 import {IArrayLike, IStartTagToken, ITagToken} from './parser-types';
 
