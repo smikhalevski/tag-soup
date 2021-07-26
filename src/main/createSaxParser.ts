@@ -2,7 +2,7 @@ import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
 import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from './tokens';
 import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken, ITagToken} from './parser-types';
-import {shallowCopy} from './utils';
+import {objectCopy} from './misc';
 
 /**
  * Creates a new stateful SAX parser.
@@ -11,7 +11,7 @@ import {shallowCopy} from './utils';
  * @param options Parsing options.
  */
 export function createSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
-  const opts = shallowCopy(options);
+  const opts = objectCopy(options);
 
   let buffer = '';
   let chunkOffset = 0;
@@ -55,6 +55,7 @@ export function createSaxParser(handler: ISaxHandler, options?: IParserOptions):
 }
 
 function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokenizerOptions, options: IParserOptions): ISaxHandler {
+
   const {
     startTag: startTagCallback,
     endTag: endTagCallback,
@@ -73,7 +74,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     endsAncestorAt,
   } = options;
 
-  const forgivingHandler = shallowCopy(handler);
+  const forgivingHandler = objectCopy(handler);
   const ancestors: IArrayLike<IStartTagToken> = {length: 0};
 
   const releaseStartTag = (token: IStartTagToken): void => {
@@ -84,6 +85,11 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     }
   };
 
+  if (!startTagCallback && !endTagCallback) {
+    forgivingHandler.startTag = releaseStartTag;
+    return forgivingHandler;
+  }
+
   const releaseAncestors = (ancestorIndex: number): void => {
     for (let i = ancestorIndex; i < ancestors.length; ++i) {
       releaseStartTag(ancestors[i]);
@@ -93,7 +99,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
   };
 
   const triggerImplicitEnd = (endTagCallback: ((token: ITagToken) => void) | undefined, ancestorIndex: number, end: number) => {
-    if (ancestorIndex < 0 || ancestorIndex >= ancestors.length) {
+    if (ancestorIndex % 1 !== 0 || ancestorIndex < 0 || ancestorIndex >= ancestors.length) {
       return;
     }
     if (!endTagCallback) {

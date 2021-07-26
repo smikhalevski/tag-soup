@@ -9,25 +9,25 @@ import {createSaxParser} from './createSaxParser';
  */
 export function createDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>> {
 
-  const nodes: Array<Node> = [];
+  let nodes: Array<Node> = [];
 
-  const saxParser = createSaxParser(createSaxHandler(nodes, handler), options);
+  const saxParser = createSaxParser(createSaxHandler(nodes, handler, (node) => nodes.push(node)), options);
 
   const write = (sourceChunk: string): Array<Node> => {
     saxParser.write(sourceChunk);
-    return nodes.slice(0);
+    return nodes;
   };
 
   const parse = (source: string): Array<Node> => {
     saxParser.parse(source);
-    const result = nodes.slice(0);
+    const result = nodes;
     reset();
     return result;
   };
 
   const reset = (): void => {
     saxParser.reset();
-    nodes.length = 0;
+    nodes = [];
   };
 
   return {
@@ -37,7 +37,7 @@ export function createDomParser<Node, ContainerNode extends Node>(handler: IDomH
   };
 }
 
-function createSaxHandler<Node, ContainerNode extends Node>(nodes: Array<Node>, handler: IDomHandler<Node, ContainerNode>): ISaxHandler {
+function createSaxHandler<Node, ContainerNode extends Node>(nodes: Array<Node>, handler: IDomHandler<Node, ContainerNode>, pushRootNode: (node: Node) => void): ISaxHandler {
 
   const {
     element: elementFactory,
@@ -55,17 +55,17 @@ function createSaxHandler<Node, ContainerNode extends Node>(nodes: Array<Node>, 
   const ancestors: IArrayLike<ContainerNode> = {length: 0};
 
   if (typeof elementFactory !== 'function') {
-    throw new Error('"element" callback must be a function');
+    throw new Error('Missing element factory');
   }
   if (typeof appendChildCallback !== 'function') {
-    throw new Error('"appendChild" callback must be a function');
+    throw new Error('Missing appendChild callback');
   }
 
   const pushNode = (node: Node): void => {
     if (ancestors.length !== 0) {
       appendChildCallback(ancestors[ancestors.length - 1], node);
     } else {
-      nodes.push(node);
+      pushRootNode(node);
     }
   };
 
@@ -102,10 +102,11 @@ function createSaxHandler<Node, ContainerNode extends Node>(nodes: Array<Node>, 
     cdata: createDataTokenCallback(cdataFactory),
     comment: createDataTokenCallback(commentFactory),
 
+    sourceEnd: sourceEndCallback,
+
     reset() {
       ancestors.length = 0;
       resetCallback?.();
     },
-    sourceEnd: sourceEndCallback,
   };
 }

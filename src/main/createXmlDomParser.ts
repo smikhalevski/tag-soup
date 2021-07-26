@@ -2,6 +2,7 @@ import {createDomParser} from './createDomParser';
 import {IDataToken, IDomHandler, IParser, IParserOptions} from './parser-types';
 import {xmlParserOptions} from './createXmlSaxParser';
 import {IContainerNode, IDataNode, IDocument, IElement, INode, NodeType} from './dom-types';
+import {objectCopy} from './misc';
 
 /**
  * Creates a pre-configured XML DOM parser that uses {@link domHandler}.
@@ -21,7 +22,7 @@ export function createXmlDomParser(): IParser<Array<INode>>;
 export function createXmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>>;
 
 export function createXmlDomParser(handler = domHandler, options?: IParserOptions) {
-  return createDomParser(handler, Object.assign({}, xmlParserOptions, options));
+  return createDomParser(handler, objectCopy(xmlParserOptions, options));
 }
 
 /**

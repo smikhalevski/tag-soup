@@ -128,7 +128,7 @@ export function tokenizeAttributes(chunk: string, index: number, chunkOffset: nu
     let k = takeTagSpace(chunk, index);
     let j = takeAttributeName(chunk, k);
 
-    // No attribute available
+    // No attributes are available
     if (j === k) {
       break;
     }
@@ -211,6 +211,10 @@ export interface ITokenizerOptions {
    * Tokenizer doesn't return allocated tokens back to this pool.
    */
   startTagTokenPool: IObjectPool<IStartTagToken>;
+
+  /**
+   * Tokenizer doesn't return allocated tokens back to this pool.
+   */
   attributeTokenPool: IObjectPool<IAttributeToken>;
   endTagTokenPool: IObjectPool<ITagToken>;
   dataTokenPool: IObjectPool<IDataToken>;
@@ -264,6 +268,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
   let i = 0;
   let j;
 
+  // This function is inlined by Terser
   const triggerTextCallback = () => {
     if (textStart !== -1) {
       triggerDataCallback(chunk, chunkOffset, dataTokenPool, textCallback, textStart, textEnd, 0, 0, decodeText);
@@ -349,7 +354,7 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 
       if (tagParsingEnabled || startTagName === tagName) {
 
-        // Resume tag parsing if cdata content tag has ended
+        // Resume tag parsing if CDATA content tag has ended
         tagParsingEnabled = true;
 
         // Skip malformed content and excessive whitespaces

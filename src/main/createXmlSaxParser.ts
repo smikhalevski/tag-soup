@@ -1,6 +1,7 @@
 import {IParser, IParserOptions, ISaxHandler} from './parser-types';
 import {createSaxParser} from './createSaxParser';
 import {decodeXml} from 'speedy-entities';
+import {objectCopy} from './misc';
 
 /**
  * Creates a pre-configured XML SAX parser.
@@ -9,7 +10,7 @@ import {decodeXml} from 'speedy-entities';
  * @param options Options that override the defaults.
  */
 export function createXmlSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
-  return createSaxParser(handler, Object.assign({}, xmlParserOptions, options));
+  return createSaxParser(handler, objectCopy(xmlParserOptions, options));
 }
 
 /**

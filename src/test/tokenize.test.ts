@@ -10,7 +10,6 @@ import {
   IStartTagToken,
   ITagToken,
 } from '../main/parser-types';
-import {cloneDeep} from 'lodash';
 
 const startTagMock = jest.fn();
 const endTagMock = jest.fn();
@@ -23,6 +22,20 @@ const doctypeMock = jest.fn();
 let tokenizerOptions: ITokenizerOptions;
 let parserOptions: IParserOptions;
 let handler: ISaxHandler;
+
+function cloneDeep(token: any): any {
+  token = {...token};
+  if (token.attributes) {
+    const a = token.attributes = {...token.attributes};
+
+    for (const key in a) {
+      if (typeof a[key] === 'object') {
+        a[key] = cloneDeep(a[key]);
+      }
+    }
+  }
+  return token;
+}
 
 function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
   const arrLike: IArrayLike<T> = {length: arr.length};

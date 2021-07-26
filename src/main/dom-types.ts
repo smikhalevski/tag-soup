@@ -15,12 +15,17 @@ export type Node =
     | IProcessingInstruction
     | IComment;
 
+export type DataNode =
+    | IText
+    | ICdataSection
+    | IProcessingInstruction
+    | IComment;
+
 export interface INode {
   nodeType: NodeType;
   parent: IContainerNode | null;
   start: number;
   end: number;
-  data?: string;
 }
 
 export interface IContainerNode extends INode {

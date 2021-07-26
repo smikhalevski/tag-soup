@@ -1,95 +1,104 @@
 const fs = require('fs');
 const path = require('path');
-const bench = require('nodemark');
+const {test, valueTest} = require('@smikhalevski/perf-test');
 const chalk = require('chalk');
 const htmlparser2 = require('htmlparser2');
-const readline = require('readline');
 const sax = require('sax');
 const parse5 = require('parse5');
-const {domHandler, createSaxParser, createDomParser, createXmlSaxParser, createXmlDomParser} = require('../../lib/index-cjs');
+const {
+  domHandler,
+  createSaxParser,
+  createDomParser,
+  createXmlSaxParser,
+  createXmlDomParser,
+} = require('../../lib/index-cjs');
 const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/html-cjs');
 
-const htmlDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
+const htmlparserBenchmarkDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
 
-const htmlparserBenchmarkSources = fs.readdirSync(htmlDir).map((fileName) => fs.readFileSync(path.join(htmlDir, fileName), 'utf8'));
+const htmlparserBenchmarkSources = fs.readdirSync(htmlparserBenchmarkDir).map((fileName) => fs.readFileSync(path.join(htmlparserBenchmarkDir, fileName), 'utf8'));
 
-const stressTestHtmlSource = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
+const largeHtmlSource = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
 
-function test(htmlSources, label, cb, parser, timeout) {
-  let hz;
-
-  for (let i = 0; i < htmlSources.length; i++) {
-
-    process.stdout.write(label);
-    readline.cursorTo(process.stdout, 0, null);
-
-    const html = htmlSources[i];
-    const result = bench(() => cb(parser, html), null, timeout);
-    hz = hz != null ? (hz + result.hz(5)) / 2 : result.hz(5);
-
-    readline.clearLine(process.stdout, 0);
-    process.stdout.write(label + hz.toFixed(0) + ` ops/sec (${i}/${htmlSources.length}, ${(i / htmlSources.length * 100).toFixed(0)}%)`);
-    readline.cursorTo(process.stdout, 0, null);
-
-    global.gc();
-  }
-
-  readline.clearLine(process.stdout, 0);
-  console.log(label + hz.toFixed(0) + ' ops/sec');
-}
-
-const handler = {
-  startTag() {
-  },
-  endTag() {
-  },
-  text() {
-  },
-  comment() {
-  },
-  doctype() {
-  },
-  processingInstruction() {
-  },
-  cdata() {
-  },
+const textHandler = {
+  text: () => undefined,
 };
 
-console.log(chalk.bgYellow.black.bold(' Large file test ') + '\n');
+const fullHandler = {
+  startTag: () => undefined,
+  endTag: () => undefined,
+  text: () => undefined,
+  comment: () => undefined,
+  doctype: () => undefined,
+  processingInstruction: () => undefined,
+  cdata: () => undefined,
+};
 
-console.log(chalk.bold('SAX benchmark'));
-console.log(chalk.dim('* handler without callbacks'));
-test([stressTestHtmlSource], 'createSaxParser *     ', (parser, html) => parser.parse(html), createSaxParser({}), 5000);
-test([stressTestHtmlSource], 'createXmlSaxParser *  ', (parser, html) => parser.parse(html), createXmlSaxParser({}), 5000);
-test([stressTestHtmlSource], 'createHtmlSaxParser * ', (parser, html) => parser.parse(html), createHtmlSaxParser({}), 5000);
-test([stressTestHtmlSource], 'createSaxParser       ', (parser, html) => parser.parse(html), createSaxParser(handler), 5000);
-test([stressTestHtmlSource], 'createXmlSaxParser    ', (parser, html) => parser.parse(html), createXmlSaxParser(handler), 5000);
-test([stressTestHtmlSource], 'createHtmlSaxParser   ', (parser, html) => parser.parse(html), createHtmlSaxParser(handler), 5000);
-test([stressTestHtmlSource], 'htmlparser2           ', (parser, html) => parser.end(html), new htmlparser2.Parser(), 5000);
-test([stressTestHtmlSource], 'sax                   ', (parser, html) => parser.write(html), sax.parser(), 5000);
+const beforeCycle = () => global.gc();
 
-console.log(chalk.bold('\nDOM benchmark'));
-
-test([stressTestHtmlSource], 'createDomParser       ', (parser, html) => parser.parse(html), createDomParser(domHandler), 5000);
-test([stressTestHtmlSource], 'createXmlDomParser    ', (parser, html) => parser.parse(html), createXmlDomParser(domHandler), 5000);
-test([stressTestHtmlSource], 'createHtmlDomParser   ', (parser, html) => parser.parse(html), createHtmlDomParser(domHandler), 5000);
-test([stressTestHtmlSource], 'htmlparser2           ', (parser, html) => parser.end(html), new htmlparser2.Parser(new htmlparser2.DomHandler(() => null)), 5000);
-test([stressTestHtmlSource], 'parse5                ', () => parse5.parse(stressTestHtmlSource), null, 5000);
-
-
-console.log('\n' + chalk.bgYellow.black.bold(' Small files test ') + '\n');
+console.log(chalk.inverse(' Large input ') + '\n');
 
 console.log(chalk.bold('SAX benchmark'));
 
-test(htmlparserBenchmarkSources, 'createSaxParser       ', (parser, html) => parser.parse(html), createSaxParser(handler), 500);
-test(htmlparserBenchmarkSources, 'createXmlSaxParser    ', (parser, html) => parser.parse(html), createXmlSaxParser(handler), 500);
-test(htmlparserBenchmarkSources, 'createHtmlSaxParser   ', (parser, html) => parser.parse(html), createHtmlSaxParser(handler), 500);
-test(htmlparserBenchmarkSources, 'htmlparser2           ', (parser, html) => parser.end(html), new htmlparser2.Parser(), 500);
+const textSaxParser = createSaxParser(textHandler);
+const textXmlSaxParser = createXmlSaxParser(textHandler);
+const textHtmlSaxParser = createHtmlSaxParser(textHandler);
+const fullSaxParser1 = createSaxParser(fullHandler);
+const fullXmlSaxParser1 = createXmlSaxParser(fullHandler);
+const fullHtmlSaxParser1 = createHtmlSaxParser(fullHandler);
+
+const htmlparserSaxParser1 = new htmlparser2.Parser();
+const saxParser = sax.parser();
+
+test('createSaxParser     (text only)', () => textSaxParser.parse(largeHtmlSource), {timeout: 10000});
+test('createXmlSaxParser  (text only)', () => textXmlSaxParser.parse(largeHtmlSource), {timeout: 10000});
+test('createHtmlSaxParser (text only)', () => textHtmlSaxParser.parse(largeHtmlSource), {timeout: 10000});
+test('createSaxParser                ', () => fullSaxParser1.parse(largeHtmlSource), {timeout: 10000});
+test('createXmlSaxParser             ', () => fullXmlSaxParser1.parse(largeHtmlSource), {timeout: 10000});
+test('createHtmlSaxParser            ', () => fullHtmlSaxParser1.parse(largeHtmlSource), {timeout: 10000});
+test('htmlparser2                    ', () => htmlparserSaxParser1.end(largeHtmlSource), {timeout: 20000, beforeCycle});
+test('sax                            ', () => saxParser.write(largeHtmlSource), {timeout: 20000, beforeCycle});
 
 console.log(chalk.bold('\nDOM benchmark'));
 
-test(htmlparserBenchmarkSources, 'createDomParser       ', (parser, html) => parser.parse(html), createDomParser(domHandler), 500);
-test(htmlparserBenchmarkSources, 'createXmlDomParser    ', (parser, html) => parser.parse(html), createXmlDomParser(), 500);
-test(htmlparserBenchmarkSources, 'createHtmlDomParser   ', (parser, html) => parser.parse(html), createHtmlDomParser(), 500);
-test(htmlparserBenchmarkSources, 'htmlparser2           ', (parser, html) => parser.end(html), new htmlparser2.Parser(new htmlparser2.DomHandler(() => null)), 500);
-test(htmlparserBenchmarkSources, 'parse5                ', () => parse5.parse(stressTestHtmlSource), null, 500);
+const domParser1 = createDomParser(domHandler);
+const xmlDomParser1 = createXmlDomParser(domHandler);
+const htmlDomParser1 = createHtmlDomParser(domHandler);
+
+const htmlparserDomParser1 = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+
+test('createDomParser    ', () => domParser1.parse(largeHtmlSource), {timeout: 20000, beforeCycle});
+test('createXmlDomParser ', () => xmlDomParser1.parse(largeHtmlSource), {timeout: 20000, beforeCycle});
+test('createHtmlDomParser', () => htmlDomParser1.parse(largeHtmlSource), {timeout: 20000, beforeCycle});
+test('htmlparser2        ', () => htmlparserDomParser1.end(largeHtmlSource), {timeout: 20000, beforeCycle});
+test('parse5             ', () => parse5.parse(largeHtmlSource), {timeout: 20000, beforeCycle});
+
+
+console.log('\n' + chalk.inverse(' Small input ') + '\n');
+
+console.log(chalk.bold('SAX benchmark'));
+
+const saxParser2 = createSaxParser(fullHandler);
+const xmlSaxParser2 = createXmlSaxParser(fullHandler);
+const htmlSaxParser2 = createHtmlSaxParser(fullHandler);
+
+const htmlparserSaxParser2 = new htmlparser2.Parser();
+
+valueTest(htmlparserBenchmarkSources, 'createSaxParser    ', (value) => saxParser2.parse(value), {timeout: 1000, targetRme: 0});
+valueTest(htmlparserBenchmarkSources, 'createXmlSaxParser ', (value) => xmlSaxParser2.parse(value), {timeout: 1000, targetRme: 0});
+valueTest(htmlparserBenchmarkSources, 'createHtmlSaxParser', (value) => htmlSaxParser2.parse(value), {timeout: 1000, targetRme: 0});
+valueTest(htmlparserBenchmarkSources, 'htmlparser2        ', (value) => htmlparserSaxParser2.end(value), {timeout: 1000, targetRme: 0, beforeCycle});
+
+console.log(chalk.bold('\nDOM benchmark'));
+
+const domParser2 = createDomParser(domHandler);
+const xmlDomParser2 = createXmlDomParser(domHandler);
+const htmlDomParser2 = createHtmlDomParser(domHandler);
+
+const htmlparserDomParser2 = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+
+valueTest(htmlparserBenchmarkSources, 'createDomParser    ', (value) => domParser2.parse(value), {timeout: 1000, targetRme: 0, beforeCycle});
+valueTest(htmlparserBenchmarkSources, 'createXmlDomParser ', (value) => xmlDomParser2.parse(value), {timeout: 1000, targetRme: 0, beforeCycle});
+valueTest(htmlparserBenchmarkSources, 'createHtmlDomParser', (value) => htmlDomParser2.parse(value), {timeout: 1000, targetRme: 0, beforeCycle});
+valueTest(htmlparserBenchmarkSources, 'htmlparser2        ', (value) => htmlparserDomParser2.end(value), {timeout: 1000, targetRme: 0, beforeCycle});
+valueTest(htmlparserBenchmarkSources, 'parse5             ', (value) => parse5.parse(value), {timeout: 1000, targetRme: 0, beforeCycle});
