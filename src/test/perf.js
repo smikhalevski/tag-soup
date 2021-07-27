@@ -12,7 +12,7 @@ const {
   createXmlSaxParser,
   createXmlDomParser,
 } = require('../../lib/index-cjs');
-const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/html-cjs');
+const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/index-cjs');
 
 const htmlparserBenchmarkDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
 
