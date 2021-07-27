@@ -6,8 +6,7 @@
   "module": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "files": [
-    "lib",
-    "README.md"
+    "lib"
   ],
   "scripts": {
     "build": "tsc && npm run rollup && npm run terser",
