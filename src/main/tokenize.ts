@@ -141,7 +141,7 @@ export function tokenizeAttributes(
       break;
     }
 
-    const token = attributes[attributeCount] ||= attributeTokenPool.take();
+    const token = attributes[attributeCount] = attributeTokenPool.take();
     const rawName = chunk.substring(k, j);
 
     token.rawName = rawName;

@@ -390,6 +390,61 @@ describe('createSaxParser', () => {
       });
     });
 
+    it('returns attributes back to the pool', () => {
+      parser = createSaxParser(handler);
+
+      parser.parse('<b rrr></b>');
+
+      startTagMock.mockReset();
+
+      parser.parse('<b rrr="www" ttt></b>');
+
+      expect(startTagMock).toHaveBeenCalledTimes(1);
+      expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
+        tokenType: TokenType.START_TAG,
+        rawName: 'b',
+        name: 'b',
+        attributes: toArrayLike<IAttributeToken>([
+          {
+            tokenType: TokenType.ATTRIBUTE,
+            rawName: 'rrr',
+            name: 'rrr',
+            rawValue: 'www',
+            value: 'www',
+            quoted: true,
+            start: 3,
+            end: 12,
+            nameStart: 3,
+            nameEnd: 6,
+            valueStart: 8,
+            valueEnd: 11,
+            clone,
+          },
+          {
+            tokenType: TokenType.ATTRIBUTE,
+            rawName: 'ttt',
+            name: 'ttt',
+            rawValue: undefined,
+            value: undefined,
+            quoted: false,
+            start: 13,
+            end: 16,
+            nameStart: 13,
+            nameEnd: 16,
+            valueStart: -1,
+            valueEnd: -1,
+            clone,
+          },
+        ]),
+        selfClosing: false,
+        start: 0,
+        end: 17,
+        nameStart: 1,
+        nameEnd: 2,
+        clone,
+      });
+    });
+
     it('emits source end', () => {
       parser.parse('<a></a>');
 
