@@ -2,7 +2,6 @@ import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken} from '
 import {createSaxParser} from './createSaxParser';
 import {decodeHtml} from 'speedy-entities';
 import {objectCopy} from './misc';
-import {createTrieNode, ITrieNode, searchTrie, setTrie} from '@smikhalevski/trie';
 
 /**
  * Creates a pre-configured HTML SAX parser.
@@ -49,18 +48,18 @@ function toLowerCase(name: string): string {
 }
 
 function checkCdataTag(token: IStartTagToken): boolean {
-  return searchTrie(cdataTags, token.name, 0)?.value === true;
+  return cdataTags.has(token.name);
 }
 
 function checkVoidTag(token: IStartTagToken): boolean {
-  return searchTrie(voidTags, token.name, 0)?.value === true;
+  return voidTags.has(token.name);
 }
 
 function endsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
-  const a = searchTrie(implicitEnds, token.name, 0)?.value;// htmlImplicitEndTagNameMap[token.name];
-  if (a !== undefined) {
+  const tagNames = implicitEndMap.get(token.name);
+  if (tagNames) {
     for (let i = containerToken.length - 1; i >= 0; --i) {
-      if (searchTrie(a, containerToken[i].name, 0)?.value) {
+      if (tagNames.has(containerToken[i].name)) {
         return i;
       }
     }
@@ -68,76 +67,68 @@ function endsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStar
   return -1;
 }
 
-const voidTags = toTrie('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');
+const voidTags = toSet('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');
 
-const cdataTags = toTrie('script style textarea');
+const cdataTags = toSet('script style textarea');
 
-const formTags = toTrie('input option optgroup select button datalist textarea');
+const formTags = toSet('input option optgroup select button datalist textarea');
 
-const paragraphTags = toTrie('p');
+const pTags = toSet('p');
 
-const implicitEnds = toTrie2({
-  tr: toTrie('tr th td'),
-  th: toTrie('th'),
-  td: toTrie('thead th td'),
-  body: toTrie('head link script'),
-  li: toTrie('li'),
-  option: toTrie('option'),
-  optgroup: toTrie('optgroup option'),
-  dd: toTrie('dt dd'),
-  dt: toTrie('dt dd'),
+const implicitEndMap = toMap({
+  tr: toSet('tr th td'),
+  th: toSet('th'),
+  td: toSet('thead th td'),
+  body: toSet('head link script'),
+  li: toSet('li'),
+  option: toSet('option'),
+  optgroup: toSet('optgroup option'),
+  dd: toSet('dt dd'),
+  dt: toSet('dt dd'),
   select: formTags,
   input: formTags,
   output: formTags,
   button: formTags,
   datalist: formTags,
   textarea: formTags,
-  p: paragraphTags,
-  h1: paragraphTags,
-  h2: paragraphTags,
-  h3: paragraphTags,
-  h4: paragraphTags,
-  h5: paragraphTags,
-  h6: paragraphTags,
-  address: paragraphTags,
-  article: paragraphTags,
-  aside: paragraphTags,
-  blockquote: paragraphTags,
-  details: paragraphTags,
-  div: paragraphTags,
-  dl: paragraphTags,
-  fieldset: paragraphTags,
-  figcaption: paragraphTags,
-  figure: paragraphTags,
-  footer: paragraphTags,
-  form: paragraphTags,
-  header: paragraphTags,
-  hr: paragraphTags,
-  main: paragraphTags,
-  nav: paragraphTags,
-  ol: paragraphTags,
-  pre: paragraphTags,
-  section: paragraphTags,
-  table: paragraphTags,
-  ul: paragraphTags,
-  rt: toTrie('rt rp'),
-  rp: toTrie('rt rp'),
-  tbody: toTrie('thead tbody'),
-  tfoot: toTrie('thead tbody'),
+  p: pTags,
+  h1: pTags,
+  h2: pTags,
+  h3: pTags,
+  h4: pTags,
+  h5: pTags,
+  h6: pTags,
+  address: pTags,
+  article: pTags,
+  aside: pTags,
+  blockquote: pTags,
+  details: pTags,
+  div: pTags,
+  dl: pTags,
+  fieldset: pTags,
+  figcaption: pTags,
+  figure: pTags,
+  footer: pTags,
+  form: pTags,
+  header: pTags,
+  hr: pTags,
+  main: pTags,
+  nav: pTags,
+  ol: pTags,
+  pre: pTags,
+  section: pTags,
+  table: pTags,
+  ul: pTags,
+  rt: toSet('rt rp'),
+  rp: toSet('rt rp'),
+  tbody: toSet('thead tbody'),
+  tfoot: toSet('thead tbody'),
 });
 
-function toTrie(data: string): ITrieNode<true> {
-  const trie = createTrieNode<true>();
-  data.split(' ').forEach((_) => setTrie(trie, _, true));
-  return trie;
+function toSet(data: string): Set<string> {
+  return new Set(data.split(' '));
 }
 
-function toTrie2<V>(record: Record<string, V>): ITrieNode<V> {
-  const trie = createTrieNode<V>();
-  for (const key in record) {
-    if (record.hasOwnProperty(key)) {
-      setTrie(trie, key, record[key]);
-    }
-  }
-  return trie;
+function toMap<V>(rec: Record<string, V>): Map<string, V> {
+  return new Map(Object.entries(rec));
 }
