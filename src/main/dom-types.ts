@@ -15,13 +15,7 @@ export const enum NodeType {
 /**
  * A node of the DOM tree.
  */
-export type Node =
-    | IDocumentNode
-    | IElementNode
-    | ITextNode
-    | ICdataSectionNode
-    | IProcessingInstructionNode
-    | ICommentNode;
+export type Node = DataNode | ContainerNode;
 
 export type ContainerNode = IDocumentNode | IElementNode;
 
