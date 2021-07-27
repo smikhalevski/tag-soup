@@ -10,15 +10,15 @@
     "README.md"
   ],
   "scripts": {
-    "build": "set -e; tsc; npm run rollup; npm run terser; npm run terser",
-    "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --external speedy-entities,@smikhalevski/trie --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve; done",
-    "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js ./lib/tokenize.js; do terser --compress --mangle toplevel --output $p -- $p; done",
+    "build": "tsc && npm run rollup && npm run terser",
+    "rollup": "for p in ./lib/index.js ./lib/html.js; do rollup --external speedy-entities,@smikhalevski/trie --input $p --file ${p%.js}-cjs.js --format cjs --plugin @rollup/plugin-node-resolve || exit 1; done",
+    "terser": "for p in ./lib/index-cjs.js ./lib/html-cjs.js ./lib/tokenize.js; do terser --compress --mangle toplevel --output $p -- $p || exit 1; done",
     "clean": "rm -rf ./lib ./docs",
     "test": "jest --detectOpenHandles",
-    "perf": "[ -d ./lib ] || npm run build; node --expose-gc --max-old-space-size=4096 ./src/test/perf.js",
+    "perf": "[ -d ./lib ] || npm run build && node --expose-gc --max-old-space-size=4096 ./src/test/perf.js",
     "docs": "typedoc ./src/main/html.ts",
-    "publish-docs": "set -ex; [ -d ./docs ]; [[ ! $(git status --porcelain) ]]; branch=$(git rev-parse --abbrev-ref HEAD); sha=$(git rev-parse --short HEAD); t=$(mktemp -d); cp -R ./docs/ $t; git checkout ghpages; ls -A | grep -wv .git | xargs rm -rf; cp -R $t/ .; git add .; git commit -m \"Updated docs ($sha)\"; git push; git checkout $branch",
-    "release-docs": "set -e; npm run clean; npm run docs; npm run publish-docs"
+    "publish-docs": "[ -d ./docs ] && [[ ! $(git status --porcelain) ]] && branch=$(git rev-parse --abbrev-ref HEAD) && sha=$(git rev-parse --short HEAD) && t=$(mktemp -d) && cp -R ./docs/ $t && git checkout ghpages && ls -A | grep -wv .git | xargs rm -rf && cp -R $t/ . && git add . && git commit -m \"Updated docs ($sha)\" && git push && git checkout $branch",
+    "release-docs": "npm run clean && npm run docs && npm run publish-docs"
   },
   "repository": {
     "type": "git",
