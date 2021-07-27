@@ -4,7 +4,7 @@ import {IParser} from '../main/parser-types';
 
 export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElementNode {
 
-  const elementNode: IElementNode = {
+  const node: IElementNode = {
     nodeType: NodeType.ELEMENT,
     parent: null,
     tagName,
@@ -15,10 +15,10 @@ export function element(tagName: string, start: number, end: number, selfClosing
     end,
   };
 
-  for (const child of children) {
-    child.parent = elementNode;
+  for (const childNode of children) {
+    childNode.parent = node;
   }
-  return elementNode;
+  return node;
 }
 
 export function text(data: string, start: number, end: number): ITextNode {

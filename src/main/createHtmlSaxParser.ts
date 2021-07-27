@@ -37,22 +37,26 @@ export function createHtmlSaxParser(handler: ISaxHandler, options?: IParserOptio
 export const htmlParserOptions: IParserOptions = {
   decodeText: decodeHtml,
   decodeAttribute: decodeHtml,
-  renameTag: (name) => name.toLowerCase(),
-  renameAttribute: (name) => name.toLowerCase(),
-  checkCdataTag: checkHtmlCdataTag,
-  checkVoidTag: checkHtmlVoidTag,
-  endsAncestorAt: htmlEndsAncestorAt,
+  renameTag: toLowerCase,
+  renameAttribute: toLowerCase,
+  checkCdataTag,
+  checkVoidTag,
+  endsAncestorAt,
 };
 
-export function checkHtmlCdataTag(token: IStartTagToken): boolean {
+function toLowerCase(name: string): string {
+  return name.toLowerCase();
+}
+
+function checkCdataTag(token: IStartTagToken): boolean {
   return searchTrie(cdataTags, token.name, 0)?.value === true;
 }
 
-export function checkHtmlVoidTag(token: IStartTagToken): boolean {
+function checkVoidTag(token: IStartTagToken): boolean {
   return searchTrie(voidTags, token.name, 0)?.value === true;
 }
 
-export function htmlEndsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
+function endsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
   const a = searchTrie(implicitEnds, token.name, 0)?.value;// htmlImplicitEndTagNameMap[token.name];
   if (a !== undefined) {
     for (let i = containerToken.length - 1; i >= 0; --i) {

@@ -115,7 +115,14 @@ const takeDoctype = seq(text('<!DOCTYPE', true), untilText('>', true, true));
  * @param parserOptions Parsing options.
  * @returns The index in `chunk` at which reading was completed.
  */
-export function tokenizeAttributes(chunk: string, index: number, chunkOffset: number, attributes: IArrayLike<IAttributeToken>, options: ITokenizerOptions, parserOptions: IParserOptions): number {
+export function tokenizeAttributes(
+    chunk: string,
+    index: number,
+    chunkOffset: number,
+    attributes: IArrayLike<IAttributeToken>,
+    options: ITokenizerOptions,
+    parserOptions: IParserOptions,
+): number {
 
   const {attributeTokenPool} = options;
   const {decodeAttribute, renameAttribute} = parserOptions;
@@ -226,7 +233,14 @@ export interface ITokenizerOptions {
  * @param handler SAX handler that is notified about parsed tokens.
  * @returns The index in `chunk` right after the last parsed character.
  */
-export function tokenize(chunk: string, streaming: boolean, chunkOffset: number, options: ITokenizerOptions, parserOptions: IParserOptions, handler: ISaxHandler): number {
+export function tokenize(
+    chunk: string,
+    streaming: boolean,
+    chunkOffset: number,
+    options: ITokenizerOptions,
+    parserOptions: IParserOptions,
+    handler: ISaxHandler,
+): number {
 
   const {
     startTagTokenPool,
@@ -485,9 +499,21 @@ export function tokenize(chunk: string, streaming: boolean, chunkOffset: number,
 }
 
 /**
- * Takes a data token from `dataToken` and passes it to `dataCallback`.
+ * Populates `dataToken` and passes it to `dataCallback`.
  */
-function triggerDataCallback<T extends IDataToken>(chunk: string, chunkOffset: number, tokenType: T['tokenType'], token: IDataToken, dataCallback: ((token: T) => void) | undefined, start: number, end: number, offsetStart: number, offsetEnd: number, decode?: (data: string) => string): number {
+function triggerDataCallback<T extends IDataToken>(
+    chunk: string,
+    chunkOffset: number,
+    tokenType: T['tokenType'],
+    dataToken: IDataToken,
+    dataCallback: ((token: T) => void) | undefined,
+    start: number,
+    end: number,
+    offsetStart: number,
+    offsetEnd: number,
+    decodeData?: (data: string) => string,
+): number {
+
   const charCount = chunk.length;
   const index = min(end, charCount);
 
@@ -499,15 +525,15 @@ function triggerDataCallback<T extends IDataToken>(chunk: string, chunkOffset: n
   const dataEnd = min(end - offsetEnd, charCount);
   const rawData = chunk.substring(dataStart, dataEnd);
 
-  token.tokenType = tokenType;
-  token.rawData = rawData;
-  token.data = decode != null ? decode(rawData) : rawData;
-  token.start = chunkOffset + start;
-  token.end = chunkOffset + index;
-  token.dataStart = chunkOffset + dataStart;
-  token.dataEnd = chunkOffset + dataEnd;
+  dataToken.tokenType = tokenType;
+  dataToken.rawData = rawData;
+  dataToken.data = decodeData != null ? decodeData(rawData) : rawData;
+  dataToken.start = chunkOffset + start;
+  dataToken.end = chunkOffset + index;
+  dataToken.dataStart = chunkOffset + dataStart;
+  dataToken.dataEnd = chunkOffset + dataEnd;
 
-  dataCallback(token as T);
+  dataCallback(dataToken as T);
 
   return index;
 }

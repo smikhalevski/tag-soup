@@ -32,8 +32,8 @@ export function createXmlDomParser(): IParser<Array<Node>>;
  */
 export function createXmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>>;
 
-export function createXmlDomParser(handler = domHandler, options?: IParserOptions) {
-  return createDomParser(handler, objectCopy(xmlParserOptions, options));
+export function createXmlDomParser(handler?: IDomHandler<unknown, unknown>, options?: IParserOptions) {
+  return createDomParser(handler || domHandler, objectCopy(xmlParserOptions, options));
 }
 
 /**

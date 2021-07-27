@@ -98,7 +98,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     ancestors.length = ancestorIndex;
   };
 
-  const triggerImplicitEnd = (endTagCallback: ((token: IEndTagToken) => void) | undefined, ancestorIndex: number, end: number) => {
+  const triggerImplicitEnd = (ancestorIndex: number, end: number) => {
     if (ancestorIndex % 1 !== 0 || ancestorIndex < 0 || ancestorIndex >= ancestors.length) {
       return;
     }
@@ -123,7 +123,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
     token.selfClosing ||= checkVoidTag?.(token) || false;
 
     if (endsAncestorAt != null && ancestors.length !== 0) {
-      triggerImplicitEnd(endTagCallback, endsAncestorAt(ancestors, token), token.start);
+      triggerImplicitEnd(endsAncestorAt(ancestors, token), token.start);
     }
 
     startTagCallback?.(token);
@@ -140,7 +140,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
       if (ancestors[i].name !== token.name) {
         continue;
       }
-      triggerImplicitEnd(endTagCallback, i + 1, token.start);
+      triggerImplicitEnd(i + 1, token.start);
       endTagCallback?.(token);
       releaseStartTag(ancestors[i]);
       ancestors.length = i;
@@ -149,7 +149,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
   };
 
   forgivingHandler.sourceEnd = (sourceLength) => {
-    triggerImplicitEnd(endTagCallback, 0, sourceLength);
+    triggerImplicitEnd(0, sourceLength);
     sourceEndCallback?.(sourceLength);
   };
 
