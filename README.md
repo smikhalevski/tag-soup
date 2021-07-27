@@ -17,7 +17,7 @@ npm install --save-prod tag-soup
 
 ## Documentation
 
-[Full API documentation.](https://smikhalevski.github.io/tag-soup/)
+⚠️ [API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
 
 ### XML Streaming
 

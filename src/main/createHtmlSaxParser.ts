@@ -14,25 +14,46 @@ export function createHtmlSaxParser(handler: ISaxHandler, options?: IParserOptio
   return createSaxParser(handler, objectCopy(htmlParserOptions, options));
 }
 
+/**
+ * The default HTML parser options:
+ * - CDATA sections and processing instructions are treated as comments;
+ * - Self-closing tags are treated as a start tags;
+ * - Tags like `p`, `li`, `td` and others follow implicit end rules, so `<p>foo<p>bar` is parsed as
+ * `<p>foo</p><p>bar</p>`;
+ * - Tag and attribute names are converted to lower case;
+ * - Legacy HTML entities are decoded in text and attribute values. To decode all known HTML entities use:
+ *
+ * ```ts
+ * import {decodeHtml} from 'speedy-entities/lib/full';
+ *
+ * createHtmlSaxParser({
+ *   decodeText: decodeHtml,
+ *   decodeAttribute: decodeHtml,
+ * });
+ * ```
+ *
+ * @see {@link https://github.com/smikhalevski/speedy-entities decodeHtml}
+ */
 export const htmlParserOptions: IParserOptions = {
   decodeText: decodeHtml,
   decodeAttribute: decodeHtml,
   renameTag: (name) => name.toLowerCase(),
+  renameAttribute: (name) => name.toLowerCase(),
   checkCdataTag: checkHtmlCdataTag,
   checkVoidTag: checkHtmlVoidTag,
   endsAncestorAt: htmlEndsAncestorAt,
 };
 
 export function checkHtmlCdataTag(token: IStartTagToken): boolean {
-  return searchTrie(htmlCdataTagNames, token.name, 0)?.value === true;
+  return searchTrie(cdataTags, token.name, 0)?.value === true;
 }
 
 export function checkHtmlVoidTag(token: IStartTagToken): boolean {
-  return searchTrie(htmlVoidTagNames, token.name, 0)?.value === true;
+  return searchTrie(voidTags, token.name, 0)?.value === true;
 }
 
 export function htmlEndsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
-  const a = searchTrie(htmlImplicitEndTagNameMap, token.name, 0)?.value;// htmlImplicitEndTagNameMap[token.name];
+  const a = searchTrie(implicitEnds, token.name, 0)?.value;// htmlImplicitEndTagNameMap[token.name];
   if (a !== undefined) {
     for (let i = containerToken.length - 1; i >= 0; --i) {
       if (searchTrie(a, containerToken[i].name, 0)?.value) {
@@ -43,15 +64,15 @@ export function htmlEndsAncestorAt(containerToken: IArrayLike<IStartTagToken>, t
   return -1;
 }
 
-const htmlVoidTagNames = toTrie('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');
+const voidTags = toTrie('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');
 
-const htmlCdataTagNames = toTrie('script style textarea');
+const cdataTags = toTrie('script style textarea');
 
-const htmlFormTagNames = toTrie('input option optgroup select button datalist textarea');
+const formTags = toTrie('input option optgroup select button datalist textarea');
 
-const htmlParagraphTagName = toTrie('p');
+const paragraphTags = toTrie('p');
 
-const htmlImplicitEndTagNameMap = toTrie2({
+const implicitEnds = toTrie2({
   tr: toTrie('tr th td'),
   th: toTrie('th'),
   td: toTrie('thead th td'),
@@ -61,40 +82,40 @@ const htmlImplicitEndTagNameMap = toTrie2({
   optgroup: toTrie('optgroup option'),
   dd: toTrie('dt dd'),
   dt: toTrie('dt dd'),
-  select: htmlFormTagNames,
-  input: htmlFormTagNames,
-  output: htmlFormTagNames,
-  button: htmlFormTagNames,
-  datalist: htmlFormTagNames,
-  textarea: htmlFormTagNames,
-  p: htmlParagraphTagName,
-  h1: htmlParagraphTagName,
-  h2: htmlParagraphTagName,
-  h3: htmlParagraphTagName,
-  h4: htmlParagraphTagName,
-  h5: htmlParagraphTagName,
-  h6: htmlParagraphTagName,
-  address: htmlParagraphTagName,
-  article: htmlParagraphTagName,
-  aside: htmlParagraphTagName,
-  blockquote: htmlParagraphTagName,
-  details: htmlParagraphTagName,
-  div: htmlParagraphTagName,
-  dl: htmlParagraphTagName,
-  fieldset: htmlParagraphTagName,
-  figcaption: htmlParagraphTagName,
-  figure: htmlParagraphTagName,
-  footer: htmlParagraphTagName,
-  form: htmlParagraphTagName,
-  header: htmlParagraphTagName,
-  hr: htmlParagraphTagName,
-  main: htmlParagraphTagName,
-  nav: htmlParagraphTagName,
-  ol: htmlParagraphTagName,
-  pre: htmlParagraphTagName,
-  section: htmlParagraphTagName,
-  table: htmlParagraphTagName,
-  ul: htmlParagraphTagName,
+  select: formTags,
+  input: formTags,
+  output: formTags,
+  button: formTags,
+  datalist: formTags,
+  textarea: formTags,
+  p: paragraphTags,
+  h1: paragraphTags,
+  h2: paragraphTags,
+  h3: paragraphTags,
+  h4: paragraphTags,
+  h5: paragraphTags,
+  h6: paragraphTags,
+  address: paragraphTags,
+  article: paragraphTags,
+  aside: paragraphTags,
+  blockquote: paragraphTags,
+  details: paragraphTags,
+  div: paragraphTags,
+  dl: paragraphTags,
+  fieldset: paragraphTags,
+  figcaption: paragraphTags,
+  figure: paragraphTags,
+  footer: paragraphTags,
+  form: paragraphTags,
+  header: paragraphTags,
+  hr: paragraphTags,
+  main: paragraphTags,
+  nav: paragraphTags,
+  ol: paragraphTags,
+  pre: paragraphTags,
+  section: paragraphTags,
+  table: paragraphTags,
+  ul: paragraphTags,
   rt: toTrie('rt rp'),
   rp: toTrie('rt rp'),
   tbody: toTrie('thead tbody'),

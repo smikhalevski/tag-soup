@@ -1,14 +1,20 @@
 import {ITokenizerOptions, tokenize, tokenizeAttributes} from '../main/tokenize';
 import {createObjectPool} from '../main/createObjectPool';
-import {createAttributeToken, createDataToken, createStartTagToken, createTagToken} from '../main/tokens';
+import {clone, createAttributeToken, createDataToken, createEndTagToken, createStartTagToken} from '../main/tokens';
 import {
   IArrayLike,
   IAttributeToken,
+  ICdataSectionToken,
+  ICommentToken,
   IDataToken,
+  IDoctypeToken,
+  IEndTagToken,
   IParserOptions,
+  IProcessingInstructionToken,
   ISaxHandler,
   IStartTagToken,
-  ITagToken,
+  ITextToken,
+  TokenType,
 } from '../main/parser-types';
 
 const startTagMock = jest.fn();
@@ -23,20 +29,6 @@ let tokenizerOptions: ITokenizerOptions;
 let parserOptions: IParserOptions;
 let handler: ISaxHandler;
 
-function cloneDeep(token: any): any {
-  token = {...token};
-  if (token.attributes) {
-    const a = token.attributes = {...token.attributes};
-
-    for (const key in a) {
-      if (typeof a[key] === 'object') {
-        a[key] = cloneDeep(a[key]);
-      }
-    }
-  }
-  return token;
-}
-
 function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
   const arrLike: IArrayLike<T> = {length: arr.length};
   for (let i = 0; i < arr.length; ++i) {
@@ -49,21 +41,21 @@ beforeEach(() => {
 
   tokenizerOptions = {
     startTagTokenPool: createObjectPool(createStartTagToken),
-    endTagTokenPool: createObjectPool(createTagToken),
-    dataTokenPool: createObjectPool(createDataToken),
     attributeTokenPool: createObjectPool(createAttributeToken),
+    endTagToken: createEndTagToken(),
+    dataToken: createDataToken(),
   };
 
   parserOptions = {};
 
   handler = {
-    startTag: (token) => startTagMock(cloneDeep(token)),
-    endTag: (token) => endTagMock(cloneDeep(token)),
-    text: (token) => textMock(cloneDeep(token)),
-    comment: (token) => commentMock(cloneDeep(token)),
-    doctype: (token) => doctypeMock(cloneDeep(token)),
-    processingInstruction: (token) => processingInstructionMock(cloneDeep(token)),
-    cdata: (token) => cdataMock(cloneDeep(token)),
+    startTag: (token) => startTagMock(token.clone()),
+    endTag: (token) => endTagMock(token.clone()),
+    text: (token) => textMock(token.clone()),
+    comment: (token) => commentMock(token.clone()),
+    doctype: (token) => doctypeMock(token.clone()),
+    processingInstruction: (token) => processingInstructionMock(token.clone()),
+    cdata: (token) => cdataMock(token.clone()),
   };
 
   startTagMock.mockReset();
@@ -87,6 +79,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa="111"', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -98,6 +91,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 5,
         valueEnd: 8,
+        clone,
       },
     ]));
   });
@@ -106,6 +100,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=\'111\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -117,6 +112,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 5,
         valueEnd: 8,
+        clone,
       },
     ]));
   });
@@ -125,6 +121,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -136,6 +133,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 7,
+        clone,
       },
     ]));
   });
@@ -144,6 +142,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111 bbb="222" ccc=\'333\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(27);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -155,8 +154,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 7,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'bbb',
         name: 'bbb',
         rawValue: '222',
@@ -168,8 +169,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 11,
         valueStart: 13,
         valueEnd: 16,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'ccc',
         name: 'ccc',
         rawValue: '333',
@@ -181,6 +184,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 21,
         valueStart: 23,
         valueEnd: 26,
+        clone,
       },
     ]));
   });
@@ -189,6 +193,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa="111"//bbb=\'222\'//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(20);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -200,8 +205,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 5,
         valueEnd: 8,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'bbb',
         name: 'bbb',
         rawValue: '222',
@@ -213,6 +220,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 14,
         valueStart: 16,
         valueEnd: 19,
+        clone,
       },
     ]));
   });
@@ -221,6 +229,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa="111"bbb=\'222\'', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(18);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -232,8 +241,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 5,
         valueEnd: 8,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'bbb',
         name: 'bbb',
         rawValue: '222',
@@ -245,6 +256,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 12,
         valueStart: 14,
         valueEnd: 17,
+        clone,
       },
     ]));
   });
@@ -253,6 +265,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(3);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: undefined,
@@ -264,6 +277,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: -1,
         valueEnd: -1,
+        clone,
       },
     ]));
   });
@@ -272,6 +286,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(4);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: null,
@@ -283,6 +298,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: -1,
         valueEnd: -1,
+        clone,
       },
     ]));
   });
@@ -291,6 +307,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa/bbb="222"', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(13);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: undefined,
@@ -302,8 +319,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: -1,
         valueEnd: -1,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'bbb',
         name: 'bbb',
         rawValue: '222',
@@ -315,6 +334,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 7,
         valueStart: 9,
         valueEnd: 12,
+        clone,
       },
     ]));
   });
@@ -323,6 +343,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('//aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -334,6 +355,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 5,
         valueStart: 6,
         valueEnd: 9,
+        clone,
       },
     ]));
   });
@@ -342,6 +364,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes(' \taaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -353,6 +376,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 5,
         valueStart: 6,
         valueEnd: 9,
+        clone,
       },
     ]));
   });
@@ -361,6 +385,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111//',
@@ -372,6 +397,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 9,
+        clone,
       },
     ]));
   });
@@ -380,6 +406,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(6);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '//',
@@ -391,6 +418,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 6,
+        clone,
       },
     ]));
   });
@@ -399,6 +427,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa="111"//', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -410,6 +439,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 5,
         valueEnd: 8,
+        clone,
       },
     ]));
   });
@@ -418,6 +448,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa/', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(3);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: undefined,
@@ -429,6 +460,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: -1,
         valueEnd: -1,
+        clone,
       },
     ]));
   });
@@ -437,6 +469,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111  ', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -448,6 +481,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 7,
+        clone,
       },
     ]));
   });
@@ -456,6 +490,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa  =  111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -467,6 +502,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 8,
         valueEnd: 11,
+        clone,
       },
     ]));
   });
@@ -475,6 +511,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111=111',
@@ -486,6 +523,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 11,
+        clone,
       },
     ]));
   });
@@ -494,6 +532,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111"111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111"111',
@@ -505,6 +544,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 11,
+        clone,
       },
     ]));
   });
@@ -513,6 +553,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111\'111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111\'111',
@@ -524,6 +565,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 11,
+        clone,
       },
     ]));
   });
@@ -532,6 +574,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111/=111 bbb=222', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(20);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111/=111',
@@ -543,8 +586,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 12,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'bbb',
         name: 'bbb',
         rawValue: '222',
@@ -556,6 +601,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 16,
         valueStart: 17,
         valueEnd: 20,
+        clone,
       },
     ]));
   });
@@ -564,6 +610,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('""""aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(11);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: '""""aaa',
         name: '""""aaa',
         rawValue: '111',
@@ -575,6 +622,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 7,
         valueStart: 8,
         valueEnd: 11,
+        clone,
       },
     ]));
   });
@@ -583,6 +631,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=""""""bbb=222', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(17);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '',
@@ -594,8 +643,10 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 5,
         valueEnd: 5,
+        clone,
       },
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: '""""bbb',
         name: '""""bbb',
         rawValue: '222',
@@ -607,6 +658,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 13,
         valueStart: 14,
         valueEnd: 17,
+        clone,
       },
     ]));
   });
@@ -615,6 +667,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('@#$%*=000', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(9);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: '@#$%*',
         name: '@#$%*',
         rawValue: '000',
@@ -626,6 +679,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 5,
         valueStart: 6,
         valueEnd: 9,
+        clone,
       },
     ]));
   });
@@ -634,6 +688,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('<=000', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(5);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: '<',
         name: '<',
         rawValue: '000',
@@ -645,6 +700,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 1,
         valueStart: 2,
         valueEnd: 5,
+        clone,
       },
     ]));
   });
@@ -660,6 +716,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -671,6 +728,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 7,
+        clone,
       },
     ]));
   });
@@ -681,6 +739,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'bbbbbb',
         rawValue: '111',
@@ -692,6 +751,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 7,
+        clone,
       },
     ]));
   });
@@ -700,6 +760,7 @@ describe('tokenizeAttributes', () => {
     expect(tokenizeAttributes('aaa=111', 0, 5, attributes, tokenizerOptions, parserOptions)).toBe(7);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -711,6 +772,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 5 + 3,
         valueStart: 5 + 4,
         valueEnd: 5 + 7,
+        clone,
       },
     ]));
   });
@@ -718,14 +780,15 @@ describe('tokenizeAttributes', () => {
   it('cleans up the array-like object', () => {
 
     attributes = toArrayLike([
-      {} as unknown as IAttributeToken,
-      {} as unknown as IAttributeToken,
-      {} as unknown as IAttributeToken,
+      {tokenType: TokenType.ATTRIBUTE, clone} as unknown as IAttributeToken,
+      {tokenType: TokenType.ATTRIBUTE, clone} as unknown as IAttributeToken,
+      {tokenType: TokenType.ATTRIBUTE, clone} as unknown as IAttributeToken,
     ]);
 
     expect(tokenizeAttributes('aaa=111', 0, 0, attributes, tokenizerOptions, parserOptions)).toBe(7);
     expect(attributes).toEqual(toArrayLike<IAttributeToken>([
       {
+        tokenType: TokenType.ATTRIBUTE,
         rawName: 'aaa',
         name: 'aaa',
         rawValue: '111',
@@ -737,6 +800,7 @@ describe('tokenizeAttributes', () => {
         nameEnd: 3,
         valueStart: 4,
         valueEnd: 7,
+        clone,
       },
     ]));
   });
@@ -750,13 +814,15 @@ describe('tokenize', () => {
       tokenize('aaa', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: 'aaa',
         data: 'aaa',
         start: 0,
         end: 3,
         dataStart: 0,
         dataEnd: 3,
+        clone,
       });
     });
 
@@ -765,6 +831,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -773,6 +840,7 @@ describe('tokenize', () => {
         end: 3,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
     });
 
@@ -781,10 +849,12 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
-        attributes: toArrayLike([
+        attributes: toArrayLike<IAttributeToken>([
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'foo',
             name: 'foo',
             rawValue: undefined,
@@ -796,8 +866,10 @@ describe('tokenize', () => {
             nameEnd: 6,
             valueStart: -1,
             valueEnd: -1,
+            clone,
           },
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'bar',
             name: 'bar',
             rawValue: 'aaa"bbb',
@@ -809,8 +881,10 @@ describe('tokenize', () => {
             nameEnd: 10,
             valueStart: 12,
             valueEnd: 19,
+            clone,
           },
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'baz',
             name: 'baz',
             rawValue: 'aaa\'bbb',
@@ -822,6 +896,7 @@ describe('tokenize', () => {
             nameEnd: 25,
             valueStart: 27,
             valueEnd: 34,
+            clone,
           },
         ]),
         selfClosing: false,
@@ -829,6 +904,7 @@ describe('tokenize', () => {
         end: 36,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
     });
 
@@ -837,6 +913,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -845,6 +922,7 @@ describe('tokenize', () => {
         end: 6,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
     });
 
@@ -852,13 +930,15 @@ describe('tokenize', () => {
       tokenize('</a   >', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(endTagMock).toHaveBeenCalledTimes(1);
-      expect(endTagMock).toHaveBeenCalledWith(<ITagToken>{
+      expect(endTagMock).toHaveBeenCalledWith(<IEndTagToken>{
+        tokenType: TokenType.END_TAG,
         rawName: 'a',
         name: 'a',
         start: 0,
         end: 7,
         nameStart: 2,
         nameEnd: 3,
+        clone,
       });
     });
 
@@ -867,6 +947,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -875,6 +956,7 @@ describe('tokenize', () => {
         end: 4,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
 
       expect(endTagMock).not.toHaveBeenCalled();
@@ -887,6 +969,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -895,6 +978,7 @@ describe('tokenize', () => {
         end: 4,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
 
       expect(endTagMock).not.toHaveBeenCalled();
@@ -907,10 +991,12 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
-        attributes: toArrayLike([
+        attributes: toArrayLike<IAttributeToken>([
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'foo',
             name: 'foo',
             rawValue: undefined,
@@ -922,8 +1008,10 @@ describe('tokenize', () => {
             nameEnd: 6,
             valueStart: -1,
             valueEnd: -1,
+            clone,
           },
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'bar',
             name: 'bar',
             rawValue: 'aaa"bbb',
@@ -935,8 +1023,10 @@ describe('tokenize', () => {
             nameEnd: 10,
             valueStart: 12,
             valueEnd: 19,
+            clone,
           },
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'baz',
             name: 'baz',
             rawValue: 'aaa\'bbb',
@@ -948,6 +1038,7 @@ describe('tokenize', () => {
             nameEnd: 25,
             valueStart: 27,
             valueEnd: 34,
+            clone,
           },
         ]),
         selfClosing: true,
@@ -955,6 +1046,7 @@ describe('tokenize', () => {
         end: 39,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
 
       expect(endTagMock).not.toHaveBeenCalled();
@@ -965,10 +1057,12 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
-        attributes: toArrayLike([
+        attributes: toArrayLike<IAttributeToken>([
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'foo',
             name: 'foo',
             rawValue: '123//',
@@ -980,6 +1074,7 @@ describe('tokenize', () => {
             nameEnd: 6,
             valueStart: 7,
             valueEnd: 12,
+            clone,
           },
         ]),
         selfClosing: false,
@@ -987,6 +1082,7 @@ describe('tokenize', () => {
         end: 13,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
 
       expect(endTagMock).not.toHaveBeenCalled();
@@ -996,13 +1092,15 @@ describe('tokenize', () => {
       tokenize('< a>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: '< a>',
         data: '< a>',
         start: 0,
         end: 4,
         dataStart: 0,
         dataEnd: 4,
+        clone,
       });
     });
 
@@ -1010,13 +1108,15 @@ describe('tokenize', () => {
       tokenize('<@#$%*>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: '<@#$%*>',
         data: '<@#$%*>',
         start: 0,
         end: 7,
         dataStart: 0,
         dataEnd: 7,
+        clone,
       });
     });
 
@@ -1025,6 +1125,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a@#$%*',
         name: 'a@#$%*',
         attributes: toArrayLike([]),
@@ -1033,6 +1134,7 @@ describe('tokenize', () => {
         end: 8,
         nameStart: 1,
         nameEnd: 7,
+        clone,
       });
     });
 
@@ -1040,13 +1142,15 @@ describe('tokenize', () => {
       tokenize('</ a>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: '</ a>',
         data: '</ a>',
         start: 0,
         end: 5,
         dataStart: 0,
         dataEnd: 5,
+        clone,
       });
     });
 
@@ -1054,13 +1158,15 @@ describe('tokenize', () => {
       tokenize('</a @#$%*/>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(endTagMock).toHaveBeenCalledTimes(1);
-      expect(endTagMock).toHaveBeenCalledWith(<ITagToken>{
+      expect(endTagMock).toHaveBeenCalledWith(<IEndTagToken>{
+        tokenType: TokenType.END_TAG,
         rawName: 'a',
         name: 'a',
         start: 0,
         end: 11,
         nameStart: 2,
         nameEnd: 3,
+        clone,
       });
     });
 
@@ -1069,6 +1175,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -1077,16 +1184,19 @@ describe('tokenize', () => {
         end: 3,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: 'okay',
         data: 'okay',
         start: 3,
         end: 7,
         dataStart: 3,
         dataEnd: 7,
+        clone,
       });
     });
 
@@ -1094,17 +1204,20 @@ describe('tokenize', () => {
       tokenize('aaa< /a>bbb<b>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: 'aaa< /a>bbb',
         data: 'aaa< /a>bbb',
         start: 0,
         end: 11,
         dataStart: 0,
         dataEnd: 11,
+        clone,
       });
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'b',
         name: 'b',
         attributes: toArrayLike([]),
@@ -1113,6 +1226,7 @@ describe('tokenize', () => {
         end: 14,
         nameStart: 12,
         nameEnd: 13,
+        clone,
       });
     });
 
@@ -1121,10 +1235,12 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
-        attributes: toArrayLike([
+        attributes: toArrayLike<IAttributeToken>([
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'foo',
             name: 'foo',
             rawValue: undefined,
@@ -1136,8 +1252,10 @@ describe('tokenize', () => {
             nameEnd: 6,
             valueStart: -1,
             valueEnd: -1,
+            clone,
           },
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'bar',
             name: 'bar',
             rawValue: 'eee',
@@ -1149,6 +1267,7 @@ describe('tokenize', () => {
             nameEnd: 10,
             valueStart: 11,
             valueEnd: 14,
+            clone,
           },
         ]),
         selfClosing: false,
@@ -1156,6 +1275,7 @@ describe('tokenize', () => {
         end: 15,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
     });
 
@@ -1163,13 +1283,15 @@ describe('tokenize', () => {
       tokenize('<!--foo-->', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: 'foo',
         data: 'foo',
         start: 0,
         end: 10,
         dataStart: 4,
         dataEnd: 7,
+        clone,
       });
     });
 
@@ -1177,13 +1299,15 @@ describe('tokenize', () => {
       tokenize('<!--foo', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: 'foo',
         data: 'foo',
         start: 0,
         end: 7,
         dataStart: 4,
         dataEnd: 7,
+        clone,
       });
     });
 
@@ -1193,13 +1317,15 @@ describe('tokenize', () => {
       tokenize('<!foo>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: 'foo',
         data: 'foo',
         start: 0,
         end: 6,
         dataStart: 2,
         dataEnd: 5,
+        clone,
       });
     });
 
@@ -1209,13 +1335,15 @@ describe('tokenize', () => {
       tokenize('<!foo', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: 'foo',
         data: 'foo',
         start: 0,
         end: 5,
         dataStart: 2,
         dataEnd: 5,
+        clone,
       });
     });
 
@@ -1232,13 +1360,15 @@ describe('tokenize', () => {
       tokenize('<!-- foo---->', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: ' foo--',
         data: ' foo--',
         start: 0,
         end: 13,
         dataStart: 4,
         dataEnd: 10,
+        clone,
       });
     });
 
@@ -1248,13 +1378,15 @@ describe('tokenize', () => {
       tokenize('<?xml version="1.0"?>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(processingInstructionMock).toHaveBeenCalledTimes(1);
-      expect(processingInstructionMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(processingInstructionMock).toHaveBeenCalledWith(<IProcessingInstructionToken>{
+        tokenType: TokenType.PROCESSING_INSTRUCTION,
         rawData: 'xml version="1.0"',
         data: 'xml version="1.0"',
         start: 0,
         end: 21,
         dataStart: 2,
         dataEnd: 19,
+        clone,
       });
     });
 
@@ -1262,13 +1394,15 @@ describe('tokenize', () => {
       tokenize('<?xml version="1.0"?>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: '?xml version="1.0"?',
         data: '?xml version="1.0"?',
         start: 0,
         end: 21,
         dataStart: 1,
         dataEnd: 20,
+        clone,
       });
     });
 
@@ -1276,13 +1410,15 @@ describe('tokenize', () => {
       tokenize('<?xml version="1.0"', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: '?xml version="1.0"',
         data: '?xml version="1.0"',
         start: 0,
         end: 19,
         dataStart: 1,
         dataEnd: 19,
+        clone,
       });
     });
 
@@ -1292,13 +1428,15 @@ describe('tokenize', () => {
       tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(cdataMock).toHaveBeenCalledTimes(1);
-      expect(cdataMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(cdataMock).toHaveBeenCalledWith(<ICdataSectionToken>{
+        tokenType: TokenType.CDATA_SECTION,
         rawData: 'hello',
         data: 'hello',
         start: 0,
         end: 17,
         dataStart: 9,
         dataEnd: 14,
+        clone,
       });
     });
 
@@ -1306,13 +1444,15 @@ describe('tokenize', () => {
       tokenize('<![CDATA[hello]]>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(commentMock).toHaveBeenCalledTimes(1);
-      expect(commentMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(commentMock).toHaveBeenCalledWith(<ICommentToken>{
+        tokenType: TokenType.COMMENT,
         rawData: '[CDATA[hello]]',
         data: '[CDATA[hello]]',
         start: 0,
         end: 17,
         dataStart: 2,
         dataEnd: 16,
+        clone,
       });
     });
 
@@ -1320,13 +1460,15 @@ describe('tokenize', () => {
       tokenize('<!DOCTYPE html>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(doctypeMock).toHaveBeenCalledTimes(1);
-      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(doctypeMock).toHaveBeenCalledWith(<IDoctypeToken>{
+        tokenType: TokenType.DOCTYPE,
         rawData: ' html',
         data: ' html',
         start: 0,
         end: 15,
         dataStart: 9,
         dataEnd: 14,
+        clone,
       });
     });
 
@@ -1334,13 +1476,15 @@ describe('tokenize', () => {
       tokenize('<!DOCTYPEhtml>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(doctypeMock).toHaveBeenCalledTimes(1);
-      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(doctypeMock).toHaveBeenCalledWith(<IDoctypeToken>{
+        tokenType: TokenType.DOCTYPE,
         rawData: 'html',
         data: 'html',
         start: 0,
         end: 14,
         dataStart: 9,
         dataEnd: 13,
+        clone,
       });
     });
 
@@ -1349,12 +1493,14 @@ describe('tokenize', () => {
 
       expect(doctypeMock).toHaveBeenCalledTimes(1);
       expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
+        tokenType: TokenType.DOCTYPE,
         rawData: '',
         data: '',
         start: 0,
         end: 10,
         dataStart: 9,
         dataEnd: 9,
+        clone,
       });
     });
 
@@ -1362,23 +1508,27 @@ describe('tokenize', () => {
       tokenize('<!DOCTYPE greeting [<!ELEMENT greeting (#PCDATA)>]>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(doctypeMock).toHaveBeenCalledTimes(1);
-      expect(doctypeMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(doctypeMock).toHaveBeenCalledWith(<IDoctypeToken>{
+        tokenType: TokenType.DOCTYPE,
         rawData: ' greeting [<!ELEMENT greeting (#PCDATA)',
         data: ' greeting [<!ELEMENT greeting (#PCDATA)',
         start: 0,
         end: 49,
         dataStart: 9,
         dataEnd: 48,
+        clone,
       });
 
       expect(textMock).toHaveBeenCalledTimes(1);
-      expect(textMock).toHaveBeenCalledWith(<IDataToken>{
+      expect(textMock).toHaveBeenCalledWith(<ITextToken>{
+        tokenType: TokenType.TEXT,
         rawData: ']>',
         data: ']>',
         start: 49,
         end: 51,
         dataStart: 49,
         dataEnd: 51,
+        clone,
       });
     });
 
@@ -1390,6 +1540,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'script',
         name: 'script',
         attributes: toArrayLike([]),
@@ -1398,8 +1549,10 @@ describe('tokenize', () => {
         end: 9,
         nameStart: 1,
         nameEnd: 7,
+        clone,
       });
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'foo',
         name: 'foo',
         attributes: toArrayLike([]),
@@ -1408,6 +1561,7 @@ describe('tokenize', () => {
         end: 14,
         nameStart: 10,
         nameEnd: 13,
+        clone,
       });
 
       expect(endTagMock).not.toHaveBeenCalled();
@@ -1420,6 +1574,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(2);
       expect(startTagMock).toHaveBeenNthCalledWith(1, <IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'foo',
         name: 'FOO',
         attributes: toArrayLike([]),
@@ -1428,8 +1583,10 @@ describe('tokenize', () => {
         end: 5,
         nameStart: 1,
         nameEnd: 4,
+        clone,
       });
       expect(startTagMock).toHaveBeenNthCalledWith(2, <IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'bar',
         name: 'BAR',
         attributes: toArrayLike([]),
@@ -1438,6 +1595,7 @@ describe('tokenize', () => {
         end: 10,
         nameStart: 6,
         nameEnd: 9,
+        clone,
       });
     });
 
@@ -1448,10 +1606,12 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'foo',
         name: 'foo',
-        attributes: toArrayLike([
+        attributes: toArrayLike<IAttributeToken>([
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'aaa',
             name: 'AAA',
             rawValue: '111',
@@ -1463,8 +1623,10 @@ describe('tokenize', () => {
             nameEnd: 8,
             valueStart: 9,
             valueEnd: 12,
+            clone,
           },
           {
+            tokenType: TokenType.ATTRIBUTE,
             rawName: 'bbb',
             name: 'BBB',
             rawValue: '222',
@@ -1476,6 +1638,7 @@ describe('tokenize', () => {
             nameEnd: 16,
             valueStart: 17,
             valueEnd: 20,
+            clone,
           },
         ]),
         selfClosing: false,
@@ -1483,6 +1646,7 @@ describe('tokenize', () => {
         end: 21,
         nameStart: 1,
         nameEnd: 4,
+        clone,
       });
     });
   });
@@ -1494,6 +1658,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -1502,6 +1667,7 @@ describe('tokenize', () => {
         end: 3,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
     });
 
@@ -1510,6 +1676,7 @@ describe('tokenize', () => {
 
       expect(startTagMock).toHaveBeenCalledTimes(1);
       expect(startTagMock).toHaveBeenCalledWith(<IStartTagToken>{
+        tokenType: TokenType.START_TAG,
         rawName: 'a',
         name: 'a',
         attributes: toArrayLike([]),
@@ -1518,6 +1685,7 @@ describe('tokenize', () => {
         end: 3,
         nameStart: 1,
         nameEnd: 2,
+        clone,
       });
 
       expect(textMock).not.toHaveBeenCalled();

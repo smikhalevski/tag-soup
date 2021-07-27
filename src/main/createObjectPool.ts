@@ -28,34 +28,34 @@ export interface IObjectPool<T> {
  * @param reset The callback that is invoked when value is returned to the pool via {@link release}.
  */
 export function createObjectPool<T>(factory: () => T, reset?: (value: T) => void): IObjectPool<T> {
-  const cachedValues: IArrayLike<T> = {length: 0};
+  const cache: IArrayLike<T> = {length: 0};
 
   let takenCount = 0;
 
   const take = (): T => {
-    if (takenCount === cachedValues.length) {
+    if (takenCount === cache.length) {
       allocate();
     }
-    const value = cachedValues[takenCount];
-    cachedValues[takenCount++] = undefined as unknown as T;
+    const value = cache[takenCount];
+    cache[takenCount++] = undefined as unknown as T;
     return value;
   };
 
   const release = (value: T): void => {
     reset?.(value);
-    cachedValues[takenCount === 0 ? cachedValues.length : --takenCount] = value;
+    cache[takenCount === 0 ? cache.length : --takenCount] = value;
   };
 
-  const allocate = (count = cachedValues.length + 1): void => {
+  const allocate = (count = cache.length + 1): void => {
     count |= 0;
     if (count <= 0) {
       return;
     }
-    const prevLength = cachedValues.length;
-    const nextLength = cachedValues.length += count;
+    const prevLength = cache.length;
+    const nextLength = cache.length += count;
 
     for (let i = prevLength; i < nextLength; i++) {
-      cachedValues[i] = factory();
+      cache[i] = factory();
     }
   };
 

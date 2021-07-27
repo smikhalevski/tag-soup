@@ -1,10 +1,10 @@
 import {createXmlDomParser, domHandler} from '../main/createXmlDomParser';
-import {IElement, INode, IText, NodeType} from '../main/dom-types';
+import {IElementNode, INode, ITextNode, NodeType} from '../main/dom-types';
 import {IParser} from '../main/parser-types';
 
-export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElement {
+export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElementNode {
 
-  const elementNode: IElement = {
+  const elementNode: IElementNode = {
     nodeType: NodeType.ELEMENT,
     parent: null,
     tagName,
@@ -21,7 +21,7 @@ export function element(tagName: string, start: number, end: number, selfClosing
   return elementNode;
 }
 
-export function text(data: string, start: number, end: number): IText {
+export function text(data: string, start: number, end: number): ITextNode {
   return {
     nodeType: NodeType.TEXT,
     parent: null,

@@ -6,6 +6,10 @@ import {createSaxParser} from './createSaxParser';
  *
  * @template Node The type of object that describes a node in the DOM tree.
  * @template ContainerNode The type of object that describes an element or a document in the DOM tree.
+ *
+ * @param handler The handler that provides factories and callbacks that produce the DOM tree.
+ * @param options The parser options.
+ * @returns The new parser that produces a DOM tree during parsing.
  */
 export function createDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>> {
 
@@ -69,7 +73,7 @@ function createSaxHandler<Node, ContainerNode extends Node>(nodes: Array<Node>, 
     }
   };
 
-  const createDataTokenCallback = (dataFactory: ((token: IDataToken) => Node) | undefined): ((token: IDataToken) => void) | undefined => {
+  const createDataTokenCallback = <Token extends IDataToken>(dataFactory: ((token: Token) => Node) | undefined): ((token: Token) => void) | undefined => {
     return dataFactory != null ? (token) => pushNode(dataFactory(token)) : undefined;
   };
 

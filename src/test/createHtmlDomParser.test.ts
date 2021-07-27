@@ -1,9 +1,9 @@
-import {IElement, INode, IParser, IText, NodeType} from '../main';
+import {IElementNode, INode, IParser, ITextNode, NodeType} from '../main';
 import {createHtmlDomParser} from '../main/createHtmlDomParser';
 
-export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElement {
+export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElementNode {
 
-  const elementNode: IElement = {
+  const elementNode: IElementNode = {
     nodeType: NodeType.ELEMENT,
     parent: null,
     tagName,
@@ -20,7 +20,7 @@ export function element(tagName: string, start: number, end: number, selfClosing
   return elementNode;
 }
 
-export function text(data: string, start: number, end: number): IText {
+export function text(data: string, start: number, end: number): ITextNode {
   return {
     nodeType: NodeType.TEXT,
     parent: null,

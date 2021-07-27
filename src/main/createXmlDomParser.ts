@@ -1,7 +1,18 @@
 import {createDomParser} from './createDomParser';
 import {IDataToken, IDomHandler, IParser, IParserOptions} from './parser-types';
 import {xmlParserOptions} from './createXmlSaxParser';
-import {IContainerNode, IDataNode, IDocument, IElement, INode, NodeType} from './dom-types';
+import {
+  ContainerNode,
+  ICdataSectionNode,
+  ICommentNode,
+  IDataNode,
+  IDocumentNode,
+  IElementNode,
+  IProcessingInstructionNode,
+  ITextNode,
+  Node,
+  NodeType,
+} from './dom-types';
 import {objectCopy} from './misc';
 
 /**
@@ -9,7 +20,7 @@ import {objectCopy} from './misc';
  *
  * @see {@link domHandler}
  */
-export function createXmlDomParser(): IParser<Array<INode>>;
+export function createXmlDomParser(): IParser<Array<Node>>;
 
 /**
  * Creates a pre-configured XML DOM parser.
@@ -28,9 +39,9 @@ export function createXmlDomParser(handler = domHandler, options?: IParserOption
 /**
  * The default DOM handler.
  */
-export const domHandler: IDomHandler<INode, IContainerNode> = {
+export const domHandler: IDomHandler<Node, ContainerNode> = {
 
-  element(token): IElement {
+  element(token): IElementNode {
     const attributes: Record<string, string | null | undefined> = Object.create(null);
 
     for (let i = 0; i < token.attributes.length; i++) {
@@ -59,24 +70,25 @@ export const domHandler: IDomHandler<INode, IContainerNode> = {
     node.end = token.end;
   },
 
-  document(token): IDocument {
+  document(token): IDocumentNode {
     return {
       nodeType: NodeType.DOCUMENT,
       parent: null,
+      doctype: token.data,
       children: [],
       start: token.start,
       end: token.end,
     };
   },
 
-  text: (token) => createDataNode(NodeType.TEXT, token),
-  processingInstruction: (token) => createDataNode(NodeType.PROCESSING_INSTRUCTION, token),
-  cdata: (token) => createDataNode(NodeType.CDATA_SECTION, token),
-  comment: (token) => createDataNode(NodeType.COMMENT, token),
+  text: (token) => createDataNode<ITextNode>(NodeType.TEXT, token),
+  processingInstruction: (token) => createDataNode<IProcessingInstructionNode>(NodeType.PROCESSING_INSTRUCTION, token),
+  cdata: (token) => createDataNode<ICdataSectionNode>(NodeType.CDATA_SECTION, token),
+  comment: (token) => createDataNode<ICommentNode>(NodeType.COMMENT, token),
 };
 
-function createDataNode(nodeType: NodeType, token: IDataToken): IDataNode {
-  return {
+function createDataNode<DataNode extends IDataNode>(nodeType: DataNode['nodeType'], token: IDataToken): DataNode {
+  return <DataNode>{
     nodeType,
     data: token.data,
     parent: null,
