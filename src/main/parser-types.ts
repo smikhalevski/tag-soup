@@ -277,26 +277,18 @@ export interface IParserOptions {
   /**
    * Toggles CDATA sections recognition `<![CDATA[ … ]]>`. If set to `false` then CDATA sections are treated as
    * comments.
-   *
-   * @see {@link ISaxHandler.cdata}
-   * @see {@link IDomHandler.cdata}
    */
   cdataEnabled?: boolean;
 
   /**
    * Toggles processing instructions recognition `<?xml-stylesheet … ?>`. If set to `false` then processing
    * instructions are treated as comments.
-   *
-   * @see {@link ISaxHandler.processingInstruction}
-   * @see {@link IDomHandler.processingInstruction}
    */
   processingInstructionsEnabled?: boolean;
 
   /**
    * Toggles self-closing tags recognition `<foo/>`. If set to `false` then slash in self closing tags is ignored or
    * processed as a part of an attribute value, depending on the markup.
-   *
-   * @see {@link checkVoidTag}
    */
   selfClosingEnabled?: boolean;
 
@@ -319,8 +311,6 @@ export interface IParserOptions {
   /**
    * Rewrites a tag name. Start and end tags are matched via tag name comparison. Provide a rewriter to support
    * case-insensitive tag matching.
-   *
-   * @see {@link ITagToken.rawName}
    *
    * @param name The raw name of the tag.
    * @returns The rewritten name of the tag.
