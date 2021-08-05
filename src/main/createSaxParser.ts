@@ -1,8 +1,7 @@
 import {ITokenizerOptions, tokenize} from './tokenize';
 import {createObjectPool} from './createObjectPool';
 import {createAttributeToken, createDataToken, createEndTagToken, createStartTagToken} from './tokens';
-import {IArrayLike, IEndTagToken, IParser, IParserOptions, ISaxHandler, IStartTagToken} from './parser-types';
-import {objectCopy} from './misc';
+import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken} from './parser-types';
 
 /**
  * Creates a new stateful SAX parser.
@@ -11,7 +10,7 @@ import {objectCopy} from './misc';
  * @param options Parsing options.
  */
 export function createSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
-  const opts = objectCopy(options);
+  const opts = {...options};
 
   let buffer = '';
   let chunkOffset = 0;
@@ -74,7 +73,7 @@ function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokeniz
   } = options;
 
   const endTagToken = createEndTagToken();
-  const forgivingHandler = objectCopy(handler);
+  const forgivingHandler = {...handler};
   const ancestors: IArrayLike<IStartTagToken> = {length: 0};
 
   const releaseStartTag = (token: IStartTagToken): void => {

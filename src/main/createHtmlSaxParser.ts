@@ -1,7 +1,6 @@
 import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken} from './parser-types';
 import {createSaxParser} from './createSaxParser';
 import {decodeHtml} from 'speedy-entities';
-import {objectCopy} from './misc';
 
 /**
  * Creates a pre-configured HTML SAX parser.
@@ -10,7 +9,7 @@ import {objectCopy} from './misc';
  * @param options Options that override the defaults.
  */
 export function createHtmlSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
-  return createSaxParser(handler, objectCopy(htmlParserOptions, options));
+  return createSaxParser(handler, {...htmlParserOptions, ...options});
 }
 
 /**

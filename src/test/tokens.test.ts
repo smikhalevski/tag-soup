@@ -1,5 +1,5 @@
 import {createAttributeToken, createStartTagToken} from '../main/tokens';
-import {IAttributeToken} from '../main';
+import {IAttributeToken} from '../main/parser-types';
 
 describe('clone', () => {
 

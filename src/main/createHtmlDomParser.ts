@@ -3,7 +3,6 @@ import {createDomParser} from './createDomParser';
 import {htmlParserOptions} from './createHtmlSaxParser';
 import {domHandler} from './createXmlDomParser';
 import {Node} from './dom-types';
-import {objectCopy} from './misc';
 
 /**
  * Creates a pre-configured HTML DOM parser that uses {@link domHandler}.
@@ -27,5 +26,5 @@ export function createHtmlDomParser(): IParser<Array<Node>>;
 export function createHtmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>>;
 
 export function createHtmlDomParser(handler?: IDomHandler<unknown, unknown>, options?: IParserOptions) {
-  return createDomParser(handler || domHandler, objectCopy(htmlParserOptions, options));
+  return createDomParser(handler || domHandler, {...htmlParserOptions, ...options});
 }

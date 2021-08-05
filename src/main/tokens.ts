@@ -1,17 +1,16 @@
 import {IAttributeToken, IDataToken, IEndTagToken, IStartTagToken, Token, TokenType} from './parser-types';
-import {objectCopy} from './misc';
 
 /**
  * Clones an arbitrary token.
  */
 export function clone(this: Token): any {
-  const token = objectCopy(this);
+  const token = {...this};
 
   if (token.tokenType === TokenType.START_TAG) {
-    const attributes = token.attributes = objectCopy(token.attributes);
+    const attributes = token.attributes = {...token.attributes};
 
     for (let i = 0; i < attributes.length; ++i) {
-      attributes[i] = objectCopy(attributes[i]);
+      attributes[i] = {...attributes[i]};
     }
   }
   return token;

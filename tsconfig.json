@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
+    "importHelpers": true,
     "declaration": true,
-    "esModuleInterop": true,
     "moduleResolution": "Node",
     "preserveConstEnums": true,
     "strict": true,

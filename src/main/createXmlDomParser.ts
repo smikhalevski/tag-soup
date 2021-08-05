@@ -13,7 +13,6 @@ import {
   Node,
   NodeType,
 } from './dom-types';
-import {objectCopy} from './misc';
 
 /**
  * Creates a pre-configured XML DOM parser that uses {@link domHandler}.
@@ -33,7 +32,7 @@ export function createXmlDomParser(): IParser<Array<Node>>;
 export function createXmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>>;
 
 export function createXmlDomParser(handler?: IDomHandler<unknown, unknown>, options?: IParserOptions) {
-  return createDomParser(handler || domHandler, objectCopy(xmlParserOptions, options));
+  return createDomParser(handler || domHandler, {...xmlParserOptions, ...options});
 }
 
 /**

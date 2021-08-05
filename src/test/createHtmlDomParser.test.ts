@@ -1,4 +1,5 @@
-import {IElementNode, INode, IParser, ITextNode, NodeType} from '../main';
+import {IElementNode, INode, ITextNode, NodeType} from '../main/dom-types';
+import {IParser} from '../main/parser-types';
 import {createHtmlDomParser} from '../main/createHtmlDomParser';
 
 export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElementNode {
