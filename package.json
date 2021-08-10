@@ -72,6 +72,6 @@
   },
   "dependencies": {
     "speedy-entities": "^1.1.0",
-    "tokenizer-dsl": "1.0.0"
+    "tokenizer-dsl": "^1.0.1"
   }
 }
