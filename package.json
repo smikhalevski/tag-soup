@@ -5,6 +5,7 @@
   "main": "./lib/index-cjs.js",
   "module": "./lib/index.js",
   "types": "./lib/index.d.ts",
+  "sideEffects": false,
   "files": [
     "lib"
   ],
