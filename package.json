@@ -1,6 +1,6 @@
 {
   "name": "tag-soup",
-  "version": "1.0.0-next.3",
+  "version": "1.0.0",
   "description": "The fastest pure JS SAX/DOM XML/HTML parser.",
   "main": "./lib/index-cjs.js",
   "module": "./lib/index.js",
