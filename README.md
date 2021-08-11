@@ -3,12 +3,12 @@
 TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser.
 
 - [It is the fastest](#performance);
-- Tiny and tree-shakable, [just 8 kB gzipped](https://bundlephobia.com/result?p=tag-soup);
+- Tiny and tree-shakable, [just 6.5 kB gzipped](https://bundlephobia.com/result?p=tag-soup);
 - Streaming support with SAX and DOM parsers for XML and HTML;
 - Extremely low memory consumption;
 - Forgives malformed tag nesting and missing end tags;
 - Parses HTML attributes in the same way your browser does,
-  [see tests for more details](https://github.com/smikhalevski/tag-soup/blob/master/src/test/createSaxParser.test.ts);
+  [see tests for more details](https://github.com/smikhalevski/tag-soup/blob/master/src/test/tokenize.test.ts);
 - Recognizes CDATA, processing instructions, and DOCTYPE;
 
 ```sh
@@ -80,13 +80,15 @@ For [`createHtmlSaxParser`](https://smikhalevski.github.io/tag-soup/modules.html
 - Legacy HTML entities are decoded in text and attribute values.
 
 You can alter how the parser works
-[through options](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html#endsancestorat) which give you
-fine-grained control over parsing dialect.
+[through options](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html) which give you fine-grained
+control over parsing dialect.
 
-By default, TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities) to decode XML and HTML
+By default, TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities#readme) to decode XML and HTML
 entities. Parser created by `createHtmlSaxParser` decodes only legacy HTML entities. This is done to reduce the bundle
-size. To decode [all HTML entities](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references) use
-this snippet:
+size.
+
+To decode [all HTML entities](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references) use this
+snippet below. It would add 10 kB gzipped to the bundle size.
 
 ```ts
 import {decodeHtml} from 'speedy-entities/lib/full';
@@ -96,6 +98,9 @@ const htmlParser = createHtmlSaxParser({
   decodeAttribute: decodeHtml,
 });
 ```
+
+With `speedy-entites` you can create [a custom decoder](https://github.com/smikhalevski/speedy-entities#custom-decoders)
+that would recognize custom entities.
 
 <details>
 <summary>The list of legacy HTML entities</summary>
@@ -112,9 +117,6 @@ const htmlParser = createHtmlSaxParser({
 
 </p>
 </details>
-
-With `speedy-entites` you can create [a custom decoder](https://github.com/smikhalevski/speedy-entities#custom-decoders)
-that would recognize custom entities.
 
 ### Streaming
 
@@ -169,8 +171,8 @@ requires a [handler](https://smikhalevski.github.io/tag-soup/interfaces/idomhand
 
 Both [`createXmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createxmldomparser) and
 [`createHtmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createhtmldomparser) use
-[the default handler](https://smikhalevski.github.io/tag-soup/modules.html#domhandler) if no other handler was provided
-and use default options ([`xmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#xmlparseroptions)
+[`domHandler`](https://smikhalevski.github.io/tag-soup/modules.html#domhandler) if no other handler was provided and use
+default options ([`xmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#xmlparseroptions)
 and [`htmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#htmlparseroptions) respectively) which
 [can be overridden](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html).
 
