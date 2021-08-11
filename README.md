@@ -3,8 +3,8 @@
 TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser.
 
 - [It is the fastest](#performance);
-- It is tiny and tree-shakable, [just 8 kB](https://bundlephobia.com/result?p=tag-soup);
-- Streaming support in SAX and DOM for XML and HTML;
+- Tiny and tree-shakable, [just 8 kB gzipped](https://bundlephobia.com/result?p=tag-soup);
+- Streaming support with SAX and DOM parsers for XML and HTML;
 - Extremely low memory consumption;
 - Forgives malformed tag nesting and missing end tags;
 - Parses HTML attributes in the same way your browser does,
@@ -41,19 +41,22 @@ const saxParser = createSaxParser({
 saxParser.parse('<foo>okay');
 ```
 
-SAX parsers invoke [callbacks during parsing](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html).
+SAX parser invokes [callbacks during parsing](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html).
 
 Callbacks receive [tokens](https://smikhalevski.github.io/tag-soup/modules.html#token) which represent structures read
-from the input. Tokens are pooled objects so when callback finishes they are returned to the pool to be reused. Object
-pooling drastically reduces memory consumption and allows passing a lot of data to the callback.
+from the input. Tokens are pooled objects so when handler callback finishes they are returned to the pool and reused.
+Object pooling drastically reduces memory consumption and allows passing a lot of data to the callback.
 
 If you need to retain token after callback finishes use
-[`token.clone()`](https://smikhalevski.github.io/tag-soup/interfaces/itoken.html#clone) method that would return the
-deep copy of the token.
+[`token.clone()`](https://smikhalevski.github.io/tag-soup/interfaces/itoken.html#clone) which returns the deep copy of
+the token.
 
-Tag token callbacks are always invoked in the correct order even if tags in the input were incorrectly nested or missed.
+`startTag` and `endTag` callbacks are always invoked in the correct order even if tags in the input were incorrectly
+nested or missed.
 For [self-closing tags](https://smikhalevski.github.io/tag-soup/interfaces/istarttagtoken.html#selfclosing) only
 `startTag` callback in invoked.
+
+### Defaults
 
 All SAX parser factories accept two arguments
 [the handler with callbacks](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html) and
@@ -80,8 +83,8 @@ You can alter how the parser works
 [through options](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html#endsancestorat) which give you
 fine-grained control over parsing dialect.
 
-TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities) to parse XML and HTML entities. By
-default, parser created by `createHtmlSaxParser` decodes only legacy HTML entities. This is done to reduce the bundle
+By default, TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities) to decode XML and HTML
+entities. Parser created by `createHtmlSaxParser` decodes only legacy HTML entities. This is done to reduce the bundle
 size. To decode [all HTML entities](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references) use
 this snippet:
 
@@ -93,6 +96,27 @@ const htmlParser = createHtmlSaxParser({
   decodeAttribute: decodeHtml,
 });
 ```
+
+<details>
+<summary>The list of legacy HTML entities</summary>
+<p>
+
+> `aacute`, `Aacute`, `acirc`, `Acirc`, `acute`, `aelig`, `AElig`, `agrave`, `Agrave`, `amp`, `AMP`, `aring`, `Aring`,
+`atilde`, `Atilde`, `auml`, `Auml`, `brvbar`, `ccedil`, `Ccedil`, `cedil`, `cent`, `copy`, `COPY`, `curren`, `deg`,
+`divide`, `eacute`, `Eacute`, `ecirc`, `Ecirc`, `egrave`, `Egrave`, `eth`, `ETH`, `euml`, `Euml`, `frac12`, `frac14`,
+`frac34`, `gt`, `GT`, `iacute`, `Iacute`, `icirc`, `Icirc`, `iexcl`, `igrave`, `Igrave`, `iquest`, `iuml`, `Iuml`,
+`laquo`, `lt`, `LT`, `macr`, `micro`, `middot`, `nbsp`, `not`, `ntilde`, `Ntilde`, `oacute`, `Oacute`, `ocirc`, `Ocirc`,
+`ograve`, `Ograve`, `ordf`, `ordm`, `oslash`, `Oslash`, `otilde`, `Otilde`, `ouml`, `Ouml`, `para`, `plusmn`, `pound`,
+`quot`, `QUOT`, `raquo`, `reg`, `REG`, `sect`, `shy`, `sup1`, `sup2`, `sup3`, `szlig`, `thorn`, `THORN`, `times`,
+`uacute`, `Uacute`, `ucirc`, `Ucirc`, `ugrave`, `Ugrave`, `uml`, `uuml`, `Uuml`, `yacute`, `Yacute`, `yen` and `yuml`
+
+</p>
+</details>
+
+With `speedy-entites` you can create [a custom decoder](https://github.com/smikhalevski/speedy-entities#custom-decoders)
+that would recognize custom entities.
+
+### Streaming
 
 SAX parsers support streaming. You can use
 [`saxParser.write(chunk)`](https://smikhalevski.github.io/tag-soup/interfaces/iparser.html#write) to parse input data
@@ -136,11 +160,12 @@ const domNode = domParser.parse('<foo>okay');
 console.log(domNode[0].children[0].data); // → 'okay'
 ```
 
-DOM parsers produce the node tree as the result of parsing.
+DOM parser assembles a node three using a
+[handler](https://smikhalevski.github.io/tag-soup/interfaces/idomhandler.html) that describes how nodes are created and
+appended.
 
-The generic factory [`createDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createdomparser) would
-require a [handler](https://smikhalevski.github.io/tag-soup/interfaces/idomhandler.html) that describes how nodes
-created and appended.
+The generic parser factory [`createDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createdomparser)
+requires a [handler](https://smikhalevski.github.io/tag-soup/interfaces/idomhandler.html) to be provided.
 
 Both [`createXmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createxmldomparser) and
 [`createHtmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createhtmldomparser) use
@@ -148,6 +173,8 @@ Both [`createXmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html
 and use default options ([`xmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#xmlparseroptions)
 and [`htmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#htmlparseroptions) respectively) which
 [can be overridden](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html).
+
+### Streaming
 
 DOM parsers support streaming. You can use
 [`domParser.write(chunk)`](https://smikhalevski.github.io/tag-soup/interfaces/iparser.html#write) to parse input data
@@ -168,30 +195,67 @@ domParser.write('</foo>');
 
 # Performance
 
-Performance was measured in node@14.15.5 when parsing [3.81 MB HTML file](./src/test/test.html).
+[To run a performance test](./src/test/perf.js) use `npm ci && npm run build && npm run perf`.
 
-To run a performance test use `npm run build; npm run perf`.
+## Large input
 
-## Streaming
+Performance was measured when parsing [the 3.81 MB HTML file](./src/test/test.html).
 
-| Parser  | Ops/sec |
-| --- | --- |
-| [`TagSoup.createSaxParser`](https://smikhalevski.github.io/tag-soup/globals.html#createsaxparser) | 26 ±0.67% |
-| [`TagSoup.createForgivingSaxParser`](https://smikhalevski.github.io/tag-soup/globals.html#createforgivingsaxparser) | 23 ±0.5% |
-| [`TagSoup.createHtmlSaxParser`](https://smikhalevski.github.io/tag-soup/globals.html#createhtmlsaxparser) | 20 ±0.72% |
-| [htmlparser2](https://github.com/fb55/htmlparser2)@6.1.0 | 14 ±0.46% |
-| [sax-js](https://github.com/isaacs/sax-js)@1.2.4 | 1 ±54.26% † |
+Results are in operations per second. The higher number is better.
 
-## DOM
+### SAX benchmark
 
-| Parser  | Ops/sec |
-| --- | --- |
-| [`TagSoup.createXmlDomParser`](https://smikhalevski.github.io/tag-soup/globals.html#createxmldomparser) | 12 ±0.56% |
-| [`TagSoup.createHtmlDomParser`](https://smikhalevski.github.io/tag-soup/globals.html#createhtmldomparser) | 9 ±0.71% |
-| [htmlparser2](https://github.com/fb55/htmlparser2)@6.1.0 | 4 ± 59.91% † |
-| [Parse5](https://github.com/inikulin/parse5)@6.0.1 | 3 ±0.76% |
+|  | Ops/sec |
+| --- | ---: |
+| `createSaxParser` ¹ | <nobr>36.3 ± 0.8%</nobr> |
+| `createXmlSaxParser` ¹ | <nobr>30.7 ± 0.5%</nobr> |
+| `createHtmlSaxParser` ¹ | <nobr>23.7 ± 0.5%</nobr> |
+| `createSaxParser` | <nobr>29.2 ± 0.5%</nobr> |
+| `createXmlSaxParser` | <nobr>26.1 ± 0.5%</nobr> |
+| `createHtmlSaxParser` | <nobr>19.9 ± 0.5%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>14.3 ± 0.5%</nobr> |
+| [`@isaacs/sax-js`](https://github.com/isaacs/sax-js) | <nobr>1.7 ± 4.6%</nobr> |
 
-† Performance cannot be measured with greater accuracy because of out-of-memory exceptions.
+¹ Parsers were provided a handler with a single
+[`text`](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html#text) callback. This configuration can be
+useful if you want to strip tags from the input.
+
+### DOM benchmark
+
+|  | Ops/sec |
+| --- | ---: |
+| `createDomParser` | <nobr>12.1 ± 4.3%</nobr> |
+| `createXmlDomParser` | <nobr>11.1 ± 4.3%</nobr> |
+| `createHtmlDomParser` | <nobr>8.9 ± 2.4%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>6.0 ± 1.5%</nobr> |
+| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | <nobr>2.0 ± 1.8%</nobr> |
+
+## Small input
+
+The performance was measured when parsing
+[258 files with 95 kB in size on average](https://github.com/AndreasMadsen/htmlparser-benchmark/tree/master/files) from
+[`htmlparser-benchmark`](https://github.com/AndreasMadsen/htmlparser-benchmark).
+
+Results are in operations per second. The higher number is better.
+
+### SAX benchmark
+
+|  | Ops/sec |
+| --- | ---: |
+| `createSaxParser` | <nobr>1 755 ± 0.1%</nobr> |
+| `createXmlSaxParser` | <nobr>1 450 ± 0.1%</nobr> |
+| `createHtmlSaxParser` | <nobr>1 162 ± 0.1%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>546 ± 5.7%</nobr> |
+
+### DOM benchmark
+
+|  | Ops/sec |
+| --- | ---: |
+| `createDomParser` | <nobr>839 ± 3.2%</nobr> |
+| `createXmlDomParser` | <nobr>718 ± 3.1%</nobr> |
+| `createHtmlDomParser` | <nobr>612 ± 3.2%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>437 ± 3.1%</nobr> |
+| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | <nobr>37 ± 3.1%</nobr> |
 
 # Limitations
 
