@@ -1,160 +1,285 @@
 # TagSoup [![build](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml/badge.svg?branch=master&event=push)](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml)
 
-TagSoup is [the fastest](#performance) JS SAX/DOM HTML/XML parser.
-
-## Why use TagSoup?
+TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser.
 
 - [It is the fastest](#performance);
-- [It is the tiniest, just 3 kB gzipped](https://bundlephobia.com/result?p=tag-soup) for XML parsing and 16 kB gzipped for HTML parsing;
-- Zero dependencies;
-- Low memory consumption thanks to object pooling;
-- Has streaming support for both SAX and DOM;
+- Tiny and tree-shakable, [just 6.5 kB gzipped](https://bundlephobia.com/result?p=tag-soup);
+- Streaming support with SAX and DOM parsers for XML and HTML;
+- Extremely low memory consumption;
 - Forgives malformed tag nesting and missing end tags;
-- Parses HTML attributes in the same way your browser does;
+- Parses HTML attributes in the same way your browser does,
+  [see tests for more details](https://github.com/smikhalevski/tag-soup/blob/master/src/test/tokenize.test.ts);
 - Recognizes CDATA, processing instructions, and DOCTYPE;
 
-## Documentation
+```sh
+npm install --save-prod tag-soup
+```
 
-[API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
+# Usage
 
-Parsing XML SAX
-```js
-const TagSoup = require('tag-soup');
+⚠️ [API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
 
-const parser = TagSoup.createForgivingSaxParser({
-  onStartTag(tagName, attrs, selfClosing, start, end) {
-    // Process start tag here
+## SAX
+
+```ts
+import {createSaxParser} from 'tag-soup';
+
+// Or use
+// import {createXmlSaxParser, createHtmlSaxParser} from 'tag-soup';
+
+const saxParser = createSaxParser({
+
+  startTag(token) {
+    console.log(token); // → {tokenType: 1, name: 'foo', …} 
   },
-  onEndTag(tagName, start, end) {
-    // Process end tag here
+
+  endTag(token) {
+    console.log(token); // → {tokenType: 101, data: 'okay', …} 
   },
 });
-parser.parse('<foo>okay');
+
+saxParser.parse('<foo>okay');
 ```
 
-Parsing XML DOM
-```js
-const TagSoup = require('tag-soup');
+SAX parser invokes [callbacks during parsing](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html).
 
-const parser = TagSoup.createXmlDomParser();
-const dom = parser.parse('<foo>okay');
+Callbacks receive [tokens](https://smikhalevski.github.io/tag-soup/modules.html#token) which represent structures read
+from the input. Tokens are pooled objects so when handler callback finishes they are returned to the pool and reused.
+Object pooling drastically reduces memory consumption and allows passing a lot of data to the callback.
 
-console.log(dom[0].children[0].data); // → 'okay'
+If you need to retain token after callback finishes use
+[`token.clone()`](https://smikhalevski.github.io/tag-soup/interfaces/itoken.html#clone) which returns the deep copy of
+the token.
+
+`startTag` and `endTag` callbacks are always invoked in the correct order even if tags in the input were incorrectly
+nested or missed.
+For [self-closing tags](https://smikhalevski.github.io/tag-soup/interfaces/istarttagtoken.html#selfclosing) only
+`startTag` callback in invoked.
+
+### Defaults
+
+All SAX parser factories accept two arguments
+[the handler with callbacks](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html) and
+[options](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html). The most generic parser factory
+[`createSaxParser`](https://smikhalevski.github.io/tag-soup/modules.html#createsaxparser) doesn't have any defaults.
+
+For [`createXmlSaxParser`](https://smikhalevski.github.io/tag-soup/modules.html#createxmlsaxparser) defaults are
+[`xmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#xmlparseroptions):
+
+- CDATA sections, processing instructions and self-closing tags are recognized;
+- XML entities are decoded in text and attribute values;
+- Tag and attribute names are preserved as is;
+
+For [`createHtmlSaxParser`](https://smikhalevski.github.io/tag-soup/modules.html#createhtmlsaxparser) defaults are
+[`htmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#htmlparseroptions):
+
+- CDATA sections and processing instructions are treated as comments;
+- Self-closing tags are treated as a start tags;
+- Tags like `p`, `li`, `td` and others follow implicit end rules, so `<p>foo<p>bar` is parsed as `<p>foo</p><p>bar</p>`;
+- Tag and attribute names are converted to lower case;
+- Legacy HTML entities are decoded in text and attribute values.
+
+You can alter how the parser works
+[through options](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html) which give you fine-grained
+control over parsing dialect.
+
+By default, TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities#readme) to decode XML and HTML
+entities. Parser created by `createHtmlSaxParser` decodes only legacy HTML entities. This is done to reduce the bundle
+size.
+
+To decode [all HTML entities](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references) use this
+snippet below. It would add 10 kB gzipped to the bundle size.
+
+```ts
+import {decodeHtml} from 'speedy-entities/lib/full';
+
+const htmlParser = createHtmlSaxParser({
+  decodeText: decodeHtml,
+  decodeAttribute: decodeHtml,
+});
 ```
 
-Parsing HTML SAX
-```js
-const TagSoup = require('tag-soup/lib/html');
+With `speedy-entites` you can create [a custom decoder](https://github.com/smikhalevski/speedy-entities#custom-decoders)
+that would recognize custom entities.
 
-const parser = TagSoup.createHtmlSaxParser({
-  onStartTag(tagName, attrs, selfClosing, start, end) {
-    // Process start tag here
+<details>
+<summary>The list of legacy HTML entities</summary>
+<p>
+
+> `aacute`, `Aacute`, `acirc`, `Acirc`, `acute`, `aelig`, `AElig`, `agrave`, `Agrave`, `amp`, `AMP`, `aring`, `Aring`,
+`atilde`, `Atilde`, `auml`, `Auml`, `brvbar`, `ccedil`, `Ccedil`, `cedil`, `cent`, `copy`, `COPY`, `curren`, `deg`,
+`divide`, `eacute`, `Eacute`, `ecirc`, `Ecirc`, `egrave`, `Egrave`, `eth`, `ETH`, `euml`, `Euml`, `frac12`, `frac14`,
+`frac34`, `gt`, `GT`, `iacute`, `Iacute`, `icirc`, `Icirc`, `iexcl`, `igrave`, `Igrave`, `iquest`, `iuml`, `Iuml`,
+`laquo`, `lt`, `LT`, `macr`, `micro`, `middot`, `nbsp`, `not`, `ntilde`, `Ntilde`, `oacute`, `Oacute`, `ocirc`, `Ocirc`,
+`ograve`, `Ograve`, `ordf`, `ordm`, `oslash`, `Oslash`, `otilde`, `Otilde`, `ouml`, `Ouml`, `para`, `plusmn`, `pound`,
+`quot`, `QUOT`, `raquo`, `reg`, `REG`, `sect`, `shy`, `sup1`, `sup2`, `sup3`, `szlig`, `thorn`, `THORN`, `times`,
+`uacute`, `Uacute`, `ucirc`, `Ucirc`, `ugrave`, `Ugrave`, `uml`, `uuml`, `Uuml`, `yacute`, `Yacute`, `yen` and `yuml`
+
+</p>
+</details>
+
+### Streaming
+
+SAX parsers support streaming. You can use
+[`saxParser.write(chunk)`](https://smikhalevski.github.io/tag-soup/interfaces/iparser.html#write) to parse input data
+chunk by chunk.
+
+```ts
+const saxParser = createSaxParser({/*callbacks*/});
+
+saxParser.write('<foo>ok');
+// Triggers startTag callabck for "foo" tag.
+
+saxParser.write('ay');
+// Doesn't trigger any callbacks.
+
+saxParser.write('</foo>');
+// Triggers text callback for "okay" and endTag callback for "foo" tag.
+```
+
+## DOM
+
+```ts
+import {createDomParser} from 'tag-soup';
+
+// Or use
+// import {createXmlDomParser, createHtmlDomParser} from 'tag-soup';
+
+// Minimal DOM handler example
+const domParser = createDomParser<any>({
+
+  element(token) {
+    return {tagName: token.name, children: []};
   },
-  onEndTag(tagName, start, end) {
-    // Process end tag here
+
+  appendChild(parentNode, node) {
+    parentNode.children.push(node);
   },
 });
-parser.parse('<script>console.log("<foo></foo>")</script>');
+
+const domNode = domParser.parse('<foo>okay');
+
+console.log(domNode[0].children[0].data); // → 'okay'
 ```
 
-Parsing HTML DOM
-```js
-const TagSoup = require('tag-soup/lib/html');
+DOM parser assembles a node three using a
+[handler](https://smikhalevski.github.io/tag-soup/interfaces/idomhandler.html) that describes how nodes are created and
+appended.
 
-const parser = TagSoup.createHtmlDomParser();
-const dom = parser.parse('<script>console.log("<foo></foo>")</script>');
+The generic parser factory [`createDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createdomparser)
+requires a [handler](https://smikhalevski.github.io/tag-soup/interfaces/idomhandler.html) to be provided.
 
-console.log(dom[0].children[0].data); // → 'console.log("<foo></foo>")'
-```
+Both [`createXmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createxmldomparser) and
+[`createHtmlDomParser`](https://smikhalevski.github.io/tag-soup/modules.html#createhtmldomparser) use
+[`domHandler`](https://smikhalevski.github.io/tag-soup/modules.html#domhandler) if no other handler was provided and use
+default options ([`xmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#xmlparseroptions)
+and [`htmlParserOptions`](https://smikhalevski.github.io/tag-soup/modules.html#htmlparseroptions) respectively) which
+[can be overridden](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html).
 
-## Performance
+### Streaming
 
-SAX parser benchmark
-```
-createSaxParser      31 ops/sec ±0.54% (277 samples)
-createHtmlSaxParser  21 ops/sec ±0.89% (194 samples)
-htmlparser2          15 ops/sec ±0.87% (132 samples)
-sax                  1 ops/sec ±54.91% (10 samples)
+DOM parsers support streaming. You can use
+[`domParser.write(chunk)`](https://smikhalevski.github.io/tag-soup/interfaces/iparser.html#write) to parse input data
+chunk by chunk.
 
-createSaxParser
-  2.1✕ faster than htmlparser2
-  22.5✕ faster than sax
-
-createHtmlSaxParser
-  1.5✕ faster than htmlparser2
-  15.8✕ faster than sax
-```
-
-DOM parser benchmark
-```
-createXmlDomParser   7 ops/sec ±59.96% (74 samples)
-createHtmlDomParser  8 ops/sec ±51.76% (72 samples)
-htmlparser2          4 ops/sec ±59.91% (43 samples)
-parse5               1 ops/sec ±56.04% (5 samples)
-
-createXmlDomParser
-  1.8✕ faster than htmlparser2
-  10.2✕ faster than parse5
-
-createHtmlDomParser
-  2.1✕ faster htmlparser2
-  12.0✕ faster than parse5
-```
-
-To run a performance test use `npm run build` and then `npm run perf`.
-
-
-## Bundle size
-
-For XML parsing use
 ```ts
-const TagSoup = require('tag-soup');
-```  
+const domParser = createXmlDomParser();
 
-This would require a 3 kB (gzipped) bundle with: 
+domParser.write('<foo>ok');
+// → [{nodeType: 1, tagName: 'foo', children: [], …}]
 
-- SAX/DOM XML parsing;
-- Convenient builder for DOM parsers which allows altering how elements are created;
-- Preconfigured Cheerio-compatible XML DOM parser.
+domParser.write('ay');
+// → [{nodeType: 1, tagName: 'foo', children: [], …}]
 
+domParser.write('</foo>');
+// → [{nodeType: 1, tagName: 'foo', children: [{nodeType: 3, data: 'okay', …}], …}]
+```
 
-For HTML parsing use
-```ts
-const TagSoup = require('tag-soup/lib/html');
-```  
+# Performance
 
-This would require a 16 kB (gzipped) bundle with: 
+[To run a performance test](./src/test/perf.js) use `npm ci && npm run build && npm run perf`.
 
-- Everything from XML bundle;
-- Support of implicit void tags like `<img>`;
-- Support all HTML entities (even legacy ones);
-- Decode complex codepoints in numeric XML entities;
-- Support implicit tag closing in TagSoup (like for `<p>foo<p>bar` which is `<p>foo</p><p>bar</p>`);
-- Preconfigured Cheerio-compatible HTML DOM parser.
+## Large input
 
+Performance was measured when parsing [the 3.81 MB HTML file](./src/test/test.html).
 
+Results are in operations per second. The higher number is better.
 
-## Limitations
+### SAX benchmark
 
-Considering XML, TagSoup has no limitations and can parse any XML document.
+|  | Ops/sec |
+| --- | ---: |
+| `createSaxParser` ¹ | <nobr>36.3 ± 0.8%</nobr> |
+| `createXmlSaxParser` ¹ | <nobr>30.7 ± 0.5%</nobr> |
+| `createHtmlSaxParser` ¹ | <nobr>23.7 ± 0.5%</nobr> |
+| `createSaxParser` | <nobr>29.2 ± 0.5%</nobr> |
+| `createXmlSaxParser` | <nobr>26.1 ± 0.5%</nobr> |
+| `createHtmlSaxParser` | <nobr>19.9 ± 0.5%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>14.3 ± 0.5%</nobr> |
+| [`@isaacs/sax-js`](https://github.com/isaacs/sax-js) | <nobr>1.7 ± 4.6%</nobr> |
 
-At the same time, TagSoup isn't a full-blown HTML DOM parser like in-browser `DOMParser` or [Parse5](https://github.com/inikulin/parse5). It doesn't resolve all weird element structures that malformed HTML may cause.
+¹ Parsers were provided a handler with a single
+[`text`](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html#text) callback. This configuration can be
+useful if you want to strip tags from the input.
 
-For example, assume the following markup
+### DOM benchmark
+
+|  | Ops/sec |
+| --- | ---: |
+| `createDomParser` | <nobr>12.1 ± 4.3%</nobr> |
+| `createXmlDomParser` | <nobr>11.1 ± 4.3%</nobr> |
+| `createHtmlDomParser` | <nobr>8.9 ± 2.4%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>6.0 ± 1.5%</nobr> |
+| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | <nobr>2.0 ± 1.8%</nobr> |
+
+## Small input
+
+The performance was measured when parsing
+[258 files with 95 kB in size on average](https://github.com/AndreasMadsen/htmlparser-benchmark/tree/master/files) from
+[`htmlparser-benchmark`](https://github.com/AndreasMadsen/htmlparser-benchmark).
+
+Results are in operations per second. The higher number is better.
+
+### SAX benchmark
+
+|  | Ops/sec |
+| --- | ---: |
+| `createSaxParser` | <nobr>1 755 ± 0.1%</nobr> |
+| `createXmlSaxParser` | <nobr>1 450 ± 0.1%</nobr> |
+| `createHtmlSaxParser` | <nobr>1 162 ± 0.1%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>546 ± 5.7%</nobr> |
+
+### DOM benchmark
+
+|  | Ops/sec |
+| --- | ---: |
+| `createDomParser` | <nobr>839 ± 3.2%</nobr> |
+| `createXmlDomParser` | <nobr>718 ± 3.1%</nobr> |
+| `createHtmlDomParser` | <nobr>612 ± 3.2%</nobr> |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>437 ± 3.1%</nobr> |
+| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | <nobr>37 ± 3.1%</nobr> |
+
+# Limitations
+
+TagSoup doesn't resolve some weird element structures that malformed HTML may cause.
+
+For example, assume the following markup:
+
 ```html
-<p><b>okay
+<p><strong>okay
 <p>nope
 ``` 
-with Parse5 you would get the following HTML
-```html
-<p><b>okay</b></p>
-<p><b>nope</b></p>
-``` 
-while with TagSoup you would get
-```html
-<p><b>okay</b></p>
-<p>nope</p>
-``` 
-note the missing `b` tag in the second paragraph.
 
-TagSoup can parse all weird attribute syntax variations and any tag names, [see tests here for more details](https://github.com/smikhalevski/tag-soup/blob/master/src/test/createSaxParser.test.ts).
+With [`DOMParser`](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser) this markup would be transformed to:
+
+```html
+<p><strong>okay</strong></p>
+<p><strong>nope</strong></p>
+``` 
+
+TagSoup doesn't insert the second `strong` tag:
+
+```html
+<p><strong>okay</strong></p>
+<p>nope</p> <!-- Note the absent "strong" tag  -->
+``` 

@@ -1,92 +1,97 @@
-import {createDomParser, DomParser, DomParserDialectOptions, DomParserFactoryCallbacks} from './createDomParser';
+import {createDomParser} from './createDomParser';
+import {IDataToken, IDomHandler, IParser, IParserOptions} from './parser-types';
+import {xmlParserOptions} from './createXmlSaxParser';
+import {
+  ContainerNode,
+  ICdataSectionNode,
+  ICommentNode,
+  IDataNode,
+  IDocumentNode,
+  IElementNode,
+  IProcessingInstructionNode,
+  ITextNode,
+  Node,
+  NodeType,
+} from './dom-types';
 
-export const enum DomNodeType {
-  ELEMENT = 1,
-  TEXT = 3,
-  PROCESSING_INSTRUCTION = 7,
-  CDATA_SECTION = 4,
-  DOCUMENT_TYPE = 10,
-  COMMENT = 8,
-}
+/**
+ * Creates a pre-configured XML DOM parser that uses {@link domHandler}.
+ *
+ * @see {@link domHandler}
+ */
+export function createXmlDomParser(): IParser<Array<Node>>;
 
-export interface DomNode {
-  nodeType: number;
-  parent: DomElement | null;
-  start: number;
-  end: number;
-  data?: string;
-}
+/**
+ * Creates a pre-configured XML DOM parser.
+ *
+ * @param handler The parsing handler.
+ * @param options Options that override the defaults.
+ *
+ * @see {@link domHandler}
+ */
+export function createXmlDomParser<Node, ContainerNode extends Node>(handler: IDomHandler<Node, ContainerNode>, options?: IParserOptions): IParser<Array<Node>>;
 
-export interface DomAttributeMap {
-  [attrName: string]: string;
-}
-
-export interface DomElement extends DomNode {
-  nodeType: DomNodeType.ELEMENT;
-  tagName: string;
-  attrs: DomAttributeMap;
-  selfClosing: boolean;
-  children: Array<DomNode>;
-}
-
-export interface DomText extends DomNode {
-  nodeType: DomNodeType.TEXT;
-  data: string;
-}
-
-function createDomNode(nodeType: number, data: string, start: number, end: number): DomNode {
-  return {nodeType, parent: null, start, end, data};
+export function createXmlDomParser(handler?: IDomHandler<unknown, unknown>, options?: IParserOptions) {
+  return createDomParser(handler || domHandler, {...xmlParserOptions, ...options});
 }
 
 /**
- * Creates preconfigured Cheerio-compatible XML DOM parser that returns a tree of {@link DomNode}s.
+ * The default DOM handler.
  */
-export function createXmlDomParser(options: DomParserDialectOptions<DomElement> = {}): DomParser<DomNode, DomElement, DomText> {
+export const domHandler: IDomHandler<Node, ContainerNode> = {
 
-  const domParserFactoryCallbacks: DomParserFactoryCallbacks<DomNode, DomElement, DomText> = {
+  element(token): IElementNode {
+    const attributes: Record<string, string | null | undefined> = Object.create(null);
 
-    createElement(tagName, attrs, selfClosing, start, end) {
-      const attrMap: DomAttributeMap = {};
-      for (let i = 0, l = attrs.length; i < l; i++) {
-        const attr = attrs[i];
-        attrMap[attr.name] = attr.value;
-      }
-      return {
-        nodeType: DomNodeType.ELEMENT,
-        parent: null,
-        tagName,
-        attrs: attrMap,
-        selfClosing,
-        children: [],
-        start,
-        end,
-      };
-    },
+    for (let i = 0; i < token.attributes.length; i++) {
+      const attribute = token.attributes[i];
+      attributes[attribute.name] = attribute.value;
+    }
 
-    appendChild(element, childNode) {
-      childNode.parent = element;
-      element.children.push(childNode);
-    },
+    return {
+      nodeType: NodeType.ELEMENT,
+      parent: null,
+      tagName: token.name,
+      attributes,
+      selfClosing: token.selfClosing,
+      children: [],
+      start: token.start,
+      end: token.end,
+    };
+  },
 
-    onContainerEnd(element, start, end) {
-      element.end = end;
-    },
+  appendChild(parentNode, node) {
+    node.parent = parentNode;
+    parentNode.children.push(node);
+  },
 
-    createTextNode(value, start, end) {
-      return {
-        nodeType: DomNodeType.TEXT,
-        parent: null,
-        data: value,
-        start,
-        end,
-      };
-    },
+  containerEnd(node, token) {
+    node.end = token.end;
+  },
 
-    createProcessingInstruction: (data, start, end) => createDomNode(DomNodeType.PROCESSING_INSTRUCTION, data, start, end),
-    createCdataSection: (data, start, end) => createDomNode(DomNodeType.CDATA_SECTION, data, start, end),
-    createDocumentType: (data, start, end) => createDomNode(DomNodeType.DOCUMENT_TYPE, data, start, end),
-    createComment: (data, start, end) => createDomNode(DomNodeType.COMMENT, data, start, end),
+  document(token): IDocumentNode {
+    return {
+      nodeType: NodeType.DOCUMENT,
+      parent: null,
+      doctype: token.data,
+      children: [],
+      start: token.start,
+      end: token.end,
+    };
+  },
+
+  text: (token) => createDataNode<ITextNode>(NodeType.TEXT, token),
+  processingInstruction: (token) => createDataNode<IProcessingInstructionNode>(NodeType.PROCESSING_INSTRUCTION, token),
+  cdata: (token) => createDataNode<ICdataSectionNode>(NodeType.CDATA_SECTION, token),
+  comment: (token) => createDataNode<ICommentNode>(NodeType.COMMENT, token),
+};
+
+function createDataNode<DataNode extends IDataNode>(nodeType: DataNode['nodeType'], token: IDataToken): DataNode {
+  return <DataNode>{
+    nodeType,
+    data: token.data,
+    parent: null,
+    start: token.start,
+    end: token.end,
   };
-
-  return createDomParser(Object.assign({}, options, domParserFactoryCallbacks));
 }

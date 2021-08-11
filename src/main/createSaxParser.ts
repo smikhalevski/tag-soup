@@ -1,240 +1,161 @@
-import {Rewriter} from './parser-utils';
-import {parseSax} from './parseSax';
-
-export interface Attribute {
-
-  /**
-   * The name of the attribute.
-   */
-  name: string;
-
-  /**
-   * The decoded value of the attribute. If attribute didn't have a value then an empty string.
-   */
-  value: string;
-
-  /**
-   * The index of the char at which attribute declaration starts.
-   */
-  start: number;
-
-  /**
-   * The index of the char at which attribute declaration ends (exclusive).
-   */
-  end: number;
-}
+import {ITokenizerOptions, tokenize} from './tokenize';
+import {createObjectPool} from './createObjectPool';
+import {createAttributeToken, createDataToken, createEndTagToken, createStartTagToken} from './tokens';
+import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken} from './parser-types';
 
 /**
- * Type of the callback triggered by SAX parser that should process a plain text data.
+ * Creates a new stateful SAX parser.
  *
- * @param data The text extracted from the source.
- * @param start The index of the char at which the `data` substring starts in the source.
- * @param end The index of the char at which the `data` substring ends in the source.
+ * @param handler The parsing handler.
+ * @param options Parsing options.
  */
-export type DataCallback = (data: string, start: number, end: number) => void;
-
-export interface SaxParserDialectOptions {
-
-  /**
-   * Determines whether XML rules should be applied during parsing.
-   *
-   * If set to `true` then:
-   * - CDATA sections and processing instructions are parsed;
-   * - Self-closing tags are recognized;
-   * - Tag names are case-sensitive.
-   *
-   * If set to `false` then:
-   * - CDATA sections and processing instructions are emitted as comments;
-   * - Self-closing tags are treated as start tags;
-   * - Tag names are case-insensitive.
-   *
-   * @default false
-   */
-  xmlEnabled?: boolean;
-
-  /**
-   * Decodes XML entities in an attribute value. By default, only XML entities are decoded.
-   *
-   * @see {@link createEntitiesDecoder}
-   */
-  decodeAttr?: Rewriter;
-
-  /**
-   * Decodes XML entities in plain text value. By default, only XML entities are decoded.
-   *
-   * @see {@link createEntitiesDecoder}
-   */
-  decodeText?: Rewriter;
-
-  /**
-   * Rewrites tag name. By default, in XML mode tags aren't renamed while in non-XML mode tags are converted to lower
-   * case.
-   */
-  renameTag?: Rewriter;
-
-  /**
-   * Rewrites attribute name. By default, there's no rewriting.
-   */
-  renameAttr?: Rewriter;
-
-  /**
-   * Enables self-closing tags recognition. This is always enabled if {@link xmlEnabled} is set to `true`.
-   *
-   * @default false
-   */
-  selfClosingEnabled?: boolean;
-
-  /**
-   * Determines whether the container tag content should be interpreted as a markup or as a plain text. Useful when
-   * parsing `script` and `style` tags. By default, `false` for all tags.
-   *
-   * @param tagName The name of the start tag.
-   * @returns If `true` than the content inside the container tag would be treated as a plain text.
-   */
-  isTextContent?(tagName: string): boolean;
-}
-
-export interface SaxParserCallbacks {
-
-  /**
-   * Triggered when a start tag and its attributes were read.
-   *
-   * @param tagName The name of the start tag.
-   * @param attrs An array-like object that holds pooled objects that would be revoked after this callback finishes. To
-   *     preserve parsed attributes make a deep copy of `attrs`. Object pooling is used to reduce memory consumption
-   *     during parsing by avoiding excessive allocations.
-   * @param selfClosing `true` if tag is self-closing.
-   * @param start The index of char at which tag declaration starts.
-   * @param end The index of char at which tag declaration ends (exclusive).
-   */
-  onStartTag?(tagName: string, attrs: ArrayLike<Attribute>, selfClosing: boolean, start: number, end: number): void;
-
-  /**
-   * Triggered when an end tag was read.
-   *
-   * @param tagName The name of the end tag.
-   * @param start The index of char at which tag declaration starts.
-   * @param end The index of char at which tag declaration ends (exclusive).s
-   */
-  onEndTag?(tagName: string, start: number, end: number): void;
-
-  /**
-   * Triggered when a chunk of text was read.
-   */
-  onText?: DataCallback;
-
-  /**
-   * Triggered when a comment was read.
-   */
-  onComment?: DataCallback;
-
-  /**
-   * Triggered when a processing instruction was read.
-   */
-  onProcessingInstruction?: DataCallback;
-
-  /**
-   * Triggered when a CDATA section was read. This is triggered only when `xmlEnabled` is set to `true`, otherwise
-   * CDATA sections are treated as plain text.
-   */
-  onCdataSection?: DataCallback;
-
-  /**
-   * Triggered when a DOCTYPE was read. This library doesn't process the contents of the DOCTYPE so `data` argument
-   * would contain the raw source of the DOCTYPE declaration.
-   */
-  onDocumentType?: DataCallback;
-
-  /**
-   * Triggered when parser is reset.
-   *
-   * @see {@link SaxParser.reset}
-   */
-  onReset?(): void;
-
-  /**
-   * Triggered after parser was provided a new source chunk.
-   *
-   * @param sourceChunk The chunk of data that was provided to parser.
-   * @param parsedCharCount The total number of characters that were parsed by parser.
-   * @see {@link SaxParser.write}
-   */
-  onWrite?(sourceChunk: string, parsedCharCount: number): void;
-
-  /**
-   * Triggered when parsing has completed but before the parser is reset.
-   *
-   * @param source The source that was parsed.
-   * @param parsedCharCount The total number of characters that were parsed by parser.
-   * @see {@link SaxParser.parse}
-   */
-  onParse?(source: string, parsedCharCount: number): void;
-}
-
-export interface SaxParserOptions extends SaxParserDialectOptions, SaxParserCallbacks {
-}
-
-export interface SaxParser {
-
-  /**
-   * Resets the internal state of the parser.
-   */
-  reset(): void;
-
-  /**
-   * Try to parse a given source chunk. If there's an ambiguity during parsing then the parser is paused until the next
-   * {@link write} or {@link parse} invocation. The part of chunk that was not parsed is appended to internal
-   * buffer.
-   *
-   * @param sourceChunk The source chunk to parse.
-   */
-  write(sourceChunk: string): void;
-
-  /**
-   * Parses the given source. If there's a leftover in the buffer after the last {@link write} call it is also used
-   * for parsing. Parser is reset after this method completes.
-   *
-   * @param source The source to parse.
-   */
-  parse(source?: string): void;
-}
-
-/**
- * Creates a streaming SAX parser that emits tags as is.
- */
-export function createSaxParser(options: SaxParserOptions = {}): SaxParser {
-  const {
-    onReset,
-    onWrite,
-    onParse,
-  } = options;
+export function createSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
+  const opts = {...options};
 
   let buffer = '';
-  let offset = 0;
-  let parsedCharCount = 0;
+  let chunkOffset = 0;
 
-  const reset = () => {
+  const tokenizerOptions: ITokenizerOptions = {
+    startTagTokenPool: createObjectPool(createStartTagToken),
+    attributeTokenPool: createObjectPool(createAttributeToken),
+    endTagToken: createEndTagToken(),
+    dataToken: createDataToken(),
+  };
+
+  const forgivingHandler = createForgivingHandler(handler, tokenizerOptions, opts);
+
+  const write = (sourceChunk: string): void => {
+    sourceChunk ||= '';
+    buffer += sourceChunk;
+    const index = tokenize(buffer, true, chunkOffset, tokenizerOptions, opts, forgivingHandler);
+    buffer = buffer.substr(index);
+    chunkOffset += index;
+  };
+
+  const parse = (source?: string): void => {
+    source ||= '';
+    buffer += source;
+    const index = tokenize(buffer, false, chunkOffset, tokenizerOptions, opts, forgivingHandler);
+    forgivingHandler.sourceEnd?.(chunkOffset + index);
+    reset();
+  };
+
+  const reset = (): void => {
     buffer = '';
-    offset = 0;
-    onReset?.();
+    chunkOffset = 0;
+    forgivingHandler.reset?.();
   };
 
   return {
+    write,
+    parse,
     reset,
-
-    write(chunk) {
-      buffer += chunk;
-      const l = parseSax(buffer, true, offset, options);
-      parsedCharCount += l;
-      buffer = buffer.substr(l);
-      offset += l;
-      onWrite?.(chunk, parsedCharCount);
-    },
-
-    parse(chunk = '') {
-      parsedCharCount += parseSax(buffer + chunk, false, offset, options);
-      onParse?.(chunk, parsedCharCount);
-      reset();
-    },
   };
+}
+
+function createForgivingHandler(handler: ISaxHandler, tokenizerOptions: ITokenizerOptions, options: IParserOptions): ISaxHandler {
+
+  const {
+    startTag: startTagCallback,
+    endTag: endTagCallback,
+    reset: resetCallback,
+    sourceEnd: sourceEndCallback,
+  } = handler;
+
+  const {
+    startTagTokenPool,
+    attributeTokenPool,
+  } = tokenizerOptions;
+
+  const {
+    checkVoidTag,
+    endsAncestorAt,
+  } = options;
+
+  const endTagToken = createEndTagToken();
+  const forgivingHandler = {...handler};
+  const ancestors: IArrayLike<IStartTagToken> = {length: 0};
+
+  const releaseStartTag = (token: IStartTagToken): void => {
+    startTagTokenPool.release(token);
+
+    for (let i = 0; i < token.attributes.length; ++i) {
+      attributeTokenPool.release(token.attributes[i]);
+    }
+  };
+
+  if (!startTagCallback && !endTagCallback) {
+    forgivingHandler.startTag = releaseStartTag;
+    return forgivingHandler;
+  }
+
+  const releaseAncestors = (ancestorIndex: number): void => {
+    for (let i = ancestorIndex; i < ancestors.length; ++i) {
+      releaseStartTag(ancestors[i]);
+      ancestors[i] = undefined as unknown as IStartTagToken;
+    }
+    ancestors.length = ancestorIndex;
+  };
+
+  const triggerImplicitEnd = (ancestorIndex: number, end: number) => {
+    if (ancestorIndex % 1 !== 0 || ancestorIndex < 0 || ancestorIndex >= ancestors.length) {
+      return;
+    }
+    if (!endTagCallback) {
+      releaseAncestors(ancestorIndex);
+      return;
+    }
+
+    for (let i = ancestors.length - 1; i >= ancestorIndex; --i) {
+
+      endTagToken.rawName = ancestors[i].rawName;
+      endTagToken.name = ancestors[i].name;
+      endTagToken.start = endTagToken.end = end;
+      endTagToken.nameStart = endTagToken.nameEnd = -1;
+
+      endTagCallback(endTagToken);
+    }
+    releaseAncestors(ancestorIndex);
+  };
+
+  forgivingHandler.startTag = (token) => {
+    token.selfClosing ||= checkVoidTag?.(token) || false;
+
+    if (endsAncestorAt != null && ancestors.length !== 0) {
+      triggerImplicitEnd(endsAncestorAt(ancestors, token), token.start);
+    }
+
+    startTagCallback?.(token);
+
+    if (token.selfClosing) {
+      releaseStartTag(token);
+    } else {
+      ancestors[ancestors.length++] = token;
+    }
+  };
+
+  forgivingHandler.endTag = (token) => {
+    for (let i = ancestors.length - 1; i >= 0; --i) {
+      if (ancestors[i].name !== token.name) {
+        continue;
+      }
+      triggerImplicitEnd(i + 1, token.start);
+      endTagCallback?.(token);
+      releaseStartTag(ancestors[i]);
+      ancestors.length = i;
+      break;
+    }
+  };
+
+  forgivingHandler.sourceEnd = (sourceLength) => {
+    triggerImplicitEnd(0, sourceLength);
+    sourceEndCallback?.(sourceLength);
+  };
+
+  forgivingHandler.reset = () => {
+    releaseAncestors(0);
+    resetCallback?.();
+  };
+
+  return forgivingHandler;
 }

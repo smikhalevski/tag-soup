@@ -1,26 +1,51 @@
-import {createDomParser, DomParser, DomParserOptions} from '../main/createDomParser';
+import {createDomParser} from '../main/createDomParser';
+import {IDomHandler, IParser, IParserOptions} from '../main/parser-types';
 
 describe('createDomParser', () => {
 
-  let domParserOptions: DomParserOptions<any, any, any> = {
-    createElement(tagName, attrs, selfClosing, start, end) {
-      return {tagName, attrs, start, end, children: []};
-    },
-    createTextNode(data, start, end) {
-      return {data, start, end};
-    },
-    appendChild(element, childNode) {
-      element.children.push(childNode);
-    },
-    onContainerEnd(node, start, end) {
-      node.end = end;
-    },
-  };
-
-  let parser: DomParser<any>;
+  let options: IParserOptions;
+  let parser: IParser<any>;
+  let handler: IDomHandler<any, any>;
 
   beforeEach(() => {
-    parser = createDomParser(domParserOptions);
+    options = {};
+    handler = {
+
+      element(token) {
+        return {
+          tagName: token.name,
+          attributes: Array.from(token.attributes).map((attribute) => {
+            return {
+              name: attribute.name,
+              value: attribute.value,
+              start: attribute.start,
+              end: attribute.end,
+            };
+          }),
+          start: token.start,
+          end: token.end,
+          children: [],
+        };
+      },
+
+      appendChild(element, childNode) {
+        element.children.push(childNode);
+      },
+
+      containerEnd(element, token) {
+        element.end = token.end;
+      },
+
+      text(token) {
+        return {
+          data: token.data,
+          start: token.start,
+          end: token.end,
+        };
+      },
+    };
+
+    parser = createDomParser(handler, options);
   });
 
   describe('in streaming mode', () => {
@@ -28,20 +53,36 @@ describe('createDomParser', () => {
     it('defers text parsing', () => {
 
       expect(parser.write('<a>foo')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attributes: [], children: []},
       ]);
 
       expect(parser.write('bar')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attributes: [], children: []},
       ]);
 
       expect(parser.write('qux</a>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 16, attrs: {length: 0}, children: [
+          tagName: 'a', start: 0, end: 16, attributes: [], children: [
             {data: 'foobarqux', start: 3, end: 12},
           ],
         },
       ]);
+    });
+
+    it('returns the same array on every write', () => {
+      const nodes = parser.write('<a>');
+
+      expect(parser.write('</a>')).toBe(nodes);
+
+      expect(nodes).toEqual([
+        {tagName: 'a', start: 0, end: 7, attributes: [], children: []},
+      ]);
+    });
+
+    it('returns the new array after reset', () => {
+      const nodes = parser.write('<a>');
+      parser.reset();
+      expect(parser.write('</a>')).not.toBe(nodes);
     });
 
   });
@@ -57,7 +98,7 @@ describe('createDomParser', () => {
     it('parses tag with text', () => {
       expect(parser.parse('<a>okay</a>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 11, attrs: {length: 0}, children: [
+          tagName: 'a', start: 0, end: 11, attributes: [], children: [
             {data: 'okay', start: 3, end: 7},
           ],
         },
@@ -70,41 +111,39 @@ describe('createDomParser', () => {
           tagName: 'a',
           start: 0,
           end: 15,
-          attrs: {length: 1, 0: {name: 'foo', value: 'bar', start: 3, end: 10}},
+          attributes: [{name: 'foo', value: 'bar', start: 3, end: 10}],
           children: [],
         },
       ]);
     });
 
     it('recognizes void elements', () => {
-      parser = createDomParser({
-        ...domParserOptions,
-        isVoidContent: (tagName) => tagName === 'a',
-      });
+      options.checkVoidTag = (token) => token.name === 'a';
+
+      parser = createDomParser(handler, options);
 
       expect(parser.parse('<a><a>')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
-        {tagName: 'a', start: 3, end: 6, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attributes: [], children: []},
+        {tagName: 'a', start: 3, end: 6, attributes: [], children: []},
       ]);
     });
 
     it('renders children of void elements as siblings', () => {
-      parser = createDomParser({
-        ...domParserOptions,
-        isVoidContent: (tagName) => tagName === 'a',
-      });
+      options.checkVoidTag = (token) => token.name === 'a';
+
+      parser = createDomParser(handler, options);
 
       expect(parser.parse('<a><b></b></a>')).toEqual([
-        {tagName: 'a', start: 0, end: 3, attrs: {length: 0}, children: []},
-        {tagName: 'b', start: 3, end: 10, attrs: {length: 0}, children: []},
+        {tagName: 'a', start: 0, end: 3, attributes: [], children: []},
+        {tagName: 'b', start: 3, end: 10, attributes: [], children: []},
       ]);
     });
 
     it('parses nested tags', () => {
       expect(parser.parse('<a><b></b></a>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 14, attrs: {length: 0}, children: [
-            {tagName: 'b', start: 3, end: 10, attrs: {length: 0}, children: []},
+          tagName: 'a', start: 0, end: 14, attributes: [], children: [
+            {tagName: 'b', start: 3, end: 10, attributes: [], children: []},
           ],
         },
       ]);
@@ -113,8 +152,8 @@ describe('createDomParser', () => {
     it('parses nested tags that are closed in wrong order', () => {
       expect(parser.parse('<a><b></a></b>')).toEqual([
         {
-          tagName: 'a', start: 0, end: 10, attrs: {length: 0}, children: [
-            {tagName: 'b', start: 3, end: 6, attrs: {length: 0}, children: []},
+          tagName: 'a', start: 0, end: 10, attributes: [], children: [
+            {tagName: 'b', start: 3, end: 6, attributes: [], children: []},
           ],
         },
       ]);
@@ -123,10 +162,10 @@ describe('createDomParser', () => {
     it('parses nested tags that are closed in wrong order with matching parent', () => {
       expect(parser.parse('<b><a><b></a></b>')).toEqual([
         {
-          tagName: 'b', start: 0, end: 17, attrs: {length: 0}, children: [
+          tagName: 'b', start: 0, end: 17, attributes: [], children: [
             {
-              tagName: 'a', start: 3, end: 13, attrs: {length: 0}, children: [
-                {tagName: 'b', start: 6, end: 9, attrs: {length: 0}, children: []},
+              tagName: 'a', start: 3, end: 13, attributes: [], children: [
+                {tagName: 'b', start: 6, end: 9, attributes: [], children: []},
               ],
             },
           ],
@@ -135,11 +174,9 @@ describe('createDomParser', () => {
     });
 
     it('ignores unmatched closing tags', () => {
-      parser = createDomParser(domParserOptions);
-
       expect(parser.parse('<a></b>eee')).toEqual([
         {
-          tagName: 'a', start: 0, end: 10, attrs: {length: 0}, children: [
+          tagName: 'a', start: 0, end: 10, attributes: [], children: [
             {data: 'eee', start: 7, end: 10},
           ],
         },

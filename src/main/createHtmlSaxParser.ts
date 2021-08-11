@@ -1,159 +1,133 @@
-import {createFromCharCode, FromCharCodeOptions} from './createFromCharCode';
-import {SaxParser, SaxParserCallbacks} from './createSaxParser';
-import {createEntitiesDecoder} from './createEntitiesDecoder';
-import {createFromHtmlCharName} from './createFromHtmlCharName';
-import {createForgivingSaxParser, ForgivingSaxParserOptions} from './createForgivingSaxParser';
-import {purify} from './parser-utils';
-import {lowerCase} from './parseSax';
+import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken} from './parser-types';
+import {createSaxParser} from './createSaxParser';
+import {decodeHtml} from 'speedy-entities';
 
-export interface HtmlSaxParserDialectOptions extends FromCharCodeOptions {
-
-  /**
-   * If set to `true` then:
-   * - Self-closing tags are parsed;
-   * - All non-void elements are expected to be closed.
-   *
-   * @default false
-   */
-  xhtmlEnabled?: boolean;
-
-  /**
-   * If set to `true` then:
-   * - Doesn't recognize non-terminated and legacy HTML entities;
-   * - Throw an error if the decoder meets a disallowed character reference.
-   *
-   * **Note:** Using this option may slow parsing because additional checks are involved.
-   *
-   * @default false
-   */
-  strict?: boolean;
-}
-
-export interface HtmlSaxParserOptions extends HtmlSaxParserDialectOptions, SaxParserCallbacks {
+/**
+ * Creates a pre-configured HTML SAX parser.
+ *
+ * @param handler The parsing handler.
+ * @param options Options that override the defaults.
+ */
+export function createHtmlSaxParser(handler: ISaxHandler, options?: IParserOptions): IParser<void> {
+  return createSaxParser(handler, {...htmlParserOptions, ...options});
 }
 
 /**
- * Creates preconfigured HTML SAX parser.
+ * The default HTML parser options:
+ * - CDATA sections and processing instructions are treated as comments;
+ * - Self-closing tags are treated as a start tags;
+ * - Tags like `p`, `li`, `td` and others follow implicit end rules, so `<p>foo<p>bar` is parsed as
+ * `<p>foo</p><p>bar</p>`;
+ * - Tag and attribute names are converted to lower case;
+ * - Legacy HTML entities are decoded in text and attribute values. To decode all known HTML entities use:
+ *
+ * ```ts
+ * import {decodeHtml} from 'speedy-entities/lib/full';
+ *
+ * createHtmlSaxParser({
+ *   decodeText: decodeHtml,
+ *   decodeAttribute: decodeHtml,
+ * });
+ * ```
+ *
+ * @see {@link https://github.com/smikhalevski/speedy-entities decodeHtml}
  */
-export function createHtmlSaxParser(options: HtmlSaxParserOptions): SaxParser {
-  const {
-    xhtmlEnabled = false,
-  } = options;
+export const htmlParserOptions: IParserOptions = {
+  decodeText: decodeHtml,
+  decodeAttribute: decodeHtml,
+  renameTag: toLowerCase,
+  renameAttribute: toLowerCase,
+  checkCdataTag,
+  checkVoidTag,
+  endsAncestorAt,
+};
 
-  const fromCharCode = createFromCharCode(options);
-
-  const htmlAttrDecoder = createEntitiesDecoder({
-    fromCharName: createFromHtmlCharName(options),
-    fromCharCode,
-  });
-
-  const htmlTextDecoder = createEntitiesDecoder({
-    fromCharName: createFromHtmlCharName(),
-    fromCharCode,
-  });
-
-  const saxParserOptions: ForgivingSaxParserOptions = {
-    xmlEnabled: false,
-    selfClosingEnabled: xhtmlEnabled,
-    decodeAttr: htmlAttrDecoder,
-    decodeText: htmlTextDecoder,
-
-    isTextContent: (tagName) => textTagMap[tagName] === 1,
-    isVoidContent: (tagName) => voidTagMap[tagName] === 1,
-    isImplicitEnd: xhtmlEnabled ? undefined : (currentTagName, tagName) => implicitEndMap[currentTagName]?.[tagName] === 1,
-
-    renameTag: lowerCase,
-  };
-
-  return createForgivingSaxParser(Object.assign({}, options, saxParserOptions));
+function toLowerCase(name: string): string {
+  return name.toLowerCase();
 }
 
-const voidTagMap = purify<Record<string, 1>>({
-  area: 1,
-  base: 1,
-  basefont: 1,
-  br: 1,
-  col: 1,
-  command: 1,
-  embed: 1,
-  frame: 1,
-  hr: 1,
-  img: 1,
-  input: 1,
-  isindex: 1,
-  keygen: 1,
-  link: 1,
-  meta: 1,
-  param: 1,
-  source: 1,
-  track: 1,
-  wbr: 1,
+function checkCdataTag(token: IStartTagToken): boolean {
+  return cdataTags.has(token.name);
+}
+
+function checkVoidTag(token: IStartTagToken): boolean {
+  return voidTags.has(token.name);
+}
+
+function endsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
+  const tagNames = implicitEndMap.get(token.name);
+  if (tagNames) {
+    for (let i = containerToken.length - 1; i >= 0; --i) {
+      if (tagNames.has(containerToken[i].name)) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+const voidTags = toSet('area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr');
+
+const cdataTags = toSet('script style textarea');
+
+const formTags = toSet('input option optgroup select button datalist textarea');
+
+const pTags = toSet('p');
+
+const implicitEndMap = toMap({
+  tr: toSet('tr th td'),
+  th: toSet('th'),
+  td: toSet('thead th td'),
+  body: toSet('head link script'),
+  li: toSet('li'),
+  option: toSet('option'),
+  optgroup: toSet('optgroup option'),
+  dd: toSet('dt dd'),
+  dt: toSet('dt dd'),
+  select: formTags,
+  input: formTags,
+  output: formTags,
+  button: formTags,
+  datalist: formTags,
+  textarea: formTags,
+  p: pTags,
+  h1: pTags,
+  h2: pTags,
+  h3: pTags,
+  h4: pTags,
+  h5: pTags,
+  h6: pTags,
+  address: pTags,
+  article: pTags,
+  aside: pTags,
+  blockquote: pTags,
+  details: pTags,
+  div: pTags,
+  dl: pTags,
+  fieldset: pTags,
+  figcaption: pTags,
+  figure: pTags,
+  footer: pTags,
+  form: pTags,
+  header: pTags,
+  hr: pTags,
+  main: pTags,
+  nav: pTags,
+  ol: pTags,
+  pre: pTags,
+  section: pTags,
+  table: pTags,
+  ul: pTags,
+  rt: toSet('rt rp'),
+  rp: toSet('rt rp'),
+  tbody: toSet('thead tbody'),
+  tfoot: toSet('thead tbody'),
 });
 
-const textTagMap = purify<Record<string, 1>>({
-  script: 1,
-  style: 1,
-  textarea: 1,
-});
+function toSet(data: string): Set<string> {
+  return new Set(data.split(' '));
+}
 
-const formTagMap = purify<Record<string, 1>>({
-  input: 1,
-  option: 1,
-  optgroup: 1,
-  select: 1,
-  button: 1,
-  datalist: 1,
-  textarea: 1,
-});
-
-const pTagMap = purify<Record<string, 1>>({p: 1});
-
-const implicitEndMap = purify<Record<string, Record<string, 1>>>({
-  tr: purify({tr: 1, th: 1, td: 1}),
-  th: purify({th: 1}),
-  td: purify({thead: 1, th: 1, td: 1}),
-  body: purify({head: 1, link: 1, script: 1}),
-  li: purify({li: 1}),
-  option: purify({option: 1}),
-  optgroup: purify({optgroup: 1, option: 1}),
-  dd: purify({dt: 1, dd: 1}),
-  dt: purify({dt: 1, dd: 1}),
-  select: formTagMap,
-  input: formTagMap,
-  output: formTagMap,
-  button: formTagMap,
-  datalist: formTagMap,
-  textarea: formTagMap,
-  p: pTagMap,
-  h1: pTagMap,
-  h2: pTagMap,
-  h3: pTagMap,
-  h4: pTagMap,
-  h5: pTagMap,
-  h6: pTagMap,
-  address: pTagMap,
-  article: pTagMap,
-  aside: pTagMap,
-  blockquote: pTagMap,
-  details: pTagMap,
-  div: pTagMap,
-  dl: pTagMap,
-  fieldset: pTagMap,
-  figcaption: pTagMap,
-  figure: pTagMap,
-  footer: pTagMap,
-  form: pTagMap,
-  header: pTagMap,
-  hr: pTagMap,
-  main: pTagMap,
-  nav: pTagMap,
-  ol: pTagMap,
-  pre: pTagMap,
-  section: pTagMap,
-  table: pTagMap,
-  ul: pTagMap,
-  rt: purify({rt: 1, rp: 1}),
-  rp: purify({rt: 1, rp: 1}),
-  tbody: purify({thead: 1, tbody: 1}),
-  tfoot: purify({thead: 1, tbody: 1}),
-});
+function toMap<V>(rec: Record<string, V>): Map<string, V> {
+  return new Map(Object.entries(rec));
+}
