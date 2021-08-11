@@ -35,7 +35,11 @@ const fullHandler = {
   cdata: () => undefined,
 };
 
-const beforeCycle = () => global.gc();
+const afterCycle = (cycleCount) => {
+  if (cycleCount % 3 === 0) {
+    global.gc();
+  }
+};
 
 console.log(chalk.inverse(' Large input ') + '\n');
 
@@ -53,20 +57,20 @@ const htmlparserSaxParser1 = new htmlparser2.Parser();
 const saxParser = sax.parser();
 
 test('createSaxParser     (text)', () => textSaxParser.parse(largeHtmlSource), {timeout: 10000});
-beforeCycle();
+afterCycle();
 test('createXmlSaxParser  (text)', () => textXmlSaxParser.parse(largeHtmlSource), {timeout: 10000});
-beforeCycle();
+afterCycle();
 test('createHtmlSaxParser (text)', () => textHtmlSaxParser.parse(largeHtmlSource), {timeout: 10000});
-beforeCycle();
+afterCycle();
 test('createSaxParser           ', () => fullSaxParser1.parse(largeHtmlSource), {timeout: 20000});
-beforeCycle();
+afterCycle();
 test('createXmlSaxParser        ', () => fullXmlSaxParser1.parse(largeHtmlSource), {timeout: 20000});
-beforeCycle();
+afterCycle();
 test('createHtmlSaxParser       ', () => fullHtmlSaxParser1.parse(largeHtmlSource), {timeout: 20000});
-beforeCycle();
+afterCycle();
 test('createHtmlSaxParser (full)', () => fullHtmlSaxParser2.parse(largeHtmlSource), {timeout: 20000});
-test('htmlparser2               ', () => htmlparserSaxParser1.end(largeHtmlSource), {timeout: 30000, beforeCycle});
-test('sax                       ', () => saxParser.write(largeHtmlSource), {timeout: 30000, beforeCycle});
+test('htmlparser2               ', () => htmlparserSaxParser1.end(largeHtmlSource), {timeout: 30000, afterCycle});
+test('sax                       ', () => saxParser.write(largeHtmlSource), {timeout: 30000, afterCycle});
 
 console.log(chalk.bold('\nDOM benchmark'));
 
@@ -74,13 +78,19 @@ const domParser1 = createDomParser(domHandler);
 const xmlDomParser1 = createXmlDomParser(domHandler);
 const htmlDomParser1 = createHtmlDomParser(domHandler);
 
-const htmlparserDomParser1 = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+let htmlparserDomParser1;
 
-test('createDomParser    ', () => domParser1.parse(largeHtmlSource), {timeout: 120000, beforeCycle});
-test('createXmlDomParser ', () => xmlDomParser1.parse(largeHtmlSource), {timeout: 120000, beforeCycle});
-test('createHtmlDomParser', () => htmlDomParser1.parse(largeHtmlSource), {timeout: 120000, beforeCycle});
-test('htmlparser2        ', () => htmlparserDomParser1.end(largeHtmlSource), {timeout: 120000, beforeCycle});
-test('parse5             ', () => parse5.parse(largeHtmlSource), {timeout: 120000, beforeCycle});
+test('createDomParser    ', () => domParser1.parse(largeHtmlSource), {timeout: 120000, afterCycle});
+test('createXmlDomParser ', () => xmlDomParser1.parse(largeHtmlSource), {timeout: 120000, afterCycle});
+test('createHtmlDomParser', () => htmlDomParser1.parse(largeHtmlSource), {timeout: 120000, afterCycle});
+test('htmlparser2        ', () => htmlparserDomParser1.end(largeHtmlSource), {
+  timeout: 120000,
+
+  // Have to re-create, out-of-memory otherwise
+  beforeCycle: () => htmlparserDomParser1 = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null)),
+  afterCycle,
+});
+test('parse5             ', () => parse5.parse(largeHtmlSource), {timeout: 120000, afterCycle});
 
 
 console.log('\n' + chalk.inverse(' Small input ') + '\n');
@@ -91,15 +101,22 @@ const saxParser2 = createSaxParser(fullHandler);
 const xmlSaxParser2 = createXmlSaxParser(fullHandler);
 const htmlSaxParser2 = createHtmlSaxParser(fullHandler);
 
-const htmlparserSaxParser2 = new htmlparser2.Parser();
+let htmlparserSaxParser2;
 
-beforeCycle();
+afterCycle();
 valueTest(htmlparserBenchmarkSources, 'createSaxParser    ', (value) => saxParser2.parse(value), {timeout: 4000, targetRme: 0});
-beforeCycle();
+afterCycle();
 valueTest(htmlparserBenchmarkSources, 'createXmlSaxParser ', (value) => xmlSaxParser2.parse(value), {timeout: 4000, targetRme: 0});
-beforeCycle();
+afterCycle();
 valueTest(htmlparserBenchmarkSources, 'createHtmlSaxParser', (value) => htmlSaxParser2.parse(value), {timeout: 4000, targetRme: 0});
-valueTest(htmlparserBenchmarkSources, 'htmlparser2        ', (value) => htmlparserSaxParser2.end(value), {timeout: 6000, targetRme: 0, beforeCycle});
+valueTest(htmlparserBenchmarkSources, 'htmlparser2        ', (value) => htmlparserSaxParser2.end(value), {
+  timeout: 6000,
+  targetRme: 0,
+
+  // Have to re-create, out-of-memory otherwise
+  beforeCycle: () => htmlparserSaxParser2 = new htmlparser2.Parser(),
+  afterCycle,
+});
 
 console.log(chalk.bold('\nDOM benchmark'));
 
@@ -107,10 +124,17 @@ const domParser2 = createDomParser(domHandler);
 const xmlDomParser2 = createXmlDomParser(domHandler);
 const htmlDomParser2 = createHtmlDomParser(domHandler);
 
-const htmlparserDomParser2 = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+let htmlparserDomParser2;
 
-valueTest(htmlparserBenchmarkSources, 'createDomParser    ', (value) => domParser2.parse(value), {timeout: 6000, targetRme: 0, beforeCycle});
-valueTest(htmlparserBenchmarkSources, 'createXmlDomParser ', (value) => xmlDomParser2.parse(value), {timeout: 6000, targetRme: 0, beforeCycle});
-valueTest(htmlparserBenchmarkSources, 'createHtmlDomParser', (value) => htmlDomParser2.parse(value), {timeout: 6000, targetRme: 0, beforeCycle});
-valueTest(htmlparserBenchmarkSources, 'htmlparser2        ', (value) => htmlparserDomParser2.end(value), {timeout: 6000, targetRme: 0, beforeCycle});
-valueTest(htmlparserBenchmarkSources, 'parse5             ', (value) => parse5.parse(value), {timeout: 6000, targetRme: 0, beforeCycle});
+valueTest(htmlparserBenchmarkSources, 'createDomParser    ', (value) => domParser2.parse(value), {timeout: 6000, targetRme: 0, afterCycle});
+valueTest(htmlparserBenchmarkSources, 'createXmlDomParser ', (value) => xmlDomParser2.parse(value), {timeout: 6000, targetRme: 0, afterCycle});
+valueTest(htmlparserBenchmarkSources, 'createHtmlDomParser', (value) => htmlDomParser2.parse(value), {timeout: 6000, targetRme: 0, afterCycle});
+valueTest(htmlparserBenchmarkSources, 'htmlparser2        ', (value) => htmlparserDomParser2.end(value), {
+  timeout: 6000,
+  targetRme: 0,
+
+  // Have to re-create, out-of-memory otherwise
+  beforeCycle: () => htmlparserDomParser2 = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null)),
+  afterCycle
+});
+valueTest(htmlparserBenchmarkSources, 'parse5             ', (value) => parse5.parse(value), {timeout: 6000, targetRme: 0, afterCycle});
