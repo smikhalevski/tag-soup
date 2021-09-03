@@ -1,4 +1,4 @@
-import {allCharBy, char, charBy, CharCodeChecker, ResultCode, seq, text, untilCharBy, untilText} from 'tokenizer-dsl';
+import {all, char, CharCodeChecker, ResultCode, seq, text, until} from 'tokenizer-dsl';
 import {IObjectPool} from './createObjectPool';
 import {
   IArrayLike,
@@ -58,51 +58,51 @@ const isNotAttributeNameChar: CharCodeChecker = (charCode) =>
 
 const isNotUnquotedValueChar: CharCodeChecker = (charCode) => isSpaceChar(charCode) || charCode === CharCode['>'];
 
-const takeText = untilText('<', false, false);
+const takeText = until(text('<'));
 
-const takeUntilGt = untilText('>', true, false);
+const takeUntilGt = until(text('>'), {inclusive: true});
 
-const takeTagNameStartChar = charBy(isTagNameStartChar);
-const takeTagNameChars = untilCharBy(isNotTagNameChar, false, true);
+const takeTagNameStartChar = char(isTagNameStartChar);
+const takeTagNameChars = until(char(isNotTagNameChar), {openEnded: true, endOffset: 1});
 
 // <…
-const takeStartTagOpening = seq(char(CharCode['<']), takeTagNameStartChar, takeTagNameChars);
+const takeStartTagOpening = seq(text('<'), takeTagNameStartChar, takeTagNameChars);
 
 // </…
 const takeEndTagOpening = seq(text('</'), takeTagNameStartChar, takeTagNameChars);
 
-const takeAttributeName = untilCharBy(isNotAttributeNameChar, false, true);
+const takeAttributeName = until(char(isNotAttributeNameChar), {openEnded: true});
 
-const takeTagSpace = allCharBy(isTagSpaceChar);
+const takeTagSpace = all(char(isTagSpaceChar));
 
-const takeSpace = allCharBy(isSpaceChar);
+const takeSpace = all(char(isSpaceChar));
 
 // =
-const takeEq = seq(takeSpace, char(CharCode['=']), takeSpace);
+const takeEq = seq(takeSpace, text('='), takeSpace);
 
 // "…"
-const takeQuotValue = seq(char(CharCode['"']), untilText('"', true, true));
+const takeQuotValue = seq(text('"'), until(text('"'), {inclusive: true, openEnded: true, endOffset: 1}));
 
 // '…'
-const takeAposValue = seq(char(CharCode['\'']), untilText('\'', true, true));
+const takeAposValue = seq(text('\''), until(text('\''), {inclusive: true, openEnded: true, endOffset: 1}));
 
 // okay
-const takeUnquotedValue = untilCharBy(isNotUnquotedValueChar, false, true);
+const takeUnquotedValue = until(char(isNotUnquotedValueChar), {openEnded: true});
 
 // <!-- … -->
-const takeComment = seq(text('<!--'), untilText('-->', true, true));
+const takeComment = seq(text('<!--'), until(text('-->'), {inclusive: true, openEnded: true, endOffset: 3}));
 
 // <! … >
-const takeDtd = seq(text('<!'), untilText('>', true, true));
+const takeDtd = seq(text('<!'), until(text('>'), {inclusive: true, openEnded: true, endOffset: 1}));
 
 // <? … ?>
-const takeProcessingInstruction = seq(text('<?'), untilText('?>', true, true));
+const takeProcessingInstruction = seq(text('<?'), until(text('?>'), {inclusive: true, openEnded: true, endOffset: 2}));
 
 // <![CDATA[ … ]]>
-const takeCdata = seq(text('<![CDATA['), untilText(']]>', true, true));
+const takeCdata = seq(text('<![CDATA['), until(text(']]>'), {inclusive: true, openEnded: true, endOffset: 3}));
 
 // <!DOCTYPE … >
-const takeDoctype = seq(text('<!DOCTYPE', true), untilText('>', true, true));
+const takeDoctype = seq(text('<!DOCTYPE', {caseSensitive: false}), until(text('>'), {inclusive: true, openEnded: true, endOffset: 1}));
 
 /**
  * Reads attributes from the source.
