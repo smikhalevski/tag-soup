@@ -1,5 +1,5 @@
 import {ITokenizerOptions, tokenize} from './tokenize';
-import {createObjectPool} from './createObjectPool';
+import {ObjectPool} from '@smikhalevski/object-pool';
 import {createAttributeToken, createDataToken, createEndTagToken, createStartTagToken} from './tokens';
 import {IArrayLike, IParser, IParserOptions, ISaxHandler, IStartTagToken} from './parser-types';
 
@@ -16,8 +16,8 @@ export function createSaxParser(handler: ISaxHandler, options?: IParserOptions):
   let chunkOffset = 0;
 
   const tokenizerOptions: ITokenizerOptions = {
-    startTagTokenPool: createObjectPool(createStartTagToken),
-    attributeTokenPool: createObjectPool(createAttributeToken),
+    startTagTokenPool: new ObjectPool(createStartTagToken),
+    attributeTokenPool: new ObjectPool(createAttributeToken),
     endTagToken: createEndTagToken(),
     dataToken: createDataToken(),
   };

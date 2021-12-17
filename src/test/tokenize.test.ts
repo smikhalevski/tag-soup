@@ -1,5 +1,5 @@
 import {ITokenizerOptions, tokenize, tokenizeAttributes} from '../main/tokenize';
-import {createObjectPool} from '../main/createObjectPool';
+import {ObjectPool} from '@smikhalevski/object-pool';
 import {clone, createAttributeToken, createDataToken, createEndTagToken, createStartTagToken} from '../main/tokens';
 import {
   IArrayLike,
@@ -40,8 +40,8 @@ function toArrayLike<T>(arr: Array<T>): IArrayLike<T> {
 beforeEach(() => {
 
   tokenizerOptions = {
-    startTagTokenPool: createObjectPool(createStartTagToken),
-    attributeTokenPool: createObjectPool(createAttributeToken),
+    startTagTokenPool: new ObjectPool(createStartTagToken),
+    attributeTokenPool: new ObjectPool(createAttributeToken),
     endTagToken: createEndTagToken(),
     dataToken: createDataToken(),
   };

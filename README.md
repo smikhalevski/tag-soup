@@ -209,14 +209,14 @@ Results are in operations per second. The higher number is better.
 
 |  | Ops/sec |
 | --- | ---: |
-| `createSaxParser` ¹ | <nobr>36.3 ± 0.8%</nobr> |
-| `createXmlSaxParser` ¹ | <nobr>30.7 ± 0.5%</nobr> |
-| `createHtmlSaxParser` ¹ | <nobr>23.7 ± 0.5%</nobr> |
-| `createSaxParser` | <nobr>29.2 ± 0.5%</nobr> |
-| `createXmlSaxParser` | <nobr>26.1 ± 0.5%</nobr> |
-| `createHtmlSaxParser` | <nobr>19.9 ± 0.5%</nobr> |
-| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>14.3 ± 0.5%</nobr> |
-| [`@isaacs/sax-js`](https://github.com/isaacs/sax-js) | <nobr>1.7 ± 4.6%</nobr> |
+| `createSaxParser` ¹ | 36.3 ± 0.8% |
+| `createXmlSaxParser` ¹ | 30.7 ± 0.5% |
+| `createHtmlSaxParser` ¹ | 23.7 ± 0.5% |
+| `createSaxParser` | 29.2 ± 0.5% |
+| `createXmlSaxParser` | 26.1 ± 0.5% |
+| `createHtmlSaxParser` | 19.9 ± 0.5% |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | 14.3 ± 0.5% |
+| [`@isaacs/sax-js`](https://github.com/isaacs/sax-js) | 1.7 ± 4.6% |
 
 ¹ Parsers were provided a handler with a single
 [`text`](https://smikhalevski.github.io/tag-soup/interfaces/isaxhandler.html#text) callback. This configuration can be
@@ -226,11 +226,11 @@ useful if you want to strip tags from the input.
 
 |  | Ops/sec |
 | --- | ---: |
-| `createDomParser` | <nobr>12.1 ± 4.3%</nobr> |
-| `createXmlDomParser` | <nobr>11.1 ± 4.3%</nobr> |
-| `createHtmlDomParser` | <nobr>8.9 ± 2.4%</nobr> |
-| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>6.0 ± 1.5%</nobr> |
-| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | <nobr>2.0 ± 1.8%</nobr> |
+| `createDomParser` | 13.7 ± 0.5% |
+| `createXmlDomParser` | 12.6 ± 0.5% |
+| `createHtmlDomParser` | 10.6 ± 0.5% |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | 8.4 ± 0.5% |
+| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | 2.8 ± 0.7% |
 
 ## Small input
 
@@ -244,20 +244,20 @@ Results are in operations per second. The higher number is better.
 
 |  | Ops/sec |
 | --- | ---: |
-| `createSaxParser` | <nobr>1 755 ± 0.1%</nobr> |
-| `createXmlSaxParser` | <nobr>1 450 ± 0.1%</nobr> |
-| `createHtmlSaxParser` | <nobr>1 162 ± 0.1%</nobr> |
-| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>546 ± 5.7%</nobr> |
+| `createSaxParser` | 1 998.0 ± 0.1% |
+| `createXmlSaxParser` | 1 734.1 ± 0.1% |
+| `createHtmlSaxParser` | 1 285.4 ± 0.1% |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | 717.5 ± 0.2% |
 
 ### DOM benchmark
 
 |  | Ops/sec |
 | --- | ---: |
-| `createDomParser` | <nobr>839 ± 3.2%</nobr> |
-| `createXmlDomParser` | <nobr>718 ± 3.1%</nobr> |
-| `createHtmlDomParser` | <nobr>612 ± 3.2%</nobr> |
-| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | <nobr>437 ± 3.1%</nobr> |
-| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | <nobr>37 ± 3.1%</nobr> |
+| `createDomParser` | 1 087.1 ± 0.2% |
+| `createXmlDomParser` | 853.5 ± 0.2% |
+| `createHtmlDomParser` | 668.0 ± 0.2% |
+| [`@fb55/htmlparser2`](https://github.com/fb55/htmlparser2) | 457.7 ± 0.2% |
+| [`@inikulin/parse5`](https://github.com/inikulin/parse5) | 50.8 ± 0.4% |
 
 # Limitations
 

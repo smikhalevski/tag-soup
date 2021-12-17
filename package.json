@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "tsc && npm run rollup && npm run terser",
-    "rollup": "rollup --external speedy-entities,tokenizer-dsl,tslib --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve",
+    "rollup": "rollup --external @smikhalevski/object-pool,speedy-entities,tokenizer-dsl,tslib --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve",
     "terser": "terser --compress --mangle toplevel --output ./lib/index-cjs.js -- ./lib/index-cjs.js",
     "clean": "rm -rf ./lib ./docs",
     "test": "jest --detectOpenHandles",
@@ -71,8 +71,9 @@
     "typescript": "4.2.4"
   },
   "dependencies": {
+    "@smikhalevski/object-pool": "^1.0.0",
     "speedy-entities": "^1.1.2",
-    "tokenizer-dsl": "^1.0.1",
+    "tokenizer-dsl": "^2.0.0",
     "tslib": "^2.3.0"
   }
 }
