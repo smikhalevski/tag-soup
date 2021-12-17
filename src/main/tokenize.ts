@@ -1,5 +1,5 @@
 import {all, char, CharCodeChecker, ResultCode, seq, text, until} from 'tokenizer-dsl';
-import {IObjectPool} from './createObjectPool';
+import {ObjectPool} from '@smikhalevski/object-pool';
 import {
   IArrayLike,
   IAttributeToken,
@@ -214,8 +214,8 @@ export function tokenizeAttributes(
 }
 
 export interface ITokenizerOptions {
-  startTagTokenPool: IObjectPool<IStartTagToken>;
-  attributeTokenPool: IObjectPool<IAttributeToken>;
+  startTagTokenPool: ObjectPool<IStartTagToken>;
+  attributeTokenPool: ObjectPool<IAttributeToken>;
   endTagToken: IEndTagToken;
   dataToken: IDataToken;
 }
