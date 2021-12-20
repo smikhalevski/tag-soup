@@ -54,11 +54,11 @@ function checkVoidTag(token: IStartTagToken): boolean {
   return voidTags.has(token.name);
 }
 
-function endsAncestorAt(containerToken: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
+function endsAncestorAt(ancestors: IArrayLike<IStartTagToken>, token: IStartTagToken): number {
   const tagNames = implicitEndMap.get(token.name);
   if (tagNames) {
-    for (let i = containerToken.length - 1; i >= 0; --i) {
-      if (tagNames.has(containerToken[i].name)) {
+    for (let i = ancestors.length - 1; i >= 0; --i) {
+      if (tagNames.has(ancestors[i].name)) {
         return i;
       }
     }
