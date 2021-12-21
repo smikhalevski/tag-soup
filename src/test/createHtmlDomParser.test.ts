@@ -1,8 +1,8 @@
-import {IElementNode, INode, ITextNode, NodeType} from '../main/dom-types';
+import {IElementNode, ITextNode, Node, NodeType} from '../main/dom-types';
 import {IParser} from '../main/parser-types';
 import {createHtmlDomParser} from '../main/createHtmlDomParser';
 
-export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<INode> = []): IElementNode {
+export function element(tagName: string, start: number, end: number, selfClosing = false, attributes: Record<string, string> = {}, children: Array<Node> = []): IElementNode {
 
   const node: IElementNode = {
     nodeType: NodeType.ELEMENT,
@@ -33,7 +33,7 @@ export function text(data: string, start: number, end: number): ITextNode {
 
 describe('createHtmlDomParser', () => {
 
-  let parser: IParser<Array<INode>>;
+  let parser: IParser<Array<Node>>;
 
   beforeEach(() => {
     parser = createHtmlDomParser();

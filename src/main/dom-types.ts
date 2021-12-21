@@ -62,7 +62,7 @@ export interface IContainerNode extends INode {
   /**
    * The list of node children.
    */
-  children: Array<INode>;
+  children: Array<Node>;
 }
 
 /**
