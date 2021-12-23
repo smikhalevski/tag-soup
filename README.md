@@ -1,9 +1,9 @@
-# TagSoup [![build](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml/badge.svg?branch=master&event=push)](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml)
+# TagSoup 🍜 [![build](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml/badge.svg?branch=master&event=push)](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml)
 
 TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser.
 
 - [It is the fastest](#performance);
-- Tiny and tree-shakable, [just 6.5 kB gzipped](https://bundlephobia.com/result?p=tag-soup);
+- Tiny and tree-shakable, [just 7 kB gzipped](https://bundlephobia.com/result?p=tag-soup), including dependencies;
 - Streaming support with SAX and DOM parsers for XML and HTML;
 - Extremely low memory consumption;
 - Forgives malformed tag nesting and missing end tags;
