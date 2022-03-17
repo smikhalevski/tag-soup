@@ -106,14 +106,14 @@ that would recognize custom entities.
 <summary>The list of legacy HTML entities</summary>
 <p>
 
-> `aacute`, `Aacute`, `acirc`, `Acirc`, `acute`, `aelig`, `AElig`, `agrave`, `Agrave`, `amp`, `AMP`, `aring`, `Aring`,
-`atilde`, `Atilde`, `auml`, `Auml`, `brvbar`, `ccedil`, `Ccedil`, `cedil`, `cent`, `copy`, `COPY`, `curren`, `deg`,
-`divide`, `eacute`, `Eacute`, `ecirc`, `Ecirc`, `egrave`, `Egrave`, `eth`, `ETH`, `euml`, `Euml`, `frac12`, `frac14`,
-`frac34`, `gt`, `GT`, `iacute`, `Iacute`, `icirc`, `Icirc`, `iexcl`, `igrave`, `Igrave`, `iquest`, `iuml`, `Iuml`,
-`laquo`, `lt`, `LT`, `macr`, `micro`, `middot`, `nbsp`, `not`, `ntilde`, `Ntilde`, `oacute`, `Oacute`, `ocirc`, `Ocirc`,
-`ograve`, `Ograve`, `ordf`, `ordm`, `oslash`, `Oslash`, `otilde`, `Otilde`, `ouml`, `Ouml`, `para`, `plusmn`, `pound`,
-`quot`, `QUOT`, `raquo`, `reg`, `REG`, `sect`, `shy`, `sup1`, `sup2`, `sup3`, `szlig`, `thorn`, `THORN`, `times`,
-`uacute`, `Uacute`, `ucirc`, `Ucirc`, `ugrave`, `Ugrave`, `uml`, `uuml`, `Uuml`, `yacute`, `Yacute`, `yen` and `yuml`
+> `aacute` `Aacute` `acirc` `Acirc` `acute` `aelig` `AElig` `agrave` `Agrave` `amp` `AMP` `aring` `Aring` `atilde`
+> `Atilde` `auml` `Auml` `brvbar` `ccedil` `Ccedil` `cedil` `cent` `copy` `COPY` `curren` `deg` `divide` `eacute`
+> `Eacute` `ecirc` `Ecirc` `egrave` `Egrave` `eth` `ETH` `euml` `Euml` `frac12` `frac14` `frac34` `gt` `GT` `iacute`
+> `Iacute` `icirc` `Icirc` `iexcl` `igrave` `Igrave` `iquest` `iuml` `Iuml` `laquo` `lt` `LT` `macr` `micro` `middot`
+> `nbsp` `not` `ntilde` `Ntilde` `oacute` `Oacute` `ocirc` `Ocirc` `ograve` `Ograve` `ordf` `ordm` `oslash` `Oslash`
+> `otilde` `Otilde` `ouml` `Ouml` `para` `plusmn` `pound` `quot` `QUOT` `raquo` `reg` `REG` `sect` `shy` `sup1` `sup2`
+> `sup3` `szlig` `thorn` `THORN` `times` `uacute` `Uacute` `ucirc` `Ucirc` `ugrave` `Ugrave` `uml` `uuml` `Uuml`
+> `yacute` `Yacute` `yen` `yuml`
 
 </p>
 </details>
