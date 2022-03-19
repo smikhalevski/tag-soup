@@ -12,8 +12,6 @@ import {
 } from './parser-types';
 import {CharCode} from './CharCode';
 
-const min = Math.min;
-
 // https://www.w3.org/TR/xml/#NT-S
 const isSpaceChar: CharCodeChecker = (charCode) =>
     charCode === CharCode[' ']
@@ -43,20 +41,44 @@ const isTagNameStartChar: CharCodeChecker = (charCode) =>
 /**
  * Check if char should be treated as a whitespace inside a tag.
  */
-const isTagSpaceChar: CharCodeChecker = (charCode) => isSpaceChar(charCode) || charCode === CharCode['/'];
+const isTagSpaceChar: CharCodeChecker = (charCode) =>
+    // isSpaceChar(charCode)
+    charCode === CharCode[' ']
+    || charCode === CharCode['\t']
+    || charCode === CharCode['\r']
+    || charCode === CharCode['\n']
+    //
+    || charCode === CharCode['/'];
 
 const isNotTagNameChar: CharCodeChecker = (charCode) =>
-    isSpaceChar(charCode)
+    // isSpaceChar(charCode)
+    charCode === CharCode[' ']
+    || charCode === CharCode['\t']
+    || charCode === CharCode['\r']
+    || charCode === CharCode['\n']
+    //
     || charCode === CharCode['/']
     || charCode === CharCode['>'];
 
 const isNotAttributeNameChar: CharCodeChecker = (charCode) =>
-    isSpaceChar(charCode)
+    // isSpaceChar(charCode)
+    charCode === CharCode[' ']
+    || charCode === CharCode['\t']
+    || charCode === CharCode['\r']
+    || charCode === CharCode['\n']
+    //
     || charCode === CharCode['/']
     || charCode === CharCode['>']
     || charCode === CharCode['='];
 
-const isNotUnquotedValueChar: CharCodeChecker = (charCode) => isSpaceChar(charCode) || charCode === CharCode['>'];
+const isNotUnquotedValueChar: CharCodeChecker = (charCode) =>
+    //isSpaceChar(charCode)
+    charCode === CharCode[' ']
+    || charCode === CharCode['\t']
+    || charCode === CharCode['\r']
+    || charCode === CharCode['\n']
+    //
+    || charCode === CharCode['>'];
 
 const takeText = until(text('<'));
 
@@ -172,7 +194,7 @@ export function tokenizeAttributes(
         valueStart = k + 1;
         valueEnd = j - 1;
         quoted = true;
-        k = min(j, charCount);
+        k = Math.min(j, charCount);
       } else {
 
         // Unquoted value
@@ -464,7 +486,7 @@ export function tokenize(
         triggerTextCallback();
 
         if (cdataEnabled) {
-          i = min(j, charCount);
+          i = Math.min(j, charCount);
         } else {
           i = triggerDataCallback(chunk, chunkOffset, TokenType.COMMENT, dataToken, commentCallback, i, j, 2, 1, decodeText);
         }
@@ -515,14 +537,14 @@ function triggerDataCallback<T extends IDataToken>(
 ): number {
 
   const charCount = chunk.length;
-  const index = min(end, charCount);
+  const index = Math.min(end, charCount);
 
   if (!dataCallback) {
     return index;
   }
 
   const dataStart = start + offsetStart;
-  const dataEnd = min(end - offsetEnd, charCount);
+  const dataEnd = Math.min(end - offsetEnd, charCount);
   const rawData = chunk.substring(dataStart, dataEnd);
 
   dataToken.tokenType = tokenType;
