@@ -102,7 +102,7 @@ const takeProcessingInstruction = seq(text('<?'), until(text('?>'), {inclusive: 
 const takeCdata = seq(text('<![CDATA['), until(text(']]>'), {inclusive: true, openEnded: true, endOffset: 3}));
 
 // <!DOCTYPE … >
-const takeDoctype = seq(text('<!DOCTYPE', {caseSensitive: false}), until(text('>'), {inclusive: true, openEnded: true, endOffset: 1}));
+const takeDoctype = seq(text('<!DOCTYPE', {caseInsensitive: true}), until(text('>'), {inclusive: true, openEnded: true, endOffset: 1}));
 
 /**
  * Reads attributes from the source.
