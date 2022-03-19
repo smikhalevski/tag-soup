@@ -74,7 +74,7 @@
   "dependencies": {
     "@smikhalevski/object-pool": "^1.0.0",
     "speedy-entities": "^1.1.2",
-    "tokenizer-dsl": "^2.0.0",
+    "tokenizer-dsl": "^3.0.0",
     "tslib": "^2.3.0"
   }
 }
