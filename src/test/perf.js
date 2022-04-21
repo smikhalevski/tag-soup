@@ -33,6 +33,9 @@ const fullHandler = {
   cdata: () => undefined,
 };
 
+beforeBatch(() => {
+  gc();
+});
 
 describe('Large input', () => {
 
@@ -168,8 +171,7 @@ describe('Large input', () => {
     });
   });
 
-});
-
+}, {targetRme: 0.001});
 
 describe('Small input (average across ' + smallSources.length + ' samples)', () => {
 
@@ -285,4 +287,4 @@ describe('Small input (average across ' + smallSources.length + ' samples)', () 
 
   });
 
-});
+}, {targetRme: 0.001});
