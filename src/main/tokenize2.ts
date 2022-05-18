@@ -1,11 +1,26 @@
-import {all, char, end, maybe, or, Reader, Rule, TokenHandler, seq, skip, text, Tokenizer, until} from 'tokenizer-dsl';
+import {
+  all,
+  char,
+  end,
+  maybe,
+  or,
+  Reader,
+  Rule,
+  TokenHandler,
+  seq,
+  skip,
+  text,
+  Tokenizer,
+  until,
+  createTokenizer
+} from 'tokenizer-dsl';
 
-const untilInclusive = <C>(reader: Reader<C>): Reader<C> => until(reader, {inclusive: true});
+const untilInclusive = <Context, Error>(reader: Reader<Context, Error>): Reader<Context, Error> => until(reader, {inclusive: true});
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
-  ['a'.charCodeAt(0), 'z'.charCodeAt(0)],
-  ['A'.charCodeAt(0), 'Z'.charCodeAt(0)],
+  ['a', 'z'],
+  ['A', 'Z'],
   '_',
   ':',
   [0xc0, 0xd6],
@@ -90,8 +105,8 @@ export const enum Type {
   ATTRIBUTE_EQ = 'ATTRIBUTE_EQ',
   ATTRIBUTE_QUOT_VALUE = 'ATTRIBUTE_QUOT_VALUE',
   ATTRIBUTE_APOS_VALUE = 'ATTRIBUTE_APOS_VALUE',
-  TAG_SPACE = 'TAG_SPACE',
   ATTRIBUTE_UNQUOTED_VALUE = 'ATTRIBUTE_UNQUOTED_VALUE',
+  TAG_SPACE = 'TAG_SPACE',
   END_TAG_OPENING = 'END_TAG_OPENING',
   END_TAG_CLOSING = 'END_TAG_CLOSING',
   COMMENT = 'COMMENT',
@@ -102,35 +117,35 @@ export const enum Type {
   TEXT = 'TEXT',
 }
 
-const startTagOpeningRule: Rule<Type, Stage, void> = {
+const startTagOpeningRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.START_TAG_OPENING,
   reader: startTagOpeningReader,
   to: Stage.START_TAG_OPENING,
 };
 
-const startTagClosingRule: Rule<Type, Stage, void> = {
+const startTagClosingRule: Rule<Type, Stage> = {
   on: [Stage.START_TAG_OPENING, Stage.ATTRIBUTE_NAME, Stage.ATTRIBUTE_EQ],
   type: Type.START_TAG_CLOSING,
   reader: startTagClosingReader,
   to: Stage.DOCUMENT,
 };
 
-const tagSpaceRule: Rule<Type, Stage, void> = {
+const tagSpaceRule: Rule<Type, Stage> = {
   on: [Stage.START_TAG_OPENING, Stage.ATTRIBUTE_NAME, Stage.ATTRIBUTE_EQ],
   type: Type.TAG_SPACE,
   reader: tagSpaceReader,
   silent: true,
 };
 
-const attributeNameRule: Rule<Type, Stage, void> = {
+const attributeNameRule: Rule<Type, Stage> = {
   on: [Stage.START_TAG_OPENING, Stage.ATTRIBUTE_NAME],
   type: Type.ATTRIBUTE_NAME,
   reader: attributeNameReader,
   to: Stage.ATTRIBUTE_NAME,
 };
 
-const attributeEqRule: Rule<Type, Stage, void> = {
+const attributeEqRule: Rule<Type, Stage> = {
   on: [Stage.ATTRIBUTE_NAME],
   type: Type.ATTRIBUTE_EQ,
   reader: eqReader,
@@ -138,94 +153,92 @@ const attributeEqRule: Rule<Type, Stage, void> = {
   silent: true,
 };
 
-const attributeQuotValueRule: Rule<Type, Stage, void> = {
+const attributeQuotValueRule: Rule<Type, Stage> = {
   on: [Stage.ATTRIBUTE_EQ],
   type: Type.ATTRIBUTE_QUOT_VALUE,
   reader: quotValueReader,
   to: Stage.START_TAG_OPENING,
 };
 
-const attributeAposValueRule: Rule<Type, Stage, void> = {
+const attributeAposValueRule: Rule<Type, Stage> = {
   on: [Stage.ATTRIBUTE_EQ],
   type: Type.ATTRIBUTE_APOS_VALUE,
   reader: aposValueReader,
   to: Stage.START_TAG_OPENING,
 };
 
-const attributeUnquotedValueRule: Rule<Type, Stage, void> = {
+const attributeUnquotedValueRule: Rule<Type, Stage> = {
   on: [Stage.ATTRIBUTE_EQ],
   type: Type.ATTRIBUTE_UNQUOTED_VALUE,
   reader: unquotedValueReader,
   to: Stage.START_TAG_OPENING,
 };
 
-const endTagOpeningRule: Rule<Type, Stage, void> = {
+const endTagOpeningRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.END_TAG_OPENING,
   reader: endTagOpeningReader,
   to: Stage.END_TAG,
 };
 
-const endTagClosingRule: Rule<Type, Stage, void> = {
+const endTagClosingRule: Rule<Type, Stage> = {
   on: [Stage.END_TAG],
   type: Type.END_TAG_CLOSING,
   reader: untilGtReader,
   to: Stage.DOCUMENT,
 };
 
-const commentRule: Rule<Type, Stage, void> = {
+const commentRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.COMMENT,
   reader: commentReader,
 };
 
-const dtdRule: Rule<Type, Stage, void> = {
+const dtdRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.DTD,
   reader: dtdReader,
 };
 
-const processingInstructionRule: Rule<Type, Stage, void> = {
+const processingInstructionRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.PROCESSING_INSTRUCTION,
   reader: processingInstructionReader,
 };
 
-const cdataRule: Rule<Type, Stage, void> = {
+const cdataRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.CDATA,
   reader: cdataReader,
 };
 
-const doctypeRule: Rule<Type, Stage, void> = {
+const doctypeRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.DOCTYPE,
   reader: doctypeReader,
 };
 
-const textRule: Rule<Type, Stage, void> = {
+const textRule: Rule<Type, Stage> = {
   on: [Stage.DOCUMENT],
   type: Type.TEXT,
   reader: textReader,
 };
 
-export function createTokenizer(handler: TokenHandler<Type>): Tokenizer<Type, Stage, void> {
-  return new Tokenizer([
-    startTagOpeningRule,
-    attributeNameRule,
-    attributeEqRule,
-    attributeQuotValueRule,
-    attributeAposValueRule,
-    attributeUnquotedValueRule,
-    startTagClosingRule,
-    tagSpaceRule,
-    endTagOpeningRule,
-    endTagClosingRule,
-    commentRule,
-    dtdRule,
-    processingInstructionRule,
-    cdataRule,
-    doctypeRule,
-    textRule,
-  ], handler, undefined, Stage.DOCUMENT);
-}
+export const tokenizer = createTokenizer([
+  startTagOpeningRule,
+  attributeNameRule,
+  attributeEqRule,
+  attributeQuotValueRule,
+  attributeAposValueRule,
+  attributeUnquotedValueRule,
+  startTagClosingRule,
+  tagSpaceRule,
+  endTagOpeningRule,
+  endTagClosingRule,
+  commentRule,
+  dtdRule,
+  processingInstructionRule,
+  cdataRule,
+  doctypeRule,
+  textRule,
+], Stage.DOCUMENT);
