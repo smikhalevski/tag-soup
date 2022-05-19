@@ -57,39 +57,57 @@ const tokenHandler: TokenHandler<Type, Context> = {
 
     switch (type) {
 
-      case Type.START_TAG_OPENING:
-        const startTag = context.lastTag = context.hashCodeAt(chunk, offset + 1, length - 1);
-        context.cdataMode = context.cdataTags !== null && context.cdataTags.has(startTag);
+      case Type.START_TAG_OPENING: {
+        const {stack, cursor, cdataTags, wrestTags} = context;
+
+        const lastTag = context.lastTag = context.hashCodeAt(chunk, offset + 1, length - 1);
+
+        context.cdataMode = cdataTags !== null && cdataTags.has(lastTag);
+
+        if (wrestTags !== null) {
+          const tags = wrestTags.get(lastTag);
+
+          if (tags !== undefined) {
+            for (let i = cursor; i > -1; --i) {
+              if (tags.has(stack[i])) {
+                for (let j = i; j <= cursor; ++j) {
+                  handler(LexerType.END_TAG, chunk, offset, 0);
+                }
+              }
+              context.cursor = i - 1;
+            }
+          }
+        }
+
         handler(LexerType.START_TAG, chunk, offset + 1, length - 1);
         break;
+      }
 
-      case Type.START_TAG_CLOSING:
-        if (context.selfClosingTagsEnabled && length === 2 || context.voidTags !== null && context.voidTags.has(context.lastTag)) {
+      case Type.START_TAG_CLOSING: {
+        const {lastTag, voidTags} = context;
+
+        if (context.selfClosingTagsEnabled && length === 2 || voidTags !== null && voidTags.has(lastTag)) {
           // Self-closing or void tag
           handler(LexerType.END_TAG, chunk, offset + length, 0);
         } else {
-          context.stack[++context.cursor] = context.lastTag;
+          context.stack[++context.cursor] = lastTag;
         }
         break;
+      }
 
-      case Type.END_TAG_OPENING:
+      case Type.END_TAG_OPENING: {
 
-        // context.cdataMode is updated in the endTagOpeningRule
+        // context.cdataMode is updated in the endTagOpeningRule.to
         if (context.cdataMode) {
-          // Ignore this end tag since it doesn't end the previous CDATA start tag
+          // Ignore the end tag since it doesn't match the current CDATA start tag
           handler(LexerType.TEXT, chunk, offset + 2, length - 2);
           break;
         }
 
-        const {stack, cursor} = context;
+        // See endTagOpeningRule.to for related updates
+        const {stack, cursor, lastTag} = context;
 
-        // context.lastTag is updated in the endTagOpeningRule
-        const endTag = context.lastTag;
-
-        let i = cursor;
-        while (i !== -1 && stack[i] !== endTag) {
-          --i;
-        }
+        const i = stack.lastIndexOf(lastTag);
         if (i !== -1) {
           for (let j = i; j < cursor; ++j) {
             handler(LexerType.END_TAG, chunk, offset, 0);
@@ -98,6 +116,7 @@ const tokenHandler: TokenHandler<Type, Context> = {
           context.cursor = i - 1;
         }
         break;
+      }
 
       case Type.TEXT:
         handler(LexerType.TEXT, chunk, offset, length);

@@ -62,7 +62,7 @@ describe('createLexer', () => {
     expect(handlerMock).toHaveBeenNthCalledWith(2, LexerType.END_TAG, 9, 1);
   });
 
-  test('injects end tags', () => {
+  test('injects end tags before end tag', () => {
     lexer('<a><b></a>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(4);
@@ -72,6 +72,16 @@ describe('createLexer', () => {
     expect(handlerMock).toHaveBeenNthCalledWith(4, LexerType.END_TAG, 8, 1);
   });
 
+  test('injects end tags before input end', () => {
+    lexer('<a><b>', handler);
+
+    expect(handlerMock).toHaveBeenCalledTimes(4);
+    expect(handlerMock).toHaveBeenNthCalledWith(1, LexerType.START_TAG, 1, 1);
+    expect(handlerMock).toHaveBeenNthCalledWith(2, LexerType.START_TAG, 4, 1);
+    expect(handlerMock).toHaveBeenNthCalledWith(3, LexerType.END_TAG, 6, 0);
+    expect(handlerMock).toHaveBeenNthCalledWith(4, LexerType.END_TAG, 6, 0);
+  });
+
   test('reads text in a tag', () => {
     lexer('<a>aaa</a>', handler);
 
@@ -79,5 +89,19 @@ describe('createLexer', () => {
     expect(handlerMock).toHaveBeenNthCalledWith(1, LexerType.START_TAG, 1, 1);
     expect(handlerMock).toHaveBeenNthCalledWith(2, LexerType.TEXT, 3, 3);
     expect(handlerMock).toHaveBeenNthCalledWith(3, LexerType.END_TAG, 8, 1);
+  });
+
+  test('ends wrest tags', () => {
+    const lexer = createLexer({wrestTags: {p: ['p']}});
+
+    lexer('<p>aaa<p>bbb', handler);
+
+    expect(handlerMock).toHaveBeenCalledTimes(6);
+    expect(handlerMock).toHaveBeenNthCalledWith(1, LexerType.START_TAG, 1, 1);
+    expect(handlerMock).toHaveBeenNthCalledWith(2, LexerType.TEXT, 3, 3);
+    expect(handlerMock).toHaveBeenNthCalledWith(3, LexerType.END_TAG, 6, 0);
+    expect(handlerMock).toHaveBeenNthCalledWith(4, LexerType.START_TAG, 7, 1);
+    expect(handlerMock).toHaveBeenNthCalledWith(5, LexerType.TEXT, 9, 3);
+    expect(handlerMock).toHaveBeenNthCalledWith(6, LexerType.END_TAG, 12, 0);
   });
 });
