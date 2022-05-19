@@ -1,7 +1,5 @@
-import {all, char, createTokenizer, end, maybe, or, Reader, Rule, seq, skip, text, until} from 'tokenizer-dsl';
+import {all, char, createTokenizer, end, maybe, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
 import {Context, Stage, Type} from './tokenizer-types';
-
-const untilInclusive = <Context, Error>(reader: Reader<Context, Error>): Reader<Context, Error> => until(reader, {inclusive: true});
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
@@ -32,46 +30,53 @@ const ltReader = text('<');
 
 const gtReader = text('>');
 
+const exclReader = text('!');
+
+const quotReader = text('"');
+
+const aposReader = text('\'');
+
+const eqReader = text('=');
+
+const slashReader = text('/');
+
 const tagSpaceReader = seq(skip(1), all(char([spaceChars])));
 
 // <…
 const startTagOpeningReader = seq(ltReader, tagNameStartCharReader, tagNameCharsReader);
 
 // …/>
-const startTagClosingReader = seq(maybe(text('/')), gtReader);
+const startTagClosingReader = seq(maybe(slashReader), gtReader);
 
 // </…
-const endTagOpeningReader = seq(ltReader, text('/'), tagNameStartCharReader, tagNameCharsReader);
+const endTagOpeningReader = seq(ltReader, slashReader, tagNameStartCharReader, tagNameCharsReader);
 
-const endTagClosingReader = untilInclusive(gtReader);
+const endTagClosingReader = until(gtReader, {inclusive: true});
 
 const attributeNameReader = or(until(char([spaceChars, '/', '>', '='])), end());
 
-// =
-const eqReader = text('=');
-
 // "…"
-const quotValueReader = seq(text('"'), or(untilInclusive(text('"')), end(1)));
+const quotValueReader = seq(quotReader, or(until(quotReader, {inclusive: true}), end(1)));
 
 // '…'
-const aposValueReader = seq(text('\''), or(untilInclusive(text('\'')), end(1)));
+const aposValueReader = seq(aposReader, or(until(aposReader, {inclusive: true}), end(1)));
 
 // okay
 const unquotedValueReader = or(until(char([spaceChars, '>'])), end());
 
 // <!-- … -->
-const commentReader = seq(ltReader, text('!--'), or(untilInclusive(text('-->')), end(3)));
+const commentReader = seq(ltReader, exclReader, text('--'), or(until(text('-->'), {inclusive: true}), end(3)));
 
 // <? … ?>
-const processingInstructionReader = seq(ltReader, text('?'), or(untilInclusive(text('?>')), end(2)));
+const processingInstructionReader = seq(ltReader, text('?'), or(until(text('?>'), {inclusive: true}), end(2)));
 
 // <![CDATA[ … ]]>
-const cdataReader = seq(ltReader, text('![CDATA['), or(untilInclusive(text(']]>')), end(3)));
+const cdataReader = seq(ltReader, exclReader, text('[CDATA['), or(until(text(']]>'), {inclusive: true}), end(3)));
 
 // <!DOCTYPE … >
-const doctypeReader = seq(ltReader, text('!DOCTYPE', {caseInsensitive: true}), or(untilInclusive(gtReader), end(1)));
+const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', {caseInsensitive: true}), or(until(gtReader, {inclusive: true}), end(1)));
 
-const textReader = seq(skip(1), or(until(text('<')), end()));
+const textReader = seq(skip(1), or(until(ltReader), end()));
 
 const startTagOpeningRule: Rule<Type, Stage, Context> = {
   on: [Stage.DOCUMENT],
