@@ -56,8 +56,8 @@
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^13.3.0",
-    "@smikhalevski/perf-test": "^1.0.0",
     "@types/jest": "^27.5.1",
+    "htmlparser-benchmark": "github:AndreasMadsen/htmlparser-benchmark#6782aa94802c66a12c417314dd2fb2e3125b9889",
     "htmlparser2": "^7.2.0",
     "jest": "^28.1.0",
     "parse5": "^7.0.0",
