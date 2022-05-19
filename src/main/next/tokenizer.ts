@@ -62,9 +62,6 @@ const unquotedValueReader = or(until(char([spaceChars, '>'])), end());
 // <!-- … -->
 const commentReader = seq(ltReader, text('!--'), or(untilInclusive(text('-->')), end(3)));
 
-// <! … >
-const dtdReader = seq(ltReader, text('!'), or(untilInclusive(gtReader), end(1)));
-
 // <? … ?>
 const processingInstructionReader = seq(ltReader, text('?'), or(untilInclusive(text('?>')), end(2)));
 
@@ -142,7 +139,7 @@ const endTagOpeningRule: Rule<Type, Stage, Context> = {
   reader: endTagOpeningReader,
 
   to(chunk, offset, length, context) {
-    const endTag = context.hashCodeAt(chunk, offset + 2, length);
+    const endTag = context.hashCodeAt(chunk, offset + 2, length - 2);
 
     if (!context.cdataMode) {
       context.lastTag = endTag;
@@ -171,12 +168,6 @@ const commentRule: Rule<Type, Stage, Context> = {
   reader: commentReader,
 };
 
-const dtdRule: Rule<Type, Stage, Context> = {
-  on: [Stage.DOCUMENT],
-  type: Type.DTD,
-  reader: dtdReader,
-};
-
 const processingInstructionRule: Rule<Type, Stage, Context> = {
   on: [Stage.DOCUMENT],
   type: Type.PROCESSING_INSTRUCTION,
@@ -185,7 +176,7 @@ const processingInstructionRule: Rule<Type, Stage, Context> = {
 
 const cdataRule: Rule<Type, Stage, Context> = {
   on: [Stage.DOCUMENT],
-  type: Type.CDATA,
+  type: Type.CDATA_SECTION,
   reader: cdataReader,
   to: Stage.CDATA_TAG,
 };
@@ -214,7 +205,6 @@ export const tokenizer = createTokenizer([
   endTagOpeningRule,
   endTagClosingRule,
   commentRule,
-  dtdRule,
   processingInstructionRule,
   cdataRule,
   doctypeRule,

@@ -173,6 +173,68 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(5, Type.START_TAG_CLOSING, 14, 1);
   });
 
+  test('tokenizes terminated XML comments', () => {
+    tokenizer('<!--foo-->', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.COMMENT, 0, 10);
+  });
+
+  test('tokenizes unterminated XML comments', () => {
+    tokenizer('<!--foo', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.COMMENT, 0, 10);
+  });
+
+  test('tokenizes XML comments that contain minuses', () => {
+    tokenizer('<!-- foo---->', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.COMMENT, 0, 13);
+  });
+
+  test('tokenizes processing instructions', () => {
+    tokenizer('<?xml version="1.0"?>', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.PROCESSING_INSTRUCTION, 0, 21);
+  });
+
+  test('tokenizes unterminated processing instructions as comments', () => {
+    tokenizer('<?xml version="1.0"', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.PROCESSING_INSTRUCTION, 0, 21);
+  });
+
+  test('tokenizes CDATA sections', () => {
+    tokenizer('<![CDATA[hello]]>', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.CDATA_SECTION, 0, 17);
+  });
+
+  test('tokenizes doctype', () => {
+    tokenizer('<!DOCTYPE html>', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.DOCTYPE, 0, 15);
+  });
+
+  test('tokenizes doctype without spaces', () => {
+    tokenizer('<!DOCTYPEhtml>', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.DOCTYPE, 0, 14);
+  });
+
+  test('tokenizes doctype without value', () => {
+    tokenizer('<!DOCTYPE>', handler, context);
+
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.DOCTYPE, 0, 10);
+  });
 
   test('tokenizes start tag opening', () => {
     tokenizer('<aaa', handler, context);
@@ -189,7 +251,7 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.START_TAG_CLOSING, 5, 1);
   });
 
-  test('tokenizes ', () => {
+  test('tokenizes spaces between attribute name and value', () => {
     tokenizer('<aaa bbb = "ccc"', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(3);

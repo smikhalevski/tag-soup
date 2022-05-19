@@ -1457,7 +1457,7 @@ describe('tokenize', () => {
     });
 
     it('parses doctype', () => {
-      tokenize('<!DOCTYPE html>', false, 0, tokenizerOptions, parserOptions, handler);
+        tokenize('<!DOCTYPE html>', false, 0, tokenizerOptions, parserOptions, handler);
 
       expect(doctypeMock).toHaveBeenCalledTimes(1);
       expect(doctypeMock).toHaveBeenCalledWith(<IDoctypeToken>{

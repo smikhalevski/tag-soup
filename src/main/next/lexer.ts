@@ -27,7 +27,8 @@ export function createLexer(options: LexerOptions = {}): Lexer {
   const selfClosingTagsEnabled = options.selfClosingTagsEnabled || false;
 
   return (input, handler) => {
-    tokenizer(input, tokenHandler, {
+
+    const context: Context = {
       handler,
       stack: [],
       cursor: -1,
@@ -38,7 +39,13 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       cdataTags,
       wrestTags,
       hashCodeAt,
-    });
+    };
+
+    const {chunk, offset} = tokenizer(input, tokenHandler, context);
+
+    for (let i = -1; i < context.cursor; ++i) {
+      handler(LexerType.END_TAG, chunk, offset, 0);
+    }
   };
 }
 
@@ -51,13 +58,13 @@ const tokenHandler: TokenHandler<Type, Context> = {
     switch (type) {
 
       case Type.START_TAG_OPENING:
-        const startTag = context.lastTag = context.hashCodeAt(chunk, offset + 1, length);
+        const startTag = context.lastTag = context.hashCodeAt(chunk, offset + 1, length - 1);
         context.cdataMode = context.cdataTags !== null && context.cdataTags.has(startTag);
-        handler(LexerType.START_TAG, chunk, offset + 1, length);
+        handler(LexerType.START_TAG, chunk, offset + 1, length - 1);
         break;
 
       case Type.START_TAG_CLOSING:
-        if (context.selfClosingTagsEnabled && chunk.charCodeAt(offset - 1) === 47 /*/*/ || context.voidTags !== null && context.voidTags.has(context.lastTag)) {
+        if (context.selfClosingTagsEnabled && length === 2 || context.voidTags !== null && context.voidTags.has(context.lastTag)) {
           // Self-closing or void tag
           handler(LexerType.END_TAG, chunk, offset + length, 0);
         } else {
@@ -66,12 +73,17 @@ const tokenHandler: TokenHandler<Type, Context> = {
         break;
 
       case Type.END_TAG_OPENING:
+
+        // context.cdataMode is updated in the endTagOpeningRule
         if (context.cdataMode) {
+          // Ignore this end tag since it doesn't end the previous CDATA start tag
           handler(LexerType.TEXT, chunk, offset + 2, length - 2);
           break;
         }
 
         const {stack, cursor} = context;
+
+        // context.lastTag is updated in the endTagOpeningRule
         const endTag = context.lastTag;
 
         let i = cursor;
@@ -79,10 +91,10 @@ const tokenHandler: TokenHandler<Type, Context> = {
           --i;
         }
         if (i !== -1) {
-          for (let j = cursor; j > i; --j) {
+          for (let j = i; j < cursor; ++j) {
             handler(LexerType.END_TAG, chunk, offset, 0);
           }
-          handler(LexerType.END_TAG, chunk, offset + 2, length);
+          handler(LexerType.END_TAG, chunk, offset + 2, length - 2);
           context.cursor = i - 1;
         }
         break;
@@ -104,7 +116,7 @@ const tokenHandler: TokenHandler<Type, Context> = {
         handler(LexerType.ATTRIBUTE_VALUE, chunk, offset, length);
         break;
 
-      case Type.CDATA:
+      case Type.CDATA_SECTION:
         handler(LexerType.CDATA, chunk, offset + 9, length - 12);
         break;
 
@@ -114,10 +126,6 @@ const tokenHandler: TokenHandler<Type, Context> = {
 
       case Type.DOCTYPE:
         handler(LexerType.DOCTYPE, chunk, offset, length);
-        break;
-
-      case Type.DTD:
-        handler(LexerType.DTD, chunk, offset, length);
         break;
 
       case Type.PROCESSING_INSTRUCTION:
