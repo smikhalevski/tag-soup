@@ -6,19 +6,9 @@ import {caseInsensitiveHashCodeAt} from '../../main/next/utils';
 describe('tokenizer', () => {
 
   const tokenCallbackMock = jest.fn();
-  const errorCallbackMock = jest.fn();
-  const unrecognizedTokenCallbackMock = jest.fn();
 
-  const handler: TokenHandler<Type, Context> = {
-    token(type, chunk, offset, length, context, state) {
-      tokenCallbackMock(type, state.chunkOffset + offset, length, /*context*/);
-    },
-    error(type, chunk, offset, errorCode, context, state) {
-      errorCallbackMock(type, state.chunkOffset + offset, errorCode, /*context*/);
-    },
-    unrecognizedToken(chunk, offset, context, state) {
-      unrecognizedTokenCallbackMock(state.chunkOffset + offset, /*context*/);
-    }
+  const handler: TokenHandler<Type, Context> = (type, chunk, offset, length, context, state) => {
+    tokenCallbackMock(type, state.chunkOffset + offset, length, /*context*/);
   };
 
   const context: Context = {
@@ -27,8 +17,6 @@ describe('tokenizer', () => {
 
   beforeEach(() => {
     tokenCallbackMock.mockRestore();
-    errorCallbackMock.mockRestore();
-    unrecognizedTokenCallbackMock.mockRestore();
   });
 
   test('tokenizes text', () => {
