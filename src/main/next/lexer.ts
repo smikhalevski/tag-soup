@@ -16,6 +16,8 @@ export interface LexerOptions {
   caseInsensitiveTagsEnabled?: boolean;
 }
 
+let sharedStack: number[] | undefined;
+
 export function createLexer(options: LexerOptions = {}): Lexer {
 
   const hashCodeAt = options.caseInsensitiveTagsEnabled ? caseInsensitiveHashCodeAt : caseSensitiveHashCodeAt;
@@ -28,9 +30,12 @@ export function createLexer(options: LexerOptions = {}): Lexer {
 
   return (input, handler) => {
 
+    const stack = sharedStack || [];
+    sharedStack = undefined;
+
     const context: Context = {
       handler,
-      stack: [],
+      stack,
       cursor: -1,
       lastTag: 0,
       cdataMode: false,
@@ -42,6 +47,8 @@ export function createLexer(options: LexerOptions = {}): Lexer {
     };
 
     const {offset} = tokenizer(input, tokenHandler, context);
+
+    sharedStack = stack;
 
     if (input.length !== offset) {
       die('Unexpected token at position ' + offset);
