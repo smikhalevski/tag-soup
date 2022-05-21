@@ -75,8 +75,9 @@ const tokenHandler: TokenHandler<Type, Context> = (type, chunk, offset, length, 
               for (let j = i; j <= cursor; ++j) {
                 handler(LexerType.END_TAG, chunk, offset, 0);
               }
+              context.cursor = i - 1;
+              break;
             }
-            context.cursor = i - 1;
           }
         }
       }
@@ -109,7 +110,13 @@ const tokenHandler: TokenHandler<Type, Context> = (type, chunk, offset, length, 
       // See endTagOpeningRule.to for related updates
       const {stack, cursor, lastTag} = context;
 
-      const i = stack.lastIndexOf(lastTag);
+      // Lookup for the start tag
+      let i = cursor;
+      while (i > -1 && stack[i] !== lastTag) {
+        --i;
+      }
+
+      // If start tag is found then emit end tags
       if (i !== -1) {
         for (let j = i; j < cursor; ++j) {
           handler(LexerType.END_TAG, chunk, offset, 0);
@@ -117,6 +124,7 @@ const tokenHandler: TokenHandler<Type, Context> = (type, chunk, offset, length, 
         handler(LexerType.END_TAG, chunk, offset + 2, length - 2);
         context.cursor = i - 1;
       }
+
       break;
     }
 
