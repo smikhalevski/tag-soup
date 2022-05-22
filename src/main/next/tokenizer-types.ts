@@ -1,6 +1,4 @@
-import {LexerHandler} from './lexer-types';
-
-export const enum Stage {
+export const enum TokenStage {
   DOCUMENT,
   START_TAG_OPENING,
   ATTRIBUTE_NAME,
@@ -13,13 +11,10 @@ export const enum Type {
   START_TAG_OPENING = 'START_TAG_OPENING',
   START_TAG_CLOSING = 'START_TAG_CLOSING',
   ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
-  // ATTRIBUTE_EQ = 'ATTRIBUTE_EQ',
-  ATTRIBUTE_QUOT_VALUE = 'ATTRIBUTE_QUOT_VALUE',
-  ATTRIBUTE_APOS_VALUE = 'ATTRIBUTE_APOS_VALUE',
+  ATTRIBUTE_ENQUOTED_VALUE = 'ATTRIBUTE_ENQUOTED_VALUE',
   ATTRIBUTE_UNQUOTED_VALUE = 'ATTRIBUTE_UNQUOTED_VALUE',
-  // TAG_SPACE = 'TAG_SPACE',
   END_TAG_OPENING = 'END_TAG_OPENING',
-  // END_TAG_CLOSING = 'END_TAG_CLOSING',
+  END_TAG_CLOSING = 'END_TAG_CLOSING',
   COMMENT = 'COMMENT',
   PROCESSING_INSTRUCTION = 'PROCESSING_INSTRUCTION',
   CDATA_SECTION = 'CDATA_SECTION',
@@ -27,7 +22,21 @@ export const enum Type {
   TEXT = 'TEXT',
 }
 
-export interface Context {
+export const enum TokenType {
+  START_TAG,
+  ATTRIBUTE_NAME,
+  ATTRIBUTE_VALUE,
+  END_TAG,
+  COMMENT,
+  PROCESSING_INSTRUCTION,
+  CDATA,
+  DOCTYPE,
+  TEXT,
+}
+
+export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, context: LexerContext) => void;
+
+export interface LexerContext {
 
   handler: LexerHandler;
 

@@ -1,19 +1,19 @@
 import {TokenHandler} from 'tokenizer-dsl';
 import {tokenizer} from '../../main/next/tokenizer';
-import {Context, Type} from '../../main/next/tokenizer-types';
-import {caseInsensitiveHashCodeAt} from '../../main/next/utils';
+import {LexerContext, Type} from '../../main/next/tokenizer-types';
+import {getCaseInsensitiveHashCodeAt} from '../../main/next/utils';
 
 describe('tokenizer', () => {
 
   const tokenCallbackMock = jest.fn();
 
-  const handler: TokenHandler<Type, Context> = (type, chunk, offset, length, context, state) => {
+  const handler: TokenHandler<Type, LexerContext> = (type, chunk, offset, length, context, state) => {
     tokenCallbackMock(type, state.chunkOffset + offset, length, /*context*/);
   };
 
-  const context: Context = {
-    hashCodeAt: caseInsensitiveHashCodeAt,
-  } as unknown as Context;
+  const context: LexerContext = {
+    hashCodeAt: getCaseInsensitiveHashCodeAt,
+  } as unknown as LexerContext;
 
   beforeEach(() => {
     tokenCallbackMock.mockRestore();
@@ -29,7 +29,7 @@ describe('tokenizer', () => {
   test('tokenizes the start tag without attributes', () => {
     tokenizer('<a>', handler, context);
 
-    // expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.START_TAG_OPENING, 0, 2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.START_TAG_CLOSING, 2, 1);
   });
@@ -41,9 +41,9 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.START_TAG_OPENING, 0, 2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.ATTRIBUTE_NAME, 3, 3);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(3, Type.ATTRIBUTE_NAME, 7, 3);
-    expect(tokenCallbackMock).toHaveBeenNthCalledWith(4, Type.ATTRIBUTE_APOS_VALUE, 11, 9);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(4, Type.ATTRIBUTE_ENQUOTED_VALUE, 11, 9);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(5, Type.ATTRIBUTE_NAME, 22, 3);
-    expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, Type.ATTRIBUTE_QUOT_VALUE, 26, 9);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, Type.ATTRIBUTE_ENQUOTED_VALUE, 26, 9);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(7, Type.START_TAG_CLOSING, 35, 1);
   });
 
@@ -58,9 +58,9 @@ describe('tokenizer', () => {
   test('tokenizes the end tag', () => {
     tokenizer('</a   >', handler, context);
 
-    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.END_TAG_OPENING, 0, 3);
-    // expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.END_TAG_CLOSING, 3, 4);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.END_TAG_CLOSING, 3, 4);
   });
 
   test('tokenizes the self-closing tag without attributes', () => {
@@ -78,9 +78,9 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.START_TAG_OPENING, 0, 2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.ATTRIBUTE_NAME, 3, 3);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(3, Type.ATTRIBUTE_NAME, 7, 3);
-    expect(tokenCallbackMock).toHaveBeenNthCalledWith(4, Type.ATTRIBUTE_APOS_VALUE, 11, 9);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(4, Type.ATTRIBUTE_ENQUOTED_VALUE, 11, 9);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(5, Type.ATTRIBUTE_NAME, 22, 3);
-    expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, Type.ATTRIBUTE_QUOT_VALUE, 26, 9);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, Type.ATTRIBUTE_ENQUOTED_VALUE, 26, 9);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(7, Type.START_TAG_CLOSING, 37, 2);
   });
 
@@ -126,9 +126,9 @@ describe('tokenizer', () => {
   test('ignores bullshit in closing tags', () => {
     tokenizer('</a @#$%*/>', handler, context);
 
-    expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
+    expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.END_TAG_OPENING, 0, 3);
-    // expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.END_TAG_CLOSING, 3, 8);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.END_TAG_CLOSING, 3, 8);
   });
 
   test('tokenizes the trailing text', () => {
@@ -245,6 +245,6 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenCalledTimes(3);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, Type.START_TAG_OPENING, 0, 4);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(2, Type.ATTRIBUTE_NAME, 5, 3);
-    expect(tokenCallbackMock).toHaveBeenNthCalledWith(3, Type.ATTRIBUTE_QUOT_VALUE, 11, 5);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(3, Type.ATTRIBUTE_ENQUOTED_VALUE, 11, 5);
   });
 });
