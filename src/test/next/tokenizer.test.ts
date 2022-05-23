@@ -28,7 +28,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the start tag without attributes', () => {
-    tokenizer('<a>', handler, context);
+    tokenizer('<w>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -36,7 +36,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the start tag with attributes', () => {
-    tokenizer('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', handler, context);
+    tokenizer('<w foo bar=\'aaa"bbb\'  baz="aaa\'bbb">', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(7);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -49,7 +49,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the start tag without attributes and with spaces before the greater-then char', () => {
-    tokenizer('<a   >', handler, context);
+    tokenizer('<w   >', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -57,7 +57,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the end tag', () => {
-    tokenizer('</a   >', handler, context);
+    tokenizer('</w   >', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.END_TAG_OPENING, 0, 3);
@@ -65,7 +65,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the self-closing tag without attributes', () => {
-    tokenizer('<a/>', handler, context);
+    tokenizer('<w/>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -73,7 +73,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the self-closing tag with attributes', () => {
-    tokenizer('<a foo bar=\'aaa"bbb\'  baz="aaa\'bbb"  />', handler, context);
+    tokenizer('<w foo bar=\'aaa"bbb\'  baz="aaa\'bbb"  />', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(7);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -86,7 +86,7 @@ describe('tokenizer', () => {
   });
 
   test('does not tokenize self-closing tag with the unquoted attribute that ends with a slash', () => {
-    tokenizer('<a foo=123//>', handler, context);
+    tokenizer('<w foo=123//>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(4);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -96,7 +96,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the start tag with the invalid syntax as a text', () => {
-    tokenizer('< a>', handler, context);
+    tokenizer('< w>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.TEXT, 0, 4);
@@ -110,7 +110,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the start tag that contain weird chars and starts with the valid name char', () => {
-    tokenizer('<a@#$%*>', handler, context);
+    tokenizer('<w@#$%*>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 7);
@@ -118,14 +118,14 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the end tag with the invalid syntax as text', () => {
-    tokenizer('</ a>', handler, context);
+    tokenizer('</ w>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.TEXT, 0, 5);
   });
 
   test('ignores bullshit in closing tags', () => {
-    tokenizer('</a @#$%*/>', handler, context);
+    tokenizer('</w @#$%*/>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.END_TAG_OPENING, 0, 3);
@@ -133,7 +133,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes the trailing text', () => {
-    tokenizer('<a>okay', handler, context);
+    tokenizer('<w>okay', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(3);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -142,7 +142,7 @@ describe('tokenizer', () => {
   });
 
   test('malformed tag becomes part of continuous text', () => {
-    tokenizer('aaa< /a>bbb<b>', handler, context);
+    tokenizer('aaa< /w>bbb<b>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(4);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.TEXT, 0, 3);
@@ -152,7 +152,7 @@ describe('tokenizer', () => {
   });
 
   test('emits start tag with attributes', () => {
-    tokenizer('<a foo bar=eee>', handler, context);
+    tokenizer('<w foo bar=eee>', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(5);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -226,14 +226,14 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes start tag opening', () => {
-    tokenizer('<aaa', handler, context);
+    tokenizer('<www', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(1);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 4);
   });
 
   test('tokenizes start tag with space', () => {
-    tokenizer('<aaa >', handler, context);
+    tokenizer('<www >', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(2);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 4);
@@ -241,7 +241,7 @@ describe('tokenizer', () => {
   });
 
   test('tokenizes spaces between attribute name and value', () => {
-    tokenizer('<aaa bbb = "ccc"', handler, context);
+    tokenizer('<www bbb = "ccc"', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(3);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 4);

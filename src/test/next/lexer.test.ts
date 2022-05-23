@@ -15,7 +15,7 @@ describe('createLexer', () => {
   });
 
   test('reads attribute with value in quotes', () => {
-    lexer('<a foo="aaa">', handler);
+    lexer('<w foo="aaa">', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(5);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -26,7 +26,7 @@ describe('createLexer', () => {
   });
 
   test('reads attribute with value in apostrophes', () => {
-    lexer('<a foo=\'aaa\'>', handler);
+    lexer('<w foo=\'aaa\'>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(5);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -37,7 +37,7 @@ describe('createLexer', () => {
   });
 
   test('reads attribute without value', () => {
-    lexer('<a foo bar>', handler);
+    lexer('<w foo bar>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(5);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -50,7 +50,7 @@ describe('createLexer', () => {
   test('reads self-closing tags', () => {
     const lexer = createLexer({selfClosingTagsEnabled: true});
 
-    lexer('<a/>', handler);
+    lexer('<w/>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(3);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -59,7 +59,7 @@ describe('createLexer', () => {
   });
 
   test('ignores unexpected end tags', () => {
-    lexer('<a></b></a>', handler);
+    lexer('<w></b></w>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(4);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -69,7 +69,7 @@ describe('createLexer', () => {
   });
 
   test('injects end tags before end tag', () => {
-    lexer('<a><b></a>', handler);
+    lexer('<w><b></w>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(7);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -82,7 +82,7 @@ describe('createLexer', () => {
   });
 
   test('injects end tags before input end', () => {
-    lexer('<a><b>', handler);
+    lexer('<w><b>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(6);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -94,7 +94,7 @@ describe('createLexer', () => {
   });
 
   test('reads text in a tag', () => {
-    lexer('<a>aaa</a>', handler);
+    lexer('<w>aaa</w>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(5);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
