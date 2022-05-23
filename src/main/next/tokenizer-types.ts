@@ -1,54 +1,59 @@
+import {TokenizerState} from 'tokenizer-dsl';
+
 export const enum TokenStage {
   DOCUMENT,
   START_TAG_OPENING,
   ATTRIBUTE_NAME,
   ATTRIBUTE_EQ,
-  END_TAG,
+  END_TAG_OPENING,
   CDATA_TAG,
 }
 
-export const enum Type {
+export const enum TokenType {
   START_TAG_OPENING = 'START_TAG_OPENING',
   START_TAG_CLOSING = 'START_TAG_CLOSING',
   ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
-  ATTRIBUTE_ENQUOTED_VALUE = 'ATTRIBUTE_ENQUOTED_VALUE',
+  ATTRIBUTE_VALUE = 'ATTRIBUTE_VALUE',
   ATTRIBUTE_UNQUOTED_VALUE = 'ATTRIBUTE_UNQUOTED_VALUE',
   END_TAG_OPENING = 'END_TAG_OPENING',
   END_TAG_CLOSING = 'END_TAG_CLOSING',
+  IMPLICIT_END_TAG = 'IMPLICIT_END_TAG',
+  IMPLICIT_START_TAG = 'IMPLICIT_START_TAG',
   COMMENT = 'COMMENT',
   PROCESSING_INSTRUCTION = 'PROCESSING_INSTRUCTION',
   CDATA_SECTION = 'CDATA_SECTION',
   DOCTYPE = 'DOCTYPE',
   TEXT = 'TEXT',
+  DTD = 'DTD',
 }
 
-export const enum TokenType {
-  START_TAG,
-  ATTRIBUTE_NAME,
-  ATTRIBUTE_VALUE,
-  END_TAG,
-  COMMENT,
-  PROCESSING_INSTRUCTION,
-  CDATA,
-  DOCTYPE,
-  TEXT,
-}
+export interface LexerState extends TokenizerState<TokenStage> {
 
-export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, context: LexerContext) => void;
-
-export interface LexerContext {
-
-  handler: LexerHandler;
-
-  // List of tag name hash codes
+  /**
+   * The list of tag name hash codes.
+   */
   stack: number[];
 
-  // The current position in the stack
+  /**
+   * The actual stack length.
+   */
   cursor: number;
 
   lastTag: number;
 
-  cdataMode: boolean;
+  /**
+   * If `true` then the contents of the current tag contains must be treated as character data.
+   */
+  cdataPending: boolean;
+}
+
+export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
+
+export interface LexerContext {
+
+  state: LexerState;
+
+  handler: LexerHandler;
 
   selfClosingTagsEnabled: boolean;
 
@@ -59,8 +64,10 @@ export interface LexerContext {
   cdataTags: Set<number> | null;
 
   // Map from (A) tag name hash code to a set of hash codes of tag names that implicitly end A
-  wrestTags: Map<number, Set<number>> | null;
+  implicitEndTags: Map<number, Set<number>> | null;
+
+  implicitStartTags: Set<number> | null;
 
   // Reads hash code from the input string, defines if tags are compared in case-insensitive manner
-  hashCodeAt: (input: string, offset: number, length: number) => number;
+  getHashCode(input: string, offset: number, length: number): number;
 }

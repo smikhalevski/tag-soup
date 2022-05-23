@@ -1,7 +1,7 @@
 import {TokenHandler} from 'tokenizer-dsl';
 import {tokenizer} from './tokenizer';
-import {LexerContext, LexerHandler, TokenType, Type} from './tokenizer-types';
-import {getCaseInsensitiveHashCodeAt, getCaseSensitiveHashCodeAt, die} from './utils';
+import {LexerContext, LexerHandler, LexerState, TokenStage, TokenType} from './tokenizer-types';
+import {die, getCaseInsensitiveHashCode, getCaseSensitiveHashCode} from './utils';
 
 export interface Lexer {
   (input: string, handler: LexerHandler): void;
@@ -10,160 +10,151 @@ export interface Lexer {
 export interface LexerOptions {
   voidTags?: string[];
   cdataTags?: string[];
-  wrestTags?: { [tag: string]: string[] };
+  implicitEndTags?: { [tag: string]: string[] };
+  implicitStartTags?: string[];
   selfClosingTagsEnabled?: boolean;
   caseInsensitiveTagsEnabled?: boolean;
 }
 
 export function createLexer(options: LexerOptions = {}): Lexer {
 
-  const hashCodeAt = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCodeAt : getCaseSensitiveHashCodeAt;
-  const toHashCode = (value: string) => hashCodeAt(value, 0, value.length);
+  const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const toHashCode = (value: string) => getHashCode(value, 0, value.length);
 
   const voidTags = options.voidTags ? new Set(options.voidTags.map(toHashCode)) : null;
   const cdataTags = options.cdataTags ? new Set(options.cdataTags.map(toHashCode)) : null;
-  const wrestTags = options.wrestTags ? new Map(Object.entries(options.wrestTags).map(([tag, tags]) => [toHashCode(tag), new Set(tags.map(toHashCode))])) : null;
+  const implicitEndTags = options.implicitEndTags ? new Map(Object.entries(options.implicitEndTags).map(([tag, tags]) => [toHashCode(tag), new Set(tags.map(toHashCode))])) : null;
+  const implicitStartTags = options.implicitStartTags ? new Set(options.implicitStartTags.map(toHashCode)) : null;
   const selfClosingTagsEnabled = options.selfClosingTagsEnabled || false;
-
-  let sharedStack: number[] | undefined;
 
   return (input, handler) => {
 
-    const stack = sharedStack || [];
-    sharedStack = undefined;
-
-    const context: LexerContext = {
-      handler,
-      stack,
+    const state: LexerState = {
+      stage: TokenStage.DOCUMENT,
+      chunk: input,
+      chunkOffset: 0,
+      offset: 0,
+      stack: [],
       cursor: -1,
       lastTag: 0,
-      cdataMode: false,
+      cdataPending: false,
+    };
+
+    const context: LexerContext = {
+      state,
+      handler,
       selfClosingTagsEnabled,
       voidTags,
       cdataTags,
-      wrestTags,
-      hashCodeAt,
+      implicitEndTags,
+      implicitStartTags,
+      getHashCode,
     };
 
     const {offset} = tokenizer(input, tokenHandler, context);
-
-    sharedStack = stack;
 
     if (input.length !== offset) {
       die('Unexpected token at position ' + offset);
     }
 
-    for (let i = -1; i < context.cursor; ++i) {
-      handler(TokenType.END_TAG, input, offset, 0, context);
+    for (let i = -1; i < state.cursor; ++i) {
+      handler(TokenType.IMPLICIT_END_TAG, input, offset, 0, state);
     }
   };
 }
 
-const tokenHandler: TokenHandler<Type, LexerContext> = (type, chunk, offset, length, context) => {
+const tokenHandler: TokenHandler<TokenType, LexerContext> = (type, chunk, offset, length, context) => {
 
-  const {handler} = context;
+  const {state, handler} = context;
 
   switch (type) {
 
-    case Type.START_TAG_OPENING: {
-      const {stack, cursor, cdataTags, wrestTags} = context;
+    case TokenType.START_TAG_OPENING: {
+      const {state, implicitEndTags} = context;
+      const lastTag = state.lastTag = context.getHashCode(chunk, offset + 1, length - 1);
 
-      const lastTag = context.lastTag = context.hashCodeAt(chunk, offset + 1, length - 1);
+      if (implicitEndTags != null) {
+        const implicitlyEndedTags = implicitEndTags.get(lastTag);
 
-      context.cdataMode = cdataTags !== null && cdataTags.has(lastTag);
+        // Lookup tags that are implicitly ended by this start tag
+        if (implicitlyEndedTags !== undefined) {
+          const {stack, cursor} = state;
 
-      if (wrestTags !== null) {
-        const tags = wrestTags.get(lastTag);
-
-        if (tags !== undefined) {
-          for (let i = cursor; i > -1; --i) {
-            if (tags.has(stack[i])) {
-              for (let j = i; j <= cursor; ++j) {
-                handler(TokenType.END_TAG, chunk, offset, 0, context);
+          for (let i = 0; i <= cursor; ++i) {
+            if (implicitlyEndedTags.has(stack[i])) {
+              while (i <= cursor) {
+                handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+                --state.cursor;
+                ++i;
               }
-              context.cursor = i - 1;
               break;
             }
           }
+
         }
       }
 
-      handler(TokenType.START_TAG, chunk, offset + 1, length - 1, context);
+      handler(TokenType.START_TAG_OPENING, chunk, offset, length, state);
       break;
     }
 
-    case Type.START_TAG_CLOSING: {
-      const {lastTag, voidTags} = context;
+    case TokenType.START_TAG_CLOSING: {
+      const {state, voidTags} = context;
 
-      if (context.selfClosingTagsEnabled && length === 2 || voidTags !== null && voidTags.has(lastTag)) {
-        // Self-closing or void tag
-        handler(TokenType.END_TAG, chunk, offset + length, 0, context);
+      handler(TokenType.START_TAG_CLOSING, chunk, offset, length, state);
+
+      if (context.selfClosingTagsEnabled && length === 2 || !state.cdataPending && voidTags != null && voidTags.has(state.lastTag)) {
+        handler(TokenType.IMPLICIT_END_TAG, chunk, offset + length, 0, state);
       } else {
-        context.stack[++context.cursor] = lastTag;
+        state.stack[++state.cursor] = state.lastTag;
       }
       break;
     }
 
-    case Type.END_TAG_OPENING: {
+    case TokenType.END_TAG_OPENING: {
 
-      // context.cdataMode is updated in the endTagOpeningRule.to
-      if (context.cdataMode) {
-        // Ignore the end tag since it doesn't match the current CDATA start tag
-        handler(TokenType.TEXT, chunk, offset + 2, length - 2, context);
+      if (state.cdataPending) {
+        // Ignore the end tag since it doesn't match the current CDATA container start tag
+        handler(TokenType.TEXT, chunk, offset, length, state);
         break;
       }
 
-      // See endTagOpeningRule.to for related updates
-      const {stack, cursor, lastTag} = context;
+      const {stack, cursor, lastTag} = state;
 
-      // Lookup for the start tag
-      let i = cursor;
-      while (i > -1 && stack[i] !== lastTag) {
-        --i;
-      }
-
-      // If start tag is found then emit end tags
-      if (i !== -1) {
-        for (let j = i; j < cursor; ++j) {
-          handler(TokenType.END_TAG, chunk, offset, 0, context);
+      // Lookup the explicit start tag
+      for (let i = cursor; i > -1; --i) {
+        if (stack[i] === lastTag) {
+          // Inject implicit end tags for unbalanced start tags
+          while (i < cursor) {
+            handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+            --state.cursor;
+            ++i;
+          }
+          handler(TokenType.END_TAG_OPENING, chunk, offset, length, state);
+          return;
         }
-        handler(TokenType.END_TAG, chunk, offset + 2, length - 2, context);
-        context.cursor = i - 1;
       }
+
+      const {implicitStartTags} = context;
+
+      if (implicitStartTags != null && implicitStartTags.has(lastTag)) {
+        handler(TokenType.IMPLICIT_START_TAG, chunk, offset, length, state);
+      }
+
+      state.lastTag = 0;
 
       break;
     }
 
-    case Type.TEXT:
-      handler(TokenType.TEXT, chunk, offset, length, context);
+    case TokenType.END_TAG_CLOSING:
+      if (state.lastTag !== 0) {
+        handler(TokenType.END_TAG_CLOSING, chunk, offset, length, state);
+        --state.cursor;
+      }
       break;
 
-    case Type.ATTRIBUTE_NAME:
-      handler(TokenType.ATTRIBUTE_NAME, chunk, offset, length, context);
-      break;
-
-    case Type.ATTRIBUTE_ENQUOTED_VALUE:
-      handler(TokenType.ATTRIBUTE_VALUE, chunk, offset + 1, length - 2, context);
-      break;
-
-    case Type.ATTRIBUTE_UNQUOTED_VALUE:
-      handler(TokenType.ATTRIBUTE_VALUE, chunk, offset, length, context);
-      break;
-
-    case Type.CDATA_SECTION:
-      handler(TokenType.CDATA, chunk, offset + 9, length - 12, context);
-      break;
-
-    case Type.COMMENT:
-      handler(TokenType.COMMENT, chunk, offset + 4, length - 7, context);
-      break;
-
-    case Type.DOCTYPE:
-      handler(TokenType.DOCTYPE, chunk, offset, length, context);
-      break;
-
-    case Type.PROCESSING_INSTRUCTION:
-      handler(TokenType.PROCESSING_INSTRUCTION, chunk, offset + 2, length - 4, context);
+    default:
+      handler(type, chunk, offset, length, state);
       break;
   }
 };

@@ -1,5 +1,5 @@
 import {all, char, createTokenizer, end, maybe, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
-import {LexerContext, Type, TokenStage} from './tokenizer-types';
+import {LexerContext, TokenType, TokenStage} from './tokenizer-types';
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
@@ -56,7 +56,7 @@ const endTagClosingReader = or(until(gtReader, {inclusive: true}), end());
 const attributeNameReader = or(until(char([whitespaceChars, '/', '>', '='])), end());
 
 // "…" or '…'
-const attributeEnquotedValueReader = or(
+const attributeValueReader = or(
     seq(quotReader, or(until(quotReader, {inclusive: true}), end(1))),
     seq(aposReader, or(until(aposReader, {inclusive: true}), end(1))),
 );
@@ -76,115 +76,132 @@ const cdataReader = seq(ltReader, exclReader, text('[CDATA['), or(until(text(']]
 // <!DOCTYPE … >
 const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', {caseInsensitive: true}), or(until(gtReader, {inclusive: true}), end(1)));
 
+// <! … >
+const dtdReader = seq(ltReader, exclReader, or(until(gtReader, {inclusive: true}), end(1)));
+
 const textReader = seq(skip(1), or(until(ltReader), end()));
 
-const startTagOpeningRule: Rule<Type, TokenStage, LexerContext> = {
+const startTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
-  type: Type.START_TAG_OPENING,
+  type: TokenType.START_TAG_OPENING,
   reader: startTagOpeningReader,
   to: TokenStage.START_TAG_OPENING,
 };
 
-const startTagClosingRule: Rule<Type, TokenStage, LexerContext> = {
+const startTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
-  type: Type.START_TAG_CLOSING,
+  type: TokenType.START_TAG_CLOSING,
   reader: startTagClosingReader,
 
   to(chunk, offset, length, context) {
-    return context.cdataMode ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
+    const {state, cdataTags} = context;
+    const cdataPending = state.cdataPending = !(context.selfClosingTagsEnabled && length === 2) && cdataTags != null && cdataTags.has(state.lastTag);
+    return cdataPending ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
   },
 };
 
-const tagSpaceRule: Rule<Type, TokenStage, LexerContext> = {
+const tagSpaceRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
   reader: tagSpaceReader,
   silent: true,
 };
 
-const attributeNameRule: Rule<Type, TokenStage, LexerContext> = {
+const attributeNameRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME],
-  type: Type.ATTRIBUTE_NAME,
+  type: TokenType.ATTRIBUTE_NAME,
   reader: attributeNameReader,
   to: TokenStage.ATTRIBUTE_NAME,
 };
 
-const attributeEqRule: Rule<Type, TokenStage, LexerContext> = {
+const attributeEqRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.ATTRIBUTE_NAME],
   reader: eqReader,
   to: TokenStage.ATTRIBUTE_EQ,
   silent: true,
 };
 
-const attributeEnquotedValueRule: Rule<Type, TokenStage, LexerContext> = {
+const attributeValueRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.ATTRIBUTE_EQ],
-  type: Type.ATTRIBUTE_ENQUOTED_VALUE,
-  reader: attributeEnquotedValueReader,
+  type: TokenType.ATTRIBUTE_VALUE,
+  reader: attributeValueReader,
   to: TokenStage.START_TAG_OPENING,
 };
 
-const attributeUnquotedValueRule: Rule<Type, TokenStage, LexerContext> = {
+const attributeUnquotedValueRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.ATTRIBUTE_EQ],
-  type: Type.ATTRIBUTE_UNQUOTED_VALUE,
+  type: TokenType.ATTRIBUTE_UNQUOTED_VALUE,
   reader: attributeUnquotedValueReader,
   to: TokenStage.START_TAG_OPENING,
 };
 
-const endTagOpeningRule: Rule<Type, TokenStage, LexerContext> = {
+const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT, TokenStage.CDATA_TAG],
-  type: Type.END_TAG_OPENING,
+  type: TokenType.END_TAG_OPENING,
   reader: endTagOpeningReader,
 
   to(chunk, offset, length, context) {
-    const endTag = context.hashCodeAt(chunk, offset + 2, length - 2);
+    const {state} = context;
+    const lastTag = context.getHashCode(chunk, offset + 2, length - 2);
 
-    if (!context.cdataMode) {
-      context.lastTag = endTag;
-      return TokenStage.END_TAG;
+    // Not in a CDATA container
+    if (!state.cdataPending) {
+      state.lastTag = lastTag;
+      return TokenStage.END_TAG_OPENING;
     }
-    if (context.lastTag !== endTag) {
+
+    // Tag doesn't end a CDATA container
+    if (state.lastTag !== lastTag) {
       return TokenStage.CDATA_TAG;
     }
-    context.lastTag = endTag;
-    context.cdataMode = false;
-    return TokenStage.END_TAG;
+
+    // Tag ends a CDATA container
+    state.lastTag = lastTag;
+    state.cdataPending = false;
+    return TokenStage.END_TAG_OPENING;
   },
 };
 
-const endTagClosingRule: Rule<Type, TokenStage, LexerContext> = {
-  on: [TokenStage.END_TAG],
-  type: Type.END_TAG_CLOSING,
+const endTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
+  on: [TokenStage.END_TAG_OPENING],
+  type: TokenType.END_TAG_CLOSING,
   reader: endTagClosingReader,
   to: TokenStage.DOCUMENT,
 };
 
-const commentRule: Rule<Type, TokenStage, LexerContext> = {
+const commentRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
-  type: Type.COMMENT,
+  type: TokenType.COMMENT,
   reader: commentReader,
 };
 
-const processingInstructionRule: Rule<Type, TokenStage, LexerContext> = {
+const processingInstructionRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
-  type: Type.PROCESSING_INSTRUCTION,
+  type: TokenType.PROCESSING_INSTRUCTION,
   reader: processingInstructionReader,
 };
 
-const cdataRule: Rule<Type, TokenStage, LexerContext> = {
+const cdataRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
-  type: Type.CDATA_SECTION,
+  type: TokenType.CDATA_SECTION,
   reader: cdataReader,
   to: TokenStage.CDATA_TAG,
 };
 
-const doctypeRule: Rule<Type, TokenStage, LexerContext> = {
+const doctypeRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
-  type: Type.DOCTYPE,
+  type: TokenType.DOCTYPE,
   reader: doctypeReader,
 };
 
-const textRule: Rule<Type, TokenStage, LexerContext> = {
+const dtdRule: Rule<TokenType, TokenStage, LexerContext> = {
+  on: [TokenStage.DOCUMENT],
+  type: TokenType.DTD,
+  reader: dtdReader,
+};
+
+const textRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT, TokenStage.CDATA_TAG],
-  type: Type.TEXT,
+  type: TokenType.TEXT,
   reader: textReader,
 };
 
@@ -192,7 +209,7 @@ export const tokenizer = createTokenizer([
   startTagOpeningRule,
   attributeNameRule,
   attributeEqRule,
-  attributeEnquotedValueRule,
+  attributeValueRule,
   attributeUnquotedValueRule,
   startTagClosingRule,
   tagSpaceRule,
@@ -202,5 +219,6 @@ export const tokenizer = createTokenizer([
   processingInstructionRule,
   cdataRule,
   doctypeRule,
+  // dtdRule,
   textRule,
 ], TokenStage.DOCUMENT);

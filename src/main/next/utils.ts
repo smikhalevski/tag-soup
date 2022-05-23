@@ -1,4 +1,4 @@
-export function getCaseInsensitiveHashCodeAt(input: string, offset: number, length: number): number {
+export function getCaseInsensitiveHashCode(input: string, offset: number, length: number): number {
   let hashCode = 0;
   for (let i = 0; i < length; ++i) {
     const charCode = input.charCodeAt(offset + i);
@@ -7,7 +7,7 @@ export function getCaseInsensitiveHashCodeAt(input: string, offset: number, leng
   return hashCode | 0;
 }
 
-export function getCaseSensitiveHashCodeAt(input: string, offset: number, length: number): number {
+export function getCaseSensitiveHashCode(input: string, offset: number, length: number): number {
   let hashCode = 0;
   for (let i = 0; i < length; ++i) {
     hashCode = (hashCode << 5) - hashCode + input.charCodeAt(offset + i);
