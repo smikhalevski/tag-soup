@@ -51,7 +51,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       getHashCode,
     };
 
-    const {offset} = tokenizer(input, tokenHandler, context);
+    const {offset} = tokenizer(input, tokenHandler, context, state);
 
     if (input.length !== offset) {
       die('Unexpected token at position ' + offset);

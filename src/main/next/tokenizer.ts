@@ -219,6 +219,6 @@ export const tokenizer = createTokenizer([
   processingInstructionRule,
   cdataRule,
   doctypeRule,
-  // dtdRule,
+  dtdRule,
   textRule,
 ], TokenStage.DOCUMENT);
