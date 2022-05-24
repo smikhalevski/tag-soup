@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "importHelpers": true,
     "declaration": true,
     "moduleResolution": "Node",
     "preserveConstEnums": true,

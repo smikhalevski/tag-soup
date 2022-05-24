@@ -1,5 +1,7 @@
-import {all, char, createTokenizer, end, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
+import {all, char, createTokenizer, end, or, Reader, Rule, seq, skip, text, until} from 'tokenizer-dsl';
 import {LexerContext, TokenStage, TokenType} from './lexer-types';
+
+const untilInclusive = <Context>(reader: Reader<Context>): Reader<Context> => until(reader, {inclusive: true});
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
@@ -51,33 +53,33 @@ const startTagSelfClosingReader = seq(slashReader, gtReader);
 // </…
 const endTagOpeningReader = seq(ltReader, slashReader, tagNameStartCharReader, tagNameCharsReader);
 
-const endTagClosingReader = or(until(gtReader, {inclusive: true}), end());
+const endTagClosingReader = or(untilInclusive(gtReader), end());
 
 const attributeNameReader = or(until(char([whitespaceChars, '/', '>', '='])), end());
 
 // "…" or '…'
 const attributeValueReader = or(
-    seq(quotReader, or(until(quotReader, {inclusive: true}), end(1))),
-    seq(aposReader, or(until(aposReader, {inclusive: true}), end(1))),
+    seq(quotReader, or(untilInclusive(quotReader), end(1))),
+    seq(aposReader, or(untilInclusive(aposReader), end(1))),
 );
 
 // okay
 const attributeUnquotedValueReader = or(until(char([whitespaceChars, '>'])), end());
 
 // <!-- … -->
-const commentReader = seq(ltReader, exclReader, text('--'), or(until(text('-->'), {inclusive: true}), end(3)));
+const commentReader = seq(ltReader, exclReader, text('--'), or(untilInclusive(text('-->')), end(3)));
 
 // <? … ?>
-const processingInstructionReader = seq(ltReader, text('?'), or(until(text('?>'), {inclusive: true}), end(2)));
+const processingInstructionReader = seq(ltReader, text('?'), or(untilInclusive(text('?>')), end(2)));
 
 // <![CDATA[ … ]]>
-const cdataReader = seq(ltReader, exclReader, text('[CDATA['), or(until(text(']]>'), {inclusive: true}), end(3)));
+const cdataReader = seq(ltReader, exclReader, text('[CDATA['), or(untilInclusive(text(']]>')), end(3)));
 
 // <!DOCTYPE … >
-const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', {caseInsensitive: true}), or(until(gtReader, {inclusive: true}), end(1)));
+const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', {caseInsensitive: true}), or(untilInclusive(gtReader), end(1)));
 
 // <! … >
-const dtdReader = seq(ltReader, exclReader, or(until(gtReader, {inclusive: true}), end(1)));
+const dtdReader = seq(ltReader, exclReader, or(untilInclusive(gtReader), end(1)));
 
 const textReader = seq(skip(1), or(until(ltReader), end()));
 
