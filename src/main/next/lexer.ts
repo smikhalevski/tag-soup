@@ -36,18 +36,17 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       offset: 0,
       stack: [],
       cursor: -1,
-      lastTag: 0,
-      cdataPending: false,
+      activeTag: 0,
     };
 
     const context: LexerContext = {
       state,
       handler,
       selfClosingTagsEnabled,
-      voidTags,
-      cdataTags,
-      implicitEndTags,
-      implicitStartTags,
+      voidTags: voidTags,
+      cdataTags: cdataTags,
+      implicitEndTagMap: implicitEndTags,
+      implicitStartTags: implicitStartTags,
       getHashCode,
     };
 
@@ -70,86 +69,95 @@ const tokenHandler: TokenHandler<TokenType, LexerContext> = (type, chunk, offset
   switch (type) {
 
     case TokenType.START_TAG_OPENING: {
-      const {state, implicitEndTags} = context;
-      const lastTag = state.lastTag = context.getHashCode(chunk, offset + 1, length - 1);
+      const {state, implicitEndTagMap} = context;
+      const startTag = context.getHashCode(chunk, offset + 1, length - 1);
 
-      if (implicitEndTags != null) {
-        const implicitlyEndedTags = implicitEndTags.get(lastTag);
+      // Lookup tags that are implicitly ended by this start tag
+      if (implicitEndTagMap != null) {
+        const tags = implicitEndTagMap.get(startTag);
 
-        // Lookup tags that are implicitly ended by this start tag
-        if (implicitlyEndedTags !== undefined) {
+        if (tags != null) {
           const {stack, cursor} = state;
 
-          for (let i = 0; i <= cursor; ++i) {
-            if (implicitlyEndedTags.has(stack[i])) {
-              while (i <= cursor) {
-                handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
-                --state.cursor;
-                ++i;
-              }
-              break;
-            }
+          let i = 0;
+          while (i <= cursor && !tags.has(stack[i])) {
+            ++i;
           }
-
+          while (i <= cursor) {
+            handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+            --state.cursor;
+            ++i;
+          }
         }
       }
 
+      state.activeTag = startTag;
       handler(TokenType.START_TAG_OPENING, chunk, offset, length, state);
       break;
     }
 
     case TokenType.START_TAG_CLOSING: {
       const {state, voidTags} = context;
+      const {activeTag} = state;
 
+      // if (tag !== 0) {
       handler(TokenType.START_TAG_CLOSING, chunk, offset, length, state);
+      // state.tag = 0;
+      // }
 
-      if (context.selfClosingTagsEnabled && length === 2 || !state.cdataPending && voidTags != null && voidTags.has(state.lastTag)) {
+      if (context.selfClosingTagsEnabled && length === 2 || voidTags != null && voidTags.has(activeTag)) {
         handler(TokenType.IMPLICIT_END_TAG, chunk, offset + length, 0, state);
       } else {
-        state.stack[++state.cursor] = state.lastTag;
+        state.stack[++state.cursor] = activeTag;
       }
       break;
     }
 
     case TokenType.END_TAG_OPENING: {
 
-      if (state.cdataPending) {
+      if (state.stage === TokenStage.CDATA_TAG) {
         // Ignore the end tag since it doesn't match the current CDATA container start tag
         handler(TokenType.TEXT, chunk, offset, length, state);
         break;
       }
 
-      const {stack, cursor, lastTag} = state;
+      const {stack, cursor, activeTag} = state;
 
-      // Lookup the explicit start tag
-      for (let i = cursor; i > -1; --i) {
-        if (stack[i] === lastTag) {
-          // Inject implicit end tags for unbalanced start tags
-          while (i < cursor) {
-            handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
-            --state.cursor;
-            ++i;
-          }
-          handler(TokenType.END_TAG_OPENING, chunk, offset, length, state);
-          return;
+      // Lookup the start tag
+      let i = cursor;
+      while (i > -1 && stack[i] !== activeTag) {
+        --i;
+      }
+
+      // If start tag is found then emit end tags
+      if (i !== -1) {
+        while (i < cursor) {
+          // Implicit end tags for unbalanced start tags
+          handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+          --state.cursor;
+          ++i;
         }
+        handler(TokenType.END_TAG_OPENING, chunk, offset, length, state);
+        break;
       }
 
       const {implicitStartTags} = context;
 
-      if (implicitStartTags != null && implicitStartTags.has(lastTag)) {
+      // Implicit start tag for an orphan end tag
+      if (implicitStartTags != null && implicitStartTags.has(activeTag)) {
         handler(TokenType.IMPLICIT_START_TAG, chunk, offset, length, state);
       }
 
-      state.lastTag = 0;
-
+      // Ignore consequent end tag closing
+      state.activeTag = 0;
       break;
     }
 
     case TokenType.END_TAG_CLOSING:
-      if (state.lastTag !== 0) {
+      if (state.activeTag !== 0) {
         handler(TokenType.END_TAG_CLOSING, chunk, offset, length, state);
         --state.cursor;
+        state.activeTag = 0;
       }
       break;
 

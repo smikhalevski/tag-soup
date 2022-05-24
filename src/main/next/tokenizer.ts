@@ -1,5 +1,5 @@
 import {all, char, createTokenizer, end, maybe, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
-import {LexerContext, TokenType, TokenStage} from './tokenizer-types';
+import {LexerContext, TokenStage, TokenType} from './tokenizer-types';
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
@@ -94,9 +94,8 @@ const startTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
   reader: startTagClosingReader,
 
   to(chunk, offset, length, context) {
-    const {state, cdataTags} = context;
-    const cdataPending = state.cdataPending = !(context.selfClosingTagsEnabled && length === 2) && cdataTags != null && cdataTags.has(state.lastTag);
-    return cdataPending ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
+    const {cdataTags} = context;
+    return !(context.selfClosingTagsEnabled && length === 2) && cdataTags != null && cdataTags.has(context.state.activeTag) ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
   },
 };
 
@@ -141,22 +140,21 @@ const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
 
   to(chunk, offset, length, context) {
     const {state} = context;
-    const lastTag = context.getHashCode(chunk, offset + 2, length - 2);
+    const endTag = context.getHashCode(chunk, offset + 2, length - 2);
 
-    // Not in a CDATA container
-    if (!state.cdataPending) {
-      state.lastTag = lastTag;
+    // Not a CDATA container
+    if (state.stage !== TokenStage.CDATA_TAG) {
+      state.activeTag = endTag;
       return TokenStage.END_TAG_OPENING;
     }
 
     // Tag doesn't end a CDATA container
-    if (state.lastTag !== lastTag) {
+    if (state.activeTag !== endTag) {
       return TokenStage.CDATA_TAG;
     }
 
     // Tag ends a CDATA container
-    state.lastTag = lastTag;
-    state.cdataPending = false;
+    state.activeTag = endTag;
     return TokenStage.END_TAG_OPENING;
   },
 };

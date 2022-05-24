@@ -39,12 +39,10 @@ export interface LexerState extends TokenizerState<TokenStage> {
    */
   cursor: number;
 
-  lastTag: number;
-
   /**
-   * If `true` then the contents of the current tag contains must be treated as character data.
+   * The hash code of the current tag name, or 0 if not in a tag context.
    */
-  cdataPending: boolean;
+  activeTag: number;
 }
 
 export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
@@ -64,7 +62,7 @@ export interface LexerContext {
   cdataTags: Set<number> | null;
 
   // Map from (A) tag name hash code to a set of hash codes of tag names that implicitly end A
-  implicitEndTags: Map<number, Set<number>> | null;
+  implicitEndTagMap: Map<number, Set<number>> | null;
 
   implicitStartTags: Set<number> | null;
 
