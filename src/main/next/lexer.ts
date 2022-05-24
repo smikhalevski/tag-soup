@@ -1,7 +1,7 @@
 import {TokenHandler} from 'tokenizer-dsl';
 import {tokenizer} from './tokenizer';
-import {LexerContext, LexerHandler, TokenStage, TokenType} from './tokenizer-types';
-import {getCaseInsensitiveHashCode, getCaseSensitiveHashCode, die} from './utils';
+import {LexerContext, LexerHandler, LexerState, TokenStage, TokenType} from './tokenizer-types';
+import {die, getCaseInsensitiveHashCode, getCaseSensitiveHashCode} from './utils';
 
 export interface Lexer {
   (input: string, handler: LexerHandler): void;
@@ -25,20 +25,21 @@ export function createLexer(options: LexerOptions = {}): Lexer {
   const implicitEndTagMap = options.implicitEndTags ? new Map(Object.entries(options.implicitEndTags).map(([tag, tags]) => [toHashCode(tag), new Set(tags.map(toHashCode))])) : null;
   const selfClosingTagsEnabled = options.selfClosingTagsEnabled || false;
 
-  let sharedStack: number[] | undefined;
-
   return (input, handler) => {
 
-    const stack = sharedStack || [];
-    sharedStack = undefined;
+    const state: LexerState = {
+      stage: TokenStage.DOCUMENT,
+      chunk: input,
+      chunkOffset: 0,
+      offset: 0,
+      stack: [],
+      cursor: -1,
+      activeTag: 0,
+    };
 
     const context: LexerContext = {
-      state: {
-        activeTag: 0,
-      },
+      state,
       handler,
-      stack,
-      cursor: -1,
       selfClosingTagsEnabled,
       voidTags,
       cdataTags,
@@ -47,16 +48,14 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       getHashCode,
     };
 
-    const {offset} = tokenizer(input, tokenHandler, context);
-
-    sharedStack = stack;
+    const {offset} = tokenizer(state, tokenHandler, context);
 
     if (input.length !== offset) {
       die('Unexpected token at position ' + offset);
     }
 
-    for (let i = -1; i < context.cursor; ++i) {
-      handler(TokenType.END_TAG_OPENING, input, offset, 0, context);
+    for (let i = -1; i < state.cursor; ++i) {
+      handler(TokenType.IMPLICIT_END_TAG, input, offset, 0, state);
     }
   };
 }
@@ -68,7 +67,8 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
   switch (type) {
 
     case TokenType.START_TAG_OPENING: {
-      const {stack, cursor, implicitEndTagMap} = context;
+      const {state, implicitEndTagMap} = context;
+      const {stack, cursor} = state;
 
       // const activeTag = context.activeTag = context.getHashCode(chunk, offset + 1, length - 1);
 
@@ -79,48 +79,49 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
           for (let i = cursor; i > -1; --i) {
             if (tags.has(stack[i])) {
               for (let j = i; j <= cursor; ++j) {
-                handler(TokenType.END_TAG_OPENING, chunk, offset, 0, context);
+                handler(TokenType.END_TAG_OPENING, chunk, offset, 0, state);
               }
-              context.cursor = i - 1;
+              context.state.cursor = i - 1;
               break;
             }
           }
         }
       }
 
-      handler(TokenType.START_TAG_OPENING, chunk, offset + 1, length - 1, context);
+      handler(TokenType.START_TAG_OPENING, chunk, offset + 1, length - 1, state);
       break;
     }
 
     case TokenType.START_TAG_SELF_CLOSING:
       if (context.selfClosingTagsEnabled) {
-        handler(TokenType.END_TAG_OPENING, chunk, offset + length, 0, context);
+        handler(TokenType.IMPLICIT_END_TAG, chunk, offset + length, 0, context.state);
         break;
       }
 
     case TokenType.START_TAG_CLOSING: {
-      const {voidTags} = context;
+      const {state, voidTags} = context;
 
-      const activeTag = context.state.activeTag
+      const activeTag = state.activeTag
 
       if (voidTags !== null && voidTags.has(activeTag)) {
         // Self-closing or void tag
-        handler(TokenType.END_TAG_OPENING, chunk, offset + length, 0, context);
+        handler(TokenType.END_TAG_OPENING, chunk, offset + length, 0, state);
       } else {
-        context.stack[++context.cursor] = activeTag;
+        state.stack[++state.cursor] = activeTag;
       }
       break;
     }
 
     case TokenType.END_TAG_OPENING: {
+      const {state} = context;
 
       // Ignore the end tags that don't match the CDATA start tag
       if (tokenizerState.stage === TokenStage.CDATA_TAG) {
-        handler(TokenType.TEXT, chunk, offset + 2, length - 2, context);
+        handler(TokenType.TEXT, chunk, offset + 2, length - 2, state);
         break;
       }
 
-      const {stack, cursor} = context;
+      const {stack, cursor} = context.state;
 
       const activeTag = context.state.activeTag
 
@@ -134,17 +135,17 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
       // If start tag is found then emit end tags
       if (i !== -1) {
         for (let j = i; j < cursor; ++j) {
-          handler(TokenType.END_TAG_OPENING, chunk, offset, 0, context);
+          handler(TokenType.END_TAG_OPENING, chunk, offset, 0, state);
         }
-        handler(TokenType.END_TAG_OPENING, chunk, offset + 2, length - 2, context);
-        context.cursor = i - 1;
+        handler(TokenType.END_TAG_OPENING, chunk, offset + 2, length - 2, state);
+        context.state.cursor = i - 1;
       }
 
       break;
     }
 
     default:
-      handler(type, chunk, offset, length, context);
+      handler(type, chunk, offset, length, context.state);
       break;
   }
 };

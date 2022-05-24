@@ -28,17 +28,9 @@ export const enum TokenType {
   DTD = 'DTD',
 }
 
-export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerContext) => void;
+export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
 
-export interface LexerContext {
-
-  state: {
-
-    /**
-     * The hash code of the current tag name, or 0 if not in a tag context.
-     */
-    activeTag: number;
-  },
+export interface LexerState extends TokenizerState<TokenStage> {
 
   /**
    * The list of tag name hash codes.
@@ -46,25 +38,29 @@ export interface LexerContext {
   stack: number[];
 
   /**
-   * The actual stack length.
+   * The index in stack of the current tag.
    */
   cursor: number;
 
+  /**
+   * The hash code of the tag name, or 0 if not in a lexical context of a tag.
+   */
+  activeTag: number;
+}
+
+/**
+ * The internal context used by the tokenizer and lexer.
+ *
+ * @internal
+ */
+export interface LexerContext {
+  state: LexerState,
   handler: LexerHandler;
-
   selfClosingTagsEnabled: boolean;
-
-  // Set hash codes of void tags: img, br, etc.
   voidTags: Set<number> | null;
-
-  // Set hash codes of CDATA tags: script, style, etc.
   cdataTags: Set<number> | null;
-
-  // Map from (A) tag name hash code to a set of hash codes of tag names that implicitly end A
   implicitEndTagMap: Map<number, Set<number>> | null;
-
   implicitStartTags: Set<number> | null;
 
-  // Reads hash code from the input string, defines if tags are compared in case-insensitive manner
   getHashCode(input: string, offset: number, length: number): number;
 }

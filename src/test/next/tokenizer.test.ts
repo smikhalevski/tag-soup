@@ -18,10 +18,14 @@ describe('tokenizer', () => {
 
     context = {
       state: {
+        stage: TokenStage.DOCUMENT,
+        chunk: '',
+        chunkOffset: 0,
+        offset: 0,
+        stack: [],
+        cursor: -1,
         activeTag: 0,
       },
-      stack: [],
-      cursor: -1,
       handler: () => undefined,
       selfClosingTagsEnabled: false,
       voidTags: null,
