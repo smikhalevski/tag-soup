@@ -1,7 +1,7 @@
 import {createLexer, Lexer, LexerOptions} from './lexer';
 
 export function createHtmlLexer(options: LexerOptions = {}): Lexer {
-  return createLexer(Object.assign({voidTags, cdataTags, implicitEndTagMap}, options));
+  return createLexer(Object.assign({voidTags, cdataTags, implicitEndTagMap, caseInsensitiveTagsEnabled: true}, options));
 }
 
 const voidTags = 'area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr'.split(' ');

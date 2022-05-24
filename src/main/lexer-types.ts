@@ -1,12 +1,12 @@
 import {TokenizerState} from 'tokenizer-dsl';
 
 export const enum TokenStage {
-  DOCUMENT,
-  START_TAG_OPENING,
-  ATTRIBUTE_NAME,
-  ATTRIBUTE_EQ,
-  END_TAG_OPENING,
-  CDATA_TAG,
+  DOCUMENT = 'DOCUMENT',
+  START_TAG_OPENING = 'START_TAG_OPENING',
+  ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
+  ATTRIBUTE_EQ = 'ATTRIBUTE_EQ',
+  END_TAG_OPENING = 'END_TAG_OPENING',
+  CDATA_TAG = 'CDATA_TAG',
 }
 
 export const enum TokenType {
@@ -38,7 +38,7 @@ export interface LexerState extends TokenizerState<TokenStage> {
   stack: number[];
 
   /**
-   * The index in stack of the current tag.
+   * The index in stack that points to the current tag.
    */
   cursor: number;
 
@@ -61,6 +61,7 @@ export interface LexerContext {
   implicitStartTags: Set<number> | null;
   implicitEndTagMap: Map<number, Set<number>> | null;
   selfClosingTagsEnabled: boolean;
+  endTagCdataModeEnabled: boolean;
 
   getHashCode(input: string, offset: number, length: number): number;
 }

@@ -25,11 +25,12 @@ describe('tokenizer', () => {
         activeTag: 0,
       },
       handler: () => undefined,
-      selfClosingTagsEnabled: false,
       voidTags: null,
       cdataTags: null,
       implicitEndTagMap: null,
       implicitStartTags: null,
+      selfClosingTagsEnabled: false,
+      endTagCdataModeEnabled: false,
       getHashCode: getCaseInsensitiveHashCode,
     };
 
@@ -390,41 +391,6 @@ describe('tokenizer', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.END_TAG_OPENING, 38, 3);
       expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.END_TAG_CLOSING, 41, 1);
       expect(handlerMock).toHaveBeenNthCalledWith(6, TokenType.DTD, 42, 6);
-    });
-
-  });
-
-  describe('CDATA tags', () => {
-
-    test('tokenizes CDATA tags', () => {
-      context.getHashCode = getCaseInsensitiveHashCode;
-      context.cdataTags = new Set([getCaseInsensitiveHashCode('script', 0, 6)]);
-
-      tokenizer('<script>let str = \'<script></\'+\'script>\';</script>', handler, context);
-
-      expect(handlerMock).toHaveBeenCalledTimes(7);
-      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 7);
-      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 7, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.TEXT, 8, 11);
-      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.TEXT, 19, 8);
-      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.TEXT, 27, 14);
-      expect(handlerMock).toHaveBeenNthCalledWith(6, TokenType.END_TAG_OPENING, 41, 8);
-      expect(handlerMock).toHaveBeenNthCalledWith(7, TokenType.END_TAG_CLOSING, 49, 1);
-    });
-
-    test('emits END_TAG_OPENING inside CDATA tags', () => {
-      context.getHashCode = getCaseInsensitiveHashCode;
-      context.cdataTags = new Set([getCaseInsensitiveHashCode('script', 0, 6)]);
-
-      tokenizer('<script></foo></script>', handler, context);
-
-      expect(handlerMock).toHaveBeenCalledTimes(6);
-      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 7);
-      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 7, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.END_TAG_OPENING, 8, 5);
-      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.TEXT, 13, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.END_TAG_OPENING, 14, 8);
-      expect(handlerMock).toHaveBeenNthCalledWith(6, TokenType.END_TAG_CLOSING, 22, 1);
     });
 
   });

@@ -87,11 +87,7 @@ const startTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
   type: TokenType.START_TAG_OPENING,
   reader: startTagOpeningReader,
-
-  to(chunk, offset, length, context) {
-    context.state.activeTag = context.getHashCode(chunk, offset + 1, length - 1);
-    return TokenStage.START_TAG_OPENING;
-  },
+  to: TokenStage.START_TAG_OPENING,
 };
 
 const startTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
@@ -159,12 +155,15 @@ const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   reader: endTagOpeningReader,
 
   to(chunk, offset, length, context, tokenizerState) {
+    const {state} = context;
     const endTag = context.getHashCode(chunk, offset + 2, length - 2);
 
-    if (tokenizerState.stage === TokenStage.CDATA_TAG && context.state.activeTag !== endTag) {
+    if (tokenizerState.stage === TokenStage.CDATA_TAG && state.stack[state.cursor] !== endTag) {
+      context.endTagCdataModeEnabled = true;
       return TokenStage.CDATA_TAG;
     }
-    context.state.activeTag = endTag;
+    context.endTagCdataModeEnabled = false;
+    state.activeTag = endTag;
     return TokenStage.END_TAG_OPENING;
   },
 };
@@ -192,7 +191,6 @@ const cdataRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
   type: TokenType.CDATA_SECTION,
   reader: cdataReader,
-  to: TokenStage.CDATA_TAG,
 };
 
 const doctypeRule: Rule<TokenType, TokenStage, LexerContext> = {

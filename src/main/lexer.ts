@@ -24,6 +24,8 @@ export function createLexer(options: LexerOptions = {}): Lexer {
   const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
   const voidTags = toHashCodeSet(options.voidTags, getHashCode);
+
+  // TODO Delete void tags from cdataTags
   const cdataTags = toHashCodeSet(options.cdataTags, getHashCode);
   const implicitStartTags = toHashCodeSet(options.implicitStartTags, getHashCode);
   const implicitEndTagMap = toHashCodeMap(options.implicitEndTagMap, getHashCode);
@@ -41,6 +43,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       implicitStartTags,
       implicitEndTagMap,
       selfClosingTagsEnabled,
+      endTagCdataModeEnabled: false,
       getHashCode,
     });
 
@@ -70,6 +73,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       implicitStartTags,
       implicitEndTagMap,
       selfClosingTagsEnabled,
+      endTagCdataModeEnabled: false,
       getHashCode,
     });
 
@@ -79,7 +83,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
   return lexer;
 }
 
-const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, chunk, offset, length, context, tokenizerState) => {
+const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, chunk, offset, length, context) => {
 
   const {state, handler} = context;
 
@@ -87,9 +91,10 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
   switch (type) {
 
     case TokenType.START_TAG_OPENING:
+      const startTag = context.state.activeTag = context.getHashCode(chunk, offset + 1, length - 1);
       emitImplicitEndTags(chunk, offset, context);
       handler(TokenType.START_TAG_OPENING, chunk, offset, length, state);
-      state.stack[++state.cursor] = state.activeTag;
+      state.stack[++state.cursor] = startTag;
       break;
 
     case TokenType.START_TAG_SELF_CLOSING:
@@ -114,7 +119,7 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
     case TokenType.END_TAG_OPENING:
 
       // Ignore end tags that don't match the CDATA start tag
-      if (tokenizerState.stage === TokenStage.CDATA_TAG) {
+      if (context.endTagCdataModeEnabled) {
         handler(TokenType.TEXT, chunk, offset, length, state);
         break;
       }
