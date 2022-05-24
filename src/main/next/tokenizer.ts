@@ -1,4 +1,4 @@
-import {all, char, createTokenizer, end, maybe, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
+import {all, char, createTokenizer, end, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
 import {LexerContext, TokenStage, TokenType} from './tokenizer-types';
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
@@ -45,8 +45,8 @@ const tagSpaceReader = seq(skip(1), all(char([whitespaceChars])));
 // <…
 const startTagOpeningReader = seq(ltReader, tagNameStartCharReader, tagNameCharsReader);
 
-// …> or …/>
-const startTagClosingReader = seq(maybe(slashReader), gtReader);
+// …/>
+const startTagSelfClosingReader = seq(slashReader, gtReader);
 
 // </…
 const endTagOpeningReader = seq(ltReader, slashReader, tagNameStartCharReader, tagNameCharsReader);
@@ -85,17 +85,35 @@ const startTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT],
   type: TokenType.START_TAG_OPENING,
   reader: startTagOpeningReader,
-  to: TokenStage.START_TAG_OPENING,
+
+  to(chunk, offset, length, context) {
+    context.state.activeTag = context.getHashCode(chunk, offset + 1, length - 1);
+    return TokenStage.START_TAG_OPENING;
+  },
 };
 
 const startTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
   type: TokenType.START_TAG_CLOSING,
-  reader: startTagClosingReader,
+  reader: gtReader,
 
   to(chunk, offset, length, context) {
     const {cdataTags} = context;
-    return !(context.selfClosingTagsEnabled && length === 2) && cdataTags != null && cdataTags.has(context.state.activeTag) ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
+    return cdataTags !== null && cdataTags.has(context.state.activeTag) ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
+  },
+};
+
+const startTagSelfClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
+  on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
+  type: TokenType.START_TAG_SELF_CLOSING,
+  reader: startTagSelfClosingReader,
+
+  to(chunk, offset, length, context) {
+    if (context.selfClosingTagsEnabled) {
+      return TokenStage.DOCUMENT;
+    }
+    const {cdataTags} = context;
+    return cdataTags !== null && cdataTags.has(context.state.activeTag) ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
   },
 };
 
@@ -138,23 +156,13 @@ const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   type: TokenType.END_TAG_OPENING,
   reader: endTagOpeningReader,
 
-  to(chunk, offset, length, context) {
-    const {state} = context;
+  to(chunk, offset, length, context, tokenizerState) {
     const endTag = context.getHashCode(chunk, offset + 2, length - 2);
 
-    // Not a CDATA container
-    if (state.stage !== TokenStage.CDATA_TAG) {
-      state.activeTag = endTag;
-      return TokenStage.END_TAG_OPENING;
-    }
-
-    // Tag doesn't end a CDATA container
-    if (state.activeTag !== endTag) {
+    if (tokenizerState.stage === TokenStage.CDATA_TAG && context.state.activeTag !== endTag) {
       return TokenStage.CDATA_TAG;
     }
-
-    // Tag ends a CDATA container
-    state.activeTag = endTag;
+    context.state.activeTag = endTag;
     return TokenStage.END_TAG_OPENING;
   },
 };
@@ -210,6 +218,7 @@ export const tokenizer = createTokenizer([
   attributeValueRule,
   attributeUnquotedValueRule,
   startTagClosingRule,
+  startTagSelfClosingRule,
   tagSpaceRule,
   endTagOpeningRule,
   endTagClosingRule,

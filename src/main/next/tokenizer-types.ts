@@ -12,6 +12,7 @@ export const enum TokenStage {
 export const enum TokenType {
   START_TAG_OPENING = 'START_TAG_OPENING',
   START_TAG_CLOSING = 'START_TAG_CLOSING',
+  START_TAG_SELF_CLOSING = 'START_TAG_SELF_CLOSING',
   ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
   ATTRIBUTE_VALUE = 'ATTRIBUTE_VALUE',
   ATTRIBUTE_UNQUOTED_VALUE = 'ATTRIBUTE_UNQUOTED_VALUE',
@@ -27,7 +28,17 @@ export const enum TokenType {
   DTD = 'DTD',
 }
 
-export interface LexerState extends TokenizerState<TokenStage> {
+export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerContext) => void;
+
+export interface LexerContext {
+
+  state: {
+
+    /**
+     * The hash code of the current tag name, or 0 if not in a tag context.
+     */
+    activeTag: number;
+  },
 
   /**
    * The list of tag name hash codes.
@@ -38,18 +49,6 @@ export interface LexerState extends TokenizerState<TokenStage> {
    * The actual stack length.
    */
   cursor: number;
-
-  /**
-   * The hash code of the current tag name, or 0 if not in a tag context.
-   */
-  activeTag: number;
-}
-
-export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
-
-export interface LexerContext {
-
-  state: LexerState;
 
   handler: LexerHandler;
 
