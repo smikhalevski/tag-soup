@@ -1,5 +1,5 @@
-import {createLexer} from '../../main/next/lexer';
-import {LexerHandler, TokenType} from '../../main/next/tokenizer-types';
+import {createLexer} from '../main/lexer';
+import {LexerHandler, TokenType} from '../main/tokenizer-types';
 
 describe('createLexer', () => {
 

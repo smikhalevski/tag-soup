@@ -1,7 +1,7 @@
 import {TokenHandler} from 'tokenizer-dsl';
-import {tokenizer} from '../../main/next/tokenizer';
-import {LexerContext, TokenStage, TokenType} from '../../main/next/tokenizer-types';
-import {getCaseInsensitiveHashCode} from '../../main/next/utils';
+import {tokenizer} from '../main/tokenizer';
+import {LexerContext, TokenStage, TokenType} from '../main/tokenizer-types';
+import {getCaseInsensitiveHashCode} from '../main/utils';
 
 describe('tokenizer', () => {
 
@@ -160,7 +160,7 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, TokenType.START_TAG_CLOSING, 30, 1);
   });
 
-  test('tokenizes apos-quoted attributes', () => {
+  test('tokenizes quot-quoted attributes', () => {
     tokenizer('<w foo="aaa\'bbb" bar="aaa\'bbb"  />', handler, context);
 
     expect(tokenCallbackMock).toHaveBeenCalledTimes(6);
@@ -169,7 +169,7 @@ describe('tokenizer', () => {
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(3, TokenType.ATTRIBUTE_VALUE, 7, 9);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(4, TokenType.ATTRIBUTE_NAME, 17, 3);
     expect(tokenCallbackMock).toHaveBeenNthCalledWith(5, TokenType.ATTRIBUTE_VALUE, 21, 9);
-    expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, TokenType.START_TAG_CLOSING, 32, 2);
+    expect(tokenCallbackMock).toHaveBeenNthCalledWith(6, TokenType.START_TAG_SELF_CLOSING, 32, 2);
   });
 
   test('tokenizes unquoted attributes', () => {
