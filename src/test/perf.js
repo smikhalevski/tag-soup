@@ -4,35 +4,14 @@ const htmlparser2 = require('htmlparser2');
 const sax = require('sax');
 const parse5 = require('parse5');
 const {
-  domHandler,
-  createSaxParser,
-  createDomParser,
-  createXmlSaxParser,
-  createXmlDomParser,
   createHtmlLexer,
 } = require('../../lib/index-cjs');
-const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/index-cjs');
-const {decodeHtml} = require('speedy-entities/lib/full-cjs');
 
-const sourceFilesDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
+// const sourceFilesDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
 
 // const smallSources = fs.readdirSync(sourceFilesDir).map((fileName) => fs.readFileSync(path.join(sourceFilesDir, fileName), 'utf8'));
 
 const largeSource = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
-
-const textHandler = {
-  text: () => undefined,
-};
-
-const fullHandler = {
-  startTag: () => undefined,
-  endTag: () => undefined,
-  text: () => undefined,
-  comment: () => undefined,
-  doctype: () => undefined,
-  processingInstruction: () => undefined,
-  cdata: () => undefined,
-};
 
 beforeBatch(() => {
   gc();
