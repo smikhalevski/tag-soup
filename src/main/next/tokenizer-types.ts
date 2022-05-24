@@ -70,11 +70,11 @@ export interface LexerState extends TokenizerState<TokenStage> {
 export interface LexerContext {
   state: LexerState,
   handler: LexerHandler;
-  selfClosingTagsEnabled: boolean;
   voidTags: Set<number> | null;
   cdataTags: Set<number> | null;
-  implicitEndTagMap: Map<number, Set<number>> | null;
   implicitStartTags: Set<number> | null;
+  implicitEndTagMap: Map<number, Set<number>> | null;
+  selfClosingTagsEnabled: boolean;
 
   getHashCode(input: string, offset: number, length: number): number;
 }

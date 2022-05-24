@@ -1,7 +1,7 @@
 import {createLexer, Lexer, LexerOptions} from './lexer';
 
 export function createHtmlLexer(options: LexerOptions = {}): Lexer {
-  return createLexer(Object.assign({voidTags, cdataTags, implicitEndTags}, options));
+  return createLexer(Object.assign({voidTags, cdataTags, implicitEndTagMap}, options));
 }
 
 const voidTags = 'area base basefont br col command embed frame hr img input isindex keygen link meta param source track wbr'.split(' ');
@@ -12,7 +12,7 @@ const formTags = 'input option optgroup select button datalist textarea'.split('
 
 const pTags = ['p'];
 
-const implicitEndTags = {
+const implicitEndTagMap = {
   tr: ['tr', 'th', 'td'],
   th: ['th'],
   td: ['thead', 'th', 'td'],

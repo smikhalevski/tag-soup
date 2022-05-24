@@ -1,16 +1,20 @@
 import {TokenHandler} from 'tokenizer-dsl';
 import {tokenizer} from './tokenizer';
 import {LexerContext, LexerHandler, LexerState, TokenStage, TokenType} from './tokenizer-types';
-import {die, getCaseInsensitiveHashCode, getCaseSensitiveHashCode} from './utils';
+import {die, getCaseInsensitiveHashCode, getCaseSensitiveHashCode, toHashCodeMap, toHashCodeSet} from './utils';
 
 export interface Lexer {
-  (input: string, handler: LexerHandler): void;
+
+  (input: string | LexerState, handler: LexerHandler): LexerState;
+
+  write(chunk: string, state: LexerState | undefined, handler: LexerHandler): LexerState;
 }
 
 export interface LexerOptions {
   voidTags?: string[];
   cdataTags?: string[];
-  implicitEndTags?: { [tag: string]: string[] };
+  implicitStartTags?: string[];
+  implicitEndTagMap?: Record<string, string[]>;
   selfClosingTagsEnabled?: boolean;
   caseInsensitiveTagsEnabled?: boolean;
 }
@@ -18,46 +22,61 @@ export interface LexerOptions {
 export function createLexer(options: LexerOptions = {}): Lexer {
 
   const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-  const toHashCode = (value: string) => getHashCode(value, 0, value.length);
 
-  const voidTags = options.voidTags ? new Set(options.voidTags.map(toHashCode)) : null;
-  const cdataTags = options.cdataTags ? new Set(options.cdataTags.map(toHashCode)) : null;
-  const implicitEndTagMap = options.implicitEndTags ? new Map(Object.entries(options.implicitEndTags).map(([tag, tags]) => [toHashCode(tag), new Set(tags.map(toHashCode))])) : null;
+  const voidTags = toHashCodeSet(options.voidTags, getHashCode);
+  const cdataTags = toHashCodeSet(options.cdataTags, getHashCode);
+  const implicitStartTags = toHashCodeSet(options.implicitStartTags, getHashCode);
+  const implicitEndTagMap = toHashCodeMap(options.implicitEndTagMap, getHashCode);
   const selfClosingTagsEnabled = options.selfClosingTagsEnabled || false;
 
-  return (input, handler) => {
+  const lexer: Lexer = (input, handler) => {
 
-    const state: LexerState = {
-      stage: TokenStage.DOCUMENT,
-      chunk: input,
-      chunkOffset: 0,
-      offset: 0,
-      stack: [],
-      cursor: -1,
-      activeTag: 0,
-    };
-
-    const context: LexerContext = {
+    const state = typeof input === 'string' ? createLexerState(input) : input;
+    const {chunk, cursor} = state;
+    const {offset} = tokenizer(state, tokenHandler, {
       state,
       handler,
-      selfClosingTagsEnabled,
       voidTags,
       cdataTags,
+      implicitStartTags,
       implicitEndTagMap,
-      implicitStartTags: null,
+      selfClosingTagsEnabled,
       getHashCode,
-    };
+    });
 
-    const {offset} = tokenizer(state, tokenHandler, context);
-
-    if (input.length !== offset) {
-      die('Unexpected token at position ' + offset);
+    while (state.cursor > cursor) {
+      handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+      --state.cursor;
     }
 
-    for (let i = -1; i < state.cursor; ++i) {
-      handler(TokenType.IMPLICIT_END_TAG, input, offset, 0, state);
-    }
+    return state;
   };
+
+  lexer.write = (chunk, state, handler) => {
+
+    if (state) {
+      state.chunk = state.chunk.slice(state.offset) + chunk;
+      state.chunkOffset += state.offset;
+      state.offset = 0;
+    } else {
+      state = createLexerState(chunk);
+    }
+
+    tokenizer.write(chunk, state, tokenHandler, {
+      state,
+      handler,
+      voidTags,
+      cdataTags,
+      implicitStartTags,
+      implicitEndTagMap,
+      selfClosingTagsEnabled,
+      getHashCode,
+    });
+
+    return state;
+  };
+
+  return lexer;
 }
 
 const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, chunk, offset, length, context, tokenizerState) => {
@@ -172,4 +191,16 @@ function emitImplicitEndTags(chunk: string, offset: number, context: LexerContex
     --state.cursor;
     ++i;
   }
+}
+
+function createLexerState(chunk: string): LexerState {
+  return {
+    stage: TokenStage.DOCUMENT,
+    chunk,
+    chunkOffset: 0,
+    offset: 0,
+    stack: [],
+    cursor: -1,
+    activeTag: 0,
+  };
 }

@@ -104,7 +104,7 @@ describe('createLexer', () => {
   });
 
   test('implicitly ends tags', () => {
-    const lexer = createLexer({implicitEndTags: {p: ['p']}});
+    const lexer = createLexer({implicitEndTagMap: {p: ['p']}});
 
     lexer('<p>aaa<p>bbb', handler);
 
