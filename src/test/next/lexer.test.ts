@@ -52,13 +52,12 @@ describe('createLexer', () => {
 
     lexer('<w/>', handler);
 
-    expect(handlerMock).toHaveBeenCalledTimes(3);
+    expect(handlerMock).toHaveBeenCalledTimes(2);
     expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
-    expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 2);
-    expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.IMPLICIT_END_TAG, 4, 0);
+    expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_SELF_CLOSING, 2, 2);
   });
 
-  test('ignores unexpected end tags', () => {
+  test('ignores unbalanced end tags', () => {
     lexer('<w></b></w>', handler);
 
     expect(handlerMock).toHaveBeenCalledTimes(4);
