@@ -150,6 +150,7 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
       if (context.implicitStartTags?.has(activeTag)) {
         emitImplicitEndTags(chunk, offset, context);
         handler(TokenType.IMPLICIT_START_TAG, chunk, offset, length, state);
+        break;
       }
 
       // Prevents emit of the redundant END_TAG_CLOSING token

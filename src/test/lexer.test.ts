@@ -201,13 +201,78 @@ describe('createLexer', () => {
 
   });
 
+  describe('End tags', () => {
 
+    test('reads the end tag', () => {
+      lexer('<w></w>', handler);
 
+      expect(handlerMock).toHaveBeenCalledTimes(4);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.END_TAG_OPENING, 3, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.END_TAG_CLOSING, 6, 1);
+    });
 
+    test('emits implicit end tags', () => {
+      lexer('<w><k></w>', handler);
 
+      expect(handlerMock).toHaveBeenCalledTimes(7);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.START_TAG_OPENING, 3, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_CLOSING, 5, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.IMPLICIT_END_TAG, 6, 0);
+      expect(handlerMock).toHaveBeenNthCalledWith(6, TokenType.END_TAG_OPENING, 6, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(7, TokenType.END_TAG_CLOSING, 9, 1);
+    });
 
+    test('does not emit orphan end tag', () => {
+      lexer('</w>', handler);
 
+      expect(handlerMock).not.toHaveBeenCalled();
+    });
 
+    test('emits implicit start tags for orphan end tags', () => {
+      const lexer = createLexer({implicitStartTags: ['w']});
+
+      lexer('</w>', handler);
+
+      expect(handlerMock).toHaveBeenCalledTimes(2);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.IMPLICIT_START_TAG, 0, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.END_TAG_CLOSING, 3, 1);
+    });
+
+    test('emits implicit start tag that implicitly ends preceding tag', () => {
+      const lexer = createLexer({implicitEndTagMap: {'k': ['w']}, implicitStartTags: ['k']});
+
+      lexer('<w></k>', handler);
+
+      expect(handlerMock).toHaveBeenCalledTimes(5);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.IMPLICIT_END_TAG, 3, 0);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.IMPLICIT_START_TAG, 3, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.END_TAG_CLOSING, 6, 1);
+    });
+
+    test('emits implicit start tag and end tags during nesting of the same tag', () => {
+      const lexer = createLexer({implicitEndTagMap: {'w': ['w']}, implicitStartTags: ['w']});
+
+      lexer('<w><w></w></w>', handler);
+
+      expect(handlerMock).toHaveBeenCalledTimes(9);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.IMPLICIT_END_TAG, 3, 0);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_OPENING, 3, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.START_TAG_CLOSING, 5, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(6, TokenType.END_TAG_OPENING, 6, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(7, TokenType.END_TAG_CLOSING, 9, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(8, TokenType.IMPLICIT_START_TAG, 10, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(9, TokenType.END_TAG_CLOSING, 13, 1);
+    });
+
+  });
 
 
   test('reads attribute with value in quotes', () => {
