@@ -1,5 +1,5 @@
 import {all, char, createTokenizer, end, or, Rule, seq, skip, text, until} from 'tokenizer-dsl';
-import {LexerContext, TokenStage, TokenType} from './tokenizer-types';
+import {LexerContext, TokenStage, TokenType} from './lexer-types';
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([

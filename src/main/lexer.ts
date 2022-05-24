@@ -1,7 +1,7 @@
 import {TokenHandler} from 'tokenizer-dsl';
 import {tokenizer} from './tokenizer';
-import {LexerContext, LexerHandler, LexerState, TokenStage, TokenType} from './tokenizer-types';
-import {die, getCaseInsensitiveHashCode, getCaseSensitiveHashCode, toHashCodeMap, toHashCodeSet} from './utils';
+import {LexerContext, LexerHandler, LexerState, TokenStage, TokenType} from './lexer-types';
+import {getCaseInsensitiveHashCode, getCaseSensitiveHashCode, toHashCodeMap, toHashCodeSet} from './utils';
 
 export interface Lexer {
 

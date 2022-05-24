@@ -1,6 +1,6 @@
 import {TokenHandler} from 'tokenizer-dsl';
 import {tokenizer} from '../main/tokenizer';
-import {LexerContext, TokenStage, TokenType} from '../main/tokenizer-types';
+import {LexerContext, TokenStage, TokenType} from '../main/lexer-types';
 import {getCaseInsensitiveHashCode} from '../main/utils';
 
 describe('tokenizer', () => {

@@ -1,5 +1,5 @@
 import {createLexer} from '../main/lexer';
-import {LexerHandler, TokenType} from '../main/tokenizer-types';
+import {LexerHandler, TokenType} from '../main/lexer-types';
 
 describe('createLexer', () => {
 
