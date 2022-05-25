@@ -3,6 +3,8 @@ const path = require('path');
 const htmlparser2 = require('htmlparser2');
 const sax = require('sax');
 const parse5 = require('parse5');
+const hyntax = require('hyntax')
+// const parse5SaxParser = require('parse5-sax-parser');
 const {
   createHtmlLexer,
 } = require('../../lib/index-cjs');
@@ -78,6 +80,15 @@ describe('Large input', () => {
     // });
 
     test('lexer', (measure) => {
+      const lexerHandler = () => undefined;
+      const lexer = createHtmlLexer();
+
+      measure(() => {
+        lexer(largeSource, lexerHandler);
+      });
+    });
+
+    test('lexer (w/ substr)', (measure) => {
       const lexerHandler = (type, chunk, offset, length) => {
         chunk.substr(offset, length);
       };
@@ -88,7 +99,15 @@ describe('Large input', () => {
       });
     });
 
-    test('htmlparser2', (measure) => {
+    test('hyntax (tokenize)', (measure) => {
+      const tokenize = hyntax.tokenize;
+
+      measure(() => {
+        tokenize(largeSource);
+      });
+    });
+
+    test('htmlparser2 sax', (measure) => {
       let parser;
 
       beforeBatch(() => {
@@ -101,6 +120,36 @@ describe('Large input', () => {
 
       measure(() => {
         parser.end(largeSource);
+      });
+    });
+
+    test('htmlparser2 dom', (measure) => {
+      let parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+      });
+
+      afterIteration(() => {
+        parser.reset();
+      });
+
+      measure(() => {
+        parser.end(largeSource);
+      });
+    });
+
+    // test('parse5 sax', (measure) => {
+    //   const parser = parse5SaxParser();
+    //
+    //   measure(() => {
+    //     parser.write(largeSource);
+    //   });
+    // });
+
+    test('parse5 dom', (measure) => {
+      measure(() => {
+        parse5.parse(largeSource);
       });
     });
 

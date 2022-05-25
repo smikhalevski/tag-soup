@@ -21,9 +21,11 @@ export interface LexerOptions {
 }
 
 // TODO Delete void tags from cdataTags
-// TODO Read options (voidTags, cdataTags, etc) of the current foreign tag from the context
-// TODO Shift foreign cursor to the start of the stack at the END_TAG_CLOSING of the foreign tag
-// TODO Foreign tags form a tree structure with child-parent and parent-child links, and store foreignCursors in context to resolve nesting
+
+// TODO Foreign context
+//  Read options (voidTags, cdataTags, etc) of the current foreign tag from the context
+//  Shift foreign cursor to the start of the stack at the END_TAG_CLOSING of the foreign tag
+//  Foreign tags form a tree structure with child-parent and parent-child links, and store foreignCursors in context to resolve nesting
 
 export function createLexer(options: LexerOptions = {}): Lexer {
 
