@@ -78,7 +78,9 @@ describe('Large input', () => {
     // });
 
     test('lexer', (measure) => {
-      const lexerHandler = () => undefined;
+      const lexerHandler = (type, chunk, offset, length) => {
+        chunk.substr(offset, length);
+      };
       const lexer = createHtmlLexer();
 
       measure(() => {
