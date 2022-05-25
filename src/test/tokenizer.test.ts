@@ -22,6 +22,7 @@ describe('tokenizer', () => {
         offset: 0,
         stack: [],
         cursor: -1,
+        foreignCursor: -1,
         activeTag: 0,
       },
       handler: () => undefined,

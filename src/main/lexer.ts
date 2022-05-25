@@ -17,7 +17,13 @@ export interface LexerOptions {
   implicitEndTagMap?: Record<string, string[]>;
   selfClosingTagsEnabled?: boolean;
   caseInsensitiveTagsEnabled?: boolean;
+  foreignTags?: Record<string, LexerOptions>;
 }
+
+// TODO Delete void tags from cdataTags
+// TODO Read options (voidTags, cdataTags, etc) of the current foreign tag from the context
+// TODO Shift foreign cursor to the start of the stack at the END_TAG_CLOSING of the foreign tag
+// TODO Foreign tags form a tree structure with child-parent and parent-child links, and store foreignCursors in context to resolve nesting
 
 export function createLexer(options: LexerOptions = {}): Lexer {
 
@@ -25,7 +31,6 @@ export function createLexer(options: LexerOptions = {}): Lexer {
 
   const voidTags = toHashCodeSet(options.voidTags, getHashCode);
 
-  // TODO Delete void tags from cdataTags
   const cdataTags = toHashCodeSet(options.cdataTags, getHashCode);
   const implicitStartTags = toHashCodeSet(options.implicitStartTags, getHashCode);
   const implicitEndTagMap = toHashCodeMap(options.implicitEndTagMap, getHashCode);
@@ -207,6 +212,7 @@ function createLexerState(chunk: string): LexerState {
     offset: 0,
     stack: [],
     cursor: -1,
+    foreignCursor: -1,
     activeTag: 0,
   };
 }

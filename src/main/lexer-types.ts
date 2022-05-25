@@ -20,6 +20,8 @@ export const enum TokenType {
   END_TAG_CLOSING = 'END_TAG_CLOSING',
   IMPLICIT_END_TAG = 'IMPLICIT_END_TAG',
   IMPLICIT_START_TAG = 'IMPLICIT_START_TAG',
+  FOREIGN_START_TAG_OPENING = 'FOREIGN_START_TAG_OPENING',
+  FOREIGN_END_TAG_OPENING = 'FOREIGN_START_TAG_OPENING',
   COMMENT = 'COMMENT',
   PROCESSING_INSTRUCTION = 'PROCESSING_INSTRUCTION',
   CDATA_SECTION = 'CDATA_SECTION',
@@ -41,6 +43,11 @@ export interface LexerState extends TokenizerState<TokenStage> {
    * The index in stack that points to the current tag.
    */
   cursor: number;
+
+  /**
+   * The index in stack where the closest foreign container starts.
+   */
+  foreignCursor: number;
 
   /**
    * The hash code of the tag name, or 0 if not in a lexical context of a tag.
