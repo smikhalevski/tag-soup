@@ -14,21 +14,6 @@ describe('createLexer', () => {
     handlerMock.mockRestore();
   });
 
-  describe('Text', () => {
-
-    test('reads text in a tag', () => {
-      lexer('<w>aaa</w>', handler);
-
-      expect(handlerMock).toHaveBeenCalledTimes(5);
-      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
-      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.TEXT, 3, 3);
-      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.END_TAG_OPENING, 6, 3);
-      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.END_TAG_CLOSING, 9, 1);
-    });
-
-  });
-
   describe('Start tags', () => {
 
     test('reads the start tag', () => {
@@ -313,39 +298,39 @@ describe('createLexer', () => {
 
   });
 
-  describe('Attributes', () => {
+  describe('Case sensitivity', () => {
 
-    test('reads attribute with value in quotes', () => {
-      lexer('<w foo="aaa">', handler);
+    test('reads case-sensitive end tags by default', () => {
+      lexer('<q></Q>', handler);
 
-      expect(handlerMock).toHaveBeenCalledTimes(5);
+      expect(handlerMock).toHaveBeenCalledTimes(3);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
-      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.ATTRIBUTE_NAME, 3, 3);
-      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.ATTRIBUTE_VALUE, 7, 5);
-      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_CLOSING, 12, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.IMPLICIT_END_TAG, 13, 0);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.IMPLICIT_END_TAG, 7, 0);
     });
 
-    test('reads attribute with value in apostrophes', () => {
-      lexer('<w foo=\'aaa\'>', handler);
+    test('reads case-insensitive end tags', () => {
+      const lexer = createLexer({caseInsensitiveTagsEnabled: true});
 
-      expect(handlerMock).toHaveBeenCalledTimes(5);
+      lexer('<q></Q>', handler);
+
+      expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
-      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.ATTRIBUTE_NAME, 3, 3);
-      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.ATTRIBUTE_VALUE, 7, 5);
-      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_CLOSING, 12, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.IMPLICIT_END_TAG, 13, 0);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.END_TAG_OPENING, 3, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.END_TAG_CLOSING, 6, 1);
     });
 
-    test('reads attribute without value', () => {
-      lexer('<w foo bar>', handler);
+    test('read non ASCII alpha-chars as case-sensitive in case-insensitive tag matching mode', () => {
+      const lexer = createLexer({caseInsensitiveTagsEnabled: true});
 
-      expect(handlerMock).toHaveBeenCalledTimes(5);
-      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
-      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.ATTRIBUTE_NAME, 3, 3);
-      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.ATTRIBUTE_NAME, 7, 3);
-      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_CLOSING, 10, 1);
-      expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.IMPLICIT_END_TAG, 11, 0);
+      lexer('<wф></wФ>a', handler);
+
+      expect(handlerMock).toHaveBeenCalledTimes(4);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 3);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 3, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.TEXT, 9, 1);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.IMPLICIT_END_TAG, 10, 0);
     });
 
   });
