@@ -1,13 +1,17 @@
 import {createLexer} from '../main/lexer';
-import {LexerHandler, TokenType} from '../main/lexer-types';
+import {LexerHandler, LexerState, TokenStage, TokenType} from '../main/lexer-types';
 
 describe('createLexer', () => {
 
   const handlerMock = jest.fn();
   const lexer = createLexer();
 
-  const handler: LexerHandler = (type, chunk, offset, length) => {
+  const statelessHandler: LexerHandler = (type, chunk, offset, length) => {
     handlerMock(type, offset, length);
+  };
+
+  const statefulHandler: LexerHandler = (type, chunk, offset, length, state) => {
+    handlerMock(type, offset, length, structuredClone(state));
   };
 
   beforeEach(() => {
@@ -17,7 +21,7 @@ describe('createLexer', () => {
   describe('Start tags', () => {
 
     test('reads the start tag', () => {
-      lexer('<w>', handler);
+      lexer('<w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(3);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -26,7 +30,7 @@ describe('createLexer', () => {
     });
 
     test('reads consequent start tags', () => {
-      lexer('<w><k>', handler);
+      lexer('<w><k>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(6);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -40,7 +44,7 @@ describe('createLexer', () => {
     test('implicitly ends the immediate parent', () => {
       const lexer = createLexer({implicitEndTagMap: {'k': ['w']}});
 
-      lexer('<w><k>', handler);
+      lexer('<w><k>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(6);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -54,7 +58,7 @@ describe('createLexer', () => {
     test('implicitly ends the ancestor', () => {
       const lexer = createLexer({implicitEndTagMap: {'z': ['w']}});
 
-      lexer('<w><k><z>', handler);
+      lexer('<w><k><z>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(9);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -71,7 +75,7 @@ describe('createLexer', () => {
     test('implicitly ends the topmost ancestor', () => {
       const lexer = createLexer({implicitEndTagMap: {'y': ['z', 'w']}});
 
-      lexer('<w><k><z><y>', handler);
+      lexer('<w><k><z><y>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(12);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -88,12 +92,21 @@ describe('createLexer', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(12, TokenType.IMPLICIT_END_TAG, 12, 0);
     });
 
+    test('provides tag code and cursor in handler', () => {
+      lexer('<w><k>', statefulHandler);
+
+      expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2, expect.objectContaining<Partial<LexerState>>({activeTag: 119, stack: [119], cursor: 0}));
+      expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.START_TAG_CLOSING, 2, 1, expect.objectContaining<Partial<LexerState>>({activeTag: 119, stack: [119], cursor: 0}));
+      expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.START_TAG_OPENING, 3, 2, expect.objectContaining<Partial<LexerState>>({activeTag: 107, stack: [119, 107], cursor: 1}));
+      expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_CLOSING, 5, 1, expect.objectContaining<Partial<LexerState>>({activeTag: 107, stack: [119, 107], cursor: 1}));
+    });
+
   });
 
   describe('Self-closing tags', () => {
 
     test('treats self-closing tags as implicitly ended by default', () => {
-      lexer('<w/>', handler);
+      lexer('<w/>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(3);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -104,7 +117,7 @@ describe('createLexer', () => {
     test('reads the self-closing tag', () => {
       const lexer = createLexer({selfClosingTagsEnabled: true});
 
-      lexer('<w/>', handler);
+      lexer('<w/>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(2);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -114,7 +127,7 @@ describe('createLexer', () => {
     test('reads consequent self-closing tags', () => {
       const lexer = createLexer({selfClosingTagsEnabled: true});
 
-      lexer('<w/><k/>', handler);
+      lexer('<w/><k/>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -130,7 +143,7 @@ describe('createLexer', () => {
     test('reads the void tag as self-closing', () => {
       const lexer = createLexer({voidTags: ['w']});
 
-      lexer('<w>', handler);
+      lexer('<w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(2);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -140,7 +153,7 @@ describe('createLexer', () => {
     test('reads consequent void tags', () => {
       const lexer = createLexer({voidTags: ['w', 'k']});
 
-      lexer('<w><k>', handler);
+      lexer('<w><k>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -152,7 +165,7 @@ describe('createLexer', () => {
     test('reads the void tag in the container', () => {
       const lexer = createLexer({voidTags: ['k']});
 
-      lexer('<w><k></w>', handler);
+      lexer('<w><k></w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(6);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -170,7 +183,7 @@ describe('createLexer', () => {
     test('reads the CDATA tag', () => {
       const lexer = createLexer({cdataTags: ['w']});
 
-      lexer('<w>aaa</w>', handler);
+      lexer('<w>aaa</w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(5);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -183,7 +196,7 @@ describe('createLexer', () => {
     test('ignores start tags inside CDATA tags', () => {
       const lexer = createLexer({cdataTags: ['w']});
 
-      lexer('<w><w><k></w>', handler);
+      lexer('<w><w><k></w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(6);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -197,7 +210,7 @@ describe('createLexer', () => {
     test('ignores end tags inside CDATA tags', () => {
       const lexer = createLexer({cdataTags: ['w']});
 
-      lexer('<w></k></w>', handler);
+      lexer('<w></k></w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(6);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -213,7 +226,7 @@ describe('createLexer', () => {
   describe('End tags', () => {
 
     test('reads the end tag', () => {
-      lexer('<w></w>', handler);
+      lexer('<w></w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -223,7 +236,7 @@ describe('createLexer', () => {
     });
 
     test('emits implicit end tags', () => {
-      lexer('<w><k></w>', handler);
+      lexer('<w><k></w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(7);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -236,13 +249,13 @@ describe('createLexer', () => {
     });
 
     test('does not emit an orphan end tag', () => {
-      lexer('</w>', handler);
+      lexer('</w>', statelessHandler);
 
       expect(handlerMock).not.toHaveBeenCalled();
     });
 
     test('does not emit an orphan end tag nested in a container', () => {
-      lexer('<w></k></w>', handler);
+      lexer('<w></k></w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -254,7 +267,7 @@ describe('createLexer', () => {
     test('emits implicit start tags for orphan end tags', () => {
       const lexer = createLexer({implicitStartTags: ['w']});
 
-      lexer('</w>', handler);
+      lexer('</w>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(2);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.IMPLICIT_START_TAG, 0, 3);
@@ -264,7 +277,7 @@ describe('createLexer', () => {
     test('emits implicit start tag that implicitly ends preceding tag', () => {
       const lexer = createLexer({implicitEndTagMap: {'k': ['w']}, implicitStartTags: ['k']});
 
-      lexer('<w></k>', handler);
+      lexer('<w></k>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(5);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -277,7 +290,7 @@ describe('createLexer', () => {
     test('emits implicit start tag and end tags during nesting of the same tag', () => {
       const lexer = createLexer({implicitEndTagMap: {'p': ['p']}, implicitStartTags: ['p']});
 
-      lexer('a<p>b<p>c</p>d</p>e', handler);
+      lexer('a<p>b<p>c</p>d</p>e', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(14);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.TEXT, 0, 1); // a
@@ -301,7 +314,7 @@ describe('createLexer', () => {
   describe('Case sensitivity', () => {
 
     test('reads case-sensitive end tags by default', () => {
-      lexer('<q></Q>', handler);
+      lexer('<q></Q>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(3);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -312,7 +325,7 @@ describe('createLexer', () => {
     test('reads case-insensitive end tags', () => {
       const lexer = createLexer({caseInsensitiveTagsEnabled: true});
 
-      lexer('<q></Q>', handler);
+      lexer('<q></Q>', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -324,7 +337,7 @@ describe('createLexer', () => {
     test('read non ASCII alpha-chars as case-sensitive in case-insensitive tag matching mode', () => {
       const lexer = createLexer({caseInsensitiveTagsEnabled: true});
 
-      lexer('<wф></wФ>a', handler);
+      lexer('<wф></wФ>a', statelessHandler);
 
       expect(handlerMock).toHaveBeenCalledTimes(4);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 3);

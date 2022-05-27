@@ -100,8 +100,15 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
     case TokenType.START_TAG_OPENING:
       const startTag = context.state.activeTag = context.getHashCode(chunk, offset + 1, length - 1);
       emitImplicitEndTags(chunk, offset, context);
-      handler(TokenType.START_TAG_OPENING, chunk, offset, length, state);
+
       state.stack[++state.cursor] = startTag;
+      try {
+        handler(TokenType.START_TAG_OPENING, chunk, offset, length, state);
+      } catch (error) {
+        // Prevents start tag from being added multiple times on stack if lexer is restated after handler threw an error
+        --state.cursor;
+        throw error;
+      }
       break;
 
     case TokenType.START_TAG_SELF_CLOSING:
@@ -156,7 +163,13 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
       // Emit implicit start and end tags for orphan end tag
       if (context.implicitStartTags?.has(activeTag)) {
         emitImplicitEndTags(chunk, offset, context);
-        handler(TokenType.IMPLICIT_START_TAG, chunk, offset, length, state);
+
+        state.stack[++state.cursor] = activeTag;
+        try {
+          handler(TokenType.IMPLICIT_START_TAG, chunk, offset, length, state);
+        } finally {
+          --state.cursor;
+        }
         break;
       }
 
@@ -181,13 +194,15 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
 };
 
 function emitImplicitEndTags(chunk: string, offset: number, context: LexerContext): void {
-  const {state, implicitEndTagMap} = context;
+  const {handler, state, implicitEndTagMap} = context;
 
   if (!implicitEndTagMap) {
     return;
   }
 
-  const tags = implicitEndTagMap.get(state.activeTag);
+  const {activeTag} = state;
+
+  const tags = implicitEndTagMap.get(activeTag);
 
   if (!tags) {
     return;
@@ -200,7 +215,12 @@ function emitImplicitEndTags(chunk: string, offset: number, context: LexerContex
     ++i;
   }
   while (i <= cursor) {
-    context.handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+    state.activeTag = stack[state.cursor];
+    try {
+      handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+    } finally {
+      state.activeTag = activeTag;
+    }
     --state.cursor;
     ++i;
   }
