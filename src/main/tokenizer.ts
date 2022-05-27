@@ -158,11 +158,11 @@ const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
     const {state} = context;
     const endTag = context.getHashCode(chunk, offset + 2, length - 2);
 
-    if (tokenizerState.stage === TokenStage.CDATA_TAG && state.stack[state.cursor] !== endTag) {
-      context.endTagCdataModeEnabled = true;
+    const endTagCdataModeEnabled = context.endTagCdataModeEnabled = tokenizerState.stage === TokenStage.CDATA_TAG && state.stack[state.cursor] !== endTag;
+
+    if (endTagCdataModeEnabled) {
       return TokenStage.CDATA_TAG;
     }
-    context.endTagCdataModeEnabled = false;
     state.activeTag = endTag;
     return TokenStage.END_TAG_OPENING;
   },
