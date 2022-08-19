@@ -10,7 +10,7 @@
     "lib"
   ],
   "scripts": {
-    "build": "npm run gen-rule-iterator && tsc && rollup --external speedy-entities --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve && npm run build:terser",
+    "build": "npm run gen-rule-iterator && tsc && rimraf './lib/gen-*' && rollup --external speedy-entities --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve && npm run build:terser",
     "build:terser": "TEMP=$(mktemp) && rm $TEMP && for FILE in $(find ./lib -name '*.js'); do terser --name-cache $TEMP --compress --mangle toplevel --mangle-props reserved=[__esModule],regex=/^__/ --output $FILE -- $FILE; done && rm $TEMP || exit 1",
     "clean": "rimraf ./lib ./docs",
     "test": "jest",
@@ -18,7 +18,7 @@
     "docs": "typedoc ./src/main/index.ts",
     "publish-docs": "[ -d ./docs ] && [[ ! $(git status --porcelain) ]] && branch=$(git rev-parse --abbrev-ref HEAD) && sha=$(git rev-parse --short HEAD) && t=$(mktemp -d) && cp -R ./docs/ $t && git checkout ghpages && ls -A | grep -wv .git | xargs rm -rf && cp -R $t/ . && git add . && git commit -m \"Updated docs ($sha)\" && git push && git checkout $branch",
     "release-docs": "npm run clean && npm run docs && npm run publish-docs",
-    "gen-rule-iterator": "ts-node ./src/main/scripts/gen-rule-iterator.ts ./src/main/rule-iterator.ts"
+    "gen-rule-iterator": "ts-node ./src/main/gen-rule-iterator.ts ./src/main/ruleIterator.ts"
   },
   "repository": {
     "type": "git",

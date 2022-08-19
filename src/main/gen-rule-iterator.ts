@@ -14,7 +14,7 @@ import {
   text,
   until
 } from 'tokenizer-dsl';
-import { LexerContext, TokenStage, TokenType } from '../lexer-types';
+import { LexerContext, TokenStage, TokenType } from './lexer-types';
 
 function untilInclusive<Context>(reader: Reader<Context>): Reader<Context> {
   return until(reader, { inclusive: true });

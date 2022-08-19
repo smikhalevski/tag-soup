@@ -1,4 +1,4 @@
-rule-iterator.ts
+ruleIterator.ts
 lib/
 gen/
 docs/

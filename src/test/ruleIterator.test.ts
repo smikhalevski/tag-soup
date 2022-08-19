@@ -1,9 +1,9 @@
 import { createTokenizerForRuleIterator, TokenHandler } from 'tokenizer-dsl';
-import ruleIterator from '../main/rule-iterator';
+import ruleIterator from '../main/ruleIterator';
 import { LexerContext, TokenStage, TokenType } from '../main/lexer-types';
 import { getCaseInsensitiveHashCode } from '../main/utils';
 
-describe('tokenizer', () => {
+describe('ruleIterator', () => {
 
   let context: LexerContext;
 
