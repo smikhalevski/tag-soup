@@ -1,24 +1,8 @@
-import {TokenHandler} from 'tokenizer-dsl';
-import {tokenizer} from './tokenizer';
-import {LexerContext, LexerHandler, LexerState, TokenStage, TokenType} from './lexer-types';
-import {getCaseInsensitiveHashCode, getCaseSensitiveHashCode, toHashCodeMap, toHashCodeSet} from './utils';
-
-export interface Lexer {
-
-  (input: string | LexerState, handler: LexerHandler): LexerState;
-
-  write(chunk: string, state: LexerState | undefined, handler: LexerHandler): LexerState;
-}
-
-export interface LexerOptions {
-  voidTags?: string[];
-  cdataTags?: string[];
-  implicitStartTags?: string[];
-  implicitEndTagMap?: Record<string, string[]>;
-  selfClosingTagsEnabled?: boolean;
-  caseInsensitiveTagsEnabled?: boolean;
-  foreignTags?: Record<string, LexerOptions>;
-}
+import { TokenHandler } from 'tokenizer-dsl';
+import ruleIterator from './rule-iterator';
+import { Lexer, LexerContext, LexerOptions, LexerState, TokenStage, TokenType } from './lexer-types';
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils';
+import { toHashCodeMap, toHashCodeSet } from './createLexerConfig';
 
 // TODO Delete void tags from cdataTags
 
@@ -41,8 +25,9 @@ export function createLexer(options: LexerOptions = {}): Lexer {
   const lexer: Lexer = (input, handler) => {
 
     const state = typeof input === 'string' ? createLexerState(input) : input;
-    const {chunk, cursor} = state;
-    const {offset} = tokenizer(state, tokenHandler, {
+    const { chunk, cursor } = state;
+
+    const context: LexerContext = {
       state,
       handler,
       voidTags,
@@ -52,10 +37,12 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       selfClosingTagsEnabled,
       endTagCdataModeEnabled: false,
       getHashCode,
-    });
+    };
+
+    ruleIterator(state, tokenHandler, context, false);
 
     while (state.cursor > cursor) {
-      handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
+      handler(TokenType.IMPLICIT_END_TAG, chunk, state.offset, 0, state);
       --state.cursor;
     }
 
@@ -72,7 +59,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       state = createLexerState(chunk);
     }
 
-    tokenizer.write(chunk, state, tokenHandler, {
+    const context: LexerContext = {
       state,
       handler,
       voidTags,
@@ -82,7 +69,9 @@ export function createLexer(options: LexerOptions = {}): Lexer {
       selfClosingTagsEnabled,
       endTagCdataModeEnabled: false,
       getHashCode,
-    });
+    };
+
+    ruleIterator(state, tokenHandler, context, true);
 
     return state;
   };
@@ -92,7 +81,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
 
 const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, chunk, offset, length, context) => {
 
-  const {state, handler} = context;
+  const { state, handler } = context;
 
   // noinspection FallThroughInSwitchStatementJS
   switch (type) {
@@ -119,7 +108,7 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
       }
 
     case TokenType.START_TAG_CLOSING:
-      const {voidTags} = context;
+      const { voidTags } = context;
 
       if (voidTags !== null && voidTags.has(state.activeTag)) {
         handler(TokenType.START_TAG_SELF_CLOSING, chunk, offset, length, state);
@@ -138,7 +127,7 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
         break;
       }
 
-      const {activeTag, stack, cursor} = state;
+      const { activeTag, stack, cursor } = state;
 
       // Lookup the start tag
       let i = cursor;
@@ -194,13 +183,13 @@ const tokenHandler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, c
 };
 
 function emitImplicitEndTags(chunk: string, offset: number, context: LexerContext): void {
-  const {handler, state, implicitEndTagMap} = context;
+  const { handler, state, implicitEndTagMap } = context;
 
   if (!implicitEndTagMap) {
     return;
   }
 
-  const {activeTag} = state;
+  const { activeTag } = state;
 
   const tags = implicitEndTagMap.get(activeTag);
 
@@ -208,19 +197,14 @@ function emitImplicitEndTags(chunk: string, offset: number, context: LexerContex
     return;
   }
 
-  const {stack, cursor} = state;
+  const { stack, cursor } = state;
 
   let i = 0;
   while (i <= cursor && !tags.has(stack[i])) {
     ++i;
   }
   while (i <= cursor) {
-    state.activeTag = stack[state.cursor];
-    try {
-      handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
-    } finally {
-      state.activeTag = activeTag;
-    }
+    handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, state);
     --state.cursor;
     ++i;
   }

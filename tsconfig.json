@@ -1,8 +1,15 @@
 {
+  "ts-node": {
+    "files": true,
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  },
   "compilerOptions": {
     "declaration": true,
     "moduleResolution": "Node",
     "preserveConstEnums": true,
+    "esModuleInterop": true,
     "strict": true,
     "target": "ES5",
     "module": "ES6",

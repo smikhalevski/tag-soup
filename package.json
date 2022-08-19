@@ -10,13 +10,15 @@
     "lib"
   ],
   "scripts": {
-    "build": "tsc && rollup --external speedy-entities,tokenizer-dsl --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve",
+    "build": "npm run gen-rule-iterator && tsc && rollup --external speedy-entities --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve && npm run build:terser",
+    "build:terser": "TEMP=$(mktemp) && rm $TEMP && for FILE in $(find ./lib -name '*.js'); do terser --name-cache $TEMP --compress --mangle toplevel --mangle-props reserved=[__esModule],regex=/^__/ --output $FILE -- $FILE; done && rm $TEMP || exit 1",
     "clean": "rimraf ./lib ./docs",
-    "test": "jest --detectOpenHandles",
+    "test": "jest",
     "perf": "[ -d ./lib ] || npm run build && node --expose-gc --max-old-space-size=4096 ./node_modules/.bin/toofast ./src/test/perf.js",
     "docs": "typedoc ./src/main/index.ts",
     "publish-docs": "[ -d ./docs ] && [[ ! $(git status --porcelain) ]] && branch=$(git rev-parse --abbrev-ref HEAD) && sha=$(git rev-parse --short HEAD) && t=$(mktemp -d) && cp -R ./docs/ $t && git checkout ghpages && ls -A | grep -wv .git | xargs rm -rf && cp -R $t/ . && git add . && git commit -m \"Updated docs ($sha)\" && git push && git checkout $branch",
-    "release-docs": "npm run clean && npm run docs && npm run publish-docs"
+    "release-docs": "npm run clean && npm run docs && npm run publish-docs",
+    "gen-rule-iterator": "ts-node ./src/main/scripts/gen-rule-iterator.ts ./src/main/rule-iterator.ts"
   },
   "repository": {
     "type": "git",
@@ -40,34 +42,24 @@
     "url": "https://github.com/smikhalevski/tag-soup/issues"
   },
   "homepage": "https://github.com/smikhalevski/tag-soup#readme",
-  "jest": {
-    "preset": "ts-jest",
-    "globals": {
-      "ts-jest": {
-        "diagnostics": {
-          "ignoreCodes": [
-            151001
-          ]
-        }
-      }
-    }
-  },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^13.3.0",
-    "@types/jest": "^27.5.1",
+    "@types/jest": "^28.1.7",
     "htmlparser-benchmark": "^1.1.3",
-    "htmlparser2": "^7.2.0",
+    "htmlparser2": "^8.0.1",
     "hyntax": "^1.1.9",
-    "jest": "^28.1.0",
+    "jest": "^28.1.3",
     "parse5": "^7.0.0",
+    "prettier": "^2.7.1",
     "rimraf": "^3.0.2",
-    "rollup": "^2.73.0",
+    "rollup": "^2.78.1",
     "sax": "^1.2.4",
-    "terser": "^5.13.1",
-    "toofast": "^1.3.0",
-    "ts-jest": "^28.0.2",
-    "typedoc": "^0.22.15",
-    "typescript": "^4.6.4"
+    "terser": "^5.14.2",
+    "toofast": "^1.3.1",
+    "ts-jest": "^28.0.8",
+    "ts-node": "^10.9.1",
+    "typedoc": "^0.23.10",
+    "typescript": "^4.7.4"
   },
   "dependencies": {
     "speedy-entities": "^1.1.3",

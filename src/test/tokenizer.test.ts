@@ -1,11 +1,13 @@
-import {TokenHandler} from 'tokenizer-dsl';
-import {tokenizer} from '../main/tokenizer';
-import {LexerContext, TokenStage, TokenType} from '../main/lexer-types';
-import {getCaseInsensitiveHashCode} from '../main/utils';
+import { createTokenizerForRuleIterator, TokenHandler } from 'tokenizer-dsl';
+import ruleIterator from '../main/rule-iterator';
+import { LexerContext, TokenStage, TokenType } from '../main/lexer-types';
+import { getCaseInsensitiveHashCode } from '../main/utils';
 
 describe('tokenizer', () => {
 
   let context: LexerContext;
+
+  const tokenizer = createTokenizerForRuleIterator(ruleIterator, TokenStage.DOCUMENT);
 
   const handlerMock = jest.fn();
 

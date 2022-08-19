@@ -1,5 +1,7 @@
-/lib/
-/docs/
+rule-iterator.ts
+lib/
+gen/
+docs/
 *.tgz
 
 # IntelliJ Idea file-based project settings

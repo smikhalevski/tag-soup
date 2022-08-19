@@ -1,7 +1,24 @@
-import {all, char, createTokenizer, end, or, Reader, Rule, seq, skip, text, until} from 'tokenizer-dsl';
-import {LexerContext, TokenStage, TokenType} from './lexer-types';
+import fs from 'fs';
+import path from 'path';
+import {
+  all,
+  char,
+  compileRuleIteratorModule,
+  end,
+  imported,
+  or,
+  Reader,
+  Rule,
+  seq,
+  skip,
+  text,
+  until
+} from 'tokenizer-dsl';
+import { LexerContext, TokenStage, TokenType } from '../lexer-types';
 
-const untilInclusive = <Context>(reader: Reader<Context>): Reader<Context> => until(reader, {inclusive: true});
+function untilInclusive<Context>(reader: Reader<Context>): Reader<Context> {
+  return until(reader, { inclusive: true });
+}
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
@@ -59,8 +76,8 @@ const attributeNameReader = or(until(char([whitespaceChars, '/', '>', '='])), en
 
 // "…" or '…'
 const attributeValueReader = or(
-    seq(quotReader, or(untilInclusive(quotReader), end(1))),
-    seq(aposReader, or(untilInclusive(aposReader), end(1))),
+  seq(quotReader, or(untilInclusive(quotReader), end(1))),
+  seq(aposReader, or(untilInclusive(aposReader), end(1))),
 );
 
 // okay
@@ -76,7 +93,7 @@ const processingInstructionReader = seq(ltReader, text('?'), or(untilInclusive(t
 const cdataReader = seq(ltReader, exclReader, text('[CDATA['), or(untilInclusive(text(']]>')), end(3)));
 
 // <!DOCTYPE … >
-const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', {caseInsensitive: true}), or(untilInclusive(gtReader), end(1)));
+const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', { caseInsensitive: true }), or(untilInclusive(gtReader), end(1)));
 
 // <! … >
 const dtdReader = seq(ltReader, exclReader, or(untilInclusive(gtReader), end(1)));
@@ -94,25 +111,14 @@ const startTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
   type: TokenType.START_TAG_CLOSING,
   reader: gtReader,
-
-  to(chunk, offset, length, context) {
-    const {cdataTags} = context;
-    return cdataTags !== null && cdataTags.has(context.state.activeTag) ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
-  },
+  to: imported('./tokenizer-utils', 'startTagClosingRuleTo'),
 };
 
 const startTagSelfClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
   type: TokenType.START_TAG_SELF_CLOSING,
   reader: startTagSelfClosingReader,
-
-  to(chunk, offset, length, context) {
-    if (context.selfClosingTagsEnabled) {
-      return TokenStage.DOCUMENT;
-    }
-    const {cdataTags} = context;
-    return cdataTags !== null && cdataTags.has(context.state.activeTag) ? TokenStage.CDATA_TAG : TokenStage.DOCUMENT;
-  },
+  to: imported('./tokenizer-utils', 'startTagSelfClosingRuleTo'),
 };
 
 const tagSpaceRule: Rule<TokenType, TokenStage, LexerContext> = {
@@ -153,19 +159,7 @@ const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
   on: [TokenStage.DOCUMENT, TokenStage.CDATA_TAG],
   type: TokenType.END_TAG_OPENING,
   reader: endTagOpeningReader,
-
-  to(chunk, offset, length, context, tokenizerState) {
-    const {state} = context;
-    const endTag = context.getHashCode(chunk, offset + 2, length - 2);
-
-    const endTagCdataModeEnabled = context.endTagCdataModeEnabled = tokenizerState.stage === TokenStage.CDATA_TAG && state.stack[state.cursor] !== endTag;
-
-    if (endTagCdataModeEnabled) {
-      return TokenStage.CDATA_TAG;
-    }
-    state.activeTag = endTag;
-    return TokenStage.END_TAG_OPENING;
-  },
+  to: imported('./tokenizer-utils', 'endTagOpeningRuleTo'),
 };
 
 const endTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
@@ -211,7 +205,7 @@ const textRule: Rule<TokenType, TokenStage, LexerContext> = {
   reader: textReader,
 };
 
-export const tokenizer = createTokenizer([
+const moduleSource = compileRuleIteratorModule([
   startTagOpeningRule,
   attributeNameRule,
   attributeEqRule,
@@ -228,4 +222,10 @@ export const tokenizer = createTokenizer([
   doctypeRule,
   dtdRule,
   textRule,
-], TokenStage.DOCUMENT);
+], { typingsEnabled: true });
+
+const modulePath = path.resolve(process.argv[2]);
+
+fs.mkdirSync(path.dirname(modulePath), { recursive: true });
+
+fs.writeFileSync(modulePath, moduleSource);

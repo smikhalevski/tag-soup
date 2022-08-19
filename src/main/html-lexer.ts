@@ -1,4 +1,5 @@
-import {createLexer, Lexer, LexerOptions} from './lexer';
+import {createLexer} from './lexer';
+import {Lexer, LexerOptions} from './lexer-types';
 
 export function createHtmlLexer(options: LexerOptions = {}): Lexer {
   return createLexer(Object.assign({
