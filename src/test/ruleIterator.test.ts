@@ -1,24 +1,23 @@
 import { createTokenizerForRuleIterator, TokenHandler } from 'tokenizer-dsl';
 import ruleIterator from '../main/ruleIterator';
-import { LexerContext, TokenStage, TokenType } from '../main/lexer-types';
-import { getCaseInsensitiveHashCode } from '../main/utils';
+import { LexerContext, LexerStage, TokenType } from '../main/lexer-types';
+import { getCaseInsensitiveHashCode } from '../main/createLexerConfig';
 
 describe('ruleIterator', () => {
-
   let context: LexerContext;
 
-  const tokenizer = createTokenizerForRuleIterator(ruleIterator, TokenStage.DOCUMENT);
+  const tokenizer = createTokenizerForRuleIterator(ruleIterator, LexerStage.DOCUMENT);
 
   const handlerMock = jest.fn();
 
-  const handler: TokenHandler<TokenType, TokenStage, LexerContext> = (type, chunk, offset, length, context, state) => {
+  const handler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, chunk, offset, length, context, state) => {
     handlerMock(type, state.chunkOffset + offset, length);
   };
 
   beforeEach(() => {
     context = {
-      state: {
-        stage: TokenStage.DOCUMENT,
+      __state: {
+        stage: LexerStage.DOCUMENT,
         chunk: '',
         chunkOffset: 0,
         offset: 0,
@@ -27,21 +26,24 @@ describe('ruleIterator', () => {
         foreignCursor: -1,
         activeTag: 0,
       },
-      handler: () => undefined,
-      voidTags: null,
-      cdataTags: null,
-      implicitEndTagMap: null,
-      implicitStartTags: null,
-      selfClosingTagsEnabled: false,
-      endTagCdataModeEnabled: false,
-      getHashCode: getCaseInsensitiveHashCode,
+      __config: {
+        __parentConfig: null,
+        __voidTags: null,
+        __cdataTags: null,
+        __implicitEndTagMap: null,
+        __implicitStartTags: null,
+        __foreignTagConfigMap: null,
+        __selfClosingTagsEnabled: false,
+        __getHashCode: getCaseInsensitiveHashCode,
+      },
+      __handler: () => undefined,
+      __endTagCdataModeEnabled: false,
     };
 
     handlerMock.mockRestore();
   });
 
   describe('Text', () => {
-
     test('tokenizes an empty string', () => {
       tokenizer('', handler, context);
 
@@ -70,11 +72,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenCalledTimes(1);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.TEXT, 0, 3);
     });
-
   });
 
   describe('Start tag', () => {
-
     test('tokenizes the start tag without attributes', () => {
       tokenizer('<w>', handler, context);
 
@@ -148,13 +148,11 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.TEXT, 0, 4);
       expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.TEXT, 4, 5);
     });
-
   });
 
   describe('Attributes', () => {
-
     test('tokenizes apos-quoted attributes', () => {
-      tokenizer('<w foo=\'aaa"bbb\' bar=\'aaa"bbb\'>', handler, context);
+      tokenizer("<w foo='aaa\"bbb' bar='aaa\"bbb'>", handler, context);
 
       expect(handlerMock).toHaveBeenCalledTimes(6);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -233,7 +231,7 @@ describe('ruleIterator', () => {
     });
 
     test('tokenizes bullshit attribute names', () => {
-      tokenizer('<w < = \'\' FAIL>stuff</w><a', handler, context);
+      tokenizer("<w < = '' FAIL>stuff</w><a", handler, context);
 
       expect(handlerMock).toHaveBeenCalledTimes(9);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.START_TAG_OPENING, 0, 2);
@@ -256,11 +254,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.ATTRIBUTE_VALUE, 7, 5);
       expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.ATTRIBUTE_NAME, 12, 4);
     });
-
   });
 
   describe('Self-closing start tags', () => {
-
     test('tokenizes the self-closing tag without attributes', () => {
       tokenizer('<w/>', handler, context);
 
@@ -278,11 +274,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(3, TokenType.ATTRIBUTE_UNQUOTED_VALUE, 7, 5);
       expect(handlerMock).toHaveBeenNthCalledWith(4, TokenType.START_TAG_CLOSING, 12, 1);
     });
-
   });
 
   describe('End tags', () => {
-
     test('tokenizes the end tag', () => {
       tokenizer('</w   >', handler, context);
 
@@ -305,11 +299,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.END_TAG_OPENING, 0, 3);
       expect(handlerMock).toHaveBeenNthCalledWith(2, TokenType.END_TAG_CLOSING, 3, 8);
     });
-
   });
 
   describe('Comments', () => {
-
     test('tokenizes terminated XML comments', () => {
       tokenizer('<!--foo-->', handler, context);
 
@@ -346,11 +338,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenCalledTimes(1);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.COMMENT, 0, 14);
     });
-
   });
 
   describe('Processing instructions', () => {
-
     test('tokenizes processing instructions', () => {
       tokenizer('<?xml version="1.0"?>', handler, context);
 
@@ -364,11 +354,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenCalledTimes(1);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.PROCESSING_INSTRUCTION, 0, 21);
     });
-
   });
 
   describe('CDATA sections', () => {
-
     test('tokenizes the CDATA section', () => {
       tokenizer('<![CDATA[hello]]>', handler, context);
 
@@ -395,11 +383,9 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(5, TokenType.END_TAG_CLOSING, 41, 1);
       expect(handlerMock).toHaveBeenNthCalledWith(6, TokenType.DTD, 42, 6);
     });
-
   });
 
   describe('Doctype', () => {
-
     test('tokenizes doctype', () => {
       tokenizer('<!DOCTYPE html>', handler, context);
 
@@ -420,7 +406,5 @@ describe('ruleIterator', () => {
       expect(handlerMock).toHaveBeenCalledTimes(1);
       expect(handlerMock).toHaveBeenNthCalledWith(1, TokenType.DOCTYPE, 0, 10);
     });
-
   });
-
 });

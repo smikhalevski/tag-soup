@@ -1,21 +1,13 @@
-export function getCaseInsensitiveHashCode(input: string, offset: number, length: number): number {
-  let hashCode = 0;
-  for (let i = 0; i < length; ++i) {
-    const charCode = input.charCodeAt(offset + i);
-    hashCode = (hashCode << 5) - hashCode + (charCode < 65 || charCode > 90 ? charCode : charCode + 32);
+export function defaults<T extends Record<string, any>>(values: T | undefined, defaultValues: T): T {
+  if (!values) {
+    return defaultValues;
   }
-  return hashCode | 0;
-}
+  values = Object.assign({}, values);
 
-export function getCaseSensitiveHashCode(input: string, offset: number, length: number): number {
-  let hashCode = 0;
-  for (let i = 0; i < length; ++i) {
-    hashCode = (hashCode << 5) - hashCode + input.charCodeAt(offset + i);
+  for (const key in defaultValues) {
+    if (values[key] === undefined) {
+      values[key] = defaultValues[key];
+    }
   }
-  return hashCode | 0;
+  return values;
 }
-
-export function die(message?: string): never {
-  throw new Error(message);
-}
-

@@ -1,1 +1,1 @@
-export * from './html-lexer';
+export * from './createHtmlLexer';

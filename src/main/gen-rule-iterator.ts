@@ -12,13 +12,19 @@ import {
   seq,
   skip,
   text,
-  until
+  until,
 } from 'tokenizer-dsl';
-import { LexerContext, TokenStage, TokenType } from './lexer-types';
+import { LexerContext, LexerStage, TokenType } from './lexer-types';
 
-function untilInclusive<Context>(reader: Reader<Context>): Reader<Context> {
+function untilInclusive<C>(reader: Reader<C>): Reader<C> {
   return until(reader, { inclusive: true });
 }
+
+const startTagClosingRuleTo = imported('./lexer-utils', 'startTagClosingRuleTo');
+
+const startTagSelfClosingRuleTo = imported('./lexer-utils', 'startTagSelfClosingRuleTo');
+
+const endTagOpeningRuleTo = imported('./lexer-utils', 'endTagOpeningRuleTo');
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([
@@ -53,7 +59,7 @@ const exclReader = text('!');
 
 const quotReader = text('"');
 
-const aposReader = text('\'');
+const aposReader = text("'");
 
 const eqReader = text('=');
 
@@ -77,7 +83,7 @@ const attributeNameReader = or(until(char([whitespaceChars, '/', '>', '='])), en
 // "…" or '…'
 const attributeValueReader = or(
   seq(quotReader, or(untilInclusive(quotReader), end(1))),
-  seq(aposReader, or(untilInclusive(aposReader), end(1))),
+  seq(aposReader, or(untilInclusive(aposReader), end(1)))
 );
 
 // okay
@@ -93,136 +99,144 @@ const processingInstructionReader = seq(ltReader, text('?'), or(untilInclusive(t
 const cdataReader = seq(ltReader, exclReader, text('[CDATA['), or(untilInclusive(text(']]>')), end(3)));
 
 // <!DOCTYPE … >
-const doctypeReader = seq(ltReader, exclReader, text('DOCTYPE', { caseInsensitive: true }), or(untilInclusive(gtReader), end(1)));
+const doctypeReader = seq(
+  ltReader,
+  exclReader,
+  text('DOCTYPE', { caseInsensitive: true }),
+  or(untilInclusive(gtReader), end(1))
+);
 
 // <! … >
 const dtdReader = seq(ltReader, exclReader, or(untilInclusive(gtReader), end(1)));
 
 const textReader = seq(skip(1), or(until(ltReader), end()));
 
-const startTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT],
+const startTagOpeningRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT],
   type: TokenType.START_TAG_OPENING,
   reader: startTagOpeningReader,
-  to: TokenStage.START_TAG_OPENING,
+  to: LexerStage.START_TAG_OPENING,
 };
 
-const startTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
+const startTagClosingRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_EQ],
   type: TokenType.START_TAG_CLOSING,
   reader: gtReader,
-  to: imported('./tokenizer-utils', 'startTagClosingRuleTo'),
+  to: startTagClosingRuleTo,
 };
 
-const startTagSelfClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
+const startTagSelfClosingRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_EQ],
   type: TokenType.START_TAG_SELF_CLOSING,
   reader: startTagSelfClosingReader,
-  to: imported('./tokenizer-utils', 'startTagSelfClosingRuleTo'),
+  to: startTagSelfClosingRuleTo,
 };
 
-const tagSpaceRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME, TokenStage.ATTRIBUTE_EQ],
+const tagSpaceRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_EQ],
   reader: tagSpaceReader,
   silent: true,
 };
 
-const attributeNameRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.START_TAG_OPENING, TokenStage.ATTRIBUTE_NAME],
+const attributeNameRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME],
   type: TokenType.ATTRIBUTE_NAME,
   reader: attributeNameReader,
-  to: TokenStage.ATTRIBUTE_NAME,
+  to: LexerStage.ATTRIBUTE_NAME,
 };
 
-const attributeEqRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.ATTRIBUTE_NAME],
+const attributeEqRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.ATTRIBUTE_NAME],
   reader: eqReader,
-  to: TokenStage.ATTRIBUTE_EQ,
+  to: LexerStage.ATTRIBUTE_EQ,
   silent: true,
 };
 
-const attributeValueRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.ATTRIBUTE_EQ],
+const attributeValueRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.ATTRIBUTE_EQ],
   type: TokenType.ATTRIBUTE_VALUE,
   reader: attributeValueReader,
-  to: TokenStage.START_TAG_OPENING,
+  to: LexerStage.START_TAG_OPENING,
 };
 
-const attributeUnquotedValueRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.ATTRIBUTE_EQ],
+const attributeUnquotedValueRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.ATTRIBUTE_EQ],
   type: TokenType.ATTRIBUTE_UNQUOTED_VALUE,
   reader: attributeUnquotedValueReader,
-  to: TokenStage.START_TAG_OPENING,
+  to: LexerStage.START_TAG_OPENING,
 };
 
-const endTagOpeningRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT, TokenStage.CDATA_TAG],
+const endTagOpeningRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT, LexerStage.CDATA_TAG],
   type: TokenType.END_TAG_OPENING,
   reader: endTagOpeningReader,
-  to: imported('./tokenizer-utils', 'endTagOpeningRuleTo'),
+  to: endTagOpeningRuleTo,
 };
 
-const endTagClosingRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.END_TAG_OPENING],
+const endTagClosingRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.END_TAG_OPENING],
   type: TokenType.END_TAG_CLOSING,
   reader: endTagClosingReader,
-  to: TokenStage.DOCUMENT,
+  to: LexerStage.DOCUMENT,
 };
 
-const commentRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT],
+const commentRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT],
   type: TokenType.COMMENT,
   reader: commentReader,
 };
 
-const processingInstructionRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT],
+const processingInstructionRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT],
   type: TokenType.PROCESSING_INSTRUCTION,
   reader: processingInstructionReader,
 };
 
-const cdataRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT],
+const cdataRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT],
   type: TokenType.CDATA_SECTION,
   reader: cdataReader,
 };
 
-const doctypeRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT],
+const doctypeRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT],
   type: TokenType.DOCTYPE,
   reader: doctypeReader,
 };
 
-const dtdRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT],
+const dtdRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT],
   type: TokenType.DTD,
   reader: dtdReader,
 };
 
-const textRule: Rule<TokenType, TokenStage, LexerContext> = {
-  on: [TokenStage.DOCUMENT, TokenStage.CDATA_TAG],
+const textRule: Rule<TokenType, LexerStage, LexerContext> = {
+  on: [LexerStage.DOCUMENT, LexerStage.CDATA_TAG],
   type: TokenType.TEXT,
   reader: textReader,
 };
 
-const moduleSource = compileRuleIteratorModule([
-  startTagOpeningRule,
-  attributeNameRule,
-  attributeEqRule,
-  attributeValueRule,
-  attributeUnquotedValueRule,
-  startTagClosingRule,
-  startTagSelfClosingRule,
-  tagSpaceRule,
-  endTagOpeningRule,
-  endTagClosingRule,
-  commentRule,
-  processingInstructionRule,
-  cdataRule,
-  doctypeRule,
-  dtdRule,
-  textRule,
-], { typingsEnabled: true });
+const moduleSource = compileRuleIteratorModule(
+  [
+    startTagOpeningRule,
+    attributeNameRule,
+    attributeEqRule,
+    attributeValueRule,
+    attributeUnquotedValueRule,
+    startTagClosingRule,
+    startTagSelfClosingRule,
+    tagSpaceRule,
+    endTagOpeningRule,
+    endTagClosingRule,
+    commentRule,
+    processingInstructionRule,
+    cdataRule,
+    doctypeRule,
+    dtdRule,
+    textRule,
+  ],
+  { typingsEnabled: true }
+);
 
 const modulePath = path.resolve(process.argv[2]);
 

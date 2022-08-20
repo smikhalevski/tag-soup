@@ -1,16 +1,6 @@
-import {TokenizerState} from 'tokenizer-dsl';
-
-export const enum TokenStage {
-  DOCUMENT = 'DOCUMENT',
-  START_TAG_OPENING = 'START_TAG_OPENING',
-  ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
-  ATTRIBUTE_EQ = 'ATTRIBUTE_EQ',
-  END_TAG_OPENING = 'END_TAG_OPENING',
-  CDATA_TAG = 'CDATA_TAG',
-}
+import { TokenizerState } from 'tokenizer-dsl';
 
 export const enum TokenType {
-
   /**
    * `<…` a start tag opening bracket and a tag name.
    */
@@ -109,15 +99,16 @@ export const enum TokenType {
  */
 export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
 
+/**
+ * Lexer is a streaming tokenizer that emits tokens is correct order.
+ */
 export interface Lexer {
-
   (input: string | LexerState, handler: LexerHandler): LexerState;
 
   write(chunk: string, state: LexerState | undefined, handler: LexerHandler): LexerState;
 }
 
-export interface LexerState extends TokenizerState<TokenStage> {
-
+export interface LexerState extends TokenizerState<LexerStage> {
   /**
    * The list of tag name hash codes.
    */
@@ -141,7 +132,6 @@ export interface LexerState extends TokenizerState<TokenStage> {
 }
 
 export interface LexerOptions {
-
   /**
    * The list of void tag names. These tags are implicitly closed. Ex. `img`, `link`, `meta`, etc.
    */
@@ -149,13 +139,15 @@ export interface LexerOptions {
 
   /**
    * The list CDATA tags. The content of these tags is interpreted as plain text. Ex. `script`, `style`, etc.
+   *
+   * If tag name is also present in {@link voidTags} than it is ignored.
    */
   cdataTags?: string[];
 
   /**
    * The list of tags for which an implicit start tag would be inserted if an orphan end tag is met.
    *
-   * In HTML `p` and `br` tags follow this semantics:
+   * For example, in HTML `p` and `br` tags follow this semantics:
    * ```
    * </p>  → <p></p>
    * </br> → <br>
@@ -166,7 +158,7 @@ export interface LexerOptions {
   /**
    * The map from a tag name (A) to a list of names of tags that must be implicitly closed if tag (A) is started.
    *
-   * In HTML `p`, `table`, and many other tags follow this semantics:
+   * For example, in HTML `p`, `table`, and many other tags follow this semantics:
    * ```
    * <p>foo<h1>bar → <p>foo</p><h1>bar</h1>
    * ```
@@ -176,44 +168,68 @@ export interface LexerOptions {
    * {p: ['h1']}
    * ```
    */
-  implicitEndTagMap?: Record<string, string[]>;
+  implicitEndTags?: { [tagName: string]: string[] };
+
+  /**
+   * If `true` then lexer would respect self-closing tags, otherwise they are treated as start tags.
+   */
   selfClosingTagsEnabled?: boolean;
+
+  /**
+   * If `true` then tag names are compared case-insensitively, otherwise case-sensitive comparison is used.
+   *
+   * **Note:** Only ASCII characters in tag names can be compared case-insensitively.
+   */
   caseInsensitiveTagsEnabled?: boolean;
-  foreignTags?: Record<string, LexerOptions>;
+
+  /**
+   * Map from the foreign tag name to options that must be applied inside to foreign tag children.
+   *
+   * If tag name is also present in {@link voidTags} or {@link cdataTags} than it is ignored.
+   */
+  foreignTags?: { [tagName: string]: LexerOptions };
 }
-
-export interface LexerConfig {
-  voidTags: Set<number> | null;
-  cdataTags: Set<number> | null;
-  implicitStartTags: Set<number> | null;
-  implicitEndTagMap: Map<number, Set<number>> | null;
-  foreignTagConfigMap: Map<number, LexerConfig> | null;
-  selfClosingTagsEnabled: boolean;
-  endTagCdataModeEnabled: boolean;
-
-  getHashCode(input: string, offset: number, length: number): number;
-}
-
-
-
-
-
-
 
 /**
- * The internal context used by the tokenizer and lexer.
- *
+ * @internal
+ * Returns the hash code of a substring.
+ */
+export type GetHashCode = (input: string, offset: number, length: number) => number;
+
+/**
  * @internal
  */
-export interface LexerContext {
-  state: LexerState,
-  handler: LexerHandler;
-  voidTags: Set<number> | null;
-  cdataTags: Set<number> | null;
-  implicitStartTags: Set<number> | null;
-  implicitEndTagMap: Map<number, Set<number>> | null;
-  selfClosingTagsEnabled: boolean;
-  endTagCdataModeEnabled: boolean;
+export const enum LexerStage {
+  DOCUMENT = 'DOCUMENT',
+  START_TAG_OPENING = 'START_TAG_OPENING',
+  ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
+  ATTRIBUTE_EQ = 'ATTRIBUTE_EQ',
+  END_TAG_OPENING = 'END_TAG_OPENING',
+  CDATA_TAG = 'CDATA_TAG',
+}
 
-  getHashCode(input: string, offset: number, length: number): number;
+/**
+ * @internal
+ * The config represents coerced options passed to the lexer.
+ */
+export interface LexerConfig {
+  __parentConfig: LexerConfig | null;
+  __voidTags: Set<number> | null;
+  __cdataTags: Set<number> | null;
+  __implicitStartTags: Set<number> | null;
+  __implicitEndTagMap: Map<number, Set<number>> | null;
+  __foreignTagConfigMap: Map<number, LexerConfig> | null;
+  __selfClosingTagsEnabled: boolean;
+  __getHashCode: GetHashCode;
+}
+
+/**
+ * @internal
+ * The context that lexer passes down to the tokenizer.
+ */
+export interface LexerContext {
+  __state: LexerState;
+  __config: LexerConfig;
+  __handler: LexerHandler;
+  __endTagCdataModeEnabled: boolean;
 }
