@@ -191,10 +191,10 @@ export type GetHashCode = (input: string, offset: number, length: number) => num
  */
 export const enum LexerStage {
   DOCUMENT = 'DOCUMENT',
-  START_TAG_OPENING = 'START_TAG_OPENING',
+  START_TAG = 'START_TAG',
   ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
-  ATTRIBUTE_EQ = 'ATTRIBUTE_EQ',
-  END_TAG_OPENING = 'END_TAG_OPENING',
+  ATTRIBUTE_VALUE = 'ATTRIBUTE_VALUE',
+  END_TAG = 'END_TAG',
   CDATA_TAG = 'CDATA_TAG',
 }
 

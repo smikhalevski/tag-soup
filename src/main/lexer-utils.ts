@@ -37,5 +37,5 @@ export const endTagOpeningRuleTo: To = (chunk, offset, length, context) => {
     return LexerStage.CDATA_TAG;
   }
   __state.activeTag = endTag;
-  return LexerStage.END_TAG_OPENING;
+  return LexerStage.END_TAG;
 };

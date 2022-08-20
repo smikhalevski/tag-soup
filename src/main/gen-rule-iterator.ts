@@ -115,31 +115,31 @@ const startTagOpeningRule: Rule<TokenType, LexerStage, LexerContext> = {
   on: [LexerStage.DOCUMENT],
   type: TokenType.START_TAG_OPENING,
   reader: startTagOpeningReader,
-  to: LexerStage.START_TAG_OPENING,
+  to: LexerStage.START_TAG,
 };
 
 const startTagClosingRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_EQ],
+  on: [LexerStage.START_TAG, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_VALUE],
   type: TokenType.START_TAG_CLOSING,
   reader: gtReader,
   to: startTagClosingRuleTo,
 };
 
 const startTagSelfClosingRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_EQ],
+  on: [LexerStage.START_TAG, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_VALUE],
   type: TokenType.START_TAG_SELF_CLOSING,
   reader: startTagSelfClosingReader,
   to: startTagSelfClosingRuleTo,
 };
 
 const tagSpaceRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_EQ],
+  on: [LexerStage.START_TAG, LexerStage.ATTRIBUTE_NAME, LexerStage.ATTRIBUTE_VALUE],
   reader: tagSpaceReader,
   silent: true,
 };
 
 const attributeNameRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.START_TAG_OPENING, LexerStage.ATTRIBUTE_NAME],
+  on: [LexerStage.START_TAG, LexerStage.ATTRIBUTE_NAME],
   type: TokenType.ATTRIBUTE_NAME,
   reader: attributeNameReader,
   to: LexerStage.ATTRIBUTE_NAME,
@@ -148,22 +148,22 @@ const attributeNameRule: Rule<TokenType, LexerStage, LexerContext> = {
 const attributeEqRule: Rule<TokenType, LexerStage, LexerContext> = {
   on: [LexerStage.ATTRIBUTE_NAME],
   reader: eqReader,
-  to: LexerStage.ATTRIBUTE_EQ,
+  to: LexerStage.ATTRIBUTE_VALUE,
   silent: true,
 };
 
 const attributeValueRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.ATTRIBUTE_EQ],
+  on: [LexerStage.ATTRIBUTE_VALUE],
   type: TokenType.ATTRIBUTE_VALUE,
   reader: attributeValueReader,
-  to: LexerStage.START_TAG_OPENING,
+  to: LexerStage.START_TAG,
 };
 
 const attributeUnquotedValueRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.ATTRIBUTE_EQ],
+  on: [LexerStage.ATTRIBUTE_VALUE],
   type: TokenType.ATTRIBUTE_UNQUOTED_VALUE,
   reader: attributeUnquotedValueReader,
-  to: LexerStage.START_TAG_OPENING,
+  to: LexerStage.START_TAG,
 };
 
 const endTagOpeningRule: Rule<TokenType, LexerStage, LexerContext> = {
@@ -174,7 +174,7 @@ const endTagOpeningRule: Rule<TokenType, LexerStage, LexerContext> = {
 };
 
 const endTagClosingRule: Rule<TokenType, LexerStage, LexerContext> = {
-  on: [LexerStage.END_TAG_OPENING],
+  on: [LexerStage.END_TAG],
   type: TokenType.END_TAG_CLOSING,
   reader: endTagClosingReader,
   to: LexerStage.DOCUMENT,
