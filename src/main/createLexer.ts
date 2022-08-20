@@ -1,12 +1,11 @@
 import { TokenHandler } from 'tokenizer-dsl';
 import ruleIterator from './ruleIterator';
-import { Lexer, LexerContext, LexerOptions, LexerState, LexerStage, TokenType } from './lexer-types';
+import { Lexer, LexerConfig, LexerContext, LexerOptions, LexerStage, LexerState, TokenType } from './lexer-types';
 import { createLexerConfig } from './createLexerConfig';
+import { die } from './utils';
 
-// TODO Foreign context
-//  Read options (voidTags, cdataTags, etc) of the current foreign tag from the context
-//  Shift foreign cursor to the start of the stack at the END_TAG_CLOSING of the foreign tag
-//  Foreign tags form a tree structure with child-parent and parent-child links, and store foreignCursors in context to resolve nesting
+// Implicit end tags must be emitted up to closest foreign tag
+// Shift foreign tag cursor after END_TAG_CLOSING or IMPLICIT_END_TAG
 
 export function createLexer(options: LexerOptions = {}): Lexer {
   const config = createLexerConfig(options, null);
@@ -19,7 +18,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
     const context: LexerContext = {
       __state: state,
       __handler: handler,
-      __config: config,
+      __config: getCurrentConfig(config, state),
       __endTagCdataModeEnabled: false,
     };
 
@@ -45,7 +44,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
     const context: LexerContext = {
       __state: state,
       __handler: handler,
-      __config: config,
+      __config: getCurrentConfig(config, state),
       __endTagCdataModeEnabled: false,
     };
 
@@ -55,6 +54,28 @@ export function createLexer(options: LexerOptions = {}): Lexer {
   };
 
   return lexer;
+}
+
+/**
+ * Traverses config tree and looks up a config of the current foreign tag.
+ *
+ * @param rootConfig The root lexer config.
+ * @param state The current lexer state.
+ * @returns The lexer config of the current foreign tag or root config if lexer isn't in a foreign context.
+ */
+function getCurrentConfig(rootConfig: LexerConfig, state: LexerState): LexerConfig {
+  const { stack, foreignCursor } = state;
+
+  if (foreignCursor === -1) {
+    return rootConfig;
+  }
+  let config = rootConfig;
+
+  for (let i = 0; i < foreignCursor && config.__foreignTagConfigMap; ++i) {
+    config = config.__foreignTagConfigMap.get(stack[i]) || config;
+  }
+
+  return config.__foreignTagConfigMap?.get(stack[foreignCursor]) || die('Inconsistent lexer state');
 }
 
 function createLexerState(chunk: string): LexerState {
@@ -79,12 +100,27 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       const startTag = (context.__state.activeTag = __config.__getHashCode(chunk, offset + 1, length - 1));
       emitImplicitEndTags(chunk, offset, context);
 
-      __state.stack[++__state.cursor] = startTag;
+      const { foreignCursor } = __state;
+      const { __foreignTagConfigMap } = __config;
+
+      const nextCursor = ++__state.cursor;
+      const nextConfig = __foreignTagConfigMap && __foreignTagConfigMap.get(startTag);
+
+      __state.stack[nextCursor] = startTag;
+
+      if (nextConfig) {
+        context.__config = nextConfig;
+        __state.foreignCursor = nextCursor;
+      }
+
       try {
         __handler(TokenType.START_TAG_OPENING, chunk, offset, length, __state);
       } catch (error) {
-        // Prevents start tag from being added multiple times on stack if lexer is restated after handler threw an error
+        // Rollback changes to prevent start tag from being added multiple times on stack
+        // if lexer is restated after handler threw an error
         --__state.cursor;
+        context.__config = __config;
+        __state.foreignCursor = foreignCursor;
         throw error;
       }
       break;

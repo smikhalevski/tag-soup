@@ -53,17 +53,6 @@ export const enum TokenType {
   IMPLICIT_START_TAG = 'IMPLICIT_START_TAG',
 
   /**
-   * `<…` a start tag opening bracket and a tag name. Denotes the start of the foreign tag that would use custom lexer
-   * options.
-   */
-  FOREIGN_START_TAG_OPENING = 'FOREIGN_START_TAG_OPENING',
-
-  /**
-   * `</…` an end tag start bracket and a tag name. Denotes the end of the foreign tag.
-   */
-  FOREIGN_END_TAG_OPENING = 'FOREIGN_START_TAG_OPENING',
-
-  /**
    * `<!-- … -->` a comment.
    */
   COMMENT = 'COMMENT',
@@ -145,7 +134,8 @@ export interface LexerOptions {
   cdataTags?: string[];
 
   /**
-   * The list of tags for which an implicit start tag would be inserted if an orphan end tag is met.
+   * The list of tags for which an implicit start tag would be inserted if an orphan end tag is met. Otherwise, an
+   * orphan end tag is ignored.
    *
    * For example, in HTML `p` and `br` tags follow this semantics:
    * ```
@@ -178,7 +168,7 @@ export interface LexerOptions {
   /**
    * If `true` then tag names are compared case-insensitively, otherwise case-sensitive comparison is used.
    *
-   * **Note:** Only ASCII characters in tag names can be compared case-insensitively.
+   * **Note:** Only ASCII characters in tag names are compared case-insensitively.
    */
   caseInsensitiveTagsEnabled?: boolean;
 

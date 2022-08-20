@@ -1,6 +1,7 @@
 import { GetHashCode, LexerConfig, LexerOptions } from './lexer-types';
 
 /**
+ * @internal
  * Converts user-provided lexer options to a normalized configuration object.
  */
 export function createLexerConfig(options: LexerOptions, parentConfig: LexerConfig | null): LexerConfig {
