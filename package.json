@@ -55,6 +55,7 @@
     "rollup": "^2.78.1",
     "sax": "^1.2.4",
     "terser": "^5.14.2",
+    "tokenizer-dsl": "^4.1.0",
     "toofast": "^1.3.1",
     "ts-jest": "^28.0.8",
     "ts-node": "^10.9.1",
@@ -62,7 +63,6 @@
     "typescript": "^4.7.4"
   },
   "dependencies": {
-    "speedy-entities": "^1.1.3",
-    "tokenizer-dsl": "^4.1.0"
+    "speedy-entities": "^1.1.3"
   }
 }
