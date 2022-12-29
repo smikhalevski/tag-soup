@@ -1,5 +1,5 @@
 import { createTokenizerForRuleIterator, TokenHandler } from 'tokenizer-dsl';
-import ruleIterator from '../main/ruleIterator';
+import ruleIterator from '../main/gen/ruleIterator';
 import { LexerContext, LexerStage, TokenType } from '../main/lexer-types';
 import { getCaseInsensitiveHashCode } from '../main/createLexerConfig';
 

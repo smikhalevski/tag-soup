@@ -20,11 +20,11 @@ function untilInclusive<C>(reader: Reader<C>): Reader<C> {
   return until(reader, { inclusive: true });
 }
 
-const startTagClosingRuleTo = externalValue('./lexer-utils', 'startTagClosingRuleTo');
+const startTagClosingRuleTo = externalValue('../lexer-utils', 'startTagClosingRuleTo');
 
-const startTagSelfClosingRuleTo = externalValue('./lexer-utils', 'startTagSelfClosingRuleTo');
+const startTagSelfClosingRuleTo = externalValue('../lexer-utils', 'startTagSelfClosingRuleTo');
 
-const endTagOpeningRuleTo = externalValue('./lexer-utils', 'endTagOpeningRuleTo');
+const endTagOpeningRuleTo = externalValue('../lexer-utils', 'endTagOpeningRuleTo');
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 const tagNameStartCharReader = char([

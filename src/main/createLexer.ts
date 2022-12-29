@@ -1,5 +1,5 @@
 import { TokenHandler } from 'tokenizer-dsl';
-import ruleIterator from './ruleIterator';
+import ruleIterator from './gen/ruleIterator';
 import { Lexer, LexerConfig, LexerContext, LexerOptions, LexerStage, LexerState, TokenType } from './lexer-types';
 import { createLexerConfig } from './createLexerConfig';
 import { die } from './utils';

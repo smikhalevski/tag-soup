@@ -17,24 +17,23 @@ npm install --save-prod tag-soup
 
 # Usage
 
-⚠️ [API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
+🔎️ [API documentation is available here.](https://smikhalevski.github.io/tag-soup/)
 
 ## SAX
 
 ```ts
-import {createSaxParser} from 'tag-soup';
+import { createSaxParser } from 'tag-soup';
 
 // Or use
 // import {createXmlSaxParser, createHtmlSaxParser} from 'tag-soup';
 
 const saxParser = createSaxParser({
-
   startTag(token) {
-    console.log(token); // → {tokenType: 1, name: 'foo', …} 
+    token // ⮕ {tokenType: 1, name: 'foo', …} 
   },
 
   endTag(token) {
-    console.log(token); // → {tokenType: 101, data: 'okay', …} 
+    token // ⮕ {tokenType: 101, data: 'okay', …} 
   },
 });
 
@@ -83,7 +82,8 @@ You can alter how the parser works
 [through options](https://smikhalevski.github.io/tag-soup/interfaces/iparseroptions.html) which give you fine-grained
 control over parsing dialect.
 
-By default, TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities#readme) to decode XML and HTML
+By default, TagSoup uses [`speedy-entites`](https://github.com/smikhalevski/speedy-entities#readme) to decode XML and
+HTML
 entities. Parser created by `createHtmlSaxParser` decodes only legacy HTML entities. This is done to reduce the bundle
 size.
 
@@ -91,7 +91,7 @@ To decode [all HTML entities](https://en.wikipedia.org/wiki/List_of_XML_and_HTML
 snippet below. It would add 10 kB gzipped to the bundle size.
 
 ```ts
-import {decodeHtml} from 'speedy-entities/lib/full';
+import { decodeHtml } from 'speedy-entities/lib/full';
 
 const htmlParser = createHtmlSaxParser({
   decodeText: decodeHtml,
@@ -125,7 +125,7 @@ SAX parsers support streaming. You can use
 chunk by chunk.
 
 ```ts
-const saxParser = createSaxParser({/*callbacks*/});
+const saxParser = createSaxParser({/*callbacks*/ });
 
 saxParser.write('<foo>ok');
 // Triggers startTag callabck for "foo" tag.
@@ -140,16 +140,15 @@ saxParser.write('</foo>');
 ## DOM
 
 ```ts
-import {createDomParser} from 'tag-soup';
+import { createDomParser } from 'tag-soup';
 
 // Or use
 // import {createXmlDomParser, createHtmlDomParser} from 'tag-soup';
 
 // Minimal DOM handler example
 const domParser = createDomParser<any>({
-
   element(token) {
-    return {tagName: token.name, children: []};
+    return { tagName: token.name, children: [] };
   },
 
   appendChild(parentNode, node) {
@@ -159,7 +158,7 @@ const domParser = createDomParser<any>({
 
 const domNode = domParser.parse('<foo>okay');
 
-console.log(domNode[0].children[0].data); // → 'okay'
+console.log(domNode[0].children[0].data); // ⮕ 'okay'
 ```
 
 DOM parser assembles a node three using a
@@ -186,13 +185,13 @@ chunk by chunk.
 const domParser = createXmlDomParser();
 
 domParser.write('<foo>ok');
-// → [{nodeType: 1, tagName: 'foo', children: [], …}]
+// ⮕ [{nodeType: 1, tagName: 'foo', children: [], …}]
 
 domParser.write('ay');
-// → [{nodeType: 1, tagName: 'foo', children: [], …}]
+// ⮕ [{nodeType: 1, tagName: 'foo', children: [], …}]
 
 domParser.write('</foo>');
-// → [{nodeType: 1, tagName: 'foo', children: [{nodeType: 3, data: 'okay', …}], …}]
+// ⮕ [{nodeType: 1, tagName: 'foo', children: [{nodeType: 3, data: 'okay', …}], …}]
 ```
 
 # Performance
