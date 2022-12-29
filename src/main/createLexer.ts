@@ -25,7 +25,7 @@ export function createLexer(options: LexerOptions = {}): Lexer {
     ruleIterator(state, tokenHandler, context, false);
 
     while (state.cursor > cursor) {
-      handler(TokenType.IMPLICIT_END_TAG, chunk, state.offset, 0, state);
+      handler('IMPLICIT_END_TAG', chunk, state.offset, 0, state);
       --state.cursor;
     }
 
@@ -96,7 +96,7 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
 
   // noinspection FallThroughInSwitchStatementJS
   switch (type) {
-    case TokenType.START_TAG_OPENING:
+    case 'START_TAG_OPENING':
       const startTag = (context.__state.activeTag = __config.__getHashCode(chunk, offset + 1, length - 1));
       emitImplicitEndTags(chunk, offset, context);
 
@@ -114,7 +114,7 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       }
 
       try {
-        __handler(TokenType.START_TAG_OPENING, chunk, offset, length, __state);
+        __handler('START_TAG_OPENING', chunk, offset, length, __state);
       } catch (error) {
         // Rollback changes to prevent start tag from being added multiple times on stack
         // if lexer is restated after handler threw an error
@@ -125,29 +125,29 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       }
       break;
 
-    case TokenType.START_TAG_SELF_CLOSING:
+    case 'START_TAG_SELF_CLOSING':
       if (__config.__selfClosingTagsEnabled) {
-        __handler(TokenType.START_TAG_SELF_CLOSING, chunk, offset, length, __state);
+        __handler('START_TAG_SELF_CLOSING', chunk, offset, length, __state);
         --__state.cursor;
         break;
       }
 
-    case TokenType.START_TAG_CLOSING:
+    case 'START_TAG_CLOSING':
       const { __voidTags } = __config;
 
       if (__voidTags !== null && __voidTags.has(__state.activeTag)) {
-        __handler(TokenType.START_TAG_SELF_CLOSING, chunk, offset, length, __state);
+        __handler('START_TAG_SELF_CLOSING', chunk, offset, length, __state);
         --__state.cursor;
       } else {
-        __handler(TokenType.START_TAG_CLOSING, chunk, offset, length, __state);
+        __handler('START_TAG_CLOSING', chunk, offset, length, __state);
       }
       __state.activeTag = 0;
       break;
 
-    case TokenType.END_TAG_OPENING:
+    case 'END_TAG_OPENING':
       // Ignore end tags that don't match the CDATA start tag
       if (context.__endTagCdataModeEnabled) {
-        __handler(TokenType.TEXT, chunk, offset, length, __state);
+        __handler('TEXT', chunk, offset, length, __state);
         break;
       }
 
@@ -163,12 +163,12 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       if (i !== -1) {
         // End unbalanced start tags
         while (i < cursor) {
-          __handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, __state);
+          __handler('IMPLICIT_END_TAG', chunk, offset, 0, __state);
           --__state.cursor;
           ++i;
         }
         // End the start tag
-        __handler(TokenType.END_TAG_OPENING, chunk, offset, length, __state);
+        __handler('END_TAG_OPENING', chunk, offset, length, __state);
         --__state.cursor;
         break;
       }
@@ -179,7 +179,7 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
 
         __state.stack[++__state.cursor] = activeTag;
         try {
-          __handler(TokenType.IMPLICIT_START_TAG, chunk, offset, length, __state);
+          __handler('IMPLICIT_START_TAG', chunk, offset, length, __state);
         } finally {
           --__state.cursor;
         }
@@ -191,10 +191,10 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
 
       break;
 
-    case TokenType.END_TAG_CLOSING:
+    case 'END_TAG_CLOSING':
       // A tag can be prematurely ended during END_TAG_OPENING
       if (__state.activeTag !== 0) {
-        __handler(TokenType.END_TAG_CLOSING, chunk, offset, length, __state);
+        __handler('END_TAG_CLOSING', chunk, offset, length, __state);
         __state.activeTag = 0;
       }
       break;
@@ -227,7 +227,7 @@ function emitImplicitEndTags(chunk: string, offset: number, context: LexerContex
     ++i;
   }
   while (i <= cursor) {
-    __handler(TokenType.IMPLICIT_END_TAG, chunk, offset, 0, __state);
+    __handler('IMPLICIT_END_TAG', chunk, offset, 0, __state);
     --__state.cursor;
     ++i;
   }

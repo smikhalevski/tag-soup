@@ -10,14 +10,14 @@
     "lib"
   ],
   "scripts": {
-    "build": "npm run gen:rule-iterator && tsc && rimraf './lib/gen-*' && rollup --external flyweight-dom,speedy-entities,tokenizer-dsl --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve && npm run build:terser",
+    "build": "npm run gen:rule-iterator && tsc --project tsconfig.build.json && rollup --external flyweight-dom,speedy-entities,tokenizer-dsl --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve && npm run build:terser",
     "build:terser": "TEMP=$(mktemp) && rm $TEMP && for FILE in $(find ./lib -name '*.js'); do terser --name-cache $TEMP --compress --mangle toplevel --mangle-props reserved=[__esModule],regex=/^__/ --output $FILE -- $FILE; done && rm $TEMP || exit 1",
     "clean": "rimraf ./lib ./docs ./src/main/gen",
     "test": "jest",
     "perf": "[ -d ./lib ] || npm run build && node --expose-gc --max-old-space-size=4096 ./node_modules/.bin/toofast ./src/test/perf.js",
-    "docs:build": "typedoc 'src/main/index.ts' && cp -R ./images ./docs",
+    "docs:build": "typedoc './src/main/index.ts'",
     "docs:release": "npm run docs:build && SHA=$(git rev-parse --short HEAD) && ORIGIN=$(git config --get remote.origin.url) && TEMP=$(mktemp -d) && FROM=$(pwd) && git clone -b ghpages --single-branch $ORIGIN $TEMP && cd $TEMP && ls -A | grep -wv .git | xargs rm -rf && cp -R $FROM/docs/ $TEMP && git add . && git commit -m \"Updated docs ($SHA)\" && git push && rm -rf $TEMP",
-    "gen:rule-iterator": "ts-node ./src/main/gen-rule-iterator.ts ./src/main/gen/ruleIterator.ts && prettier --write ./src/main/gen/ruleIterator.ts"
+    "gen:rule-iterator": "ts-node ./src/scripts/gen-rule-iterator.ts ./src/main/gen/ruleIterator.ts && prettier --write ./src/main/gen/ruleIterator.ts"
   },
   "repository": {
     "type": "git",
@@ -25,7 +25,6 @@
   },
   "keywords": [
     "tiny",
-    "small",
     "forgiving",
     "stream",
     "fast",

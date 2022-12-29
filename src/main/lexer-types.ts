@@ -1,87 +1,86 @@
 import { TokenizerState } from 'tokenizer-dsl';
 
-export const enum TokenType {
+export type TokenType =
   /**
    * `<…` a start tag opening bracket and a tag name.
    */
-  START_TAG_OPENING = 'START_TAG_OPENING',
+  | 'START_TAG_OPENING'
 
   /**
    * `>` a start tag closing bracket.
    */
-  START_TAG_CLOSING = 'START_TAG_CLOSING',
+  | 'START_TAG_CLOSING'
 
   /**
    * `/>` a self-closing tag closing.
    */
-  START_TAG_SELF_CLOSING = 'START_TAG_SELF_CLOSING',
+  | 'START_TAG_SELF_CLOSING'
 
   /**
    * The name of the attribute.
    */
-  ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
+  | 'ATTRIBUTE_NAME'
 
   /**
    * `"…"` or `'…'` an attribute value surrounded by quotes or apostrophes.
    */
-  ATTRIBUTE_VALUE = 'ATTRIBUTE_VALUE',
+  | 'ATTRIBUTE_VALUE'
 
   /**
    * An attribute value without quotes or apostrophes.
    */
-  ATTRIBUTE_UNQUOTED_VALUE = 'ATTRIBUTE_UNQUOTED_VALUE',
+  | 'ATTRIBUTE_UNQUOTED_VALUE'
 
   /**
    * `</…` an end tag start bracket and a tag name.
    */
-  END_TAG_OPENING = 'END_TAG_OPENING',
+  | 'END_TAG_OPENING'
 
   /**
    * `>` an end tag closing bracket.
    */
-  END_TAG_CLOSING = 'END_TAG_CLOSING',
+  | 'END_TAG_CLOSING'
 
   /**
    * Zero-width token that denotes that tag at `stack[cursor]` was implicitly closed.
    */
-  IMPLICIT_END_TAG = 'IMPLICIT_END_TAG',
+  | 'IMPLICIT_END_TAG'
 
   /**
    * `</…` an end tag start bracket and a tag name. Denotes that the start tag must be implicitly inserted before the
    * end tag.
    */
-  IMPLICIT_START_TAG = 'IMPLICIT_START_TAG',
+  | 'IMPLICIT_START_TAG'
 
   /**
    * `<!-- … -->` a comment.
    */
-  COMMENT = 'COMMENT',
+  | 'COMMENT'
 
   /**
    * `<? … ?>` a processing instruction.
    */
-  PROCESSING_INSTRUCTION = 'PROCESSING_INSTRUCTION',
+  | 'PROCESSING_INSTRUCTION'
 
   /**
    * `<![CDATA[ … ]]>` a CDATA section.
    */
-  CDATA_SECTION = 'CDATA_SECTION',
+  | 'CDATA_SECTION'
 
   /**
    * `<!DOCTYPE … >` a doctype section.
    */
-  DOCTYPE = 'DOCTYPE',
+  | 'DOCTYPE'
 
   /**
    * `<! … >` a DTD section.
    */
-  DTD = 'DTD',
+  | 'DTD'
 
   /**
    * A plain text.
    */
-  TEXT = 'TEXT',
-}
+  | 'TEXT';
 
 /**
  * Triggered when a token was read from the input stream.
@@ -89,7 +88,7 @@ export const enum TokenType {
 export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
 
 /**
- * Lexer is a streaming tokenizer that emits tokens is correct order.
+ * Lexer is a streaming tokenizer that emits tokens in the correct order.
  */
 export interface Lexer {
   (input: string | LexerState, handler: LexerHandler): LexerState;
@@ -180,15 +179,6 @@ export interface LexerOptions {
   foreignTags?: { [tagName: string]: LexerOptions };
 }
 
-/**
- * @internal
- * Returns the hash code of a substring.
- */
-export type GetHashCode = (input: string, offset: number, length: number) => number;
-
-/**
- * @internal
- */
 export const enum LexerStage {
   DOCUMENT = 'DOCUMENT',
   START_TAG = 'START_TAG',
@@ -197,6 +187,12 @@ export const enum LexerStage {
   END_TAG = 'END_TAG',
   CDATA_TAG = 'CDATA_TAG',
 }
+
+/**
+ * @internal
+ * Returns the hash code of a substring.
+ */
+export type GetHashCode = (input: string, offset: number, length: number) => number;
 
 /**
  * @internal
