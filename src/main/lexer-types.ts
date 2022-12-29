@@ -1,85 +1,134 @@
 import { TokenizerState } from 'tokenizer-dsl';
 
+/**
+ * ### `START_TAG_OPENING`
+ *
+ * A start tag opening bracket and a tag name.
+ *
+ * ```html
+ * <tagName
+ * ```
+ *
+ * ### `START_TAG_CLOSING`
+ *
+ * A start tag closing bracket.
+ *
+ * ```html
+ * >
+ * ```
+ *
+ * ### `START_TAG_SELF_CLOSING`
+ *
+ * A self-closing tag closing.
+ *
+ * ```html
+ * />
+ * ```
+ *
+ * ### `ATTRIBUTE_NAME`
+ *
+ * The name of the attribute.
+ *
+ * ### `ATTRIBUTE_VALUE`
+ *
+ * An attribute value surrounded by quotes or apostrophes.
+ *
+ * ```html
+ * "text"` or `'text'
+ * ```
+ *
+ * ### `ATTRIBUTE_UNQUOTED_VALUE`
+ *
+ * An attribute value without quotes or apostrophes.
+ *
+ * ### `END_TAG_OPENING`
+ *
+ * An end tag start bracket and a tag name.
+ *
+ * ```html
+ * </tagName
+ * ```
+ *
+ * ### `END_TAG_CLOSING`
+ *
+ * An end tag closing bracket.
+ *
+ * ```html
+ * >
+ * ```
+ *
+ * ### `IMPLICIT_END_TAG`
+ *
+ * Zero-width token that denotes that tag at `state.stack[cursor]` was implicitly closed.
+ *
+ * ### `IMPLICIT_START_TAG`
+ *
+ * An end tag start bracket and a tag name. Denotes that the start tag must be implicitly inserted before the end tag.
+ *
+ * ```html
+ * </tagName
+ * ```
+ *
+ * ### `COMMENT`
+ *
+ * A comment.
+ *
+ * ```html
+ * <!-- text -->
+ * ```
+ *
+ * ### `PROCESSING_INSTRUCTION`
+ *
+ * A processing instruction.
+ *
+ * ```xml
+ * <? text ?>
+ * ```
+ *
+ * ### `CDATA_SECTION`
+ *
+ * A CDATA section.
+ *
+ * ```xml
+ * <![CDATA[ text ]]>
+ * ```
+ *
+ * ### `DOCTYPE`
+ *
+ * A doctype section.
+ *
+ * ```html
+ * <!DOCTYPE text >
+ * ```
+ *
+ * ### `DTD`
+ *
+ * A DTD section.
+ *
+ * ```xml
+ * <! text >
+ * ```
+ *
+ * ### `TEXT`
+ *
+ * A plain text.
+ */
 export type TokenType =
-  /**
-   * `<…` a start tag opening bracket and a tag name.
-   */
   | 'START_TAG_OPENING'
-
-  /**
-   * `>` a start tag closing bracket.
-   */
   | 'START_TAG_CLOSING'
-
-  /**
-   * `/>` a self-closing tag closing.
-   */
   | 'START_TAG_SELF_CLOSING'
-
-  /**
-   * The name of the attribute.
-   */
   | 'ATTRIBUTE_NAME'
-
-  /**
-   * `"…"` or `'…'` an attribute value surrounded by quotes or apostrophes.
-   */
   | 'ATTRIBUTE_VALUE'
-
-  /**
-   * An attribute value without quotes or apostrophes.
-   */
   | 'ATTRIBUTE_UNQUOTED_VALUE'
-
-  /**
-   * `</…` an end tag start bracket and a tag name.
-   */
   | 'END_TAG_OPENING'
-
-  /**
-   * `>` an end tag closing bracket.
-   */
   | 'END_TAG_CLOSING'
-
-  /**
-   * Zero-width token that denotes that tag at `stack[cursor]` was implicitly closed.
-   */
   | 'IMPLICIT_END_TAG'
-
-  /**
-   * `</…` an end tag start bracket and a tag name. Denotes that the start tag must be implicitly inserted before the
-   * end tag.
-   */
   | 'IMPLICIT_START_TAG'
-
-  /**
-   * `<!-- … -->` a comment.
-   */
   | 'COMMENT'
-
-  /**
-   * `<? … ?>` a processing instruction.
-   */
   | 'PROCESSING_INSTRUCTION'
-
-  /**
-   * `<![CDATA[ … ]]>` a CDATA section.
-   */
   | 'CDATA_SECTION'
-
-  /**
-   * `<!DOCTYPE … >` a doctype section.
-   */
   | 'DOCTYPE'
-
-  /**
-   * `<! … >` a DTD section.
-   */
   | 'DTD'
-
-  /**
-   * A plain text.
-   */
   | 'TEXT';
 
 /**
@@ -128,7 +177,7 @@ export interface LexerOptions {
   /**
    * The list CDATA tags. The content of these tags is interpreted as plain text. Ex. `script`, `style`, etc.
    *
-   * If tag name is also present in {@link voidTags} than it is ignored.
+   * If tag name is also present in {@linkcode voidTags} than it is ignored.
    */
   cdataTags?: string[];
 
@@ -174,7 +223,7 @@ export interface LexerOptions {
   /**
    * Map from the foreign tag name to options that must be applied inside to foreign tag children.
    *
-   * If tag name is also present in {@link voidTags} or {@link cdataTags} than it is ignored.
+   * If tag name is also present in {@linkcode voidTags} or {@linkcode cdataTags} than it is ignored.
    */
   foreignTags?: { [tagName: string]: LexerOptions };
 }

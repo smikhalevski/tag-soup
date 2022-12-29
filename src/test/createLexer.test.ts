@@ -1,5 +1,4 @@
-import { createLexer } from '../main/createLexer';
-import { LexerHandler, LexerState } from '../main/lexer-types';
+import { createLexer, LexerHandler, LexerState } from '../main';
 
 describe('createLexer', () => {
   const handlerMock = jest.fn();
