@@ -16,7 +16,7 @@ describe('ruleIterator', () => {
 
   beforeEach(() => {
     context = {
-      __state: {
+      state: {
         stage: LexerStage.DOCUMENT,
         chunk: '',
         chunkOffset: 0,
@@ -26,18 +26,18 @@ describe('ruleIterator', () => {
         foreignCursor: -1,
         activeTag: 0,
       },
-      __config: {
-        __parentConfig: null,
-        __voidTags: null,
-        __cdataTags: null,
-        __implicitEndTagMap: null,
-        __implicitStartTags: null,
-        __foreignTagConfigMap: null,
-        __selfClosingTagsEnabled: false,
-        __getHashCode: getCaseInsensitiveHashCode,
+      config: {
+        parentConfig: null,
+        voidTags: null,
+        cdataTags: null,
+        implicitEndTagMap: null,
+        implicitStartTags: null,
+        foreignTagConfigMap: null,
+        selfClosingTagsEnabled: false,
+        getHashCode: getCaseInsensitiveHashCode,
       },
-      __handler: () => undefined,
-      __endTagCdataModeEnabled: false,
+      handler: () => undefined,
+      endTagCdataModeEnabled: false,
     };
 
     handlerMock.mockRestore();

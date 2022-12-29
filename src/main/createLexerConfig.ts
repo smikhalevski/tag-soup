@@ -8,40 +8,37 @@ export function createLexerConfig(options: LexerOptions, parentConfig: LexerConf
   const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
   const voidTags = toHashCodeSet(options.voidTags, getHashCode);
-  const cdataTags = deleteSubset(toHashCodeSet(options.cdataTags, getHashCode), voidTags);
+  const cdataTags = exclude(toHashCodeSet(options.cdataTags, getHashCode), voidTags);
 
   const config: LexerConfig = {
-    __parentConfig: parentConfig,
-    __voidTags: voidTags,
-    __cdataTags: cdataTags,
-    __implicitStartTags: toHashCodeSet(options.implicitStartTags, getHashCode),
-    __implicitEndTagMap: toHashCodeMapOfHashCodeSet(options.implicitEndTags, getHashCode),
-    __foreignTagConfigMap: null,
-    __selfClosingTagsEnabled: Boolean(options.selfClosingTagsEnabled),
-    __getHashCode: getHashCode,
+    parentConfig,
+    voidTags,
+    cdataTags,
+    implicitStartTags: toHashCodeSet(options.implicitStartTags, getHashCode),
+    implicitEndTagMap: toHashCodeMapOfHashCodeSet(options.implicitEndTags, getHashCode),
+    foreignTagConfigMap: null,
+    selfClosingTagsEnabled: Boolean(options.selfClosingTagsEnabled),
+    getHashCode,
   };
 
   const foreignTagConfigMap = toHashCodeMapOfLexerConfig(options.foreignTags, getHashCode, config);
 
-  config.__foreignTagConfigMap = deleteSubset(deleteSubset(foreignTagConfigMap, voidTags), cdataTags);
+  config.foreignTagConfigMap = exclude(exclude(foreignTagConfigMap, voidTags), cdataTags);
 
   return config;
 }
 
-function deleteSubset<T extends Set<number> | Map<number, unknown>>(
-  origin: T | null,
-  subset: Set<number> | null
-): T | null {
-  if (!origin || !subset) {
-    return origin;
+function exclude<T extends Set<number> | Map<number, unknown>>(source: T | null, subset: Set<number> | null): T | null {
+  if (!source || !subset) {
+    return source;
   }
   subset.forEach(value => {
-    origin.delete(value);
+    source.delete(value);
   });
-  if (origin.size === 0) {
+  if (source.size === 0) {
     return null;
   }
-  return origin;
+  return source;
 }
 
 function toHashCodeSet(values: string[] | undefined, getHashCode: GetHashCode): Set<number> | null {

@@ -16,10 +16,10 @@ export function createLexer(options: LexerOptions = {}): Lexer {
     const { chunk, cursor } = state;
 
     const context: LexerContext = {
-      __state: state,
-      __handler: handler,
-      __config: getCurrentConfig(config, state),
-      __endTagCdataModeEnabled: false,
+      state,
+      handler,
+      config: getCurrentConfig(config, state),
+      endTagCdataModeEnabled: false,
     };
 
     ruleIterator(state, tokenHandler, context, false);
@@ -42,10 +42,10 @@ export function createLexer(options: LexerOptions = {}): Lexer {
     }
 
     const context: LexerContext = {
-      __state: state,
-      __handler: handler,
-      __config: getCurrentConfig(config, state),
-      __endTagCdataModeEnabled: false,
+      state: state,
+      handler: handler,
+      config: getCurrentConfig(config, state),
+      endTagCdataModeEnabled: false,
     };
 
     ruleIterator(state, tokenHandler, context, true);
@@ -69,13 +69,19 @@ function getCurrentConfig(rootConfig: LexerConfig, state: LexerState): LexerConf
   if (foreignCursor === -1) {
     return rootConfig;
   }
-  let config = rootConfig;
 
-  for (let i = 0; i < foreignCursor && config.__foreignTagConfigMap; ++i) {
-    config = config.__foreignTagConfigMap.get(stack[i]) || config;
+  let config: LexerConfig | undefined = rootConfig;
+
+  const { foreignTagConfigMap } = config;
+
+  if (foreignTagConfigMap !== null) {
+    for (let i = 0; i < foreignCursor; ++i) {
+      config = foreignTagConfigMap.get(stack[i]) || config;
+    }
+    config = foreignTagConfigMap.get(stack[foreignCursor]);
   }
 
-  return config.__foreignTagConfigMap?.get(stack[foreignCursor]) || die('Inconsistent lexer state');
+  return config || die('Inconsistent lexer state');
 }
 
 function createLexerState(chunk: string): LexerState {
@@ -92,66 +98,66 @@ function createLexerState(chunk: string): LexerState {
 }
 
 const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, chunk, offset, length, context) => {
-  const { __state, __handler, __config } = context;
+  const { state, handler, config } = context;
 
   // noinspection FallThroughInSwitchStatementJS
   switch (type) {
     case 'START_TAG_OPENING':
-      const startTag = (context.__state.activeTag = __config.__getHashCode(chunk, offset + 1, length - 1));
+      const startTag = (context.state.activeTag = config.getHashCode(chunk, offset + 1, length - 1));
       emitImplicitEndTags(chunk, offset, context);
 
-      const { foreignCursor } = __state;
-      const { __foreignTagConfigMap } = __config;
+      const { foreignCursor } = state;
+      const { foreignTagConfigMap } = config;
 
-      const nextCursor = ++__state.cursor;
-      const nextConfig = __foreignTagConfigMap && __foreignTagConfigMap.get(startTag);
+      const nextCursor = ++state.cursor;
+      const nextConfig = foreignTagConfigMap && foreignTagConfigMap.get(startTag);
 
-      __state.stack[nextCursor] = startTag;
+      state.stack[nextCursor] = startTag;
 
       if (nextConfig) {
-        context.__config = nextConfig;
-        __state.foreignCursor = nextCursor;
+        context.config = nextConfig;
+        state.foreignCursor = nextCursor;
       }
 
       try {
-        __handler('START_TAG_OPENING', chunk, offset, length, __state);
+        handler('START_TAG_OPENING', chunk, offset, length, state);
       } catch (error) {
         // Rollback changes to prevent start tag from being added multiple times on stack
         // if lexer is restated after handler threw an error
-        --__state.cursor;
-        context.__config = __config;
-        __state.foreignCursor = foreignCursor;
+        --state.cursor;
+        context.config = config;
+        state.foreignCursor = foreignCursor;
         throw error;
       }
       break;
 
     case 'START_TAG_SELF_CLOSING':
-      if (__config.__selfClosingTagsEnabled) {
-        __handler('START_TAG_SELF_CLOSING', chunk, offset, length, __state);
-        --__state.cursor;
+      if (config.selfClosingTagsEnabled) {
+        handler('START_TAG_SELF_CLOSING', chunk, offset, length, state);
+        --state.cursor;
         break;
       }
 
     case 'START_TAG_CLOSING':
-      const { __voidTags } = __config;
+      const { voidTags } = config;
 
-      if (__voidTags !== null && __voidTags.has(__state.activeTag)) {
-        __handler('START_TAG_SELF_CLOSING', chunk, offset, length, __state);
-        --__state.cursor;
+      if (voidTags !== null && voidTags.has(state.activeTag)) {
+        handler('START_TAG_SELF_CLOSING', chunk, offset, length, state);
+        --state.cursor;
       } else {
-        __handler('START_TAG_CLOSING', chunk, offset, length, __state);
+        handler('START_TAG_CLOSING', chunk, offset, length, state);
       }
-      __state.activeTag = 0;
+      state.activeTag = 0;
       break;
 
     case 'END_TAG_OPENING':
       // Ignore end tags that don't match the CDATA start tag
-      if (context.__endTagCdataModeEnabled) {
-        __handler('TEXT', chunk, offset, length, __state);
+      if (context.endTagCdataModeEnabled) {
+        handler('TEXT', chunk, offset, length, state);
         break;
       }
 
-      const { activeTag, stack, cursor } = __state;
+      const { activeTag, stack, cursor } = state;
 
       // Lookup the start tag
       let i = cursor;
@@ -163,72 +169,72 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       if (i !== -1) {
         // End unbalanced start tags
         while (i < cursor) {
-          __handler('IMPLICIT_END_TAG', chunk, offset, 0, __state);
-          --__state.cursor;
+          handler('IMPLICIT_END_TAG', chunk, offset, 0, state);
+          --state.cursor;
           ++i;
         }
         // End the start tag
-        __handler('END_TAG_OPENING', chunk, offset, length, __state);
-        --__state.cursor;
+        handler('END_TAG_OPENING', chunk, offset, length, state);
+        --state.cursor;
         break;
       }
 
       // Emit implicit start and end tags for orphan end tag
-      if (__config.__implicitStartTags?.has(activeTag)) {
+      if (config.implicitStartTags !== null && config.implicitStartTags.has(activeTag)) {
         emitImplicitEndTags(chunk, offset, context);
 
-        __state.stack[++__state.cursor] = activeTag;
+        state.stack[++state.cursor] = activeTag;
         try {
-          __handler('IMPLICIT_START_TAG', chunk, offset, length, __state);
+          handler('IMPLICIT_START_TAG', chunk, offset, length, state);
         } finally {
-          --__state.cursor;
+          --state.cursor;
         }
         break;
       }
 
       // Prevents emit of the redundant END_TAG_CLOSING token
-      __state.activeTag = 0;
+      state.activeTag = 0;
 
       break;
 
     case 'END_TAG_CLOSING':
       // A tag can be prematurely ended during END_TAG_OPENING
-      if (__state.activeTag !== 0) {
-        __handler('END_TAG_CLOSING', chunk, offset, length, __state);
-        __state.activeTag = 0;
+      if (state.activeTag !== 0) {
+        handler('END_TAG_CLOSING', chunk, offset, length, state);
+        state.activeTag = 0;
       }
       break;
 
     default:
-      __handler(type, chunk, offset, length, __state);
+      handler(type, chunk, offset, length, state);
       break;
   }
 };
 
 function emitImplicitEndTags(chunk: string, offset: number, context: LexerContext): void {
-  const { __state, __handler, __config } = context;
+  const { state, handler, config } = context;
 
-  if (!__config.__implicitEndTagMap) {
+  if (!config.implicitEndTagMap) {
     return;
   }
 
-  const { activeTag } = __state;
+  const { activeTag } = state;
 
-  const tags = __config.__implicitEndTagMap.get(activeTag);
+  const tags = config.implicitEndTagMap.get(activeTag);
 
   if (!tags) {
     return;
   }
 
-  const { stack, cursor } = __state;
+  const { stack, cursor } = state;
 
   let i = 0;
   while (i <= cursor && !tags.has(stack[i])) {
     ++i;
   }
   while (i <= cursor) {
-    __handler('IMPLICIT_END_TAG', chunk, offset, 0, __state);
-    --__state.cursor;
+    handler('IMPLICIT_END_TAG', chunk, offset, 0, state);
+    --state.cursor;
     ++i;
   }
 }

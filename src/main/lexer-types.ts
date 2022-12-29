@@ -248,14 +248,14 @@ export type GetHashCode = (input: string, offset: number, length: number) => num
  * The config represents coerced options passed to the lexer.
  */
 export interface LexerConfig {
-  __parentConfig: LexerConfig | null;
-  __voidTags: Set<number> | null;
-  __cdataTags: Set<number> | null;
-  __implicitStartTags: Set<number> | null;
-  __implicitEndTagMap: Map<number, Set<number>> | null;
-  __foreignTagConfigMap: Map<number, LexerConfig> | null;
-  __selfClosingTagsEnabled: boolean;
-  __getHashCode: GetHashCode;
+  parentConfig: LexerConfig | null;
+  voidTags: Set<number> | null;
+  cdataTags: Set<number> | null;
+  implicitStartTags: Set<number> | null;
+  implicitEndTagMap: Map<number, Set<number>> | null;
+  foreignTagConfigMap: Map<number, LexerConfig> | null;
+  selfClosingTagsEnabled: boolean;
+  getHashCode: GetHashCode;
 }
 
 /**
@@ -263,8 +263,8 @@ export interface LexerConfig {
  * The context that lexer passes down to the tokenizer.
  */
 export interface LexerContext {
-  __state: LexerState;
-  __config: LexerConfig;
-  __handler: LexerHandler;
-  __endTagCdataModeEnabled: boolean;
+  state: LexerState;
+  config: LexerConfig;
+  handler: LexerHandler;
+  endTagCdataModeEnabled: boolean;
 }
