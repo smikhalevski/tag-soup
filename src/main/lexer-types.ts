@@ -1,4 +1,5 @@
 import { TokenizerState } from 'tokenizer-dsl';
+import { Context } from 'typedoc';
 
 /**
  * ### `START_TAG_OPENING`
@@ -134,15 +135,22 @@ export type TokenType =
 /**
  * Triggered when a token was read from the input stream.
  */
-export type LexerHandler = (type: TokenType, chunk: string, offset: number, length: number, state: LexerState) => void;
+export type LexerHandler<Context> = (
+  type: TokenType,
+  chunk: string,
+  offset: number,
+  length: number,
+  context: Context,
+  state: LexerState
+) => void;
 
 /**
  * Lexer is a streaming tokenizer that emits tokens in the correct order.
  */
-export interface Lexer {
-  (input: string | LexerState, handler: LexerHandler): LexerState;
+export interface Lexer<Context = void> {
+  (input: string | LexerState, handler: LexerHandler<Context>, context: Context): LexerState;
 
-  write(chunk: string, state: LexerState | undefined, handler: LexerHandler): LexerState;
+  write(chunk: string, state: LexerState | undefined, handler: LexerHandler<Context>, context: Context): LexerState;
 }
 
 export interface LexerState extends TokenizerState<LexerStage> {
@@ -248,7 +256,15 @@ export type GetHashCode = (input: string, offset: number, length: number) => num
  * The config represents coerced options passed to the lexer.
  */
 export interface LexerConfig {
+  /**
+   * The parent config of a foreign tag, or `null` if this is the root config.
+   */
   parentConfig: LexerConfig | null;
+
+  /**
+   * The hash code of the root tag, or 0 if this is the root config.
+   */
+  rootTag: number;
   voidTags: Set<number> | null;
   cdataTags: Set<number> | null;
   implicitStartTags: Set<number> | null;
@@ -265,6 +281,7 @@ export interface LexerConfig {
 export interface LexerContext {
   state: LexerState;
   config: LexerConfig;
-  handler: LexerHandler;
+  handler: LexerHandler<any>;
+  context: unknown;
   endTagCdataModeEnabled: boolean;
 }

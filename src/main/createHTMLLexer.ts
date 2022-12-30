@@ -2,7 +2,7 @@ import { createLexer } from './createLexer';
 import { Lexer, LexerOptions } from './lexer-types';
 import { defaults } from './utils';
 
-export function createHtmlLexer(options?: LexerOptions): Lexer {
+export function createHTMLLexer<Context = void>(options?: LexerOptions): Lexer<Context> {
   return createLexer(defaults(options, htmlLexerOptions));
 }
 
@@ -16,7 +16,7 @@ const rtpTags = ['rt', 'rp'];
 
 const tableTags = ['thead', 'tbody'];
 
-const htmlLexerOptions: LexerOptions = {
+export const htmlLexerOptions: LexerOptions = {
   voidTags: [
     'area',
     'base',

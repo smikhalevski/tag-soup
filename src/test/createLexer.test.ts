@@ -4,11 +4,11 @@ describe('createLexer', () => {
   const handlerMock = jest.fn();
   const lexer = createLexer();
 
-  const statelessHandler: LexerHandler = (type, chunk, offset, length) => {
+  const statelessHandler: LexerHandler<any> = (type, chunk, offset, length) => {
     handlerMock(type, offset, length);
   };
 
-  const statefulHandler: LexerHandler = (type, chunk, offset, length, state) => {
+  const statefulHandler: LexerHandler<any> = (type, chunk, offset, length, context, state) => {
     handlerMock(type, offset, length, structuredClone(state));
   };
 

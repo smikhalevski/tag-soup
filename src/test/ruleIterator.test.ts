@@ -28,6 +28,7 @@ describe('ruleIterator', () => {
       },
       config: {
         parentConfig: null,
+        rootTag: -1,
         voidTags: null,
         cdataTags: null,
         implicitEndTagMap: null,
@@ -36,6 +37,7 @@ describe('ruleIterator', () => {
         selfClosingTagsEnabled: false,
         getHashCode: getCaseInsensitiveHashCode,
       },
+      context: undefined,
       handler: () => undefined,
       endTagCdataModeEnabled: false,
     };

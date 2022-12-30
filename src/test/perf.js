@@ -3,11 +3,9 @@ const path = require('path');
 const htmlparser2 = require('htmlparser2');
 const sax = require('sax');
 const parse5 = require('parse5');
-const hyntax = require('hyntax')
+const hyntax = require('hyntax');
 // const parse5SaxParser = require('parse5-sax-parser');
-const {
-  createHtmlLexer,
-} = require('../../lib/index-cjs');
+const { createHTMLDOMParser, createHTMLLexer } = require('../../lib/index-cjs');
 
 // const sourceFilesDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
 
@@ -19,199 +17,208 @@ beforeBatch(() => {
   gc();
 });
 
-describe('Large input', () => {
+describe(
+  'Large input',
+  () => {
+    describe('SAX parser', () => {
+      // test('createSaxParser     (text)', (measure) => {
+      //   const parser = createSaxParser(textHandler);
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
+      //
+      // test('createXmlSaxParser  (text)', (measure) => {
+      //   const parser = createXmlSaxParser(textHandler);
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
+      //
+      // test('createHtmlSaxParser (text)', (measure) => {
+      //   const parser = createHtmlSaxParser(textHandler);
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
+      //
+      // test('createSaxParser', (measure) => {
+      //   const parser = createSaxParser(fullHandler);
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
+      //
+      // test('createXmlSaxParser', (measure) => {
+      //   const parser = createXmlSaxParser(fullHandler);
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
+      //
+      // test('createHtmlSaxParser', (measure) => {
+      //   const parser = createHtmlSaxParser(fullHandler);
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
+      //
+      // test('createHtmlSaxParser (full)', (measure) => {
+      //   const parser = createHtmlSaxParser(fullHandler, {decodeText: decodeHtml, decodeAttribute: decodeHtml});
+      //
+      //   measure(() => {
+      //     parser.parse(largeSource);
+      //   });
+      // });
 
-  describe('SAX parser', () => {
+      // test('createHTMLLexer', measure => {
+      //   const lexerHandler = () => undefined;
+      //   const lexer = createHTMLLexer();
+      //
+      //   measure(() => {
+      //     lexer(largeSource, lexerHandler);
+      //   });
+      // });
+      //
+      // test('createHTMLLexer (with substr)', measure => {
+      //   const lexerHandler = (type, chunk, offset, length) => {
+      //     chunk.substr(offset, length);
+      //   };
+      //   const lexer = createHTMLLexer();
+      //
+      //   measure(() => {
+      //     lexer(largeSource, lexerHandler);
+      //   });
+      // });
 
-    // test('createSaxParser     (text)', (measure) => {
-    //   const parser = createSaxParser(textHandler);
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
-    //
-    // test('createXmlSaxParser  (text)', (measure) => {
-    //   const parser = createXmlSaxParser(textHandler);
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
-    //
-    // test('createHtmlSaxParser (text)', (measure) => {
-    //   const parser = createHtmlSaxParser(textHandler);
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
-    //
-    // test('createSaxParser', (measure) => {
-    //   const parser = createSaxParser(fullHandler);
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
-    //
-    // test('createXmlSaxParser', (measure) => {
-    //   const parser = createXmlSaxParser(fullHandler);
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
-    //
-    // test('createHtmlSaxParser', (measure) => {
-    //   const parser = createHtmlSaxParser(fullHandler);
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
-    //
-    // test('createHtmlSaxParser (full)', (measure) => {
-    //   const parser = createHtmlSaxParser(fullHandler, {decodeText: decodeHtml, decodeAttribute: decodeHtml});
-    //
-    //   measure(() => {
-    //     parser.parse(largeSource);
-    //   });
-    // });
+      test('createHTMLDOMParser', measure => {
+        const parser = createHTMLDOMParser();
 
-    test('lexer', (measure) => {
-      const lexerHandler = () => undefined;
-      const lexer = createHtmlLexer();
+        measure(() => {
+          parser(largeSource);
+        });
+      });
 
-      measure(() => {
-        lexer(largeSource, lexerHandler);
+      test('hyntax (tokenize)', measure => {
+        const tokenize = hyntax.tokenize;
+
+        measure(() => {
+          tokenize(largeSource);
+        });
+      });
+
+      test('htmlparser2 sax', measure => {
+        let parser;
+
+        beforeBatch(() => {
+          parser = new htmlparser2.Parser();
+        });
+
+        afterIteration(() => {
+          parser.reset();
+        });
+
+        measure(() => {
+          parser.end(largeSource);
+        });
+      });
+
+      test('htmlparser2 dom', measure => {
+        let parser;
+
+        beforeBatch(() => {
+          parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+        });
+
+        afterIteration(() => {
+          parser.reset();
+        });
+
+        measure(() => {
+          parser.end(largeSource);
+        });
+      });
+
+      // test('parse5 sax', (measure) => {
+      //   const parser = parse5SaxParser();
+      //
+      //   measure(() => {
+      //     parser.write(largeSource);
+      //   });
+      // });
+
+      test('parse5 dom', measure => {
+        measure(() => {
+          parse5.parse(largeSource);
+        });
+      });
+
+      test('sax', measure => {
+        const parser = sax.parser();
+
+        measure(() => {
+          parser.write(largeSource);
+        });
       });
     });
 
-    test('lexer (w/ substr)', (measure) => {
-      const lexerHandler = (type, chunk, offset, length) => {
-        chunk.substr(offset, length);
-      };
-      const lexer = createHtmlLexer();
-
-      measure(() => {
-        lexer(largeSource, lexerHandler);
-      });
-    });
-
-    test('hyntax (tokenize)', (measure) => {
-      const tokenize = hyntax.tokenize;
-
-      measure(() => {
-        tokenize(largeSource);
-      });
-    });
-
-    test('htmlparser2 sax', (measure) => {
-      let parser;
-
-      beforeBatch(() => {
-        parser = new htmlparser2.Parser();
-      });
-
-      afterIteration(() => {
-        parser.reset();
-      });
-
-      measure(() => {
-        parser.end(largeSource);
-      });
-    });
-
-    test('htmlparser2 dom', (measure) => {
-      let parser;
-
-      beforeBatch(() => {
-        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-      });
-
-      afterIteration(() => {
-        parser.reset();
-      });
-
-      measure(() => {
-        parser.end(largeSource);
-      });
-    });
-
-    // test('parse5 sax', (measure) => {
-    //   const parser = parse5SaxParser();
+    // describe('DOM parser', () => {
     //
-    //   measure(() => {
-    //     parser.write(largeSource);
+    //   test('createDomParser', (measure) => {
+    //     const parser = createDomParser(domHandler);
+    //
+    //     measure(() => {
+    //       parser.parse(largeSource);
+    //     });
+    //   });
+    //
+    //   test('createXmlDomParser', (measure) => {
+    //     const parser = createXmlDomParser(domHandler);
+    //
+    //     measure(() => {
+    //       parser.parse(largeSource);
+    //     });
+    //   });
+    //
+    //   test('createHtmlDomParser', (measure) => {
+    //     const parser = createHtmlDomParser(domHandler);
+    //
+    //     measure(() => {
+    //       parser.parse(largeSource);
+    //     });
+    //   });
+    //
+    //   test('htmlparser2', (measure) => {
+    //     let parser;
+    //
+    //     beforeBatch(() => {
+    //       parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+    //     });
+    //
+    //     afterIteration(() => {
+    //       parser.reset();
+    //     });
+    //
+    //     measure(() => {
+    //       parser.end(largeSource);
+    //     });
+    //   });
+    //
+    //   test('parse5', (measure) => {
+    //     measure(() => {
+    //       parse5.parse(largeSource);
+    //     });
     //   });
     // });
-
-    test('parse5 dom', (measure) => {
-      measure(() => {
-        parse5.parse(largeSource);
-      });
-    });
-
-    test('sax', (measure) => {
-      const parser = sax.parser();
-
-      measure(() => {
-        parser.write(largeSource);
-      });
-    });
-  });
-
-  // describe('DOM parser', () => {
-  //
-  //   test('createDomParser', (measure) => {
-  //     const parser = createDomParser(domHandler);
-  //
-  //     measure(() => {
-  //       parser.parse(largeSource);
-  //     });
-  //   });
-  //
-  //   test('createXmlDomParser', (measure) => {
-  //     const parser = createXmlDomParser(domHandler);
-  //
-  //     measure(() => {
-  //       parser.parse(largeSource);
-  //     });
-  //   });
-  //
-  //   test('createHtmlDomParser', (measure) => {
-  //     const parser = createHtmlDomParser(domHandler);
-  //
-  //     measure(() => {
-  //       parser.parse(largeSource);
-  //     });
-  //   });
-  //
-  //   test('htmlparser2', (measure) => {
-  //     let parser;
-  //
-  //     beforeBatch(() => {
-  //       parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-  //     });
-  //
-  //     afterIteration(() => {
-  //       parser.reset();
-  //     });
-  //
-  //     measure(() => {
-  //       parser.end(largeSource);
-  //     });
-  //   });
-  //
-  //   test('parse5', (measure) => {
-  //     measure(() => {
-  //       parse5.parse(largeSource);
-  //     });
-  //   });
-  // });
-
-}, {targetRme: 0.001});
+  },
+  { targetRme: 0.001 }
+);
 
 // describe('Small input (average across ' + smallSources.length + ' samples)', () => {
 //
