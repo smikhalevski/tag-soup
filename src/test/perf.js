@@ -5,7 +5,7 @@ const sax = require('sax');
 const parse5 = require('parse5');
 const hyntax = require('hyntax');
 // const parse5SaxParser = require('parse5-sax-parser');
-const { createHTMLDOMParser, createHTMLLexer } = require('../../lib/index-cjs');
+const { createHTMLDOMParser, createHTMLLexer } = require('../../lib');
 
 // const sourceFilesDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
 

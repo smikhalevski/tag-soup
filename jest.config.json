@@ -1,3 +1,6 @@
 {
-  "preset": "ts-jest/presets/js-with-babel"
+  "preset": "ts-jest",
+  "testMatch": [
+    "<rootDir>/src/**/*.test.ts"
+  ]
 }

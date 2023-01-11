@@ -8,11 +8,13 @@
   "compilerOptions": {
     "moduleResolution": "Node",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "strict": true,
     "target": "ES5",
-    "module": "ES6"
+    "module": "ESNext"
   },
   "include": [
+    "rollup.config.ts",
     "./src/**/*"
   ]
 }
