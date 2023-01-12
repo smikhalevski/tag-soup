@@ -59,17 +59,17 @@ const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, lengt
       break;
 
     case 'START_TAG_CLOSING':
-      // if (context.attributeName !== null) {
-      //   (context.node as Element).setAttribute(context.attributeName, '');
-      //   context.attributeName = null;
-      // }
+      if (context.attributeName !== null) {
+        (context.node as Element).setAttribute(context.attributeName, '');
+        context.attributeName = null;
+      }
       break;
 
     case 'START_TAG_SELF_CLOSING':
-      // if (context.attributeName !== null) {
-      //   (context.node as Element).setAttribute(context.attributeName, '');
-      //   context.attributeName = null;
-      // }
+      if (context.attributeName !== null) {
+        (context.node as Element).setAttribute(context.attributeName, '');
+        context.attributeName = null;
+      }
       context.node = context.node!.parentNode;
       break;
 
@@ -80,20 +80,20 @@ const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, lengt
     case 'ATTRIBUTE_VALUE':
       data = chunk.substr(offset + 1, length - 2);
 
-      // (context.node as Element).setAttribute(
-      //   context.attributeName!,
-      //   context.decodeAttributeValue !== undefined ? context.decodeAttributeValue(data) : data
-      // );
+      (context.node as Element).setAttribute(
+        context.attributeName!,
+        context.decodeAttributeValue !== undefined ? context.decodeAttributeValue(data) : data
+      );
       context.attributeName = null;
       break;
 
     case 'ATTRIBUTE_UNQUOTED_VALUE':
       data = chunk.substr(offset + 1, length - 2);
 
-      // (context.node as Element).setAttribute(
-      //   context.attributeName!,
-      //   context.decodeAttributeValue !== undefined ? context.decodeAttributeValue(data) : data
-      // );
+      (context.node as Element).setAttribute(
+        context.attributeName!,
+        context.decodeAttributeValue !== undefined ? context.decodeAttributeValue(data) : data
+      );
       context.attributeName = null;
       break;
 
@@ -107,11 +107,11 @@ const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, lengt
       appendNode(context, new Element(chunk.substr(offset + 2, length - 2)));
       break;
 
+    case 'DTD':
     case 'COMMENT':
       data = chunk.substr(offset + 4, length - 7);
 
-      // appendNode(context, new Comment(context.decodeText !== undefined ? context.decodeText(data) : data));
-      appendNode(context, new Comment(data));
+      appendNode(context, new Comment(context.decodeText !== undefined ? context.decodeText(data) : data));
       break;
 
     case 'PROCESSING_INSTRUCTION':
@@ -121,8 +121,7 @@ const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, lengt
     case 'CDATA_SECTION':
       data = chunk.substr(offset + 9, length - 12);
 
-      // appendNode(context, new CDATASection(context.decodeText !== undefined ? context.decodeText(data) : data));
-      appendNode(context, new CDATASection(data));
+      appendNode(context, new CDATASection(context.decodeText !== undefined ? context.decodeText(data) : data));
       break;
 
     case 'DOCTYPE':
@@ -143,12 +142,10 @@ const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, lengt
       context.node = document;
       break;
 
-    // case 'DTD':
     case 'TEXT':
       data = chunk.substr(offset, length);
 
-      appendNode(context, new Text(data));
-      // appendNode(context, new Text(context.decodeText !== undefined ? context.decodeText(data) : data));
+      appendNode(context, new Text(context.decodeText !== undefined ? context.decodeText(data) : data));
       break;
   }
 };
