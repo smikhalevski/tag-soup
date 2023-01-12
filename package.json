@@ -62,8 +62,8 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "flyweight-dom": "^1.0.0",
-    "speedy-entities": "^3.0.0",
+    "flyweight-dom": "^1.1.0",
+    "speedy-entities": "^3.0.1",
     "tokenizer-dsl": "^5.0.0"
   }
 }
