@@ -1,6 +1,0 @@
-{
-  "name": "TagSoup",
-  "includeVersion": true,
-  "disableSources": true,
-  "out": "./docs"
-}

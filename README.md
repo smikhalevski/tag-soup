@@ -1,4 +1,4 @@
-# TagSoup 🍜 [![build](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml/badge.svg?branch=master&event=push)](https://github.com/smikhalevski/tag-soup/actions/workflows/master.yml)
+# TagSoup 🍜 [![build](https://github.com/smikhalevski/tag-soup/actions/workflows/test.yml/badge.svg?branch=master&event=push)](https://github.com/smikhalevski/tag-soup/actions/workflows/test.yml)
 
 TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser.
 
