@@ -11,7 +11,3 @@ export function defaults<T extends Record<string, any>>(values: T | undefined, d
   }
   return values;
 }
-
-export function die(message?: string): never {
-  throw new Error(message);
-}

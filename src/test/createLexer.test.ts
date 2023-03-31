@@ -357,4 +357,14 @@ describe('createLexer', () => {
       expect(handlerMock).toHaveBeenNthCalledWith(4, 'IMPLICIT_END_TAG', 10, 0);
     });
   });
+
+  describe('Foreign tags', () => {
+    test('reads foreign tags', () => {
+      const lexer = createLexer({ foreignTags: { B: {} } });
+
+      lexer('<a><B>', statelessHandler);
+
+      expect(handlerMock).toHaveBeenCalledTimes(3);
+    });
+  });
 });

@@ -1,62 +1,54 @@
 import { GetHashCode, LexerConfig, LexerOptions } from './lexer-types';
 
 /**
- * @internal
  * Converts user-provided lexer options to a normalized configuration object.
  */
-export function createLexerConfig(options: LexerOptions, parentConfig: LexerConfig | null): LexerConfig {
-  const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-
+export function createLexerConfig(
+  options: LexerOptions,
+  getHashCode: GetHashCode,
+  parentConfig: LexerConfig | null
+): LexerConfig {
   const voidTags = toHashCodeSet(options.voidTags, getHashCode);
   const cdataTags = exclude(toHashCodeSet(options.cdataTags, getHashCode), voidTags);
 
   const config: LexerConfig = {
     parentConfig,
-    rootTag: -1,
+    rootTag: 0,
     voidTags,
     cdataTags,
     implicitStartTags: toHashCodeSet(options.implicitStartTags, getHashCode),
     implicitEndTagMap: toImplicitEndTagMap(options.implicitEndTags, getHashCode),
-    foreignTagConfigMap: null,
+    foreignTagMap: null,
     selfClosingTagsEnabled: Boolean(options.selfClosingTagsEnabled),
-    getHashCode,
   };
 
-  const foreignTagConfigMap = toForeignTagConfigMap(options.foreignTags, getHashCode, config);
-
-  config.foreignTagConfigMap = exclude(exclude(foreignTagConfigMap, voidTags), cdataTags);
+  config.foreignTagMap = exclude(
+    exclude(toForeignTagMap(options.foreignTags, getHashCode, config), voidTags),
+    cdataTags
+  );
 
   return config;
 }
 
 function exclude<T extends Set<number> | Map<number, unknown>>(source: T | null, subset: Set<number> | null): T | null {
-  if (!source || !subset) {
-    return source;
-  }
-  subset.forEach(value => {
-    source.delete(value);
-  });
-  if (source.size === 0) {
-    return null;
+  if (source && subset) {
+    subset.forEach(value => {
+      source.delete(value);
+    });
+    if (source.size === 0) {
+      return null;
+    }
   }
   return source;
 }
 
 function toHashCodeSet(values: string[] | undefined, getHashCode: GetHashCode): Set<number> | null {
-  if (!values) {
-    return null;
-  }
-  const hashCodes = new Set<number>();
+  let hashCodes: Set<number> | null = null;
 
-  for (const value of values) {
-    // The defencive check of input options
-    // noinspection SuspiciousTypeOfGuard
-    if (typeof value === 'string') {
-      hashCodes.add(getHashCode(value, 0, value.length));
+  if (values) {
+    for (const value of values) {
+      (hashCodes ||= new Set()).add(getHashCode(value, 0, value.length));
     }
-  }
-  if (hashCodes.size === 0) {
-    return null;
   }
   return hashCodes;
 }
@@ -65,45 +57,37 @@ function toImplicitEndTagMap(
   implicitEndTags: LexerOptions['implicitEndTags'],
   getHashCode: GetHashCode
 ): LexerConfig['implicitEndTagMap'] {
-  if (!implicitEndTags) {
-    return null;
-  }
-  const implicitEndTagMap = new Map<number, Set<number>>();
+  let implicitEndTagMap = null;
 
-  for (const tagName in implicitEndTags) {
-    const hashCodes = toHashCodeSet(implicitEndTags[tagName], getHashCode);
+  if (implicitEndTags) {
+    for (const tagName in implicitEndTags) {
+      const hashCodes = toHashCodeSet(implicitEndTags[tagName], getHashCode);
 
-    if (hashCodes !== null) {
-      implicitEndTagMap.set(getHashCode(tagName, 0, tagName.length), hashCodes);
+      if (hashCodes !== null) {
+        (implicitEndTagMap ||= new Map()).set(getHashCode(tagName, 0, tagName.length), hashCodes);
+      }
     }
-  }
-  if (implicitEndTagMap.size === 0) {
-    return null;
   }
   return implicitEndTagMap;
 }
 
-function toForeignTagConfigMap(
+function toForeignTagMap(
   foreignTags: LexerOptions['foreignTags'],
   getHashCode: GetHashCode,
   parentConfig: LexerConfig
-): LexerConfig['foreignTagConfigMap'] {
-  if (!foreignTags) {
-    return null;
-  }
-  const foreignTagConfigMap = new Map<number, LexerConfig>();
+): LexerConfig['foreignTagMap'] {
+  let foreignTagMap = null;
 
-  for (const tagName in foreignTags) {
-    const foreignConfig = createLexerConfig(foreignTags[tagName], parentConfig);
+  if (foreignTags) {
+    for (const tagName in foreignTags) {
+      const foreignConfig = createLexerConfig(foreignTags[tagName], getHashCode, parentConfig);
 
-    foreignConfig.rootTag = foreignConfig.getHashCode(tagName, 0, tagName.length);
+      foreignConfig.rootTag = getHashCode(tagName, 0, tagName.length);
 
-    foreignTagConfigMap.set(getHashCode(tagName, 0, tagName.length), foreignConfig);
+      (foreignTagMap ||= new Map()).set(getHashCode(tagName, 0, tagName.length), foreignConfig);
+    }
   }
-  if (foreignTagConfigMap.size === 0) {
-    return null;
-  }
-  return foreignTagConfigMap;
+  return foreignTagMap;
 }
 
 export const getCaseInsensitiveHashCode: GetHashCode = (input, offset, length) => {
@@ -112,7 +96,7 @@ export const getCaseInsensitiveHashCode: GetHashCode = (input, offset, length) =
     const charCode = input.charCodeAt(offset + i);
     hashCode = (hashCode << 5) - hashCode + (charCode < 65 || charCode > 90 ? charCode : charCode + 32);
   }
-  return hashCode | 0;
+  return hashCode >>> 0;
 };
 
 export const getCaseSensitiveHashCode: GetHashCode = (input, offset, length) => {
@@ -120,5 +104,5 @@ export const getCaseSensitiveHashCode: GetHashCode = (input, offset, length) => 
   for (let i = 0; i < length; ++i) {
     hashCode = (hashCode << 5) - hashCode + input.charCodeAt(offset + i);
   }
-  return hashCode | 0;
+  return hashCode >>> 0;
 };

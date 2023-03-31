@@ -1,14 +1,14 @@
 import { TokenHandler } from 'tokenizer-dsl';
 import ruleIterator from './gen/ruleIterator';
 import { Lexer, LexerConfig, LexerContext, LexerOptions, LexerStage, LexerState, TokenType } from './lexer-types';
-import { createLexerConfig } from './createLexerConfig';
-import { die } from './utils';
+import { createLexerConfig, getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './createLexerConfig';
 
 // Implicit end tags must be emitted up to the closest foreign tag
 // Shift foreign tag cursor after END_TAG_CLOSING or IMPLICIT_END_TAG
 
 export function createLexer<Context = void>(options: LexerOptions = {}): Lexer<Context> {
-  const config = createLexerConfig(options, null);
+  const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const config = createLexerConfig(options, getHashCode, null);
 
   const lexer: Lexer<Context> = (input, handler, context) => {
     const state = typeof input === 'string' ? createLexerState(input) : input;
@@ -21,6 +21,7 @@ export function createLexer<Context = void>(options: LexerOptions = {}): Lexer<C
       config: getCurrentConfig(config, state),
       context,
       endTagCdataModeEnabled: false,
+      getHashCode,
     };
 
     ruleIterator(state, tokenHandler, lexerContext, false);
@@ -48,6 +49,7 @@ export function createLexer<Context = void>(options: LexerOptions = {}): Lexer<C
       config: getCurrentConfig(config, state),
       context,
       endTagCdataModeEnabled: false,
+      getHashCode,
     };
 
     ruleIterator(state, tokenHandler, lexerContext, true);
@@ -59,28 +61,24 @@ export function createLexer<Context = void>(options: LexerOptions = {}): Lexer<C
 }
 
 /**
- * Traverses config tree and looks up a config of the current foreign tag.
+ * Traverses config tree and looks up a config of the current tag.
  *
- * @param rootConfig The root lexer config.
+ * @param config The root lexer config.
  * @param state The current lexer state.
  * @returns The lexer config of the current foreign tag or root config if lexer isn't in a foreign context.
  */
-function getCurrentConfig(rootConfig: LexerConfig, state: LexerState): LexerConfig {
-  const { stack, foreignCursor } = state;
+function getCurrentConfig(config: LexerConfig, state: LexerState): LexerConfig {
+  const { stack } = state;
 
-  if (foreignCursor === -1) {
-    return rootConfig;
+  for (let { foreignTagMap } = config, i = 0; foreignTagMap !== null && i < stack.length; ++i) {
+    const nextConfig = foreignTagMap.get(stack[i]);
+
+    if (nextConfig !== undefined) {
+      config = nextConfig;
+      foreignTagMap = config.foreignTagMap;
+    }
   }
 
-  let config: LexerConfig | undefined = rootConfig;
-  let cursor = 0;
-
-  while (cursor <= foreignCursor && config !== undefined && config.foreignTagConfigMap !== null) {
-    config = config.foreignTagConfigMap.get(stack[cursor++]);
-  }
-  if (cursor <= foreignCursor || config === undefined) {
-    die('Inconsistent lexer state');
-  }
   return config;
 }
 
@@ -92,35 +90,30 @@ function createLexerState(chunk: string): LexerState {
     offset: 0,
     stack: [],
     cursor: -1,
-    foreignCursor: -1,
     activeTag: 0,
   };
 }
 
 const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, chunk, offset, length, lexerContext) => {
-  const { state, handler, config, context } = lexerContext;
+  const { state, handler, config, context, getHashCode } = lexerContext;
 
   // noinspection FallThroughInSwitchStatementJS
   switch (type) {
     case 'START_TAG_OPENING':
-      let startTag = config.getHashCode(chunk, offset + 1, length - 1);
+      let startTag = getHashCode(chunk, offset + 1, length - 1);
 
       lexerContext.state.activeTag = startTag;
 
       emitImplicitEndTags(chunk, offset, lexerContext);
 
-      const { foreignCursor } = state;
-      const { foreignTagConfigMap } = config;
-
-      const nextCursor = ++state.cursor;
-      const nextConfig = foreignTagConfigMap && foreignTagConfigMap.get(startTag);
-
-      if (nextConfig != null /*&& nextConfig.rootTag === nextConfig.getHashCode(chunk, offset + 1, length - 1)*/) {
-        lexerContext.config = nextConfig;
-        state.foreignCursor = nextCursor;
-      }
+      let nextCursor = ++state.cursor;
+      let nextConfig;
 
       state.stack[nextCursor] = startTag;
+
+      // if (config.foreignTagMap !== null && (nextConfig = config.foreignTagMap.get(startTag)) !== undefined) {
+      //   lexerContext.config = nextConfig;
+      // }
 
       try {
         handler('START_TAG_OPENING', chunk, offset, length, context, state);
@@ -129,7 +122,7 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
         // if lexer is restated after handler threw an error
         --state.cursor;
         lexerContext.config = config;
-        state.foreignCursor = foreignCursor;
+        // state.foreignCursor = foreignCursor;
         throw error;
       }
       break;
@@ -162,7 +155,8 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
 
       const { activeTag, stack, cursor } = state;
 
-      // Lookup the start tag
+      // // Lookup the start tag
+      // let foreignCursor = state.foreignCursors.length !== 0 ? state.foreignCursors[state.foreignCursors.length - 1] : 0;
       let i = cursor;
       while (i !== -1 && stack[i] !== activeTag) {
         --i;

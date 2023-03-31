@@ -23,23 +23,22 @@ describe('ruleIterator', () => {
         offset: 0,
         stack: [],
         cursor: -1,
-        foreignCursor: -1,
         activeTag: 0,
       },
       config: {
         parentConfig: null,
-        rootTag: -1,
+        rootTag: 0,
         voidTags: null,
         cdataTags: null,
         implicitEndTagMap: null,
         implicitStartTags: null,
-        foreignTagConfigMap: null,
+        foreignTagMap: null,
         selfClosingTagsEnabled: false,
-        getHashCode: getCaseInsensitiveHashCode,
       },
       context: undefined,
       handler: () => undefined,
       endTagCdataModeEnabled: false,
+      getHashCode: getCaseInsensitiveHashCode,
     };
 
     handlerMock.mockRestore();
