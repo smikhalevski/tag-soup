@@ -111,9 +111,9 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
 
       state.stack[nextCursor] = startTag;
 
-      // if (config.foreignTagMap !== null && (nextConfig = config.foreignTagMap.get(startTag)) !== undefined) {
-      //   lexerContext.config = nextConfig;
-      // }
+      if (config.foreignTagMap !== null && (nextConfig = config.foreignTagMap.get(startTag)) !== undefined) {
+        lexerContext.config = nextConfig;
+      }
 
       try {
         handler('START_TAG_OPENING', chunk, offset, length, context, state);
@@ -122,7 +122,6 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
         // if lexer is restated after handler threw an error
         --state.cursor;
         lexerContext.config = config;
-        // state.foreignCursor = foreignCursor;
         throw error;
       }
       break;
@@ -131,6 +130,11 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       if (config.selfClosingTagsEnabled) {
         handler('START_TAG_SELF_CLOSING', chunk, offset, length, context, state);
         --state.cursor;
+
+        if (state.activeTag === config.rootTag) {
+          lexerContext.config = config.parentConfig!;
+        }
+        state.activeTag = 0;
         break;
       }
 
@@ -198,6 +202,11 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
       // A tag can be prematurely ended during END_TAG_OPENING
       if (state.activeTag !== 0) {
         handler('END_TAG_CLOSING', chunk, offset, length, context, state);
+
+        if (state.activeTag === config.rootTag) {
+          lexerContext.config = config.parentConfig!;
+        }
+
         state.activeTag = 0;
       }
       break;

@@ -77,25 +77,25 @@ describe(
       //   });
       // });
 
-      // test('createHTMLLexer', measure => {
-      //   const lexerHandler = () => undefined;
-      //   const lexer = createHTMLLexer();
-      //
-      //   measure(() => {
-      //     lexer(largeSource, lexerHandler);
-      //   });
-      // });
-      //
-      // test('createHTMLLexer (with substr)', measure => {
-      //   const lexerHandler = (type, chunk, offset, length) => {
-      //     chunk.substr(offset, length);
-      //   };
-      //   const lexer = createHTMLLexer();
-      //
-      //   measure(() => {
-      //     lexer(largeSource, lexerHandler);
-      //   });
-      // });
+      test('createHTMLLexer', measure => {
+        const lexerHandler = () => undefined;
+        const lexer = createHTMLLexer();
+
+        measure(() => {
+          lexer(largeSource, lexerHandler);
+        });
+      });
+
+      test('createHTMLLexer (with substr)', measure => {
+        const lexerHandler = (type, chunk, offset, length) => {
+          chunk.substr(offset, length);
+        };
+        const lexer = createHTMLLexer();
+
+        measure(() => {
+          lexer(largeSource, lexerHandler);
+        });
+      });
 
       test('createHTMLDOMParser', measure => {
         const parser = createHTMLDOMParser();

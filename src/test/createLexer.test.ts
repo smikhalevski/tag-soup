@@ -360,11 +360,19 @@ describe('createLexer', () => {
 
   describe('Foreign tags', () => {
     test('reads foreign tags', () => {
-      const lexer = createLexer({ foreignTags: { B: {} } });
+      const lexer = createLexer({ foreignTags: { b: { selfClosingTagsEnabled: true } } });
 
-      lexer('<a><B>', statelessHandler);
+      lexer('<a/><b/><c/>', statelessHandler);
 
-      expect(handlerMock).toHaveBeenCalledTimes(3);
+      expect(handlerMock).toHaveBeenCalledTimes(8);
+      expect(handlerMock).toHaveBeenNthCalledWith(1, 'START_TAG_OPENING', 0, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 2, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(3, 'START_TAG_OPENING', 4, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(4, 'START_TAG_SELF_CLOSING', 6, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(5, 'START_TAG_OPENING', 8, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 10, 2);
+      expect(handlerMock).toHaveBeenNthCalledWith(7, 'IMPLICIT_END_TAG', 12, 0);
+      expect(handlerMock).toHaveBeenNthCalledWith(8, 'IMPLICIT_END_TAG', 12, 0);
     });
   });
 });
