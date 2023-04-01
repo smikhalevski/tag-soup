@@ -48,84 +48,90 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
   };
 }
 
-const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, length, context, state) => {
+const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, length, parserContext, state) => {
   let data;
 
   switch (type) {
     case 'START_TAG_OPENING':
       const element = new Element(chunk.substr(offset + 1, length - 1));
-      appendNode(context, element);
-      context.node = element;
+      appendNode(parserContext, element);
+      parserContext.node = element;
       break;
 
     case 'START_TAG_CLOSING':
-      if (context.attributeName !== null) {
-        (context.node as Element).setAttribute(context.attributeName, '');
-        context.attributeName = null;
+      if (parserContext.attributeName !== null) {
+        (parserContext.node as Element).setAttribute(parserContext.attributeName, '');
+        parserContext.attributeName = null;
       }
       break;
 
     case 'START_TAG_SELF_CLOSING':
-      if (context.attributeName !== null) {
-        (context.node as Element).setAttribute(context.attributeName, '');
-        context.attributeName = null;
+      if (parserContext.attributeName !== null) {
+        (parserContext.node as Element).setAttribute(parserContext.attributeName, '');
+        parserContext.attributeName = null;
       }
-      context.node = context.node!.parentNode;
+      parserContext.node = parserContext.node!.parentNode;
       break;
 
     case 'ATTRIBUTE_NAME':
-      context.attributeName = chunk.substr(offset, length);
+      parserContext.attributeName = chunk.substr(offset, length);
       break;
 
     case 'ATTRIBUTE_VALUE':
       data = chunk.substr(offset + 1, length - 2);
 
-      (context.node as Element).setAttribute(
-        context.attributeName!,
-        context.decodeAttributeValue !== undefined ? context.decodeAttributeValue(data) : data
+      (parserContext.node as Element).setAttribute(
+        parserContext.attributeName!,
+        parserContext.decodeAttributeValue !== undefined ? parserContext.decodeAttributeValue(data) : data
       );
-      context.attributeName = null;
+      parserContext.attributeName = null;
       break;
 
     case 'ATTRIBUTE_UNQUOTED_VALUE':
       data = chunk.substr(offset + 1, length - 2);
 
-      (context.node as Element).setAttribute(
-        context.attributeName!,
-        context.decodeAttributeValue !== undefined ? context.decodeAttributeValue(data) : data
+      (parserContext.node as Element).setAttribute(
+        parserContext.attributeName!,
+        parserContext.decodeAttributeValue !== undefined ? parserContext.decodeAttributeValue(data) : data
       );
-      context.attributeName = null;
+      parserContext.attributeName = null;
       break;
 
     case 'END_TAG_OPENING':
     // case 'END_TAG_CLOSING':
     case 'IMPLICIT_END_TAG':
-      context.node = context.node!.parentNode;
+      parserContext.node = parserContext.node!.parentNode;
       break;
 
     case 'IMPLICIT_START_TAG':
-      appendNode(context, new Element(chunk.substr(offset + 2, length - 2)));
+      appendNode(parserContext, new Element(chunk.substr(offset + 2, length - 2)));
       break;
 
     case 'DTD':
     case 'COMMENT':
       data = chunk.substr(offset + 4, length - 7);
 
-      appendNode(context, new Comment(context.decodeText !== undefined ? context.decodeText(data) : data));
+      appendNode(
+        parserContext,
+        new Comment(parserContext.decodeText !== undefined ? parserContext.decodeText(data) : data)
+      );
       break;
 
     case 'PROCESSING_INSTRUCTION':
-      appendNode(context, new ProcessingInstruction(chunk.substr(offset + 2, length - 4)));
+      appendNode(parserContext, new ProcessingInstruction(chunk.substr(offset + 2, length - 4)));
       break;
 
     case 'CDATA_SECTION':
       data = chunk.substr(offset + 9, length - 12);
 
-      appendNode(context, new CDATASection(context.decodeText !== undefined ? context.decodeText(data) : data));
+      appendNode(
+        parserContext,
+        new CDATASection(parserContext.decodeText !== undefined ? parserContext.decodeText(data) : data)
+      );
       break;
 
     case 'DOCTYPE':
-      const { node } = context;
+      const { node } = parserContext;
 
       if (node !== null && node.nodeType === 1 /*Node.ELEMENT_NODE*/) {
         break;
@@ -139,13 +145,16 @@ const tokenHandler: LexerHandler<DOMParserContext> = (type, chunk, offset, lengt
       if (node !== null) {
         document.appendChild(node);
       }
-      context.node = document;
+      parserContext.node = document;
       break;
 
     case 'TEXT':
       data = chunk.substr(offset, length);
 
-      appendNode(context, new Text(context.decodeText !== undefined ? context.decodeText(data) : data));
+      appendNode(
+        parserContext,
+        new Text(parserContext.decodeText !== undefined ? parserContext.decodeText(data) : data)
+      );
       break;
   }
 };
