@@ -14,7 +14,7 @@
     "clean": "rimraf ./src/main/gen ./lib ./docs",
     "test": "jest",
     "perf": "[ -d ./lib ] || npm run build && node --expose-gc --max-old-space-size=4096 ./node_modules/.bin/toofast ./src/test/perf.js",
-    "docs": "typedoc --name 'TagSoup 🍜' --readme none ./src/main/index.ts",
+    "docs": "typedoc --name 'TagSoup' --readme none ./src/main/index.ts",
     "gen:rule-iterator": "ts-node ./src/scripts/gen-rule-iterator.ts ./src/main/gen/ruleIterator.ts && prettier --write ./src/main/gen/ruleIterator.ts"
   },
   "repository": {

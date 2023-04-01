@@ -3,9 +3,6 @@ import ruleIterator from './gen/ruleIterator';
 import { Lexer, LexerConfig, LexerContext, LexerOptions, LexerStage, LexerState, TokenType } from './lexer-types';
 import { createLexerConfig, getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './createLexerConfig';
 
-// Implicit end tags must be emitted up to the closest foreign tag
-// Shift foreign tag cursor after END_TAG_CLOSING or IMPLICIT_END_TAG
-
 export function createLexer<Context = void>(options: LexerOptions = {}): Lexer<Context> {
   const getHashCode = options.caseInsensitiveTagsEnabled ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
   const config = createLexerConfig(options, getHashCode, null);
@@ -159,8 +156,7 @@ const tokenHandler: TokenHandler<TokenType, LexerStage, LexerContext> = (type, c
 
       const { activeTag, stack, cursor } = state;
 
-      // // Lookup the start tag
-      // let foreignCursor = state.foreignCursors.length !== 0 ? state.foreignCursors[state.foreignCursors.length - 1] : 0;
+      // Lookup the start tag
       let i = cursor;
       while (i !== -1 && stack[i] !== activeTag) {
         --i;

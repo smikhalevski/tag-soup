@@ -3,7 +3,7 @@ import path from 'path';
 import * as t from 'tokenizer-dsl';
 import { LexerContext, LexerStage, TokenType } from '../main/lexer-types';
 
-function after<C>(reader: t.Reader<C>): t.Reader<C> {
+function untilInclusive<C>(reader: t.Reader<C>): t.Reader<C> {
   return t.until(reader, { inclusive: true });
 }
 
@@ -63,38 +63,38 @@ const startTagSelfClosingReader = t.seq(slashReader, gtReader);
 // </…
 const endTagOpeningReader = t.seq(ltReader, slashReader, tagNameStartCharReader, tagNameCharsReader);
 
-const endTagClosingReader = t.or(after(gtReader), t.end());
+const endTagClosingReader = t.or(untilInclusive(gtReader), t.end());
 
 const attributeNameReader = t.or(t.until(t.char([whitespaceChars, '/', '>', '='])), t.end());
 
 // "…" or '…'
 const attributeValueReader = t.or(
-  t.seq(quotReader, t.or(after(quotReader), t.end(1))),
-  t.seq(aposReader, t.or(after(aposReader), t.end(1)))
+  t.seq(quotReader, t.or(untilInclusive(quotReader), t.end(1))),
+  t.seq(aposReader, t.or(untilInclusive(aposReader), t.end(1)))
 );
 
 // okay
 const attributeUnquotedValueReader = t.or(t.until(t.char([whitespaceChars, '>'])), t.end());
 
 // <!-- … -->
-const commentReader = t.seq(ltReader, exclReader, t.text('--'), t.or(after(t.text('-->')), t.end(3)));
+const commentReader = t.seq(ltReader, exclReader, t.text('--'), t.or(untilInclusive(t.text('-->')), t.end(3)));
 
 // <? … ?>
-const processingInstructionReader = t.seq(ltReader, t.text('?'), t.or(after(t.text('?>')), t.end(2)));
+const processingInstructionReader = t.seq(ltReader, t.text('?'), t.or(untilInclusive(t.text('?>')), t.end(2)));
 
 // <![CDATA[ … ]]>
-const cdataReader = t.seq(ltReader, exclReader, t.text('[CDATA['), t.or(after(t.text(']]>')), t.end(3)));
+const cdataReader = t.seq(ltReader, exclReader, t.text('[CDATA['), t.or(untilInclusive(t.text(']]>')), t.end(3)));
 
 // <!DOCTYPE … >
 const doctypeReader = t.seq(
   ltReader,
   exclReader,
   t.text('DOCTYPE', { caseInsensitive: true }),
-  t.or(after(gtReader), t.end(1))
+  t.or(untilInclusive(gtReader), t.end(1))
 );
 
 // <! … >
-const dtdReader = t.seq(ltReader, exclReader, t.or(after(gtReader), t.end(1)));
+const dtdReader = t.seq(ltReader, exclReader, t.or(untilInclusive(gtReader), t.end(1)));
 
 const textReader = t.seq(t.skip(1), t.or(t.until(ltReader), t.end()));
 

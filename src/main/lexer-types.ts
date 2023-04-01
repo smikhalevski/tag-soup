@@ -208,7 +208,7 @@ export interface LexerState extends TokenizerState<LexerStage> {
   activeTag: number;
 }
 
-export interface LexerOptions extends ForeignLexerOptions {
+export interface LexerOptions extends ScopedLexerOptions {
   /**
    * If `true` then tag names are compared case-insensitively, otherwise case-sensitive comparison is used.
    *
@@ -217,7 +217,7 @@ export interface LexerOptions extends ForeignLexerOptions {
   caseInsensitiveTagsEnabled?: boolean;
 }
 
-export interface ForeignLexerOptions {
+export interface ScopedLexerOptions {
   /**
    * The list of void tag names. These tags are implicitly closed. Ex. `img`, `link`, `meta`, etc.
    */
@@ -267,7 +267,7 @@ export interface ForeignLexerOptions {
    *
    * If tag name is also present in {@link voidTags} or {@link cdataTags} than it is ignored.
    */
-  foreignTags?: { [tagName: string]: ForeignLexerOptions };
+  foreignTags?: { [tagName: string]: ScopedLexerOptions };
 }
 
 export const enum LexerStage {
