@@ -196,11 +196,11 @@ domParser.write('</foo>');
 
 # Performance
 
-[To run a performance test](./src/test/perf.js) use `npm ci && npm run build && npm run perf`.
+[To run a performance test](src__OLD/test/perf.js) use `npm ci && npm run build && npm run perf`.
 
 ## Large input
 
-Performance was measured when parsing [the 3.81 MB HTML file](./src/test/test.html).
+Performance was measured when parsing [the 3.81 MB HTML file](src__OLD/test/test.html).
 
 Results are in operations per second. The higher number is better.
 

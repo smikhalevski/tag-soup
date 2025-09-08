@@ -1,0 +1,16 @@
+{
+  "name": "TagSoup",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeExternals": true,
+  "excludeInternal": true,
+  "disableSources": true,
+  "hideGenerator": true,
+  "readme": "none",
+  "tsconfig": "./tsconfig.json",
+  "navigation": {
+    "includeFolders": false
+  },
+  "entryPoints": ["./src/main/index.ts"],
+  "plugin": ["typedoc-plugin-mdn-links"]
+}

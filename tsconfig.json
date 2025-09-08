@@ -1,20 +1,16 @@
 {
-  "ts-node": {
-    "files": true,
-    "compilerOptions": {
-      "module": "CommonJS"
-    }
-  },
   "compilerOptions": {
-    "moduleResolution": "Node",
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
+    "declaration": true,
+    "isolatedModules": true,
     "strict": true,
-    "target": "ES5",
-    "module": "ESNext"
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "module": "NodeNext",
+    "lib": ["ES2020"],
+    "outDir": "./lib",
+    "jsx": "react"
   },
-  "include": [
-    "rollup.config.ts",
-    "./src/**/*"
-  ]
+  "include": ["./src/**/*"]
 }
