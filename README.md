@@ -196,7 +196,7 @@ domParser.write('</foo>');
 
 # Performance
 
-[To run a performance test](src__OLD/test/perf.js) use `npm ci && npm run build && npm run perf`.
+[To run a performance test](src/test/perf.js) use `npm ci && npm run build && npm run perf`.
 
 ## Large input
 

@@ -1,10 +1,5 @@
-import { createLexer } from './createLexer';
-import { Lexer, LexerOptions } from './lexer-types';
-import { defaults } from './utils';
-
-export function createHTMLLexer<Context = void>(options?: LexerOptions): Lexer<Context> {
-  return createLexer(defaults(options, htmlLexerOptions));
-}
+import { decodeHTML } from 'speedy-entities';
+import { ParserOptions } from './types.js';
 
 const formTags = ['input', 'option', 'optgroup', 'select', 'button', 'datalist', 'textarea'];
 
@@ -16,7 +11,7 @@ const rtpTags = ['rt', 'rp'];
 
 const tableTags = ['thead', 'tbody'];
 
-export const htmlLexerOptions: LexerOptions = {
+export const htmlParserOptions: ParserOptions = {
   voidTags: [
     'area',
     'base',
@@ -38,9 +33,8 @@ export const htmlLexerOptions: LexerOptions = {
     'track',
     'wbr',
   ],
-  cdataTags: ['script', 'style', 'textarea'],
-  implicitStartTags: ['p', 'br'],
-  implicitEndTags: {
+  rawTextTags: ['script', 'style', 'textarea'],
+  implicitlyClosedTags: {
     tr: ['tr', 'th', 'td'],
     th: ['th'],
     td: ['thead', 'th', 'td'],
@@ -89,8 +83,9 @@ export const htmlLexerOptions: LexerOptions = {
     tbody: tableTags,
     tfoot: tableTags,
   },
-  foreignTags: {
-    svg: { selfClosingTagsEnabled: true },
-  },
-  caseInsensitiveTagsEnabled: true,
+  implicitlyOpenedTags: ['p', 'br'],
+  isCaseInsensitiveTags: true,
+  isUnbalancedStartTagsImplicitlyClosed: true,
+  isUnbalancedEndTagsIgnored: true,
+  decodeText: decodeHTML,
 };
