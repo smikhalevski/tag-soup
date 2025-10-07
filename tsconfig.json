@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
-    "importHelpers": true,
     "declaration": true,
-    "moduleResolution": "Node",
-    "preserveConstEnums": true,
+    "isolatedModules": true,
     "strict": true,
-    "target": "ES5",
-    "module": "ES6",
-    "rootDir": "./src/main",
-    "outDir": "./lib"
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "module": "NodeNext",
+    "lib": ["ES2020"],
+    "outDir": "./lib",
+    "jsx": "react"
   },
-  "include": [
-    "./src/main/**/*"
-  ]
+  "include": ["./src/**/*"]
 }

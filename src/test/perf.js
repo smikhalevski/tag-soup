@@ -1,288 +1,121 @@
-const fs = require('fs');
-const path = require('path');
-const htmlparser2 = require('htmlparser2');
-const sax = require('sax');
-const parse5 = require('parse5');
-const {
-  domHandler,
-  createSaxParser,
-  createDomParser,
-  createXmlSaxParser,
-  createXmlDomParser,
-} = require('../../lib/index-cjs');
-const {createHtmlSaxParser, createHtmlDomParser} = require('../../lib/index-cjs');
-const {decodeHtml} = require('speedy-entities/lib/full-cjs');
+import { afterIteration, beforeBatch, describe, measure, test } from 'toofast';
+import path from 'node:path';
+import fs from 'node:fs';
+import * as htmlparser2 from 'htmlparser2';
+import * as parse5 from 'parse5';
+import * as hyntax from 'hyntax';
+import * as tagSoup from '../../lib/index.js';
 
-const sourceFilesDir = path.join(path.dirname(require.resolve('htmlparser-benchmark/package.json')), 'files');
+const filesDir = path.resolve(import.meta.dirname, '../../node_modules/htmlparser-benchmark/files');
 
-const smallSources = fs.readdirSync(sourceFilesDir).map((fileName) => fs.readFileSync(path.join(sourceFilesDir, fileName), 'utf8'));
+const smallSources = fs.readdirSync(filesDir).map(fileName => fs.readFileSync(path.join(filesDir, fileName), 'utf8'));
 
-const largeSource = fs.readFileSync(path.join(__dirname, './test.html'), 'utf8');
+const largeSource = fs.readFileSync(path.resolve(import.meta.dirname, 'test.html'), 'utf8');
 
-const textHandler = {
-  text: () => undefined,
-};
-
-const fullHandler = {
-  startTag: () => undefined,
-  endTag: () => undefined,
-  text: () => undefined,
-  comment: () => undefined,
-  doctype: () => undefined,
-  processingInstruction: () => undefined,
-  cdata: () => undefined,
-};
-
-
-describe('Large input', () => {
-
-  describe('SAX parser', () => {
-
-    test('createSaxParser     (text)', (measure) => {
-      const parser = createSaxParser(textHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createXmlSaxParser  (text)', (measure) => {
-      const parser = createXmlSaxParser(textHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createHtmlSaxParser (text)', (measure) => {
-      const parser = createHtmlSaxParser(textHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createSaxParser', (measure) => {
-      const parser = createSaxParser(fullHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createXmlSaxParser', (measure) => {
-      const parser = createXmlSaxParser(fullHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createHtmlSaxParser', (measure) => {
-      const parser = createHtmlSaxParser(fullHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createHtmlSaxParser (full)', (measure) => {
-      const parser = createHtmlSaxParser(fullHandler, {decodeText: decodeHtml, decodeAttribute: decodeHtml});
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('htmlparser2', (measure) => {
-      let parser;
-
-      beforeBatch(() => {
-        parser = new htmlparser2.Parser();
-      });
-
-      afterIteration(() => {
-        parser.reset();
-      });
-
-      measure(() => {
-        parser.end(largeSource);
-      });
-    });
-
-    test('sax', (measure) => {
-      const parser = sax.parser();
-
-      measure(() => {
-        parser.write(largeSource);
-      });
-    });
-  });
-
-  describe('DOM parser', () => {
-
-    test('createDomParser', (measure) => {
-      const parser = createDomParser(domHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createXmlDomParser', (measure) => {
-      const parser = createXmlDomParser(domHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('createHtmlDomParser', (measure) => {
-      const parser = createHtmlDomParser(domHandler);
-
-      measure(() => {
-        parser.parse(largeSource);
-      });
-    });
-
-    test('htmlparser2', (measure) => {
-      let parser;
-
-      beforeBatch(() => {
-        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-      });
-
-      afterIteration(() => {
-        parser.reset();
-      });
-
-      measure(() => {
-        parser.end(largeSource);
-      });
-    });
-
-    test('parse5', (measure) => {
-      measure(() => {
-        parse5.parse(largeSource);
-      });
-    });
-  });
-
+beforeBatch(() => {
+  gc();
 });
 
-
-describe('Small input (average across ' + smallSources.length + ' samples)', () => {
-
-  describe('SAX parser', () => {
-
-    test('createSaxParser', (measure) => {
-      const parser = createSaxParser(fullHandler);
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.parse(value);
-        });
-      });
+describe('SAX (large source)', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.HTMLSAXParser.parseDocument(largeSource, {});
     });
-
-    test('createXmlSaxParser', (measure) => {
-      const parser = createXmlSaxParser(fullHandler);
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.parse(value);
-        });
-      });
-    });
-
-    test('createHtmlSaxParser', (measure) => {
-      const parser = createHtmlSaxParser(fullHandler);
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.parse(value);
-        });
-      });
-    });
-
-    test('htmlparser2', (measure) => {
-      let parser;
-
-      beforeBatch(() => {
-        parser = new htmlparser2.Parser();
-      });
-
-      afterIteration(() => {
-        parser.reset();
-      });
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.end(value);
-        });
-      });
-    });
-
   });
 
-  describe('DOM parser', () => {
+  test('htmlparser2', () => {
+    let parser;
 
-    test('createDomParser', (measure) => {
-      const parser = createDomParser(domHandler);
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.parse(value);
-        });
-      });
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser();
     });
 
-    test('createXmlDomParser', (measure) => {
-      const parser = createXmlDomParser(domHandler);
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.parse(value);
-        });
-      });
+    afterIteration(() => {
+      parser.reset();
     });
 
-    test('createHtmlDomParser', (measure) => {
-      const parser = createHtmlDomParser(domHandler);
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.parse(value);
-        });
-      });
+    measure(() => {
+      parser.end(largeSource);
     });
+  });
+});
 
-    test('htmlparser2', (measure) => {
-      let parser;
-
-      beforeBatch(() => {
-        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-      });
-
-      afterIteration(() => {
-        parser.reset();
-      });
-
-      smallSources.forEach((value) => {
-        measure(() => {
-          parser.end(value);
-        });
-      });
+describe('DOM (large source)', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.HTMLDOMParser.parseDocument(largeSource);
     });
-
-    test('parse5', (measure) => {
-      smallSources.forEach((value) => {
-        measure(() => {
-          parse5.parse(value);
-        });
-      });
-    });
-
   });
 
+  test('htmlparser2', () => {
+    let parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      parser.end(largeSource);
+    });
+  });
+
+  test('parse5', () => {
+    measure(() => {
+      parse5.parse(largeSource);
+    });
+  });
+
+  test('hyntax', () => {
+    measure(() => {
+      hyntax.tokenize(largeSource);
+    });
+  });
+});
+
+describe('DOM (small sources)', () => {
+  test('tag-soup', () => {
+    for (const smallSource of smallSources) {
+      measure(() => {
+        tagSoup.HTMLDOMParser.parseDocument(smallSource);
+      });
+    }
+  });
+
+  test('htmlparser2', () => {
+    let parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    for (const smallSource of smallSources) {
+      measure(() => {
+        parser.end(smallSource);
+      });
+    }
+  });
+
+  test('parse5', () => {
+    for (const smallSource of smallSources) {
+      measure(() => {
+        parse5.parse(smallSource);
+      });
+    }
+  });
+
+  test('hyntax', () => {
+    for (const smallSource of smallSources) {
+      measure(() => {
+        hyntax.tokenize(smallSource);
+      });
+    }
+  });
 });

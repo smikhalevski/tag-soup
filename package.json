@@ -1,24 +1,21 @@
 {
   "name": "tag-soup",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "The fastest pure JS SAX/DOM XML/HTML parser.",
-  "main": "./lib/index-cjs.js",
-  "module": "./lib/index.js",
-  "types": "./lib/index.d.ts",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
   "sideEffects": false,
-  "files": [
-    "lib"
-  ],
   "scripts": {
-    "build": "tsc && rimraf './lib/CharCode.*' && npm run rollup && npm run terser",
-    "rollup": "rollup --external @smikhalevski/object-pool,speedy-entities,tokenizer-dsl,tslib --input ./lib/index.js --file ./lib/index-cjs.js --format cjs --plugin @rollup/plugin-node-resolve",
-    "terser": "terser --compress --mangle toplevel --output ./lib/index-cjs.js -- ./lib/index-cjs.js",
-    "clean": "rimraf ./lib ./docs",
-    "test": "jest --detectOpenHandles",
-    "perf": "[ -d ./lib ] || npm run build && node --expose-gc --max-old-space-size=4096 ./node_modules/.bin/toofast ./src/test/perf.js",
-    "docs": "typedoc ./src/main/index.ts",
-    "publish-docs": "[ -d ./docs ] && [[ ! $(git status --porcelain) ]] && branch=$(git rev-parse --abbrev-ref HEAD) && sha=$(git rev-parse --short HEAD) && t=$(mktemp -d) && cp -R ./docs/ $t && git checkout ghpages && ls -A | grep -wv .git | xargs rm -rf && cp -R $t/ . && git add . && git commit -m \"Updated docs ($sha)\" && git push && git checkout $branch",
-    "release-docs": "npm run clean && npm run docs && npm run publish-docs"
+    "build": "tsc --project tsconfig.build.json && cp package.json README.md LICENSE.txt lib/ && cd lib && npm pkg delete scripts devDependencies",
+    "clean": "rimraf lib docs coverage",
+    "test": "vitest run",
+    "perf": "NODE_OPTIONS=--expose-gc toofast",
+    "docs": "typedoc"
   },
   "repository": {
     "type": "git",
@@ -26,7 +23,6 @@
   },
   "keywords": [
     "tiny",
-    "small",
     "forgiving",
     "stream",
     "fast",
@@ -42,39 +38,23 @@
     "url": "https://github.com/smikhalevski/tag-soup/issues"
   },
   "homepage": "https://github.com/smikhalevski/tag-soup#readme",
-  "jest": {
-    "preset": "ts-jest",
-    "globals": {
-      "ts-jest": {
-        "diagnostics": {
-          "ignoreCodes": [
-            151001
-          ]
-        }
-      }
-    }
-  },
   "devDependencies": {
-    "@rollup/plugin-node-resolve": "^13.1.3",
-    "@smikhalevski/perf-test": "^1.0.0",
-    "@types/jest": "^27.4.1",
+    "@types/node": "^24.7.0",
     "htmlparser-benchmark": "^1.1.3",
-    "htmlparser2": "^7.2.0",
-    "jest": "^27.5.1",
-    "parse5": "^6.0.1",
-    "rimraf": "^3.0.2",
-    "rollup": "^2.70.1",
-    "sax": "^1.2.4",
-    "terser": "^5.12.1",
-    "toofast": "^1.0.0",
-    "ts-jest": "^27.1.3",
-    "typedoc": "^0.22.13",
-    "typescript": "^4.6.2"
+    "htmlparser2": "^10.0.0",
+    "hyntax": "^1.1.9",
+    "parse5": "^8.0.0",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "toofast": "^3.0.3",
+    "tslib": "^2.8.1",
+    "typedoc": "^0.28.13",
+    "typedoc-plugin-mdn-links": "^5.0.9",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@smikhalevski/object-pool": "^1.0.0",
-    "speedy-entities": "^1.1.3",
-    "tokenizer-dsl": "^3.0.0",
-    "tslib": "^2.3.0"
+    "flyweight-dom": "^2.2.1",
+    "speedy-entities": "^3.1.0"
   }
 }
