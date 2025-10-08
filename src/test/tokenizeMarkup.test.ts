@@ -147,7 +147,7 @@ describe('readTokens', () => {
   });
 
   test('parses body DTD as comment', () => {
-    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isDocumentFragment: true });
+    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -160,7 +160,7 @@ describe('readTokens', () => {
   });
 
   test('parse empty DTD as comment', () => {
-    readTokens('aaa<!>bbb', callbackMock, { isDocumentFragment: true });
+    readTokens('aaa<!>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -169,7 +169,7 @@ describe('readTokens', () => {
   });
 
   test('parses processing instructions as comments', () => {
-    readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isDocumentFragment: true });
+    readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -178,7 +178,7 @@ describe('readTokens', () => {
   });
 
   test('parses empty processing instructions as comments', () => {
-    readTokens('aaa<?>bbb', callbackMock, { isDocumentFragment: true });
+    readTokens('aaa<?>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);

@@ -122,13 +122,6 @@ export interface TokenizerOptions {
   isUnbalancedEndTagsIgnored?: boolean;
 
   /**
-   * If `true` then DOCTYPE and processing instructions are treated as comments.
-   *
-   * @default false
-   */
-  isDocumentFragment?: boolean;
-
-  /**
    * If `true` then CDATA sections are recognized.
    *
    * @default false
@@ -163,7 +156,15 @@ export interface Tokenizer {
    * @param text The text string to read tokens from.
    * @param callback The callback that is invoked when a token is read.
    */
-  tokenize(text: string, callback: TokenCallback): void;
+  tokenizeDocument(text: string, callback: TokenCallback): void;
+
+  /**
+   * Reads tokens from text and returns them by invoking a callback.
+   *
+   * @param text The text string to read tokens from.
+   * @param callback The callback that is invoked when a token is read.
+   */
+  tokenizeFragment(text: string, callback: TokenCallback): void;
 }
 
 /**
@@ -188,11 +189,17 @@ export interface Tokenizer {
  * @group Tokenizer
  */
 export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
-  const resolvedOptions = resolveTokenizerOptions(options);
+  const documentOptions: ResolvedTokenizerOptions = resolveTokenizerOptions(options);
+
+  const fragmentOptions: ResolvedTokenizerOptions = { ...documentOptions, isFragment: true };
 
   return {
-    tokenize(text, callback) {
-      return tokenizeMarkup(text, callback, resolvedOptions);
+    tokenizeDocument(text, callback) {
+      return tokenizeMarkup(text, callback, documentOptions);
+    },
+
+    tokenizeFragment(text, callback) {
+      return tokenizeMarkup(text, callback, fragmentOptions);
     },
   };
 }
@@ -210,7 +217,6 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
     isSelfClosingTagsRecognized,
     isUnbalancedStartTagsImplicitlyClosed,
     isUnbalancedEndTagsIgnored,
-    isDocumentFragment,
     isCDATARecognized,
     isProcessingInstructionRecognized,
     isStrict,
@@ -230,10 +236,10 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
         Object.entries(implicitlyClosedTags).map(entry => [toHashCode(entry[0]), new Set(entry[1].map(toHashCode))])
       ),
     implicitlyOpenedTags: implicitlyOpenedTags && new Set(implicitlyOpenedTags.map(toHashCode)),
+    isFragment: false,
     isSelfClosingTagsRecognized,
     isUnbalancedStartTagsImplicitlyClosed,
     isUnbalancedEndTagsIgnored,
-    isDocumentFragment,
     isCDATARecognized,
     isProcessingInstructionRecognized,
     isStrict,

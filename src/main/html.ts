@@ -1,5 +1,10 @@
-import { decodeHTML } from 'speedy-entities';
+import { decodeHTML, escapeXML } from 'speedy-entities';
 import { ParserOptions } from './types.js';
+import { createDOMParser } from './createDOMParser.js';
+import { createSAXParser } from './createSAXParser.js';
+import { Node } from 'flyweight-dom';
+import { SerializerOptions, serializeMarkup } from './serializeMarkup.js';
+import { createTokenizer } from './createTokenizer.js';
 
 const formTags = ['input', 'option', 'optgroup', 'select', 'button', 'datalist', 'textarea'];
 
@@ -11,7 +16,7 @@ const rtpTags = ['rt', 'rp'];
 
 const tableTags = ['thead', 'tbody'];
 
-export const htmlParserOptions: ParserOptions = {
+const htmlParserOptions: ParserOptions = {
   voidTags: [
     'area',
     'base',
@@ -89,3 +94,39 @@ export const htmlParserOptions: ParserOptions = {
   isUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
 };
+
+const htmlSerializerOptions: SerializerOptions = {
+  voidTags: htmlParserOptions.voidTags,
+  isSelfClosingTagsSupported: false,
+  encodeText: escapeXML,
+};
+
+/**
+ * Tokenizes HTML markup as a stream of tokens.
+ *
+ * @group Tokenizer
+ */
+export const HTMLTokenizer = createTokenizer(htmlParserOptions);
+
+/**
+ * Parses HTML markup as DOM.
+ *
+ * @group DOM
+ */
+export const HTMLDOMParser = createDOMParser(htmlParserOptions);
+
+/**
+ * Parses HTML markup as a stream of tokens.
+ *
+ * @group SAX
+ */
+export const HTMLSAXParser = createSAXParser(htmlParserOptions);
+
+/**
+ * Serializes DOM node as HTML string.
+ *
+ * @group DOM
+ */
+export function toHTML(node: Node): string {
+  return serializeMarkup(node, htmlSerializerOptions);
+}

@@ -1,5 +1,5 @@
 import { resolveTokenizerOptions } from './createTokenizer.js';
-import { TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
+import { ParserError, TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
 import {
   CDATASection,
   Comment,
@@ -7,7 +7,6 @@ import {
   DocumentFragment,
   DocumentType,
   Element,
-  ParentNode,
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
@@ -33,7 +32,7 @@ export interface DOMParser {
    * @param text The text to parse.
    * @returns The document fragment node.
    */
-  parseDocumentFragment(text: string): DocumentFragment;
+  parseFragment(text: string): DocumentFragment;
 }
 
 /**
@@ -44,7 +43,8 @@ export interface DOMParser {
  *
  * const parser = createDOMParser(htmlTokenizerOptions);
  *
- * parser.parseDocumentFragment('Hello, <b>Bob</b>!');
+ * parser.parseFragment('Hello, <b>Bob</b>!');
+ * // ⮕ DocumentFragment
  *
  * @param options Parser options.
  * @group DOM
@@ -54,49 +54,43 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 
   const documentOptions: ResolvedParserOptions = { ...resolveTokenizerOptions(options), decodeText };
 
-  const documentFragmentOptions: ResolvedParserOptions = { ...documentOptions, isDocumentFragment: true };
+  const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 
   return {
     parseDocument(text) {
       return parseDOM(text, documentOptions) as Document;
     },
 
-    parseDocumentFragment(text) {
-      return parseDOM(text, documentFragmentOptions) as DocumentFragment;
+    parseFragment(text) {
+      return parseDOM(text, fragmentOptions) as DocumentFragment;
     },
   };
 }
 
 /**
- * Parses text as a document.
- *
- * @example
- * parseDOM('Hello, <b>Bob</b>!', createTokenizer(htmlTokenizerOptions());
+ * Parses text as a DOM.
  *
  * @param text The text to parse.
  * @param options Parser options.
- * @returns The document node.
+ * @returns The document or document fragment node.
  */
-export function parseDOM(text: string, options: ResolvedParserOptions = {}): ParentNode {
-  const { isDocumentFragment, decodeText } = options;
+export function parseDOM(text: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
+  const { isStrict, isFragment, decodeText = identity } = options;
 
-  const rootNode: ParentNode = isDocumentFragment ? new DocumentFragment() : new Document();
+  const root = isFragment ? new DocumentFragment() : new Document();
 
-  let parentNode = rootNode;
+  let parent = root;
   let attributeName: string;
-  let processingInstructionTarget: string;
-  let data: string;
+  let piTarget: string;
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
       case 'TEXT':
-        data = text.substring(startIndex, endIndex);
-
-        parentNode.appendChild(new Text(decodeText !== undefined ? decodeText(data) : data));
+        parent.appendChild(new Text(decodeText(text.substring(startIndex, endIndex))));
         break;
 
       case 'START_TAG_NAME':
-        parentNode.appendChild((parentNode = new Element(text.substring(startIndex, endIndex))));
+        parent.appendChild((parent = new Element(text.substring(startIndex, endIndex))));
         break;
 
       case 'START_TAG_CLOSING':
@@ -104,7 +98,7 @@ export function parseDOM(text: string, options: ResolvedParserOptions = {}): Par
 
       case 'START_TAG_SELF_CLOSING':
       case 'END_TAG_NAME':
-        parentNode = parentNode.parentNode!;
+        parent = parent.parentNode!;
         break;
 
       case 'ATTRIBUTE_NAME':
@@ -112,36 +106,40 @@ export function parseDOM(text: string, options: ResolvedParserOptions = {}): Par
         break;
 
       case 'ATTRIBUTE_VALUE':
-        data = text.substring(startIndex, endIndex);
-
-        (parentNode as Element).setAttribute(attributeName, decodeText !== undefined ? decodeText(data) : data);
+        (parent as Element).setAttribute(attributeName, decodeText(text.substring(startIndex, endIndex)));
         break;
 
       case 'CDATA_SECTION':
-        parentNode.appendChild(new CDATASection(text.substring(startIndex, endIndex)));
+        parent.appendChild(new CDATASection(text.substring(startIndex, endIndex)));
         break;
 
       case 'COMMENT':
-        parentNode.appendChild(new Comment(text.substring(startIndex, endIndex)));
+        parent.appendChild(new Comment(decodeText(text.substring(startIndex, endIndex))));
         break;
 
       case 'DOCTYPE_NAME':
-        parentNode.appendChild(new DocumentType(text.substring(startIndex, endIndex)));
+        parent.appendChild(new DocumentType(text.substring(startIndex, endIndex)));
         break;
 
       case 'PROCESSING_INSTRUCTION_TARGET':
-        processingInstructionTarget = text.substring(startIndex, endIndex);
+        piTarget = text.substring(startIndex, endIndex);
         break;
 
       case 'PROCESSING_INSTRUCTION_DATA':
-        parentNode.appendChild(
-          new ProcessingInstruction(processingInstructionTarget, text.substring(startIndex, endIndex))
-        );
+        parent.appendChild(new ProcessingInstruction(piTarget, text.substring(startIndex, endIndex)));
         break;
     }
   };
 
   tokenizeMarkup(text, tokenCallback, options);
 
-  return rootNode;
+  if (isStrict && parent !== root) {
+    throw new ParserError('Expected an end tag.', text, text.length);
+  }
+
+  return root;
+}
+
+function identity(value: string): string {
+  return value;
 }

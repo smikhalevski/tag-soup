@@ -1,14 +1,14 @@
-import {ResolvedTokenizerOptions} from "./tokenizeMarkup.js";
-import {TokenizerOptions} from "./createTokenizer.js";
+import { ResolvedTokenizerOptions } from './tokenizeMarkup.js';
+import { TokenizerOptions } from './createTokenizer.js';
 
 /**
  * Options of the {@link createDOMParser}.
  *
  * @group Parser
  */
-export interface ParserOptions extends Omit<TokenizerOptions, 'isDocumentFragment'> {
+export interface ParserOptions extends TokenizerOptions {
   /**
-   * Decode text content before it is pushed to an DOM node. Use this method to decode HTML entities.
+   * Decode text content. Use this method to decode HTML/XML entities.
    *
    * @param text Text to decode.
    */
@@ -16,6 +16,6 @@ export interface ParserOptions extends Omit<TokenizerOptions, 'isDocumentFragmen
 }
 
 export interface ResolvedParserOptions extends ResolvedTokenizerOptions {
-  isDocumentFragment?: boolean;
+  isFragment?: boolean;
   decodeText?: (text: string) => string;
 }

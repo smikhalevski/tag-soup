@@ -1,22 +1,21 @@
 /**
- * The error thrown by a parser if a text substring is malformed.
+ * The error thrown by a parser if a {@link ParserError.text text} is malformed.
  *
  * @group Parser
  */
 export class ParserError extends SyntaxError {
+  /**
+   * Creates a new {@link ParserError} instance.
+   *
+   * @param message The error message.
+   * @param text The text where an error was detected.
+   * @param startIndex The index of the first char in text where an error was detected, inclusive.
+   * @param endIndex The index of the last char in text where an error was detected, exclusive.
+   */
   constructor(
     message: string,
-    /**
-     * The text where an error was detected.
-     */
     public text: string,
-    /**
-     * The index of the first char in text where an error was detected, inclusive.
-     */
     public startIndex = -1,
-    /**
-     * The index of the last char in text where an error was detected, exclusive.
-     */
     public endIndex = startIndex
   ) {
     super(message);
@@ -253,7 +252,7 @@ export interface ReadTokensOptions {
   readTag?: (text: string, startIndex: number, endIndex: number) => number;
   rawTextTags?: Set<number>;
   isSelfClosingTagsRecognized?: boolean;
-  isDocumentFragment?: boolean;
+  isFragment?: boolean;
   isCDATARecognized?: boolean;
   isProcessingInstructionRecognized?: boolean;
   isStrict?: boolean;
@@ -269,21 +268,20 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
     readTag = getCaseSensitiveHashCode,
     rawTextTags,
     isSelfClosingTagsRecognized = false,
-    isDocumentFragment,
+    isFragment,
     isCDATARecognized = false,
     isProcessingInstructionRecognized = false,
     isStrict = false,
   } = options;
 
-  let scope = isDocumentFragment ? SCOPE_TEXT : SCOPE_PROLOGUE;
+  let scope = isFragment ? SCOPE_TEXT : SCOPE_PROLOGUE;
   let enclosingRawTextTag = 0;
-  let textStartIndex = isDocumentFragment ? 0 : skipSpaces(text, 0);
+  let textStartIndex = isFragment ? 0 : skipSpaces(text, 0);
 
   const textLength = text.length;
 
-  const isAttributeNameStartChar = isStrict ? isXMLNameStartChar : isHTMLAttributeNameChar;
-  const isAttributeNameChar = isStrict ? isXMLNameChar : isHTMLAttributeNameChar;
-  const readName = isStrict ? readXMLName : readHTMLName;
+  const skipName = isStrict ? skipXMLName : skipHTMLName;
+  const skipAttributeName = isStrict ? skipXMLName : skipHTMLAttributeName;
 
   for (let index = textStartIndex, nextIndex = index; index < textLength; index = nextIndex) {
     let charCode = text.charCodeAt(index);
@@ -325,24 +323,25 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // Attribute
       // ---------
 
-      if (!isAttributeNameStartChar(charCode)) {
-        if (isStrict) {
-          throw new ParserError(
-            'Expected an attribute name' +
-              (isSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
-              " or a start tag closing ('>').",
-            text,
-            index,
-            index + 1
-          );
+      nextIndex = skipAttributeName(text, index);
+
+      // No attribute name
+      if (nextIndex === index) {
+        // Skip illegal char
+        if (!isStrict) {
+          textStartIndex = ++nextIndex;
+          continue;
         }
 
-        // Skip illegal char
-        textStartIndex = ++nextIndex;
-        continue;
+        throw new ParserError(
+          'Expected an attribute name' +
+            (isSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
+            " or a start tag closing ('>').",
+          text,
+          index,
+          index + 1
+        );
       }
-
-      nextIndex = readChars(text, index + 1, isAttributeNameChar);
 
       callback(TOKEN_ATTRIBUTE_NAME, index, nextIndex);
 
@@ -350,17 +349,17 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
       // No attribute value
       if (getCharCodeAt(text, nextIndex) !== /* = */ 61) {
-        if (isStrict) {
-          throw new ParserError(
-            "Expected an attribute value separated by an equals sign ('=').",
-            text,
-            nextIndex,
-            nextIndex + 1
-          );
+        if (!isStrict) {
+          callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, nextIndex);
+          continue;
         }
 
-        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, nextIndex);
-        continue;
+        throw new ParserError(
+          "Expected an attribute value separated by an equals sign ('=').",
+          text,
+          nextIndex,
+          nextIndex + 1
+        );
       }
 
       // Skip "="
@@ -379,7 +378,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // ------------------------
 
       if (quoteCharCode !== /* " */ 34 && quoteCharCode !== /* ' */ 39) {
-        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = readChars(text, nextIndex, isHTMLAttributeNameChar)));
+        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = skipChars(text, nextIndex, isHTMLAttributeNameChar)));
 
         textStartIndex = nextIndex = skipSpaces(text, nextIndex);
         continue;
@@ -392,7 +391,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // Skip opening quote char
       const attributeValueStartIndex = ++nextIndex;
 
-      nextIndex = indexOfOrLength(text, quoteCharCode === /* " */ 34 ? '"' : "'", nextIndex);
+      nextIndex = getIndexOfOrLength(text, quoteCharCode === /* " */ 34 ? '"' : "'", nextIndex);
 
       if (isStrict && nextIndex === textLength) {
         throw new ParserError(
@@ -442,7 +441,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
       const targetStartIndex = nextIndex;
 
-      nextIndex = readName(text, nextIndex);
+      nextIndex = skipName(text, nextIndex);
 
       // No target
       if (isStrict && targetStartIndex === nextIndex) {
@@ -459,7 +458,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // https://www.w3.org/TR/xml/#sec-pi
       nextIndex = skipSpaces(text, nextIndex);
 
-      callback(TOKEN_PROCESSING_INSTRUCTION_DATA, nextIndex, (nextIndex = indexOfOrLength(text, '?>', nextIndex)));
+      callback(TOKEN_PROCESSING_INSTRUCTION_DATA, nextIndex, (nextIndex = getIndexOfOrLength(text, '?>', nextIndex)));
 
       // Skip "?>"
       nextIndex += 2;
@@ -490,7 +489,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
       nextIndex = skipSpaces(text, nextIndex);
 
-      callback(TOKEN_DOCTYPE_NAME, nextIndex, (nextIndex = readName(text, nextIndex)));
+      callback(TOKEN_DOCTYPE_NAME, nextIndex, (nextIndex = skipName(text, nextIndex)));
 
       textStartIndex = nextIndex = skipSpaces(text, skipUntilTagClosing(text, nextIndex) + 1);
       continue;
@@ -518,7 +517,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // Skip "![CDATA["
       nextIndex += 8;
 
-      callback(TOKEN_CDATA_SECTION, nextIndex, (nextIndex = indexOfOrLength(text, ']]>', nextIndex)));
+      callback(TOKEN_CDATA_SECTION, nextIndex, (nextIndex = getIndexOfOrLength(text, ']]>', nextIndex)));
 
       scope = SCOPE_TEXT;
       textStartIndex = nextIndex += 3;
@@ -544,7 +543,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // Skip "!--"
       nextIndex += 3;
 
-      callback(TOKEN_COMMENT, nextIndex, (nextIndex = indexOfOrLength(text, '-->', nextIndex)));
+      callback(TOKEN_COMMENT, nextIndex, (nextIndex = getIndexOfOrLength(text, '-->', nextIndex)));
 
       // Skip "-->"
       textStartIndex = nextIndex += 3;
@@ -573,7 +572,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
           charCode === /* ? */ 63
             ? 'Processing instructions are forbidden.'
             : "Expected a comment ('<!--')" +
-              (isDocumentFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
+              (isFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
               (isCDATARecognized ? ", or a CDATA section ('<![CDATA[[')" : '') +
               '.',
           text,
@@ -610,7 +609,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // Skip "/"
       const tagNameStartIndex = ++nextIndex;
 
-      nextIndex = readName(text, nextIndex);
+      nextIndex = skipName(text, nextIndex);
 
       // No tag name
       if (tagNameStartIndex === nextIndex) {
@@ -668,7 +667,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
     const tagNameStartIndex = nextIndex;
 
-    nextIndex = readName(text, nextIndex);
+    nextIndex = skipName(text, nextIndex);
 
     // No tag name
     if (tagNameStartIndex === nextIndex) {
@@ -703,6 +702,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
   }
 }
 
+/**
+ * Returns case-insensitive djb2 hash of a substring.
+ */
 export function getCaseInsensitiveHashCode(text: string, startIndex: number, endIndex: number): number {
   let hashCode = 0;
 
@@ -737,13 +739,26 @@ function getCaseInsensitiveCharCodeAt(text: string, index: number): number {
   return charCode < 65 || charCode > 90 ? charCode : charCode + 32;
 }
 
-function readHTMLName(text: string, index: number): number {
-  return isXMLNameStartChar(getCharCodeAt(text, index)) ? readChars(text, index + 1, isHTMLNameChar) : index;
+/**
+ * Skips chars until they match a predicate.
+ */
+function skipChars(text: string, index: number, predicate: (charCode: number) => boolean): number {
+  while (index < text.length && predicate(text.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
 }
 
-// https://www.w3.org/TR/xml/#NT-Name
-function readXMLName(text: string, index: number): number {
-  return isXMLNameStartChar(getCharCodeAt(text, index)) ? readChars(text, index + 1, isXMLNameChar) : index;
+/**
+ * Skips whitespace chars.
+ */
+function skipSpaces(text: string, index: number): number {
+  return skipChars(text, index, isSpaceChar);
+}
+
+// https://www.w3.org/TR/xml/#NT-S
+function isSpaceChar(charCode: number): boolean {
+  return charCode == /* \s */ 32 || charCode === /* \n */ 10 || charCode === /* \t */ 9 || charCode === /* \r */ 13;
 }
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
@@ -784,35 +799,32 @@ function isHTMLNameChar(charCode: number): boolean {
 }
 
 function isHTMLAttributeNameChar(charCode: number): boolean {
-  return !(charCode === /* > */ 62 || charCode === /* = */ 61 || charCode === /* / */ 47 || isSpaceChar(charCode));
+  return !(charCode === /* / */ 47 || charCode === /* > */ 62 || charCode === /* = */ 61 || isSpaceChar(charCode));
 }
 
-// https://www.w3.org/TR/xml/#NT-S
-function isSpaceChar(charCode: number): boolean {
-  return charCode == /* \s */ 32 || charCode === /* \n */ 10 || charCode === /* \t */ 9 || charCode === /* \r */ 13;
+// https://www.w3.org/TR/xml/#NT-Name
+function skipXMLName(text: string, index: number): number {
+  return isXMLNameStartChar(getCharCodeAt(text, index)) ? skipChars(text, index + 1, isXMLNameChar) : index;
 }
 
-function readChars(text: string, index: number, predicate: (charCode: number) => boolean): number {
-  while (index < text.length && predicate(text.charCodeAt(index))) {
-    ++index;
-  }
-  return index;
+function skipHTMLName(text: string, index: number): number {
+  return isXMLNameStartChar(getCharCodeAt(text, index)) ? skipChars(text, index + 1, isHTMLNameChar) : index;
 }
 
-function skipSpaces(text: string, index: number): number {
-  return readChars(text, index, isSpaceChar);
+function skipHTMLAttributeName(text: string, index: number): number {
+  return skipChars(text, index, isHTMLAttributeNameChar);
 }
 
-function indexOfOrLength(text: string, searchString: string, index: number): number {
+function getIndexOfOrLength(text: string, searchString: string, index: number): number {
   index = text.indexOf(searchString, index);
 
   return index !== -1 ? index : text.length;
 }
 
 function skipUntilTagOpening(text: string, index: number): number {
-  return indexOfOrLength(text, '<', index);
+  return getIndexOfOrLength(text, '<', index);
 }
 
 function skipUntilTagClosing(text: string, index: number): number {
-  return indexOfOrLength(text, '>', index);
+  return getIndexOfOrLength(text, '>', index);
 }
