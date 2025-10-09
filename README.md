@@ -224,7 +224,7 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 
 <tr>
 <td align="right">
-<a href="https://gitdub.com/fb55/htmlparser2">htmlparser2</a>&#x200B;@10.0.0
+<a href="https://github.com/fb55/htmlparser2">htmlparser2</a>&#x200B;@10.0.0
 </td>
 <td align="right">
 <a href="https://bundlephobia.com/package/htmlparser2@10.0.0">58 kB&#8239;<sup>↗</sup></a>
@@ -237,7 +237,7 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 
 <tr>
 <td align="right">
-<a href="https://gitdub.com/inikulin/parse5">parse5</a>&#x200B;@8.0.0
+<a href="https://github.com/inikulin/parse5">parse5</a>&#x200B;@8.0.0
 </td>
 <td align="right">
 <a href="https://bundlephobia.com/package/parse5@8.0.0">45 kB&#8239;<sup>↗</sup></a>

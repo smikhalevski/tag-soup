@@ -18,8 +18,10 @@ beforeBatch(() => {
 
 describe('SAX (large source)', () => {
   test('tag-soup', () => {
+    const saxHandler = {};
+
     measure(() => {
-      tagSoup.HTMLSAXParser.parseDocument(largeSource, {});
+      tagSoup.HTMLSAXParser.parseDocument(largeSource, saxHandler);
     });
   });
 
@@ -27,7 +29,13 @@ describe('SAX (large source)', () => {
     let parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser();
+      parser = new htmlparser2.Parser(
+        {},
+        {
+          lowerCaseTags: false,
+          lowerCaseAttributeNames: false,
+        }
+      );
     });
 
     afterIteration(() => {
@@ -51,7 +59,10 @@ describe('DOM (large source)', () => {
     let parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+        lowerCaseTags: false,
+        lowerCaseAttributeNames: false,
+      });
     });
 
     afterIteration(() => {
@@ -76,6 +87,42 @@ describe('DOM (large source)', () => {
   });
 });
 
+describe('SAX (small sources)', () => {
+  test('tag-soup', () => {
+    const saxHandler = {};
+
+    for (const smallSource of smallSources) {
+      measure(() => {
+        tagSoup.HTMLSAXParser.parseDocument(smallSource, saxHandler);
+      });
+    }
+  });
+
+  test('htmlparser2', () => {
+    let parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(
+        {},
+        {
+          lowerCaseTags: false,
+          lowerCaseAttributeNames: false,
+        }
+      );
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    for (const smallSource of smallSources) {
+      measure(() => {
+        parser.end(smallSource);
+      });
+    }
+  });
+});
+
 describe('DOM (small sources)', () => {
   test('tag-soup', () => {
     for (const smallSource of smallSources) {
@@ -89,7 +136,10 @@ describe('DOM (small sources)', () => {
     let parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+        lowerCaseTags: false,
+        lowerCaseAttributeNames: false,
+      });
     });
 
     afterIteration(() => {
