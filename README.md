@@ -244,7 +244,8 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 </td>
 <td align="right">7 Hz</td>
 <td align="right">105 MB</td>
-<td align="center" colspan="2">🚫</td>
+<td align="right">12 Hz</td>
+<td align="right">10 MB</td>
 </tr>
 
 </table>

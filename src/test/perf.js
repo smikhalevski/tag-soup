@@ -1,8 +1,9 @@
-import { afterIteration, beforeBatch, describe, measure, test } from 'toofast';
+import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
 import path from 'node:path';
 import fs from 'node:fs';
 import * as htmlparser2 from 'htmlparser2';
 import * as parse5 from 'parse5';
+import * as parse5SAXParser from 'parse5-sax-parser';
 import * as hyntax from 'hyntax';
 import * as tagSoup from '../../lib/index.js';
 
@@ -44,6 +45,19 @@ describe('SAX (large source)', () => {
 
     measure(() => {
       parser.end(largeSource);
+    });
+  });
+
+  test('parse5', () => {
+    let parser;
+    let transformCallback = () => undefined;
+
+    beforeIteration(() => {
+      parser = new parse5SAXParser.SAXParser();
+    });
+
+    measure(() => {
+      parser._transform(largeSource, 'utf8', transformCallback);
     });
   });
 });

@@ -44,6 +44,7 @@
     "htmlparser2": "^10.0.0",
     "hyntax": "^1.1.9",
     "parse5": "^8.0.0",
+    "parse5-sax-parser": "^8.0.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
     "toofast": "^3.0.3",
