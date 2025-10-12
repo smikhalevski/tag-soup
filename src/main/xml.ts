@@ -2,8 +2,7 @@ import { decodeXML, escapeXML } from 'speedy-entities';
 import { ParserOptions } from './types.js';
 import { createDOMParser } from './createDOMParser.js';
 import { createSAXParser } from './createSAXParser.js';
-import { SerializerOptions, serializeMarkup } from './serializeMarkup.js';
-import { Node } from 'flyweight-dom';
+import { createSerializer, SerializerOptions } from './createSerializer.js';
 import { createTokenizer } from './createTokenizer.js';
 
 const xmlParserOptions: ParserOptions = {
@@ -45,6 +44,4 @@ export const XMLSAXParser = createSAXParser(xmlParserOptions);
  *
  * @group DOM
  */
-export function toXML(node: Node): string {
-  return serializeMarkup(node, xmlSerializerOptions);
-}
+export const toXML = createSerializer(xmlSerializerOptions);

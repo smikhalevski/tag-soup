@@ -2,8 +2,7 @@ import { decodeHTML, escapeXML } from 'speedy-entities';
 import { ParserOptions } from './types.js';
 import { createDOMParser } from './createDOMParser.js';
 import { createSAXParser } from './createSAXParser.js';
-import { Node } from 'flyweight-dom';
-import { SerializerOptions, serializeMarkup } from './serializeMarkup.js';
+import { createSerializer, SerializerOptions } from './createSerializer.js';
 import { createTokenizer } from './createTokenizer.js';
 
 const formTags = ['input', 'option', 'optgroup', 'select', 'button', 'datalist', 'textarea'];
@@ -97,6 +96,7 @@ const htmlParserOptions: ParserOptions = {
 
 const htmlSerializerOptions: SerializerOptions = {
   voidTags: htmlParserOptions.voidTags,
+  isCaseInsensitiveTags: true,
   isSelfClosingTagsSupported: false,
   encodeText: escapeXML,
 };
@@ -127,6 +127,4 @@ export const HTMLSAXParser = createSAXParser(htmlParserOptions);
  *
  * @group DOM
  */
-export function toHTML(node: Node): string {
-  return serializeMarkup(node, htmlSerializerOptions);
-}
+export const toHTML = createSerializer(htmlSerializerOptions);

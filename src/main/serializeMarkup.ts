@@ -14,29 +14,10 @@ import {
 /**
  * Options of {@link serializeMarkup}.
  */
-export interface SerializerOptions {
-  /**
-   * The list of tags that can't have any contents (since there's no end tag, no content can be put between the start
-   * tag and the end tag).
-   *
-   * @example
-   * ['link', 'meta']
-   * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
-   */
-  voidTags?: string[];
-
-  /**
-   * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
-   *
-   * @default false
-   */
+export interface ResolvedSerializerOptions {
+  toHashCode: (str: string) => number;
+  voidTags?: Set<number>;
   isSelfClosingTagsSupported?: boolean;
-
-  /**
-   * Encodes text content. Use this method to encode HTML/XML entities.
-   *
-   * @param text Text to encode.
-   */
   encodeText?: (text: string) => string;
 }
 
@@ -45,11 +26,9 @@ export interface SerializerOptions {
  *
  * @param node DOM node to serialize.
  * @param options Serialization options.
- * @see {@link toHTML}
- * @see {@link toXML}
  */
-export function serializeMarkup(node: Node, options: SerializerOptions = {}): string {
-  const { voidTags, isSelfClosingTagsSupported, encodeText = identity } = options;
+export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
+  const { toHashCode, voidTags, isSelfClosingTagsSupported, encodeText = identity } = options;
 
   if (node instanceof Element) {
     let xml = '<' + node.tagName;
@@ -66,12 +45,12 @@ export function serializeMarkup(node: Node, options: SerializerOptions = {}): st
       }
 
       xml += '</' + node.tagName + '>';
-    } else if (voidTags !== undefined && voidTags.includes(node.tagName)) {
+    } else if (voidTags !== undefined && voidTags.has(toHashCode(node.tagName))) {
       xml += '>';
     } else if (isSelfClosingTagsSupported) {
       xml += '/>';
     } else {
-      xml += '</' + node.tagName + '>';
+      xml += '></' + node.tagName + '>';
     }
 
     return xml;

@@ -9,8 +9,17 @@
   "readme": "none",
   "tsconfig": "./tsconfig.json",
   "navigation": {
-    "includeFolders": false
+    "includeFolders": false,
+    "includeGroups": true
   },
+  "groupOrder": ["DOM", "SAX", "Parser", "Serializer", "Tokenizer"],
   "entryPoints": ["./src/main/index.ts"],
-  "plugin": ["typedoc-plugin-mdn-links"]
+  "plugin": ["typedoc-plugin-mdn-links"],
+  "externalSymbolLinkMappings": {
+    "flyweight-dom": {
+      "DocumentFragment": "https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.DocumentFragment.html",
+      "Document": "https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Document.html",
+      "Node": "https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Node.html"
+    }
+  }
 }

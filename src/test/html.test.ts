@@ -7,7 +7,7 @@ test('parses HTML DOM', () => {
 });
 
 test('serializes HTML', () => {
-  expect(toHTML(HTMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<p>bbb</br>'))).toBe(
-    '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<br></p>'
+  expect(toHTML(HTMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<p>bbb</BR>'))).toBe(
+    '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<BR></p>'
   );
 });
