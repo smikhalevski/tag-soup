@@ -8,16 +8,15 @@ TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser and seria
 - Tolerant of malformed tag nesting, missing end tags, etc.
 - Recognizes CDATA sections, processing instructions, and DOCTYPE declarations.
 - Supports both strict XML and forgiving HTML parsing modes.
-- [20 kB gzipped&#8239;<sup>↗</sup>](https://bundlephobia.com/result?p=tag-soup), including dependencies.
-- Check out TagSoup dependencies:
-  [Speedy Entities&#8239;<sup>↗</sup>](https://github.com/smikhalevski/speedy-entities#readme)
-  and [Flyweight DOM&#8239;<sup>↗</sup>](https://github.com/smikhalevski/flyweight-dom#readme).
+- [20 kB gzipped](https://bundlephobia.com/result?p=tag-soup), including dependencies.
+- Check out TagSoup dependencies: [Speedy Entities](https://github.com/smikhalevski/speedy-entities#readme)
+  and [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme).
 
 ```sh
 npm install --save-prod tag-soup
 ```
 
-- [API docs&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/)
+- [API docs](https://smikhalevski.github.io/tag-soup/)
 - [DOM parsing](#dom-parsing)
 - [SAX parsing](#sax-parsing)
 - [Tokenization](#tokenization)
@@ -27,7 +26,7 @@ npm install --save-prod tag-soup
 
 # DOM parsing
 
-TagSoup exports preconfigured [`HTMLDOMParser`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/HTMLDOMParser.html)
+TagSoup exports preconfigured [`HTMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLDOMParser.html)
 which parses HTML markup as a DOM node. This parser never throws errors during parsing and forgives malformed markup:
 
 ```ts
@@ -41,11 +40,11 @@ toHTML(fragment);
 ```
 
 `HTMLDOMParser` decodes both HTML entities and numeric character references with
-[`decodeHTML`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html).
+[`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html).
 
-[`XMLDOMParser`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/XMLDOMParser.html)
+[`XMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/XMLDOMParser.html)
 parses XML markup as a DOM node. It throws
-[`ParserError`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't
+[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't
 satisfy XML spec:
 
 ```ts
@@ -62,10 +61,10 @@ toXML(fragment);
 ```
 
 `XMLDOMParser` decodes both XML entities and numeric character references with
-[`decodeXML`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/speedy-entities/variables/decodeXML.html).
+[`decodeXML`](https://smikhalevski.github.io/speedy-entities/variables/decodeXML.html).
 
-TagSoup uses [Flyweight DOM&#8239;<sup>↗</sup>](https://github.com/smikhalevski/flyweight-dom#readme) nodes,
-which provide many standard DOM manipulation features:
+TagSoup uses [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme) nodes, which provide many standard
+DOM manipulation features:
 
 ```ts
 const document = HTMLDOMParser.parseDocument('<!DOCTYPE html><html>hello</html>');
@@ -91,7 +90,7 @@ treeWalker.nextNode();
 ```
 
 Create a custom DOM parser using
-[`createDOMParser`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html):
+[`createDOMParser`](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html):
 
 ```ts
 import { createDOMParser } from 'tag-soup';
@@ -106,10 +105,9 @@ myParser.parseFragment('<p><br></p>');
 
 # SAX parsing
 
-TagSoup exports preconfigured
-[`HTMLSAXParser`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html) which parses
-HTML markup and calls handler methods when a token is read. This parser never throws errors during parsing and forgives
-malformed markup:
+TagSoup exports preconfigured [`HTMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html)
+which parses HTML markup and calls handler methods when a token is read. This parser never throws errors during parsing
+and forgives malformed markup:
 
 ```ts
 import { HTMLSAXParser } from 'tag-soup';
@@ -124,10 +122,9 @@ HTMLSAXParser.parseFragment('<p>hello<p>cool</br>', {
 });
 ```
 
-[`XMLSAXParser`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/XMLSAXParser.html)
-parses XML markup and calls handler methods when a token is read. It throws
-[`ParserError`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't satisfy XML
-spec:
+[`XMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/XMLSAXParser.html) parses XML markup and calls
+handler methods when a token is read. It throws
+[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't satisfy XML spec:
 
 ```ts
 import { XMLSAXParser } from 'tag-soup';
@@ -143,7 +140,7 @@ XMLSAXParser.parseFragment('<p>hello<br/></p>', {
 ```
 
 Create a custom SAX parser using
-[`createSAXParser`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html):
+[`createSAXParser`](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html):
 
 ```ts
 import { createSAXParser } from 'tag-soup';
@@ -162,9 +159,9 @@ myParser.parseFragment('<p><br></p>', {
 # Tokenization
 
 TagSoup exports preconfigured
-[`HTMLTokenizer`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html)
-which parses HTML markup and invokes a callback when a token is read. This tokenizer never throws errors during
-tokenization and forgives malformed markup:
+[`HTMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html) which parses HTML markup and
+invokes a callback when a token is read. This tokenizer never throws errors during tokenization and forgives malformed
+markup:
 
 ```ts
 import { HTMLTokenizer } from 'tag-soup';
@@ -174,10 +171,9 @@ HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', (token, startIndex, endIn
 });
 ```
 
-[`XMLTokenizer`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html)
-parses XML markup and invokes a callback when a token is read. It throws
-[`ParserError`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't
-satisfy XML spec:
+[`XMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html) parses XML markup and invokes
+a callback when a token is read. It throws
+[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't satisfy XML spec:
 
 ```ts
 import { XMLTokenizer } from 'tag-soup';
@@ -191,7 +187,7 @@ XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', (token, startIndex, endIndex)
 ```
 
 Create a custom tokenizer using
-[`createTokenizer`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html):
+[`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html):
 
 ```ts
 import { createTokenizer } from 'tag-soup';
@@ -208,8 +204,8 @@ myTokenizer.tokenizeFragment('<p><br></p>', (token, startIndex, endIndex) => {
 # Serialization
 
 TagSoup exports two preconfigured serializers:
-[`toHTML`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/toHTML.html) and
-[`toXML`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/variables/toXML.html).
+[`toHTML`](https://smikhalevski.github.io/tag-soup/variables/toHTML.html) and
+[`toXML`](https://smikhalevski.github.io/tag-soup/variables/toXML.html).
 
 ```ts
 import { HTMLDOMParser, toHTML } from 'tag-soup';
@@ -222,7 +218,7 @@ toHTML(fragment);
 ```
 
 Create a custom serializer using
-[`createSerializer`&#8239;<sup>↗</sup>](https://smikhalevski.github.io/tag-soup/functions/createSerializer.html):
+[`createSerializer`](https://smikhalevski.github.io/tag-soup/functions/createSerializer.html):
 
 ```ts
 import { HTMLDOMParser, createSerializer } from 'tag-soup';
@@ -261,7 +257,7 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 <tr>
 <td align="right">tag-soup&#x200B;@3.0.0</td>
 <td align="right">
-<a href="https://bundlephobia.com/package/tag-soup@3.0.0">20 kB&#8239;<sup>↗</sup></a>
+<a href="https://bundlephobia.com/package/tag-soup@3.0.0">20 kB</a>
 </td>
 <td align="right"><strong>26 Hz</strong></td>
 <td align="right"><strong>22 MB</strong></td>
@@ -274,7 +270,7 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 <a href="https://github.com/fb55/htmlparser2">htmlparser2</a>&#x200B;@10.0.0
 </td>
 <td align="right">
-<a href="https://bundlephobia.com/package/htmlparser2@10.0.0">58 kB&#8239;<sup>↗</sup></a>
+<a href="https://bundlephobia.com/package/htmlparser2@10.0.0">58 kB</a>
 </td>
 <td align="right">19 Hz</td>
 <td align="right">23 MB</td>
@@ -287,7 +283,7 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 <a href="https://github.com/inikulin/parse5">parse5</a>&#x200B;@8.0.0
 </td>
 <td align="right">
-<a href="https://bundlephobia.com/package/parse5@8.0.0">45 kB&#8239;<sup>↗</sup></a>
+<a href="https://bundlephobia.com/package/parse5@8.0.0">45 kB</a>
 </td>
 <td align="right">7 Hz</td>
 <td align="right">105 MB</td>
@@ -321,7 +317,7 @@ Assume the following markup:
 <p>nope
 ```
 
-With [`DOMParser`&#8239;<sup>↗</sup>](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser) this markup would be transformed to:
+With [`DOMParser`](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser) this markup would be transformed to:
 
 ```html
 <p><strong>okay</strong></p>
