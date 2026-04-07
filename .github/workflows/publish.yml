@@ -60,6 +60,15 @@ jobs:
 
           echo "::notice title=Package::npm install --save-exact $(npm pkg get name | xargs)@$(npm pkg get version | xargs)"
 
+      - name: Update latest tag
+        if: github.event_name == 'push'
+        run: |
+          set -x
+
+          git push origin :refs/tags/latest
+          git tag --force latest
+          git push origin tag latest
+
       - name: Create release notes
         if: github.event_name == 'push'
         run: gh release create ${{ github.ref_name }} --generate-notes --draft
