@@ -789,6 +789,8 @@ function isXMLNameChar(charCode: number): boolean {
     isXMLNameStartChar(charCode) ||
     charCode === /* - */ 45 ||
     charCode === /* . */ 46 ||
+    charCode === 0xb7 ||
+    (charCode >= /* 0 */ 48 && charCode <= /* 9 */ 57) ||
     (charCode >= 0x0300 && charCode <= 0x036f) ||
     (charCode >= 0x203f && charCode <= 0x2040)
   );
