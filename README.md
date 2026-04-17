@@ -407,27 +407,27 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 </tr>
 
 <tr>
-<td align="right">tag-soup&#x200B;@3.0.0</td>
+<td align="right">tag-soup&#x200B;@3.2.1</td>
 <td align="right">
-<a href="https://bundlephobia.com/package/tag-soup@3.0.0">20 kB</a>
+<a href="https://bundlephobia.com/package/tag-soup@3.0.0">21 kB</a>
 </td>
-<td align="right"><strong>26 Hz</strong></td>
+<td align="right"><strong>35 Hz</strong></td>
 <td align="right"><strong>22 MB</strong></td>
-<td align="right"><strong>58 Hz</strong></td>
+<td align="right"><strong>54 Hz</strong></td>
 <td align="right"><strong>22 kB</strong></td>
 </tr>
 
 <tr>
 <td align="right">
-<a href="https://github.com/fb55/htmlparser2">htmlparser2</a>&#x200B;@10.0.0
+<a href="https://github.com/fb55/htmlparser2">htmlparser2</a>&#x200B;@12.0.0
 </td>
 <td align="right">
-<a href="https://bundlephobia.com/package/htmlparser2@10.0.0">58 kB</a>
+<a href="https://bundlephobia.com/package/htmlparser2@12.0.0">34 kB</a>
 </td>
-<td align="right">19 Hz</td>
-<td align="right">23 MB</td>
-<td align="right">31 Hz</td>
-<td align="right">10 MB</td>
+<td align="right">15 Hz</td>
+<td align="right">35 MB</td>
+<td align="right">24 Hz</td>
+<td align="right">6 MB</td>
 </tr>
 
 <tr>
@@ -439,15 +439,15 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 </td>
 <td align="right">7 Hz</td>
 <td align="right">105 MB</td>
-<td align="right">12 Hz</td>
+<td align="right">11 Hz</td>
 <td align="right">10 MB</td>
 </tr>
 
 </table>
 
-Performance was measured when parsing [the 3.8 MB HTML file](./src/test/test.html).
+Performance was measured when parsing [the 3.64 MB HTML file](./src/test/test.html).
 
-Tests were conducted using [TooFast](https://github.com/smikhalevski/toofast#readme) on Apple M1 with Node.js v23.11.1.
+Tests were conducted using [TooFast](https://github.com/smikhalevski/toofast#readme) on Apple M1 with Node.js v25.6.0.
 
 To reproduce [the performance test suite](./src/test/perf/overall.perf.js) results, clone this repo and run:
 
