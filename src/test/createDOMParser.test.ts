@@ -19,7 +19,7 @@ test('parses nested elements', () => {
 });
 
 test('parses self-closing tags elements', () => {
-  expect(parseDOM('<aaa><bbb/></aaa>', { isSelfClosingTagsRecognized: true })).toEqual(f.doc(f.aaa(f.bbb())));
+  expect(parseDOM('<aaa><bbb/></aaa>', { areSelfClosingTagsRecognized: true })).toEqual(f.doc(f.aaa(f.bbb())));
 });
 
 test('parses comments', () => {
@@ -31,13 +31,13 @@ test('parses comments in elements', () => {
 });
 
 test('parses processing instructions in elements', () => {
-  expect(parseDOM('<aaa><?xxx yyy?></aaa>', { isProcessingInstructionRecognized: true })).toEqual(
+  expect(parseDOM('<aaa><?xxx yyy?></aaa>', { areProcessingInstructionsRecognized: true })).toEqual(
     f.doc(f.aaa(f.pi('xxx', 'yyy')))
   );
 });
 
 test('parses DOCTYPE, processing instruction and text', () => {
-  expect(parseDOM('   <!DOCTYPE html>  <?xxx yyy?>  vvv', { isProcessingInstructionRecognized: true })).toEqual(
+  expect(parseDOM('   <!DOCTYPE html>  <?xxx yyy?>  vvv', { areProcessingInstructionsRecognized: true })).toEqual(
     f.doc(f.doctype('html'), f.pi('xxx', 'yyy'), 'vvv')
   );
 });

@@ -23,14 +23,14 @@ export interface SerializerOptions {
    *
    * @default false
    */
-  isCaseInsensitiveTags?: boolean;
+  areTagNamesCaseInsensitive?: boolean;
 
   /**
    * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
    *
    * @default false
    */
-  isSelfClosingTagsSupported?: boolean;
+  areSelfClosingTagsSupported?: boolean;
 
   /**
    * Encodes text content. Use this method to encode HTML/XML entities.
@@ -55,16 +55,16 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
 }
 
 export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
-  const { voidTags, isCaseInsensitiveTags, isSelfClosingTagsSupported, encodeText } = options;
+  const { voidTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
 
-  const getHashCode = isCaseInsensitiveTags ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
   return {
     toHashCode,
     voidTags: voidTags && new Set(voidTags.map(toHashCode)),
-    isSelfClosingTagsSupported,
+    areSelfClosingTagsSupported,
     encodeText,
   };
 }

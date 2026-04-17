@@ -63,8 +63,8 @@ export interface ResolvedTokenizerOptions extends ReadTokensOptions {
   voidTags?: Set<number>;
   implicitlyClosedTags?: Map<number, Set<number>>;
   implicitlyOpenedTags?: Set<number>;
-  isUnbalancedStartTagsImplicitlyClosed?: boolean;
-  isUnbalancedEndTagsIgnored?: boolean;
+  areUnbalancedStartTagsImplicitlyClosed?: boolean;
+  areUnbalancedEndTagsIgnored?: boolean;
 }
 
 /**
@@ -92,8 +92,8 @@ export function tokenizeMarkup(text: string, callback: TokenCallback, options: R
     voidTags,
     implicitlyClosedTags,
     implicitlyOpenedTags,
-    isUnbalancedStartTagsImplicitlyClosed = false,
-    isUnbalancedEndTagsIgnored = false,
+    areUnbalancedStartTagsImplicitlyClosed = false,
+    areUnbalancedEndTagsIgnored = false,
   } = options;
 
   const tagStack = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -152,7 +152,7 @@ export function tokenizeMarkup(text: string, callback: TokenCallback, options: R
 
         // Found a start tag
         if (index !== -1) {
-          if (!isUnbalancedStartTagsImplicitlyClosed && index !== tagStackCursor) {
+          if (!areUnbalancedStartTagsImplicitlyClosed && index !== tagStackCursor) {
             throw new ParserError('Expected an end tag.', text, endTagStartIndex);
           }
 
@@ -168,7 +168,7 @@ export function tokenizeMarkup(text: string, callback: TokenCallback, options: R
         }
 
         if (implicitlyOpenedTags === undefined || !implicitlyOpenedTags.has(endTag)) {
-          if (!isUnbalancedEndTagsIgnored) {
+          if (!areUnbalancedEndTagsIgnored) {
             throw new ParserError('Unexpected end tag.', text, startIndex, endIndex);
           }
           break;
@@ -197,7 +197,7 @@ export function tokenizeMarkup(text: string, callback: TokenCallback, options: R
 
   readTokens(text, tokenCallback, options);
 
-  if (tagStackCursor !== -1 && !isUnbalancedStartTagsImplicitlyClosed) {
+  if (tagStackCursor !== -1 && !areUnbalancedStartTagsImplicitlyClosed) {
     throw new ParserError('Unexpected end of the document.', text, text.length);
   }
 
@@ -251,10 +251,10 @@ const TOKEN_DOCTYPE_NAME = 'DOCTYPE_NAME';
 export interface ReadTokensOptions {
   readTag?: (text: string, startIndex: number, endIndex: number) => number;
   rawTextTags?: Set<number>;
-  isSelfClosingTagsRecognized?: boolean;
   isFragment?: boolean;
-  isCDATARecognized?: boolean;
-  isProcessingInstructionRecognized?: boolean;
+  areSelfClosingTagsRecognized?: boolean;
+  areCDATASectionsRecognized?: boolean;
+  areProcessingInstructionsRecognized?: boolean;
   isStrict?: boolean;
 }
 
@@ -267,10 +267,10 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
   const {
     readTag = getCaseSensitiveHashCode,
     rawTextTags,
-    isSelfClosingTagsRecognized = false,
     isFragment,
-    isCDATARecognized = false,
-    isProcessingInstructionRecognized = false,
+    areSelfClosingTagsRecognized = false,
+    areCDATASectionsRecognized = false,
+    areProcessingInstructionsRecognized = false,
     isStrict = false,
   } = options;
 
@@ -287,11 +287,11 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
     let charCode = text.charCodeAt(index);
 
     if (scope === SCOPE_START_TAG) {
-      // ----------------------
+      // ----------------------------------------------------------
       // Self-closing start tag
-      // ----------------------
+      // ----------------------------------------------------------
 
-      if (isSelfClosingTagsRecognized && charCode === /* / */ 47 && getCharCodeAt(text, index + 1) === /* > */ 62) {
+      if (areSelfClosingTagsRecognized && charCode === /* / */ 47 && getCharCodeAt(text, index + 1) === /* > */ 62) {
         // Skip "/>"
         nextIndex += 2;
 
@@ -303,9 +303,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
         continue;
       }
 
-      // ----------------------
+      // ----------------------------------------------------------
       // Closing of a start tag
-      // ----------------------
+      // ----------------------------------------------------------
 
       if (charCode === /* > */ 62) {
         // Skip ">"
@@ -319,9 +319,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
         continue;
       }
 
-      // ---------
+      // ----------------------------------------------------------
       // Attribute
-      // ---------
+      // ----------------------------------------------------------
 
       nextIndex = skipAttributeName(text, index);
 
@@ -335,7 +335,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
         throw new ParserError(
           'Expected an attribute name' +
-            (isSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
+            (areSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
             " or a start tag closing ('>').",
           text,
           index,
@@ -373,9 +373,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
         throw new ParserError("Expected a double-quoted attribute value ('\"').", text, nextIndex, nextIndex + 1);
       }
 
-      // ------------------------
+      // ----------------------------------------------------------
       // Unquoted attribute value
-      // ------------------------
+      // ----------------------------------------------------------
 
       if (quoteCharCode !== /* " */ 34 && quoteCharCode !== /* ' */ 39) {
         callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = skipChars(text, nextIndex, isHTMLAttributeNameChar)));
@@ -384,9 +384,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
         continue;
       }
 
-      // ----------------------
+      // ----------------------------------------------------------
       // Quoted attribute value
-      // ----------------------
+      // ----------------------------------------------------------
 
       // Skip opening quote char
       const attributeValueStartIndex = ++nextIndex;
@@ -411,9 +411,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // --------------------
+    // ----------------------------------------------------------
     // Skip to the next tag
-    // --------------------
+    // ----------------------------------------------------------
 
     if (charCode !== /* < */ 60) {
       scope = SCOPE_TEXT;
@@ -426,11 +426,11 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
     charCode = getCharCodeAt(text, nextIndex);
 
-    // ----------------------
+    // ----------------------------------------------------------
     // Processing instruction
-    // ----------------------
+    // ----------------------------------------------------------
 
-    if (isProcessingInstructionRecognized && enclosingRawTextTag === 0 && charCode === /* ? */ 63) {
+    if (areProcessingInstructionsRecognized && enclosingRawTextTag === 0 && charCode === /* ? */ 63) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
         callback(TOKEN_TEXT, textStartIndex, index);
@@ -468,9 +468,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // -------
+    // ----------------------------------------------------------
     // DOCTYPE
-    // -------
+    // ----------------------------------------------------------
 
     if (
       scope === SCOPE_PROLOGUE &&
@@ -495,12 +495,12 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // -------------
+    // ----------------------------------------------------------
     // CDATA section
-    // -------------
+    // ----------------------------------------------------------
 
     if (
-      isCDATARecognized &&
+      areCDATASectionsRecognized &&
       enclosingRawTextTag === 0 &&
       getCharCodeAt(text, nextIndex + 1) === /* [ */ 91 &&
       getCaseInsensitiveCharCodeAt(text, nextIndex + 2) === /* c */ 99 &&
@@ -525,9 +525,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // -------
+    // ----------------------------------------------------------
     // Comment
-    // -------
+    // ----------------------------------------------------------
 
     if (
       enclosingRawTextTag === 0 &&
@@ -557,9 +557,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // --------------
+    // ----------------------------------------------------------
     // Quirky comment
-    // --------------
+    // ----------------------------------------------------------
 
     if (enclosingRawTextTag === 0 && (charCode === /* ? */ 63 || charCode === /* ! */ 33)) {
       if (textStartIndex !== index) {
@@ -572,9 +572,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
           charCode === /* ? */ 63
             ? 'Processing instructions are forbidden.'
             : "Expected a comment ('<!--')" +
-              (isFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
-              (isCDATARecognized ? ", or a CDATA section ('<![CDATA[[')" : '') +
-              '.',
+                (isFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
+                (areCDATASectionsRecognized ? ", or a CDATA section ('<![CDATA[[')" : '') +
+                '.',
           text,
           nextIndex - 1,
           nextIndex + 1
@@ -595,15 +595,15 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // -------------
+    // ----------------------------------------------------------
     // End of prolog
-    // -------------
+    // ----------------------------------------------------------
 
     scope = SCOPE_TEXT;
 
-    // -------
+    // ----------------------------------------------------------
     // End tag
-    // -------
+    // ----------------------------------------------------------
 
     if (charCode === /* / */ 47) {
       // Skip "/"
@@ -655,9 +655,9 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       continue;
     }
 
-    // ---------
+    // ----------------------------------------------------------
     // Start tag
-    // ---------
+    // ----------------------------------------------------------
 
     // Start tags are ignored inside raw text tags
     if (enclosingRawTextTag !== 0) {

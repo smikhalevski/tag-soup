@@ -6,15 +6,15 @@ import { createSerializer, SerializerOptions } from './createSerializer.js';
 import { createTokenizer } from './createTokenizer.js';
 
 const xmlParserOptions: ParserOptions = {
-  isSelfClosingTagsRecognized: true,
-  isProcessingInstructionRecognized: true,
-  isCDATARecognized: true,
+  areSelfClosingTagsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areCDATASectionsRecognized: true,
   isStrict: true,
   decodeText: decodeXML,
 };
 
 const xmlSerializerOptions: SerializerOptions = {
-  isSelfClosingTagsSupported: true,
+  areSelfClosingTagsSupported: true,
   encodeText: escapeXML,
 };
 

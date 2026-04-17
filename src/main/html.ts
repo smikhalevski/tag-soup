@@ -91,16 +91,16 @@ const htmlParserOptions: ParserOptions = {
     tfoot: tableSectionTags,
   },
   implicitlyOpenedTags: ['p', 'br'],
-  isCaseInsensitiveTags: true,
-  isUnbalancedStartTagsImplicitlyClosed: true,
-  isUnbalancedEndTagsIgnored: true,
+  areTagNamesCaseInsensitive: true,
+  areUnbalancedStartTagsImplicitlyClosed: true,
+  areUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
 };
 
 const htmlSerializerOptions: SerializerOptions = {
   voidTags: htmlParserOptions.voidTags,
-  isCaseInsensitiveTags: true,
-  isSelfClosingTagsSupported: false,
+  areTagNamesCaseInsensitive: true,
+  areSelfClosingTagsSupported: false,
   encodeText: escapeXML,
 };
 

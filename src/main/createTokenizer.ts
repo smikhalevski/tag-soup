@@ -48,7 +48,7 @@ export interface TokenizerOptions {
    * { h1: ['p'] }
    * ```
    *
-   * Use in conjunctions with {@link isUnbalancedStartTagsImplicitlyClosed}.
+   * Use in conjunctions with {@link areUnbalancedStartTagsImplicitlyClosed}.
    */
   implicitlyClosedTags?: Record<string, string[]>;
 
@@ -56,7 +56,7 @@ export interface TokenizerOptions {
    * The list of tags for which a start tag is inserted if an unbalanced end tag is met. Otherwise,
    * a {@link ParserError} is thrown.
    *
-   * You can ignore unbalanced end tags with {@link isUnbalancedEndTagsIgnored}.
+   * You can ignore unbalanced end tags with {@link areUnbalancedEndTagsIgnored}.
    *
    * For example, in HTML `p` and `br` tags follow this semantics:
    *
@@ -74,7 +74,7 @@ export interface TokenizerOptions {
    * ['p', 'br']
    * ```
    *
-   * @see {@link isUnbalancedEndTagsIgnored}
+   * @see {@link areUnbalancedEndTagsIgnored}
    */
   implicitlyOpenedTags?: string[];
 
@@ -83,19 +83,19 @@ export interface TokenizerOptions {
    *
    * @default false
    */
-  isCaseInsensitiveTags?: boolean;
+  areTagNamesCaseInsensitive?: boolean;
 
   /**
    * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
    *
    * @default false
    */
-  isSelfClosingTagsRecognized?: boolean;
+  areSelfClosingTagsRecognized?: boolean;
 
   /**
    * If `true` then unbalanced start tags are forcefully closed. Otherwise, a {@link ParserError} is thrown.
    *
-   * Use in conjunctions with {@link isUnbalancedEndTagsIgnored}.
+   * Use in conjunctions with {@link areUnbalancedEndTagsIgnored}.
    *
    * ```html
    * <a><b></a>  →  <a><b></b></a>
@@ -104,13 +104,13 @@ export interface TokenizerOptions {
    *
    * @default false
    */
-  isUnbalancedStartTagsImplicitlyClosed?: boolean;
+  areUnbalancedStartTagsImplicitlyClosed?: boolean;
 
   /**
    * If `true` then end tags that don't have a corresponding start tag are ignored. Otherwise,
    * a {@link ParserError} is thrown.
    *
-   * Use in conjunctions with {@link isUnbalancedStartTagsImplicitlyClosed}.
+   * Use in conjunctions with {@link areUnbalancedStartTagsImplicitlyClosed}.
    *
    * ```html
    * <a></b></a> → <a></a>
@@ -119,21 +119,21 @@ export interface TokenizerOptions {
    *
    * @default false
    */
-  isUnbalancedEndTagsIgnored?: boolean;
+  areUnbalancedEndTagsIgnored?: boolean;
 
   /**
    * If `true` then CDATA sections are recognized.
    *
    * @default false
    */
-  isCDATARecognized?: boolean;
+  areCDATASectionsRecognized?: boolean;
 
   /**
    * If `true` then processing instructions are recognized.
    *
    * @default false
    */
-  isProcessingInstructionRecognized?: boolean;
+  areProcessingInstructionsRecognized?: boolean;
 
   /**
    * If `true` then tag names and attributes are processed with XML constraints.
@@ -213,16 +213,16 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
     rawTextTags,
     implicitlyClosedTags,
     implicitlyOpenedTags,
-    isCaseInsensitiveTags,
-    isSelfClosingTagsRecognized,
-    isUnbalancedStartTagsImplicitlyClosed,
-    isUnbalancedEndTagsIgnored,
-    isCDATARecognized,
-    isProcessingInstructionRecognized,
+    areTagNamesCaseInsensitive,
+    areSelfClosingTagsRecognized,
+    areUnbalancedStartTagsImplicitlyClosed,
+    areUnbalancedEndTagsIgnored,
+    areCDATASectionsRecognized,
+    areProcessingInstructionsRecognized,
     isStrict,
   } = options;
 
-  const getHashCode = isCaseInsensitiveTags ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
@@ -237,11 +237,11 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
       ),
     implicitlyOpenedTags: implicitlyOpenedTags && new Set(implicitlyOpenedTags.map(toHashCode)),
     isFragment: false,
-    isSelfClosingTagsRecognized,
-    isUnbalancedStartTagsImplicitlyClosed,
-    isUnbalancedEndTagsIgnored,
-    isCDATARecognized,
-    isProcessingInstructionRecognized,
+    areSelfClosingTagsRecognized,
+    areUnbalancedStartTagsImplicitlyClosed,
+    areUnbalancedEndTagsIgnored,
+    areCDATASectionsRecognized,
+    areProcessingInstructionsRecognized,
     isStrict,
   };
 }

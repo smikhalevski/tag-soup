@@ -17,7 +17,7 @@ import {
 export interface ResolvedSerializerOptions {
   toHashCode: (str: string) => number;
   voidTags?: Set<number>;
-  isSelfClosingTagsSupported?: boolean;
+  areSelfClosingTagsSupported?: boolean;
   encodeText?: (text: string) => string;
 }
 
@@ -28,7 +28,7 @@ export interface ResolvedSerializerOptions {
  * @param options Serialization options.
  */
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
-  const { toHashCode, voidTags, isSelfClosingTagsSupported, encodeText = identity } = options;
+  const { toHashCode, voidTags, areSelfClosingTagsSupported, encodeText = identity } = options;
 
   if (node instanceof Element) {
     let xml = '<' + node.tagName;
@@ -47,7 +47,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
       xml += '</' + node.tagName + '>';
     } else if (voidTags !== undefined && voidTags.has(toHashCode(node.tagName))) {
       xml += '>';
-    } else if (isSelfClosingTagsSupported) {
+    } else if (areSelfClosingTagsSupported) {
       xml += '/>';
     } else {
       xml += '></' + node.tagName + '>';

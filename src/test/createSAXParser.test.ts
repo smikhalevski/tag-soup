@@ -42,7 +42,7 @@ test('parses text', () => {
 
 test('parses element', () => {
   parseSAX('<aaa>bbb</AAA>', mockHandler, {
-    ...resolveTokenizerOptions({ isCaseInsensitiveTags: true }),
+    ...resolveTokenizerOptions({ areTagNamesCaseInsensitive: true }),
     decodeText: decodeXML,
   });
 
@@ -71,7 +71,7 @@ test('parses element', () => {
 
 test('parses element with implicitly inserted end tag', () => {
   parseSAX('<aaa>bbb', mockHandler, {
-    ...resolveTokenizerOptions({ isUnbalancedStartTagsImplicitlyClosed: true }),
+    ...resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true }),
     decodeText: decodeXML,
   });
 
@@ -129,7 +129,7 @@ test('parses attributes', () => {
 
 test('parses self-closing tags elements', () => {
   parseSAX('<aaa><bbb/></aaa>', mockHandler, {
-    ...resolveTokenizerOptions({ isSelfClosingTagsRecognized: true }),
+    ...resolveTokenizerOptions({ areSelfClosingTagsRecognized: true }),
     decodeText: decodeXML,
   });
 
@@ -177,7 +177,11 @@ test('parses comments', () => {
 });
 
 test('parses processing instructions in elements', () => {
-  parseSAX('<aaa><?xxx yyy?></aaa>', mockHandler, resolveTokenizerOptions({ isProcessingInstructionRecognized: true }));
+  parseSAX(
+    '<aaa><?xxx yyy?></aaa>',
+    mockHandler,
+    resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+  );
 
   expect(mockHandler.onText).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagOpening).toHaveBeenCalledTimes(1);
@@ -201,7 +205,7 @@ test('parses DOCTYPE, processing instruction and text', () => {
   parseSAX(
     '   <!DOCTYPE html>  <?xxx yyy?>  vvv',
     mockHandler,
-    resolveTokenizerOptions({ isProcessingInstructionRecognized: true })
+    resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
   );
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
@@ -277,7 +281,7 @@ test('calls onStartTag if it is a single handler', () => {
   parseSAX(
     '<aaa xxx="yyy"><bbb zzz="vvv">',
     mockHandler,
-    resolveTokenizerOptions({ isUnbalancedStartTagsImplicitlyClosed: true })
+    resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true })
   );
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
@@ -290,7 +294,7 @@ test('calls onEndTag if it is a single handler', () => {
     onEndTag: vi.fn(),
   } satisfies SAXHandler;
 
-  parseSAX('<aaa><bbb>', mockHandler, resolveTokenizerOptions({ isUnbalancedStartTagsImplicitlyClosed: true }));
+  parseSAX('<aaa><bbb>', mockHandler, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true }));
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');

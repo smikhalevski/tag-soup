@@ -304,12 +304,12 @@ mySerializer(fragment);
 [`SerializerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html) accepts the
 following properties:
 
-| Option                        | Description                                                       |
-| :---------------------------- | :---------------------------------------------------------------- |
-| `voidTags`                    | Tags that have no content and no closing tag (e.g. `br`, `img`).  |
-| `encodeText`                  | Callback to encode text content and attribute values.             |
-| `isSelfClosingTags​Supported` | If `true`, void tags are serialized as `<br/>` instead of `<br>`. |
-| `isCaseInsensitiveTags`       | If `true`, tag name comparisons are case-insensitive.             |
+| Option                         | Description                                                       |
+| :----------------------------- | :---------------------------------------------------------------- |
+| `voidTags`                     | Tags that have no content and no closing tag (e.g. `br`, `img`).  |
+| `encodeText`                   | Callback to encode text content and attribute values.             |
+| `areSelfClosingTags​Supported` | If `true`, void tags are serialized as `<br/>` instead of `<br>`. |
+| `areTagNamesCaseInsensitive`   | If `true`, tag name comparisons are case-insensitive.             |
 
 Serialize XML with entity encoding:
 
@@ -318,7 +318,7 @@ import { XMLDOMParser, createSerializer } from 'tag-soup';
 import { encodeXML } from 'speedy-entities';
 
 const toXMLEncoded = createSerializer({
-  isSelfClosingTagsSupported: true,
+  areSelfClosingTagsSupported: true,
   encodeText: encodeXML,
 });
 
@@ -333,20 +333,20 @@ toXMLEncoded(fragment);
 `createDOMParser`, `createSAXParser`, and `createTokenizer` accept a
 [`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html) object.
 
-| Option                                    | Description                                                                                                                                                                    |
-| :---------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `voidTags`                                | Tags that have no content and no end tag (e.g. `br`, `img`). See [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements).                |
-| `rawTextTags`                             | Tags whose content is treated as raw text (e.g. `script`, `style`). See [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements). |
-| `decodeText`                              | Callback to decode text content and attribute values (e.g. `decodeHTML` from `speedy-entities`).                                                                               |
-| `implicitlyClosedTags`                    | Map from a tag to the list of open tags it implicitly closes. For example `{ h1: ['p'] }` means an opening `<h1>` closes any currently open `<p>`.                             |
-| `implicitlyOpenedTags`                    | Tags for which a synthetic start tag is inserted when an unbalanced end tag is encountered (e.g. `['p', 'br']` so `</p>` becomes `<p></p>`).                                   |
-| `isCaseInsensitiveTags`                   | If `true`, tag name comparisons ignore ASCII case.                                                                                                                             |
-| `isCDATARecognized`                       | If `true`, CDATA sections (`<![CDATA[...]]>`) are recognized.                                                                                                                  |
-| `isProcessing​Instruction​Recognized`     | If `true`, processing instructions (`<?target data?>`) are recognized.                                                                                                         |
-| `isSelfClosingTags​Recognized`            | If `true`, self-closing tags (`<br/>`) are recognized; otherwise treated as start tags.                                                                                        |
-| `isStrict`                                | If `true`, tag names and attributes are validated against XML constraints.                                                                                                     |
-| `isUnbalanced​EndTags​Ignored`            | If `true`, end tags without a matching start tag are silently dropped instead of throwing.                                                                                     |
-| `isUnbalanced​StartTags​ImplicitlyClosed` | If `true`, unclosed start tags are forcefully closed at the end of their parent.                                                                                               |
+| Option                                     | Description                                                                                                                                                                    |
+| :----------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `voidTags`                                 | Tags that have no content and no end tag (e.g. `br`, `img`). See [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements).                |
+| `rawTextTags`                              | Tags whose content is treated as raw text (e.g. `script`, `style`). See [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements). |
+| `decodeText`                               | Callback to decode text content and attribute values (e.g. `decodeHTML` from `speedy-entities`).                                                                               |
+| `implicitlyClosedTags`                     | Map from a tag to the list of open tags it implicitly closes. For example `{ h1: ['p'] }` means an opening `<h1>` closes any currently open `<p>`.                             |
+| `implicitlyOpenedTags`                     | Tags for which a synthetic start tag is inserted when an unbalanced end tag is encountered (e.g. `['p', 'br']` so `</p>` becomes `<p></p>`).                                   |
+| `areTagNames​CaseInsensitive`              | If `true`, tag name comparisons ignore ASCII case.                                                                                                                             |
+| `areCDATASections​Recognized`              | If `true`, CDATA sections (`<![CDATA[...]]>`) are recognized.                                                                                                                  |
+| `areProcessing​Instruction​Recognized`     | If `true`, processing instructions (`<?target data?>`) are recognized.                                                                                                         |
+| `areSelfClosingTags​Recognized`            | If `true`, self-closing tags (`<br/>`) are recognized; otherwise treated as start tags.                                                                                        |
+| `isStrict`                                 | If `true`, tag names and attributes are validated against XML constraints.                                                                                                     |
+| `areUnbalanced​EndTags​Ignored`            | If `true`, end tags without a matching start tag are silently dropped instead of throwing.                                                                                     |
+| `areUnbalanced​StartTags​ImplicitlyClosed` | If `true`, unclosed start tags are forcefully closed at the end of their parent.                                                                                               |
 
 A parser that mimics browser HTML behavior:
 
@@ -373,9 +373,9 @@ const myParser = createDOMParser({
   ],
   rawTextTags: ['script', 'style'],
   decodeText,
-  isCaseInsensitiveTags: true,
-  isUnbalancedEndTagsIgnored: true,
-  isUnbalancedStartTagsImplicitlyClosed: true,
+  areTagNamesCaseInsensitive: true,
+  areUnbalancedEndTagsIgnored: true,
+  areUnbalancedStartTagsImplicitlyClosed: true,
   implicitlyClosedTags: {
     h1: ['p'],
     h2: ['p'],
