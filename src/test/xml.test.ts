@@ -4,8 +4,6 @@ import { f } from 'flyweight-dom/dsl';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const memberslistxmlXml = fs.readFileSync(path.resolve(import.meta.dirname, './memberslistxml.xml'), 'utf-8');
-
 test('parses XML DOM', () => {
   expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
 });
@@ -17,5 +15,7 @@ test('serializes XML', () => {
 });
 
 test('parses large XML', () => {
-  expect(() => XMLDOMParser.parseDocument(memberslistxmlXml)).not.toThrow();
+  const testXml = fs.readFileSync(path.resolve(import.meta.dirname, './test.xml'), 'utf-8');
+
+  expect(() => XMLDOMParser.parseDocument(testXml)).not.toThrow();
 });

@@ -2,7 +2,7 @@ import { ResolvedTokenizerOptions } from './tokenizeMarkup.js';
 import { TokenizerOptions } from './createTokenizer.js';
 
 /**
- * Options of the {@link createDOMParser}.
+ * Options of {@link createDOMParser} and {@link createSAXParser}.
  *
  * @group Parser
  */
