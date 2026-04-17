@@ -9,6 +9,7 @@ const mockHandler = {
   onStartTagOpening: vi.fn(),
   onStartTagClosing: vi.fn(),
   onStartTagSelfClosing: vi.fn(),
+  onStartTag: vi.fn(),
   onEndTag: vi.fn(),
   onAttribute: vi.fn(),
   onCDATASection: vi.fn(),
@@ -18,16 +19,7 @@ const mockHandler = {
 } satisfies SAXHandler;
 
 beforeEach(() => {
-  mockHandler.onText.mockReset();
-  mockHandler.onStartTagOpening.mockReset();
-  mockHandler.onStartTagClosing.mockReset();
-  mockHandler.onStartTagSelfClosing.mockReset();
-  mockHandler.onEndTag.mockReset();
-  mockHandler.onAttribute.mockReset();
-  mockHandler.onCDATASection.mockReset();
-  mockHandler.onComment.mockReset();
-  mockHandler.onDoctype.mockReset();
-  mockHandler.onProcessingInstruction.mockReset();
+  vi.resetAllMocks();
 });
 
 test('parses text', () => {
@@ -39,6 +31,7 @@ test('parses text', () => {
   expect(mockHandler.onStartTagOpening).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagClosing).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+  expect(mockHandler.onStartTag).not.toHaveBeenCalled();
   expect(mockHandler.onEndTag).not.toHaveBeenCalled();
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -62,6 +55,9 @@ test('parses element', () => {
   expect(mockHandler.onStartTagClosing).toHaveBeenCalledTimes(1);
 
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
@@ -89,6 +85,9 @@ test('parses element with implicitly inserted end tag', () => {
 
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
 
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
 
@@ -111,6 +110,9 @@ test('parses attributes', () => {
   expect(mockHandler.onStartTagClosing).toHaveBeenCalledTimes(1);
 
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xxx: 'yyy', zzz: 'vvv' }, false);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
@@ -141,6 +143,10 @@ test('parses self-closing tags elements', () => {
 
   expect(mockHandler.onStartTagSelfClosing).toHaveBeenCalledTimes(1);
 
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', {}, true);
+
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
 
@@ -158,6 +164,7 @@ test('parses comments', () => {
   expect(mockHandler.onStartTagOpening).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagClosing).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+  expect(mockHandler.onStartTag).not.toHaveBeenCalled();
   expect(mockHandler.onEndTag).not.toHaveBeenCalled();
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -176,6 +183,10 @@ test('parses processing instructions in elements', () => {
   expect(mockHandler.onStartTagOpening).toHaveBeenCalledTimes(1);
   expect(mockHandler.onStartTagClosing).toHaveBeenCalledTimes(1);
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -199,6 +210,7 @@ test('parses DOCTYPE, processing instruction and text', () => {
   expect(mockHandler.onStartTagOpening).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagClosing).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+  expect(mockHandler.onStartTag).not.toHaveBeenCalled();
   expect(mockHandler.onEndTag).not.toHaveBeenCalled();
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -220,6 +232,7 @@ test('parses DOCTYPE, text and quirky comment', () => {
   expect(mockHandler.onStartTagOpening).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagClosing).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+  expect(mockHandler.onStartTag).not.toHaveBeenCalled();
   expect(mockHandler.onEndTag).not.toHaveBeenCalled();
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -242,6 +255,7 @@ test('parses quirky comment, DOCTYPE and text', () => {
   expect(mockHandler.onStartTagOpening).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagClosing).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
+  expect(mockHandler.onStartTag).not.toHaveBeenCalled();
   expect(mockHandler.onEndTag).not.toHaveBeenCalled();
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -253,4 +267,32 @@ test('parses quirky comment, DOCTYPE and text', () => {
   expect(mockHandler.onDoctype).toHaveBeenNthCalledWith(1, 'html');
 
   expect(mockHandler.onProcessingInstruction).not.toHaveBeenCalled();
+});
+
+test('calls onStartTag if it is a single handler', () => {
+  const mockHandler = {
+    onStartTag: vi.fn(),
+  } satisfies SAXHandler;
+
+  parseSAX(
+    '<aaa xxx="yyy"><bbb zzz="vvv">',
+    mockHandler,
+    resolveTokenizerOptions({ isUnbalancedStartTagsImplicitlyClosed: true })
+  );
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xxx: 'yyy' }, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', { zzz: 'vvv' }, false);
+});
+
+test('calls onEndTag if it is a single handler', () => {
+  const mockHandler = {
+    onEndTag: vi.fn(),
+  } satisfies SAXHandler;
+
+  parseSAX('<aaa><bbb>', mockHandler, resolveTokenizerOptions({ isUnbalancedStartTagsImplicitlyClosed: true }));
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'aaa');
 });

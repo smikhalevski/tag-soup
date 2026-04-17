@@ -167,6 +167,7 @@ callbacks. Implement only the ones you need.
 | `onAttribute`             | An attribute and its decoded value were read.  |
 | `onStartTagClosing`       | A start tag is closed `>`.                     |
 | `onStartTagSelfClosing`   | A start tag is self-closed `/>`.               |
+| `onStartTag`              | A start tag and its atributes were read.       |
 | `onEndTag`                | An end tag matching an open start tag is read. |
 | `onText`                  | A decoded text content is read.                |
 | `onComment`               | A comment is read.                             |
@@ -191,6 +192,9 @@ HTMLSAXParser.parseFragment('<!-- greeting --><p class="x">hello</p>', {
   },
   onStartTagClosing() {
     // Called after all attributes of 'p' are read
+  },
+  onStartTag(tagName, attributes, isSelfClosing) {
+    // Called after onStartTagClosing
   },
   onText(text) {
     // Called with 'hello'

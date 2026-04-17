@@ -33,6 +33,15 @@ export interface SAXHandler {
   onStartTagSelfClosing?(): void;
 
   /**
+   * Called when a start tag is closed.
+   *
+   * @param tagName The start tag name.
+   * @param attributes Associated attributes.
+   * @param isSelfClosing `true` if tag is self-closing.
+   */
+  onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
+
+  /**
    * Called when an end tag is read.
    *
    * @param tagName The tag name that matches the currently opened start tag.
@@ -153,6 +162,7 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
   let attributeNameEndIndex = 0;
   let piTargetStartIndex = 0;
   let piTargetEndIndex = 0;
+  let attributes: Record<string, string> | undefined;
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
@@ -170,8 +180,12 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
           handler.onStartTagOpening(tagName);
         }
 
-        if (handler.onEndTag !== undefined) {
-          tagNameStack[++tagNameStackCursor] = tagName === undefined ? text.substring(startIndex, endIndex) : tagName;
+        if (handler.onEndTag !== undefined || handler.onStartTag !== undefined) {
+          tagNameStack[++tagNameStackCursor] = tagName !== undefined ? tagName : text.substring(startIndex, endIndex);
+        }
+
+        if (handler.onStartTag !== undefined) {
+          attributes = {};
         }
         break;
 
@@ -179,14 +193,24 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
         if (handler.onStartTagClosing !== undefined) {
           handler.onStartTagClosing();
         }
+
+        if (handler.onStartTag !== undefined) {
+          handler.onStartTag(tagNameStack[tagNameStackCursor], attributes!, false);
+          attributes = undefined;
+        }
         break;
 
       case 'START_TAG_SELF_CLOSING':
-        --tagNameStackCursor;
-
         if (handler.onStartTagSelfClosing !== undefined) {
           handler.onStartTagSelfClosing();
         }
+
+        if (handler.onStartTag !== undefined) {
+          handler.onStartTag(tagNameStack[tagNameStackCursor], attributes!, true);
+          attributes = undefined;
+        }
+
+        --tagNameStackCursor;
         break;
 
       case 'END_TAG_NAME':
@@ -201,11 +225,19 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
         break;
 
       case 'ATTRIBUTE_VALUE':
+        if (attributes === undefined && handler.onAttribute === undefined) {
+          break;
+        }
+
+        const attributeName = text.substring(attributeNameStartIndex, attributeNameEndIndex);
+        const attributeValue = decodeText(text.substring(startIndex, endIndex));
+
+        if (attributes !== undefined) {
+          attributes[attributeName] = attributeValue;
+        }
+
         if (handler.onAttribute !== undefined) {
-          handler.onAttribute(
-            text.substring(attributeNameStartIndex, attributeNameEndIndex),
-            decodeText(text.substring(startIndex, endIndex))
-          );
+          handler.onAttribute(attributeName, attributeValue);
         }
         break;
 

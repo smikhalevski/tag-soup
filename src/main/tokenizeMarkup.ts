@@ -758,7 +758,7 @@ function skipSpaces(text: string, index: number): number {
 
 // https://www.w3.org/TR/xml/#NT-S
 function isSpaceChar(charCode: number): boolean {
-  return charCode == /* \s */ 32 || charCode === /* \n */ 10 || charCode === /* \t */ 9 || charCode === /* \r */ 13;
+  return charCode === /* \s */ 32 || charCode === /* \n */ 10 || charCode === /* \t */ 9 || charCode === /* \r */ 13;
 }
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
