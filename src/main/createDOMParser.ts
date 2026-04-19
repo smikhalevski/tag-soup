@@ -1,5 +1,5 @@
 import { resolveTokenizerOptions } from './createTokenizer.js';
-import { ParserError, TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
+import { ParserError, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
 import {
   CDATASection,
   Comment,
@@ -10,7 +10,7 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import { ParserOptions, ResolvedParserOptions } from './types.js';
+import type { ParserOptions, ResolvedParserOptions } from './types.js';
 
 /**
  * Parses text as a DOM.

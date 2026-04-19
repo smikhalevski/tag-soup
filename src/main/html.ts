@@ -1,8 +1,8 @@
 import { decodeHTML, escapeXML } from 'speedy-entities';
-import { ParserOptions } from './types.js';
+import type { ParserOptions } from './types.js';
 import { createDOMParser } from './createDOMParser.js';
 import { createSAXParser } from './createSAXParser.js';
-import { createSerializer, SerializerOptions } from './createSerializer.js';
+import { createSerializer, type SerializerOptions } from './createSerializer.js';
 import { createTokenizer } from './createTokenizer.js';
 
 const formTags = ['input', 'option', 'optgroup', 'select', 'button', 'datalist', 'textarea'];

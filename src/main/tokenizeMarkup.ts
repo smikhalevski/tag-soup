@@ -248,13 +248,18 @@ const TOKEN_PROCESSING_INSTRUCTION_DATA = 'PROCESSING_INSTRUCTION_DATA';
 const TOKEN_CDATA_SECTION = 'CDATA_SECTION';
 const TOKEN_DOCTYPE_NAME = 'DOCTYPE_NAME';
 
-export interface ReadTokensOptions {
-  readTag?: (text: string, startIndex: number, endIndex: number) => number;
-  rawTextTags?: Set<number>;
-  isFragment?: boolean;
+export interface ContextualReadTokensOptions {
+  parentOptions?: ContextualReadTokensOptions;
+  foreignTags?: Map<number, ContextualReadTokensOptions>;
   areSelfClosingTagsRecognized?: boolean;
   areCDATASectionsRecognized?: boolean;
   areProcessingInstructionsRecognized?: boolean;
+}
+
+export interface ReadTokensOptions extends ContextualReadTokensOptions {
+  readTag?: (text: string, startIndex: number, endIndex: number) => number;
+  rawTextTags?: Set<number>;
+  isFragment?: boolean;
   isStrict?: boolean;
 }
 
@@ -264,15 +269,7 @@ export interface ReadTokensOptions {
  * Tokens returned in the same order they are listed in text.
  */
 export function readTokens(text: string, callback: TokenCallback, options: ReadTokensOptions): void {
-  const {
-    readTag = getCaseSensitiveHashCode,
-    rawTextTags,
-    isFragment,
-    areSelfClosingTagsRecognized = false,
-    areCDATASectionsRecognized = false,
-    areProcessingInstructionsRecognized = false,
-    isStrict = false,
-  } = options;
+  const { readTag = getCaseSensitiveHashCode, rawTextTags, isFragment, isStrict = false } = options;
 
   let scope = isFragment ? SCOPE_TEXT : SCOPE_PROLOGUE;
   let enclosingRawTextTag = 0;
@@ -283,6 +280,10 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
   const skipName = isStrict ? skipXMLName : skipHTMLName;
   const skipAttributeName = isStrict ? skipXMLName : skipHTMLAttributeName;
 
+  const foreignTagStack = [0, 0, 0, 0];
+
+  let foreignTagStackCursor = -1;
+
   for (let index = textStartIndex, nextIndex = index; index < textLength; index = nextIndex) {
     let charCode = text.charCodeAt(index);
 
@@ -291,7 +292,11 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       // Self-closing start tag
       // ----------------------------------------------------------
 
-      if (areSelfClosingTagsRecognized && charCode === /* / */ 47 && getCharCodeAt(text, index + 1) === /* > */ 62) {
+      if (
+        options.areSelfClosingTagsRecognized &&
+        charCode === /* / */ 47 &&
+        getCharCodeAt(text, index + 1) === /* > */ 62
+      ) {
         // Skip "/>"
         nextIndex += 2;
 
@@ -335,7 +340,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
 
         throw new ParserError(
           'Expected an attribute name' +
-            (areSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
+            (options.areSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
             " or a start tag closing ('>').",
           text,
           index,
@@ -430,7 +435,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
     // Processing instruction
     // ----------------------------------------------------------
 
-    if (areProcessingInstructionsRecognized && enclosingRawTextTag === 0 && charCode === /* ? */ 63) {
+    if (options.areProcessingInstructionsRecognized && enclosingRawTextTag === 0 && charCode === /* ? */ 63) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
         callback(TOKEN_TEXT, textStartIndex, index);
@@ -500,7 +505,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
     // ----------------------------------------------------------
 
     if (
-      areCDATASectionsRecognized &&
+      options.areCDATASectionsRecognized &&
       enclosingRawTextTag === 0 &&
       getCharCodeAt(text, nextIndex + 1) === /* [ */ 91 &&
       getCaseInsensitiveCharCodeAt(text, nextIndex + 2) === /* c */ 99 &&
@@ -573,7 +578,7 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
             ? 'Processing instructions are forbidden.'
             : "Expected a comment ('<!--')" +
                 (isFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
-                (areCDATASectionsRecognized ? ", or a CDATA section ('<![CDATA[[')" : '') +
+                (options.areCDATASectionsRecognized ? ", or a CDATA section ('<![CDATA[[')" : '') +
                 '.',
           text,
           nextIndex - 1,
@@ -627,14 +632,25 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
         continue;
       }
 
-      // Close the raw text tag
-      enclosingRawTextTag = 0;
-
       if (textStartIndex !== index) {
         callback(TOKEN_TEXT, textStartIndex, index);
       }
 
+      if (
+        enclosingRawTextTag === 0 &&
+        foreignTagStackCursor !== -1 &&
+        readTag(text, tagNameStartIndex, nextIndex) === foreignTagStack[foreignTagStackCursor]
+      ) {
+        // End of the foreign tag
+        --foreignTagStackCursor;
+
+        options = options.parentOptions!;
+      }
+
       callback(TOKEN_END_TAG_NAME, tagNameStartIndex, nextIndex);
+
+      // Close the raw text tag
+      enclosingRawTextTag = 0;
 
       if (!isStrict) {
         // Skip unparsable characters after the tag name
@@ -683,15 +699,30 @@ export function readTokens(text: string, callback: TokenCallback, options: ReadT
       callback(TOKEN_TEXT, textStartIndex, index);
     }
 
-    callback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex);
+    enclosingRawTextTag = 0;
+
+    let startTag;
+    let foreignOptions;
+
+    if (rawTextTags !== undefined && rawTextTags.has((startTag = readTag(text, tagNameStartIndex, nextIndex)))) {
+      // Start of the raw text tag
+      enclosingRawTextTag = startTag;
+    }
 
     if (
-      rawTextTags === undefined ||
-      !rawTextTags.has((enclosingRawTextTag = readTag(text, tagNameStartIndex, nextIndex)))
+      enclosingRawTextTag === 0 &&
+      options.foreignTags !== undefined &&
+      (foreignOptions = options.foreignTags.get(
+        (startTag = startTag !== undefined ? startTag : readTag(text, tagNameStartIndex, nextIndex))
+      )) !== undefined
     ) {
-      // Not a raw text tag
-      enclosingRawTextTag = 0;
+      // Start of the foreign tag
+      foreignTagStack[++foreignTagStackCursor] = startTag;
+
+      options = foreignOptions;
     }
+
+    callback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex);
 
     scope = SCOPE_START_TAG;
     textStartIndex = nextIndex = skipSpaces(text, nextIndex);

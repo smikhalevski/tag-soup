@@ -1,6 +1,6 @@
 import { resolveTokenizerOptions } from './createTokenizer.js';
-import { TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
-import { ParserOptions, ResolvedParserOptions } from './types.js';
+import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
+import type { ParserOptions, ResolvedParserOptions } from './types.js';
 
 /**
  * Handler which methods are called during parsing.

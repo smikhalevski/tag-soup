@@ -657,6 +657,26 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 23);
   });
 
+  test('reads self-closing foreign tag', () => {
+    readTokens(
+      '<aaa><bbb/><ccc><ddd/></ccc></aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ foreignTags: { ccc: { areSelfClosingTagsRecognized: true } } })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 10, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 15, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_SELF_CLOSING', 20, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 30, 33);
+  });
+
   test('strict throws if invalid char in start tag', () => {
     expect(() => readTokens('<aaa ///', callbackMock, resolveTokenizerOptions({ isStrict: true }))).toThrow(
       new ParserError("Expected an attribute name or a start tag closing ('>').", '<aaa ///', 5, 6)
