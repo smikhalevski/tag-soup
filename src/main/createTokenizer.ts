@@ -8,7 +8,7 @@ import {
 } from './tokenizeMarkup.js';
 
 /**
- * Options of the {@link createTokenizer} that are applied depending on a context.
+ * Options of the {@link createTokenizer} that are applied depending on the enclosing context.
  *
  * @group Tokenizer
  */

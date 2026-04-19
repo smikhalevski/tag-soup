@@ -10,12 +10,12 @@ export interface ParserOptions extends TokenizerOptions {
   /**
    * Decode text content. Use this method to decode HTML/XML entities.
    *
-   * @param input Text to decode.
+   * @param text Text to decode.
    */
-  decodeText?: (input: string) => string;
+  decodeText?: (text: string) => string;
 }
 
 export interface ResolvedParserOptions extends ResolvedTokenizerOptions {
   isFragment?: boolean;
-  decodeText?: (input: string) => string;
+  decodeText?: (text: string) => string;
 }

@@ -677,6 +677,58 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 30, 33);
   });
 
+  test('reads sibling foreign tags', () => {
+    readTokens(
+      '<aaa><ccc>ddd</ccc><ccc>fff</ccc></aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ foreignTags: { ccc: { areSelfClosingTagsRecognized: true } } })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(11);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 15, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 20, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 23, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'TEXT', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 29, 32);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 35, 38);
+  });
+
+  test('reads deeply nested foreign tags', () => {
+    readTokens(
+      '<aaa><bbb><ccc><ddd/>xxx</ccc><eee/>',
+      callbackMock,
+      resolveTokenizerOptions({
+        foreignTags: {
+          bbb: {
+            areSelfClosingTagsRecognized: true,
+            foreignTags: {
+              ccc: { areSelfClosingTagsRecognized: false },
+            },
+          },
+        },
+      })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(12);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 20, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'TEXT', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 26, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'START_TAG_NAME', 31, 34);
+    expect(callbackMock).toHaveBeenNthCalledWith(12, 'START_TAG_SELF_CLOSING', 34, 36);
+  });
+
   test('strict throws if invalid char in start tag', () => {
     expect(() => readTokens('<aaa ///', callbackMock, resolveTokenizerOptions({ isStrict: true }))).toThrow(
       new ParserError("Expected an attribute name or a start tag closing ('>').", '<aaa ///', 5, 6)

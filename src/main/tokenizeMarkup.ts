@@ -1,5 +1,5 @@
 /**
- * The error thrown by a parser if a {@link ParserError.text text} is malformed.
+ * The error thrown by a parser if a {@link ParserError.input input} is malformed.
  *
  * @group Parser
  */
@@ -82,7 +82,7 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  *   resolveTokenizerOptions(htmlTokenizerOptions)
  * );
  *
- * @param input The text string to read tokens from.
+ * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Tokenizer options prepared by {@link resolveTokenizerOptions}.
  */
@@ -137,27 +137,25 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
         const endTag = readTag(input, startIndex, endIndex);
 
         if (tagStackCursor !== -1 && tagStack[tagStackCursor] === endTag) {
+          // Correctly closed parent tag
           callback(TOKEN_END_TAG_NAME, startIndex, endIndex);
           --tagStackCursor;
           break;
         }
 
+        // Include "</"
         const endTagStartIndex = startIndex - 2;
 
-        let index = tagStackCursor;
-
-        while (index !== -1 && tagStack[index] !== endTag) {
-          --index;
-        }
+        const startTagIndex = tagStackCursor !== -1 ? tagStack.lastIndexOf(endTag, tagStackCursor) : -1;
 
         // Found a start tag
-        if (index !== -1) {
-          if (!areUnbalancedStartTagsImplicitlyClosed && index !== tagStackCursor) {
+        if (startTagIndex !== -1) {
+          if (!areUnbalancedStartTagsImplicitlyClosed && startTagIndex !== tagStackCursor) {
             throw new ParserError('Expected an end tag.', input, endTagStartIndex);
           }
 
           // Insert unbalanced end tags before the opened start tag
-          while (index < tagStackCursor) {
+          while (startTagIndex < tagStackCursor) {
             callback(TOKEN_END_TAG_NAME, endTagStartIndex, endTagStartIndex);
             --tagStackCursor;
           }
@@ -637,15 +635,21 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
         callback(TOKEN_TEXT, textStartIndex, index);
       }
 
+      let nextForeignTagStackCursor = -1;
+
       if (
         enclosingRawTextTag === 0 &&
         foreignTagStackCursor !== -1 &&
-        readTag(input, tagNameStartIndex, nextIndex) === foreignTagStack[foreignTagStackCursor]
+        (nextForeignTagStackCursor = foreignTagStack.lastIndexOf(
+          readTag(input, tagNameStartIndex, nextIndex),
+          foreignTagStackCursor
+        )) !== -1
       ) {
-        // End of the foreign tag
-        --foreignTagStackCursor;
-
-        options = options.parentOptions!;
+        // Pop foreign tags off the stack
+        while (foreignTagStackCursor !== nextForeignTagStackCursor - 1) {
+          --foreignTagStackCursor;
+          options = options.parentOptions!;
+        }
       }
 
       callback(TOKEN_END_TAG_NAME, tagNameStartIndex, nextIndex);
@@ -703,7 +707,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     enclosingRawTextTag = 0;
 
     let startTag;
-    let foreignOptions;
+    let nextOptions;
 
     if (rawTextTags !== undefined && rawTextTags.has((startTag = readTag(input, tagNameStartIndex, nextIndex)))) {
       // Start of the raw text tag
@@ -713,14 +717,14 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     if (
       enclosingRawTextTag === 0 &&
       options.foreignTags !== undefined &&
-      (foreignOptions = options.foreignTags.get(
+      (nextOptions = options.foreignTags.get(
         (startTag = startTag !== undefined ? startTag : readTag(input, tagNameStartIndex, nextIndex))
       )) !== undefined
     ) {
       // Start of the foreign tag
       foreignTagStack[++foreignTagStackCursor] = startTag;
 
-      options = foreignOptions;
+      options = nextOptions;
     }
 
     callback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex);
