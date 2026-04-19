@@ -95,18 +95,18 @@ export interface SAXParser {
   /**
    * Parses text as a document.
    *
-   * @param text The text to parse.
+   * @param input The text to parse.
    * @param handler The token handler.
    */
-  parseDocument(text: string, handler: SAXHandler): void;
+  parseDocument(input: string, handler: SAXHandler): void;
 
   /**
    * Parses text as a document fragment.
    *
-   * @param text The text to parse.
+   * @param input The text to parse.
    * @param handler The token handler.
    */
-  parseFragment(text: string, handler: SAXHandler): void;
+  parseFragment(input: string, handler: SAXHandler): void;
 }
 
 /**
@@ -134,12 +134,12 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 
   return {
-    parseDocument(text, handler) {
-      return parseSAX(text, handler, documentOptions);
+    parseDocument(input, handler) {
+      return parseSAX(input, handler, documentOptions);
     },
 
-    parseFragment(text, handler) {
-      return parseSAX(text, handler, fragmentOptions);
+    parseFragment(input, handler) {
+      return parseSAX(input, handler, fragmentOptions);
     },
   };
 }
@@ -147,12 +147,12 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
 /**
  * Parses text as a stream of tokens.
  *
- * @param text The text to parse.
+ * @param input The text to parse.
  * @param handler The token handler.
  * @param options Parser options.
  * @returns The document node.
  */
-export function parseSAX(text: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
+export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
   const { decodeText = identity } = options;
 
   const tagNameStack: string[] = ['', '', '', '', '', '', '', '', ''];
@@ -168,7 +168,7 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
     switch (token) {
       case 'TEXT':
         if (handler.onText !== undefined) {
-          handler.onText(decodeText(text.substring(startIndex, endIndex)));
+          handler.onText(decodeText(input.substring(startIndex, endIndex)));
         }
         break;
 
@@ -176,12 +176,12 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
         let tagName;
 
         if (handler.onStartTagOpening !== undefined) {
-          tagName = text.substring(startIndex, endIndex);
+          tagName = input.substring(startIndex, endIndex);
           handler.onStartTagOpening(tagName);
         }
 
         if (handler.onEndTag !== undefined || handler.onStartTag !== undefined) {
-          tagNameStack[++tagNameStackCursor] = tagName !== undefined ? tagName : text.substring(startIndex, endIndex);
+          tagNameStack[++tagNameStackCursor] = tagName !== undefined ? tagName : input.substring(startIndex, endIndex);
         }
 
         if (handler.onStartTag !== undefined) {
@@ -229,8 +229,8 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
           break;
         }
 
-        const attributeName = text.substring(attributeNameStartIndex, attributeNameEndIndex);
-        const attributeValue = decodeText(text.substring(startIndex, endIndex));
+        const attributeName = input.substring(attributeNameStartIndex, attributeNameEndIndex);
+        const attributeValue = decodeText(input.substring(startIndex, endIndex));
 
         if (attributes !== undefined) {
           attributes[attributeName] = attributeValue;
@@ -243,19 +243,19 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
 
       case 'CDATA_SECTION':
         if (handler.onCDATASection !== undefined) {
-          handler.onCDATASection(text.substring(startIndex, endIndex));
+          handler.onCDATASection(input.substring(startIndex, endIndex));
         }
         break;
 
       case 'COMMENT':
         if (handler.onComment !== undefined) {
-          handler.onComment(text.substring(startIndex, endIndex));
+          handler.onComment(input.substring(startIndex, endIndex));
         }
         break;
 
       case 'DOCTYPE_NAME':
         if (handler.onDoctype !== undefined) {
-          handler.onDoctype(text.substring(startIndex, endIndex));
+          handler.onDoctype(input.substring(startIndex, endIndex));
         }
         break;
 
@@ -267,15 +267,15 @@ export function parseSAX(text: string, handler: SAXHandler, options: ResolvedPar
       case 'PROCESSING_INSTRUCTION_DATA':
         if (handler.onProcessingInstruction !== undefined) {
           handler.onProcessingInstruction(
-            text.substring(piTargetStartIndex, piTargetEndIndex),
-            text.substring(startIndex, endIndex)
+            input.substring(piTargetStartIndex, piTargetEndIndex),
+            input.substring(startIndex, endIndex)
           );
         }
         break;
     }
   };
 
-  tokenizeMarkup(text, tokenCallback, options);
+  tokenizeMarkup(input, tokenCallback, options);
 }
 
 function identity(value: string): string {

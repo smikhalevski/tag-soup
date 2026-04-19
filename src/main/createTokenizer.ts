@@ -1,5 +1,5 @@
 import {
-  type ContextualReadTokensOptions,
+  type ContextualTokenReaderOptions,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
   type ResolvedTokenizerOptions,
@@ -237,7 +237,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
   return {
-    ...resolveContextualTokenizerOptions(options, undefined, toHashCode, new Map()),
+    ...resolveContextualTokenReaderOptions(options, undefined, toHashCode, new Map()),
     readTag: getHashCode,
     voidTags: voidTags && new Set(voidTags.map(toHashCode)),
     rawTextTags: rawTextTags && new Set(rawTextTags.map(toHashCode)),
@@ -254,12 +254,12 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   };
 }
 
-function resolveContextualTokenizerOptions(
+function resolveContextualTokenReaderOptions(
   options: ContextualTokenizerOptions,
-  parentOptions: ContextualReadTokensOptions | undefined,
+  parentOptions: ContextualTokenReaderOptions | undefined,
   toHashCode: (str: string) => number,
-  resolvedOptionsCache: Map<ContextualTokenizerOptions, ContextualReadTokensOptions>
-): ContextualReadTokensOptions {
+  resolvedOptionsCache: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>
+): ContextualTokenReaderOptions {
   const alreadyResolvedOptions = resolvedOptionsCache.get(options);
 
   if (alreadyResolvedOptions !== undefined) {
@@ -273,7 +273,7 @@ function resolveContextualTokenizerOptions(
     areProcessingInstructionsRecognized = false,
   } = options;
 
-  const resolvedOptions: ContextualReadTokensOptions = {
+  const resolvedOptions: ContextualTokenReaderOptions = {
     foreignTags: undefined,
     parentOptions,
     areSelfClosingTagsRecognized,
@@ -290,7 +290,7 @@ function resolveContextualTokenizerOptions(
   resolvedOptions.foreignTags = new Map(
     Object.entries(foreignTags).map(entry => [
       toHashCode(entry[0]),
-      resolveContextualTokenizerOptions(entry[1], resolvedOptions, toHashCode, resolvedOptionsCache),
+      resolveContextualTokenReaderOptions(entry[1], resolvedOptions, toHashCode, resolvedOptionsCache),
     ])
   );
 

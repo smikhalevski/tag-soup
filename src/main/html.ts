@@ -63,7 +63,7 @@ const svgTags = [
   'svg',
   'switch',
   'symbol',
-  'text',
+  'input',
   'textPath',
   'title',
   'tspan',

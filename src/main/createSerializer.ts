@@ -35,7 +35,7 @@ export interface SerializerOptions {
   /**
    * Encodes text content. Use this method to encode HTML/XML entities.
    *
-   * @param text Text to encode.
+   * @param input Text to encode.
    */
   encodeText?: (text: string) => string;
 }

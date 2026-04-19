@@ -21,18 +21,18 @@ export interface DOMParser {
   /**
    * Parses text as a document.
    *
-   * @param text The text to parse.
+   * @param input The text to parse.
    * @returns The document node.
    */
-  parseDocument(text: string): Document;
+  parseDocument(input: string): Document;
 
   /**
    * Parses text as a document fragment.
    *
-   * @param text The text to parse.
+   * @param input The text to parse.
    * @returns The document fragment node.
    */
-  parseFragment(text: string): DocumentFragment;
+  parseFragment(input: string): DocumentFragment;
 }
 
 /**
@@ -57,12 +57,12 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 
   return {
-    parseDocument(text) {
-      return parseDOM(text, documentOptions) as Document;
+    parseDocument(input) {
+      return parseDOM(input, documentOptions) as Document;
     },
 
-    parseFragment(text) {
-      return parseDOM(text, fragmentOptions) as DocumentFragment;
+    parseFragment(input) {
+      return parseDOM(input, fragmentOptions) as DocumentFragment;
     },
   };
 }
@@ -70,11 +70,11 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 /**
  * Parses text as a DOM.
  *
- * @param text The text to parse.
+ * @param input The text to parse.
  * @param options Parser options.
  * @returns The document or document fragment node.
  */
-export function parseDOM(text: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
+export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
   const { isStrict, isFragment, decodeText = identity } = options;
 
   const root = isFragment ? new DocumentFragment() : new Document();
@@ -86,11 +86,11 @@ export function parseDOM(text: string, options: ResolvedParserOptions = {}): Doc
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
       case 'TEXT':
-        parent.appendChild(new Text(decodeText(text.substring(startIndex, endIndex))));
+        parent.appendChild(new Text(decodeText(input.substring(startIndex, endIndex))));
         break;
 
       case 'START_TAG_NAME':
-        parent.appendChild((parent = new Element(text.substring(startIndex, endIndex))));
+        parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));
         break;
 
       case 'START_TAG_CLOSING':
@@ -102,39 +102,39 @@ export function parseDOM(text: string, options: ResolvedParserOptions = {}): Doc
         break;
 
       case 'ATTRIBUTE_NAME':
-        attributeName = text.substring(startIndex, endIndex);
+        attributeName = input.substring(startIndex, endIndex);
         break;
 
       case 'ATTRIBUTE_VALUE':
-        (parent as Element).setAttribute(attributeName, decodeText(text.substring(startIndex, endIndex)));
+        (parent as Element).setAttribute(attributeName, decodeText(input.substring(startIndex, endIndex)));
         break;
 
       case 'CDATA_SECTION':
-        parent.appendChild(new CDATASection(text.substring(startIndex, endIndex)));
+        parent.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
         break;
 
       case 'COMMENT':
-        parent.appendChild(new Comment(decodeText(text.substring(startIndex, endIndex))));
+        parent.appendChild(new Comment(decodeText(input.substring(startIndex, endIndex))));
         break;
 
       case 'DOCTYPE_NAME':
-        parent.appendChild(new DocumentType(text.substring(startIndex, endIndex)));
+        parent.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
         break;
 
       case 'PROCESSING_INSTRUCTION_TARGET':
-        piTarget = text.substring(startIndex, endIndex);
+        piTarget = input.substring(startIndex, endIndex);
         break;
 
       case 'PROCESSING_INSTRUCTION_DATA':
-        parent.appendChild(new ProcessingInstruction(piTarget, text.substring(startIndex, endIndex)));
+        parent.appendChild(new ProcessingInstruction(piTarget, input.substring(startIndex, endIndex)));
         break;
     }
   };
 
-  tokenizeMarkup(text, tokenCallback, options);
+  tokenizeMarkup(input, tokenCallback, options);
 
   if (isStrict && parent !== root) {
-    throw new ParserError('Expected an end tag.', text, text.length);
+    throw new ParserError('Expected an end tag.', input, input.length);
   }
 
   return root;
