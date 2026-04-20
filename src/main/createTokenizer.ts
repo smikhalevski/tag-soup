@@ -1,17 +1,51 @@
 import {
+  type ContextualTokenReaderOptions,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
-  ResolvedTokenizerOptions,
-  TokenCallback,
+  type ResolvedTokenizerOptions,
+  type TokenCallback,
   tokenizeMarkup,
 } from './tokenizeMarkup.js';
+
+/**
+ * Options of the {@link createTokenizer} that are applied depending on the enclosing context.
+ *
+ * @group Tokenizer
+ */
+export interface ContextualTokenizerOptions {
+  /**
+   * The map from a foreign tag name to a tokenizer options applied to the tag children.
+   */
+  foreignTags?: Record<string, ContextualTokenizerOptions>;
+
+  /**
+   * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
+   *
+   * @default false
+   */
+  areSelfClosingTagsRecognized?: boolean;
+
+  /**
+   * If `true` then CDATA sections are recognized.
+   *
+   * @default false
+   */
+  areCDATASectionsRecognized?: boolean;
+
+  /**
+   * If `true` then processing instructions are recognized.
+   *
+   * @default false
+   */
+  areProcessingInstructionsRecognized?: boolean;
+}
 
 /**
  * Options of the {@link createTokenizer}.
  *
  * @group Tokenizer
  */
-export interface TokenizerOptions {
+export interface TokenizerOptions extends ContextualTokenizerOptions {
   /**
    * The list of tags that can't have any contents (since there's no end tag, no content can be put between the start
    * tag and the end tag).
@@ -86,13 +120,6 @@ export interface TokenizerOptions {
   areTagNamesCaseInsensitive?: boolean;
 
   /**
-   * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
-   *
-   * @default false
-   */
-  areSelfClosingTagsRecognized?: boolean;
-
-  /**
    * If `true` then unbalanced start tags are forcefully closed. Otherwise, a {@link ParserError} is thrown.
    *
    * Use in conjunctions with {@link areUnbalancedEndTagsIgnored}.
@@ -120,20 +147,6 @@ export interface TokenizerOptions {
    * @default false
    */
   areUnbalancedEndTagsIgnored?: boolean;
-
-  /**
-   * If `true` then CDATA sections are recognized.
-   *
-   * @default false
-   */
-  areCDATASectionsRecognized?: boolean;
-
-  /**
-   * If `true` then processing instructions are recognized.
-   *
-   * @default false
-   */
-  areProcessingInstructionsRecognized?: boolean;
 
   /**
    * If `true` then tag names and attributes are processed with XML constraints.
@@ -214,11 +227,8 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
     implicitlyClosedTags,
     implicitlyOpenedTags,
     areTagNamesCaseInsensitive,
-    areSelfClosingTagsRecognized,
     areUnbalancedStartTagsImplicitlyClosed,
     areUnbalancedEndTagsIgnored,
-    areCDATASectionsRecognized,
-    areProcessingInstructionsRecognized,
     isStrict,
   } = options;
 
@@ -227,6 +237,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
   return {
+    ...resolveContextualTokenReaderOptions(options, undefined, toHashCode, new Map()),
     readTag: getHashCode,
     voidTags: voidTags && new Set(voidTags.map(toHashCode)),
     rawTextTags: rawTextTags && new Set(rawTextTags.map(toHashCode)),
@@ -237,11 +248,51 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
       ),
     implicitlyOpenedTags: implicitlyOpenedTags && new Set(implicitlyOpenedTags.map(toHashCode)),
     isFragment: false,
-    areSelfClosingTagsRecognized,
     areUnbalancedStartTagsImplicitlyClosed,
     areUnbalancedEndTagsIgnored,
-    areCDATASectionsRecognized,
-    areProcessingInstructionsRecognized,
     isStrict,
   };
+}
+
+function resolveContextualTokenReaderOptions(
+  options: ContextualTokenizerOptions,
+  parentOptions: ContextualTokenReaderOptions | undefined,
+  toHashCode: (str: string) => number,
+  resolvedOptionsCache: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>
+): ContextualTokenReaderOptions {
+  const alreadyResolvedOptions = resolvedOptionsCache.get(options);
+
+  if (alreadyResolvedOptions !== undefined) {
+    return alreadyResolvedOptions;
+  }
+
+  const {
+    foreignTags,
+    areSelfClosingTagsRecognized = false,
+    areCDATASectionsRecognized = false,
+    areProcessingInstructionsRecognized = false,
+  } = options;
+
+  const resolvedOptions: ContextualTokenReaderOptions = {
+    foreignTags: undefined,
+    parentOptions,
+    areSelfClosingTagsRecognized,
+    areCDATASectionsRecognized,
+    areProcessingInstructionsRecognized,
+  };
+
+  resolvedOptionsCache.set(options, resolvedOptions);
+
+  if (foreignTags === undefined) {
+    return resolvedOptions;
+  }
+
+  resolvedOptions.foreignTags = new Map(
+    Object.entries(foreignTags).map(entry => [
+      toHashCode(entry[0]),
+      resolveContextualTokenReaderOptions(entry[1], resolvedOptions, toHashCode, resolvedOptionsCache),
+    ])
+  );
+
+  return resolvedOptions;
 }

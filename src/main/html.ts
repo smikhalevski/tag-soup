@@ -97,6 +97,22 @@ const htmlParserOptions: ParserOptions = {
   decodeText: decodeHTML,
 };
 
+htmlParserOptions.foreignTags = {
+  svg: {
+    areCDATASectionsRecognized: true,
+    areProcessingInstructionsRecognized: true,
+    areSelfClosingTagsRecognized: true,
+    foreignTags: {
+      foreignObject: htmlParserOptions,
+    },
+  },
+  math: {
+    areCDATASectionsRecognized: true,
+    areProcessingInstructionsRecognized: true,
+    areSelfClosingTagsRecognized: true,
+  },
+};
+
 const htmlSerializerOptions: SerializerOptions = {
   voidTags: htmlParserOptions.voidTags,
   areTagNamesCaseInsensitive: true,

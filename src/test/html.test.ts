@@ -11,3 +11,9 @@ test('serializes HTML', () => {
     '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<BR></p>'
   );
 });
+
+test('parses foreign tags', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<body><div><svg><path/><foreignObject><em></div><i></body>'))).toBe(
+    '<body><div><svg><path></path><foreignObject><em></em></foreignObject></svg></div><i></i></body>'
+  );
+});

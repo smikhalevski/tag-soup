@@ -1,6 +1,6 @@
 import { Node } from 'flyweight-dom';
 import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './tokenizeMarkup.js';
-import { ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.js';
+import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.js';
 
 /**
  * Options of {@link createSerializer}.

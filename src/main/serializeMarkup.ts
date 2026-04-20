@@ -31,29 +31,29 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
   const { toHashCode, voidTags, areSelfClosingTagsSupported, encodeText = identity } = options;
 
   if (node instanceof Element) {
-    let xml = '<' + node.tagName;
+    let output = '<' + node.tagName;
 
     for (const name in node.attributes) {
-      xml += ' ' + name + '="' + encodeText(node.attributes[name]) + '"';
+      output += ' ' + name + '="' + encodeText(node.attributes[name]) + '"';
     }
 
     if (node.firstChild !== null) {
-      xml += '>';
+      output += '>';
 
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
-        xml += serializeMarkup(child, options);
+        output += serializeMarkup(child, options);
       }
 
-      xml += '</' + node.tagName + '>';
+      output += '</' + node.tagName + '>';
     } else if (voidTags !== undefined && voidTags.has(toHashCode(node.tagName))) {
-      xml += '>';
+      output += '>';
     } else if (areSelfClosingTagsSupported) {
-      xml += '/>';
+      output += '/>';
     } else {
-      xml += '></' + node.tagName + '>';
+      output += '></' + node.tagName + '>';
     }
 
-    return xml;
+    return output;
   }
 
   if (node instanceof CDATASection) {
@@ -61,13 +61,13 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
   }
 
   if (node instanceof Document || node instanceof DocumentFragment) {
-    let xml = '';
+    let output = '';
 
     for (let child = node.firstChild; child !== null; child = child.nextSibling) {
-      xml += serializeMarkup(child, options);
+      output += serializeMarkup(child, options);
     }
 
-    return xml;
+    return output;
   }
 
   if (node instanceof Comment) {

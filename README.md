@@ -337,6 +337,7 @@ toXMLEncoded(fragment);
 | :----------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `voidTags`                                 | Tags that have no content and no end tag (e.g. `br`, `img`). See [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements).                |
 | `rawTextTags`                              | Tags whose content is treated as raw text (e.g. `script`, `style`). See [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements). |
+| `foreignTags`                              | Map from a tag to tokenizer options that are applied inside the tag.                                                                                                           |
 | `decodeText`                               | Callback to decode text content and attribute values (e.g. `decodeHTML` from `speedy-entities`).                                                                               |
 | `implicitlyClosedTags`                     | Map from a tag to the list of open tags it implicitly closes. For example `{ h1: ['p'] }` means an opening `<h1>` closes any currently open `<p>`.                             |
 | `implicitlyOpenedTags`                     | Tags for which a synthetic start tag is inserted when an unbalanced end tag is encountered (e.g. `['p', 'br']` so `</p>` becomes `<p></p>`).                                   |
@@ -382,6 +383,18 @@ const myParser = createDOMParser({
     li: ['li'],
     dt: ['dd', 'dt'],
     dd: ['dd', 'dt'],
+  },
+  foreignTags: {
+    svg: {
+      areCDATASectionsRecognized: true,
+      areProcessingInstructionsRecognized: true,
+      areSelfClosingTagsRecognized: true,
+    },
+    math: {
+      areCDATASectionsRecognized: true,
+      areProcessingInstructionsRecognized: true,
+      areSelfClosingTagsRecognized: true,
+    },
   },
 });
 ```
