@@ -161,19 +161,19 @@ myParser.parseFragment('<p><br></p>', {
 The [`SAXHandler`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html) defines the following optional
 callbacks. Implement only the ones you need.
 
-| Callback                  | Description                                    |
-| :------------------------ | :--------------------------------------------- |
-| `onStartTagOpening`       | A start tag name is read.                      |
-| `onAttribute`             | An attribute and its decoded value were read.  |
-| `onStartTagClosing`       | A start tag is closed `>`.                     |
-| `onStartTagSelfClosing`   | A start tag is self-closed `/>`.               |
-| `onStartTag`              | A start tag and its atributes were read.       |
-| `onEndTag`                | An end tag matching an open start tag is read. |
-| `onText`                  | A decoded text content is read.                |
-| `onComment`               | A comment is read.                             |
-| `onDoctype`               | A DOCTYPE declaration is read.                 |
-| `onCDATASection`          | A CDATA section is read.                       |
-| `onProcessingInstruction` | A processing instruction is read.              |
+| Callback                                                                                                                | Description                                    |
+| :---------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
+| [`onStartTagOpening`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagopening)             | A start tag name is read.                      |
+| [`onAttribute`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onattribute)                         | An attribute and its decoded value were read.  |
+| [`onStartTagClosing`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagclosing)             | A start tag is closed `>`.                     |
+| [`onStartTagSelfClosing`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagselfclosing)     | A start tag is self-closed `/>`.               |
+| [`onStartTag`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag)                           | A start tag and its atributes were read.       |
+| [`onEndTag`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag)                               | An end tag matching an open start tag is read. |
+| [`onText`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ontext)                                   | A decoded text content is read.                |
+| [`onComment`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncomment)                             | A comment is read.                             |
+| [`onDoctype`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ondoctype)                             | A DOCTYPE declaration is read.                 |
+| [`onCDATASection`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncdatasection)                   | A CDATA section is read.                       |
+| [`onProcessingInstruction`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onprocessinginstruction) | A processing instruction is read.              |
 
 Example using several callbacks at once:
 
@@ -304,12 +304,12 @@ mySerializer(fragment);
 [`SerializerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html) accepts the
 following properties:
 
-| Option                         | Description                                                       |
-| :----------------------------- | :---------------------------------------------------------------- |
-| `voidTags`                     | Tags that have no content and no closing tag (e.g. `br`, `img`).  |
-| `encodeText`                   | Callback to encode text content and attribute values.             |
-| `areSelfClosingTags​Supported` | If `true`, void tags are serialized as `<br/>` instead of `<br>`. |
-| `areTagNamesCaseInsensitive`   | If `true`, tag name comparisons are case-insensitive.             |
+| Option                                                                                                                                  | Description                                                       |
+| :-------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------- |
+| [`voidTags`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#voidtags)                                        | Tags that have no content and no closing tag (e.g. `br`, `img`).  |
+| [`encodeText`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodetext)                                    | Callback to encode text content and attribute values.             |
+| [`areSelfClosingTags​Supported`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#areselfclosingtagssupported) | If `true`, void tags are serialized as `<br/>` instead of `<br>`. |
+| [`areTagNamesCaseInsensitive`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#aretagnamescaseinsensitive)    | If `true`, tag name comparisons are case-insensitive.             |
 
 Serialize XML with entity encoding:
 
@@ -333,21 +333,21 @@ toXMLEncoded(fragment);
 `createDOMParser`, `createSAXParser`, and `createTokenizer` accept a
 [`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html) object.
 
-| Option                                     | Description                                                                                                                                                                    |
-| :----------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `voidTags`                                 | Tags that have no content and no end tag (e.g. `br`, `img`). See [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements).                |
-| `rawTextTags`                              | Tags whose content is treated as raw text (e.g. `script`, `style`). See [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements). |
-| `foreignTags`                              | Map from a tag to tokenizer options that are applied inside the tag.                                                                                                           |
-| `decodeText`                               | Callback to decode text content and attribute values (e.g. `decodeHTML` from `speedy-entities`).                                                                               |
-| `implicitlyClosedTags`                     | Map from a tag to the list of open tags it implicitly closes. For example `{ h1: ['p'] }` means an opening `<h1>` closes any currently open `<p>`.                             |
-| `implicitlyOpenedTags`                     | Tags for which a synthetic start tag is inserted when an unbalanced end tag is encountered (e.g. `['p', 'br']` so `</p>` becomes `<p></p>`).                                   |
-| `areTagNames​CaseInsensitive`              | If `true`, tag name comparisons ignore ASCII case.                                                                                                                             |
-| `areCDATASections​Recognized`              | If `true`, CDATA sections (`<![CDATA[...]]>`) are recognized.                                                                                                                  |
-| `areProcessing​Instruction​Recognized`     | If `true`, processing instructions (`<?target data?>`) are recognized.                                                                                                         |
-| `areSelfClosingTags​Recognized`            | If `true`, self-closing tags (`<br/>`) are recognized; otherwise treated as start tags.                                                                                        |
-| `isStrict`                                 | If `true`, tag names and attributes are validated against XML constraints.                                                                                                     |
-| `areUnbalanced​EndTags​Ignored`            | If `true`, end tags without a matching start tag are silently dropped instead of throwing.                                                                                     |
-| `areUnbalanced​StartTags​ImplicitlyClosed` | If `true`, unclosed start tags are forcefully closed at the end of their parent.                                                                                               |
+| Option                                                                                                                                                     | Description                                                                                                                                                                    |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`voidTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#voidtags)                                                               | Tags that have no content and no end tag (e.g. `br`, `img`). See [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements).                |
+| [`rawTextTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#rawtexttags)                                                         | Tags whose content is treated as raw text (e.g. `script`, `style`). See [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements). |
+| [`foreignTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags)                                                         | Map from a tag to tokenizer options that are applied inside the tag.                                                                                                           |
+| [`decodeText`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext)                                                           | Callback to decode text content and attribute values (e.g. `decodeHTML` from `speedy-entities`).                                                                               |
+| [`implicitlyClosedTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyclosedtags)                                       | Map from a tag to the list of open tags it implicitly closes. For example `{ h1: ['p'] }` means an opening `<h1>` closes any currently open `<p>`.                             |
+| [`implicitlyOpenedTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyopenedtags)                                       | Tags for which a synthetic start tag is inserted when an unbalanced end tag is encountered (e.g. `['p', 'br']` so `</p>` becomes `<p></p>`).                                   |
+| [`areTagNames​CaseInsensitive`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#aretagnamescaseinsensitive)                          | If `true`, tag name comparisons ignore ASCII case.                                                                                                                             |
+| [`areCDATASections​Recognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized)                          | If `true`, CDATA sections (`<![CDATA[...]]>`) are recognized.                                                                                                                  |
+| [`areProcessing​Instructions​Recognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areprocessinginstructionsrecognized)       | If `true`, processing instructions (`<?target data?>`) are recognized.                                                                                                         |
+| [`areSelfClosingTags​Recognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized)                      | If `true`, self-closing tags (`<br/>`) are recognized; otherwise treated as start tags.                                                                                        |
+| [`isStrict`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#isstrict)                                                               | If `true`, tag names and attributes are validated against XML constraints.                                                                                                     |
+| [`areUnbalanced​EndTags​Ignored`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedendtagsignored)                       | If `true`, end tags without a matching start tag are silently dropped instead of throwing.                                                                                     |
+| [`areUnbalanced​StartTags​ImplicitlyClosed`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyclosed) | If `true`, unclosed start tags are forcefully closed at the end of their parent.                                                                                               |
 
 A parser that mimics browser HTML behavior:
 
