@@ -773,31 +773,46 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
   }
 }
 
+const HASH1_SEED = 5_381;
+const HASH2_SEED = 52_711;
+
 /**
- * Returns case-insensitive djb2 hash of a substring.
+ * Returns case-insensitive string-hash-64 of a substring.
  */
 export function getCaseInsensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
-  let hashCode = 0;
+  let hash1 = HASH1_SEED;
+  let hash2 = HASH2_SEED;
 
   for (let i = startIndex; i < endIndex; ++i) {
-    const charCode = input.charCodeAt(i);
-    hashCode = (hashCode << 5) - hashCode + (charCode < 65 || charCode > 90 ? charCode : charCode + 32);
+    let charCode = input.charCodeAt(i);
+
+    if (charCode >= /* A */ 65 && charCode <= /* Z */ 90) {
+      charCode += 32;
+    }
+
+    hash1 = Math.imul(hash1, 33) ^ charCode;
+    hash2 = Math.imul(hash2, 65_599) ^ charCode;
   }
 
-  return hashCode;
+  // Combine into a non-negative 53-bit safe integer
+  return (hash2 >>> 11) * 0x100000000 + (hash1 >>> 0);
 }
 
 /**
- * Returns case-sensitive djb2 hash of a substring.
+ * Returns case-sensitive string-hash-64 of a substring.
  */
 export function getCaseSensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
-  let hashCode = 0;
+  let hash1 = HASH1_SEED;
+  let hash2 = HASH2_SEED;
 
   for (let i = startIndex; i < endIndex; ++i) {
-    hashCode = (hashCode << 5) - hashCode + input.charCodeAt(i);
+    const charCode = input.charCodeAt(i);
+
+    hash1 = Math.imul(hash1, 33) ^ charCode;
+    hash2 = Math.imul(hash2, 65_599) ^ charCode;
   }
 
-  return hashCode;
+  return (hash2 >>> 11) * 0x100000000 + (hash1 >>> 0);
 }
 
 function getCharCodeAt(input: string, index: number): number {
