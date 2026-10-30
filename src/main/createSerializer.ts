@@ -19,6 +19,15 @@ export interface SerializerOptions {
   voidTags?: string[];
 
   /**
+   * The list of tags which text content is written as is, without {@link encodeText}.
+   *
+   * @example
+   * ['script', 'style']
+   * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
+   */
+  rawTextTags?: string[];
+
+  /**
    * If `true` then ASCII alpha characters are case-insensitive in tag names.
    *
    * @default false
@@ -26,7 +35,8 @@ export interface SerializerOptions {
   areTagNamesCaseInsensitive?: boolean;
 
   /**
-   * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
+   * If `true` then elements without children are written as self-closing tags (`<a/>`), otherwise as a start tag
+   * followed by an end tag (`<a></a>`). Void tags are always written without an end tag.
    *
    * @default false
    */
@@ -55,7 +65,7 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
 }
 
 export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
-  const { voidTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
+  const { voidTags, rawTextTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
 
   const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
@@ -64,6 +74,7 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
   return {
     toHashCode,
     voidTags: voidTags && new Set(voidTags.map(toHashCode)),
+    rawTextTags: rawTextTags && new Set(rawTextTags.map(toHashCode)),
     areSelfClosingTagsSupported,
     encodeText,
   };

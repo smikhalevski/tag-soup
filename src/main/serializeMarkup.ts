@@ -17,6 +17,7 @@ import {
 export interface ResolvedSerializerOptions {
   toHashCode: (str: string) => number;
   voidTags?: Set<number>;
+  rawTextTags?: Set<number>;
   areSelfClosingTagsSupported?: boolean;
   encodeText?: (text: string) => string;
 }
@@ -28,7 +29,7 @@ export interface ResolvedSerializerOptions {
  * @param options Serialization options.
  */
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
-  const { toHashCode, voidTags, areSelfClosingTagsSupported, encodeText = identity } = options;
+  const { toHashCode, voidTags, rawTextTags, areSelfClosingTagsSupported, encodeText = identity } = options;
 
   if (node instanceof Element) {
     let output = '<' + node.tagName;
@@ -40,8 +41,15 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
     if (node.firstChild !== null) {
       output += '>';
 
+      // Text inside raw text tags isn't encoded
+      const isRawText = rawTextTags !== undefined && rawTextTags.has(toHashCode(node.tagName));
+
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
-        output += serializeMarkup(child, options);
+        if (isRawText && child.nodeType === Node.TEXT_NODE) {
+          output += (child as Text).data;
+        } else {
+          output += serializeMarkup(child, options);
+        }
       }
 
       output += '</' + node.tagName + '>';
@@ -79,7 +87,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
   }
 
   if (node instanceof ProcessingInstruction) {
-    return '<?' + node.target + ' ' + node.data + '?>';
+    return '<?' + node.target + (node.data.length !== 0 ? ' ' + node.data : '') + '?>';
   }
 
   if (node instanceof Text) {

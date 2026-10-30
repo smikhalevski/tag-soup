@@ -1,5 +1,5 @@
 import { resolveTokenizerOptions } from './createTokenizer.js';
-import { ParserError, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
+import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
 import {
   CDATASection,
   Comment,
@@ -39,11 +39,9 @@ export interface DOMParser {
  * Parses text as a DOM.
  *
  * @example
- * import { createDOMParser, htmlTokenizerOptions } from 'tag-soup';
+ * import { HTMLDOMParser } from 'tag-soup';
  *
- * const parser = createDOMParser(htmlTokenizerOptions);
- *
- * parser.parseFragment('Hello, <b>Bob</b>!');
+ * HTMLDOMParser.parseFragment('Hello, <b>Bob</b>!');
  * // ⮕ DocumentFragment
  *
  * @param options Parser options.
@@ -75,21 +73,31 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @returns The document or document fragment node.
  */
 export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
-  const { isStrict, isFragment, decodeText = identity } = options;
+  const { readTag = getCaseSensitiveHashCode, rawTextTags, isFragment, decodeText = identity } = options;
+
+  // Text inside raw text tags isn't decoded
+  const undecodedTextTags = options.decodeText !== undefined ? rawTextTags : undefined;
 
   const root = isFragment ? new DocumentFragment() : new Document();
 
   let parent = root;
+  let isRawText = false;
   let attributeName: string;
   let piTarget: string;
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
       case 'TEXT':
-        parent.appendChild(new Text(decodeText(input.substring(startIndex, endIndex))));
+        const text = input.substring(startIndex, endIndex);
+
+        parent.appendChild(new Text(isRawText ? text : decodeText(text)));
         break;
 
       case 'START_TAG_NAME':
+        if (undecodedTextTags !== undefined) {
+          isRawText = undecodedTextTags.has(readTag(input, startIndex, endIndex));
+        }
+
         parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));
         break;
 
@@ -98,6 +106,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
 
       case 'START_TAG_SELF_CLOSING':
       case 'END_TAG_NAME':
+        isRawText = false;
         parent = parent.parentNode!;
         break;
 
@@ -114,7 +123,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
         break;
 
       case 'COMMENT':
-        parent.appendChild(new Comment(decodeText(input.substring(startIndex, endIndex))));
+        parent.appendChild(new Comment(input.substring(startIndex, endIndex)));
         break;
 
       case 'DOCTYPE_NAME':
@@ -132,10 +141,6 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
   };
 
   tokenizeMarkup(input, tokenCallback, options);
-
-  if (isStrict && parent !== root) {
-    throw new ParserError('Expected an end tag.', input, input.length);
-  }
 
   return root;
 }

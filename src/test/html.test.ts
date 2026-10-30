@@ -12,6 +12,40 @@ test('serializes HTML', () => {
   );
 });
 
+test('parses unquoted attribute values with slashes', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<a href=http://aaa/bbb>ccc</a>'))).toBe(
+    '<a href="http://aaa/bbb">ccc</a>'
+  );
+});
+
+test('closes list items inside the nearest list', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<ul><li>aaa<ul><li>bbb</ul></ul>'))).toBe(
+    '<ul><li>aaa<ul><li>bbb</li></ul></li></ul>'
+  );
+});
+
+test('closes table cells inside the table section', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<table><thead><tr><td>aaa<td>bbb</table>'))).toBe(
+    '<table><thead><tr><td>aaa</td><td>bbb</td></tr></thead></table>'
+  );
+});
+
+test('round-trips raw text and escapable raw text', () => {
+  const html = '<script>aaa<bbb&lt;</script><textarea>aaa&lt;bbb</textarea>';
+
+  expect(toHTML(HTMLDOMParser.parseFragment(html))).toBe(html);
+});
+
+test('parses tags after foreignObject', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<svg><foreignObject></foreignObject></svg><p/>aaa'))).toBe(
+    '<svg><foreignObject></foreignObject></svg><p>aaa</p>'
+  );
+});
+
+test('parses tags after self-closing svg', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<svg/><p/>aaa'))).toBe('<svg></svg><p>aaa</p>');
+});
+
 test('parses foreign tags', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<body><div><svg><path/><foreignObject><em></div><i></body>'))).toBe(
     '<body><div><svg><path></path><foreignObject><em></em></foreignObject></svg></div><i></i></body>'

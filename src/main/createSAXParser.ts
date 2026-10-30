@@ -1,5 +1,5 @@
 import { resolveTokenizerOptions } from './createTokenizer.js';
-import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
+import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
 import type { ParserOptions, ResolvedParserOptions } from './types.js';
 
 /**
@@ -113,11 +113,9 @@ export interface SAXParser {
  * Parses text as a stream of tokens.
  *
  * @example
- * import { createSAXParser, htmlTokenizerOptions } from 'tag-soup';
+ * import { HTMLSAXParser } from 'tag-soup';
  *
- * const parser = createSAXParser(htmlTokenizerOptions);
- *
- * parser.parseFragment('Hello, <b>Bob</b>!', {
+ * HTMLSAXParser.parseFragment('Hello, <b>Bob</b>!', {
  *   onStartTagOpening(tagName) {
  *     // Handle <b> tag
  *   },
@@ -153,11 +151,17 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @returns The document node.
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
-  const { decodeText = identity } = options;
+  const { readTag = getCaseSensitiveHashCode, rawTextTags, decodeText = identity } = options;
 
-  const tagNameStack: string[] = ['', '', '', '', '', '', '', '', ''];
+  const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
+
+  // Text inside raw text tags isn't decoded
+  const undecodedTextTags = options.decodeText !== undefined ? rawTextTags : undefined;
+
+  const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
   let tagNameStackCursor = -1;
+  let isRawText = false;
   let attributeNameStartIndex = 0;
   let attributeNameEndIndex = 0;
   let piTargetStartIndex = 0;
@@ -168,24 +172,31 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
     switch (token) {
       case 'TEXT':
         if (handler.onText !== undefined) {
-          handler.onText(decodeText(input.substring(startIndex, endIndex)));
+          const text = input.substring(startIndex, endIndex);
+
+          handler.onText(isRawText ? text : decodeText(text));
         }
         break;
 
       case 'START_TAG_NAME':
         let tagName;
 
+        if (undecodedTextTags !== undefined) {
+          isRawText = undecodedTextTags.has(readTag(input, startIndex, endIndex));
+        }
+
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);
           handler.onStartTagOpening(tagName);
         }
 
-        if (handler.onEndTag !== undefined || handler.onStartTag !== undefined) {
+        if (isTagNameStackUsed) {
           tagNameStack[++tagNameStackCursor] = tagName !== undefined ? tagName : input.substring(startIndex, endIndex);
         }
 
         if (handler.onStartTag !== undefined) {
-          attributes = {};
+          // No prototype, so attributes like "__proto__" are preserved
+          attributes = Object.create(null);
         }
         break;
 
@@ -201,6 +212,8 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         break;
 
       case 'START_TAG_SELF_CLOSING':
+        isRawText = false;
+
         if (handler.onStartTagSelfClosing !== undefined) {
           handler.onStartTagSelfClosing();
         }
@@ -214,9 +227,13 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         break;
 
       case 'END_TAG_NAME':
+        isRawText = false;
+
         if (handler.onEndTag !== undefined) {
-          handler.onEndTag(tagNameStack[tagNameStackCursor--]);
+          handler.onEndTag(tagNameStack[tagNameStackCursor]);
         }
+
+        --tagNameStackCursor;
         break;
 
       case 'ATTRIBUTE_NAME':

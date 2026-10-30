@@ -66,6 +66,16 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   rawTextTags?: string[];
 
   /**
+   * The list of tags which content is interpreted as plain text, but unlike {@link rawTextTags}, the content is
+   * decoded and encoded.
+   *
+   * @example
+   * ['textarea', 'title']
+   * @see [HTML5 Escapable Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements)
+   */
+  escapableRawTextTags?: string[];
+
+  /**
    * The map from a tag (A) to a list of tags that must be closed if tag (A) is opened.
    *
    * For example, in HTML `p` and `h1` tags have the following semantics:
@@ -82,9 +92,28 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    * { h1: ['p'] }
    * ```
    *
-   * Use in conjunctions with {@link areUnbalancedStartTagsImplicitlyClosed}.
+   * Use in conjunctions with {@link areUnbalancedStartTagsImplicitlyClosed} and {@link implicitClosingBoundaryTags}.
    */
   implicitlyClosedTags?: Record<string, string[]>;
+
+  /**
+   * The list of tags that limit {@link implicitlyClosedTags}: tags outside the nearest boundary tag aren't implicitly
+   * closed. A boundary tag that must be implicitly closed itself doesn't limit anything.
+   *
+   * For example, in HTML `li` closes `li`, but only inside the nearest list:
+   *
+   * ```html
+   * <ul><li><ul><li>  →  <ul><li><ul><li></li></ul></li></ul>
+   *                                  ^^^^ outer li isn't closed by the nested li
+   * ```
+   *
+   * To achieve this behavior, set this option to:
+   *
+   * ```ts
+   * ['ul', 'ol']
+   * ```
+   */
+  implicitClosingBoundaryTags?: string[];
 
   /**
    * The list of tags for which a start tag is inserted if an unbalanced end tag is met. Otherwise,
@@ -149,7 +178,8 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   areUnbalancedEndTagsIgnored?: boolean;
 
   /**
-   * If `true` then tag names and attributes are processed with XML constraints.
+   * If `true` then tag names and attributes are processed with XML constraints, comments, CDATA sections and processing
+   * instructions must be terminated, and a document must have a single root element.
    *
    * @default false
    */
@@ -187,11 +217,11 @@ export interface Tokenizer {
  * needed.
  *
  * @example
- * import { createTokenizer, htmlTokenizerOptions } from 'tag-soup';
+ * import { createTokenizer } from 'tag-soup';
  *
- * const tokenizer = createTokenizer(htmlTokenizerOptions);
+ * const tokenizer = createTokenizer({ voidTags: ['br'] });
  *
- * tokenizer.tokenize(
+ * tokenizer.tokenizeFragment(
  *   'Hello, <b>Bob</b>!',
  *   (token, startIndex, endIndex) => {
  *     // Handle token here
@@ -224,7 +254,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   const {
     voidTags,
     rawTextTags,
+    escapableRawTextTags,
     implicitlyClosedTags,
+    implicitClosingBoundaryTags,
     implicitlyOpenedTags,
     areTagNamesCaseInsensitive,
     areUnbalancedStartTagsImplicitlyClosed,
@@ -237,15 +269,17 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
   return {
-    ...resolveContextualTokenReaderOptions(options, undefined, toHashCode, new Map()),
+    ...resolveContextualTokenReaderOptions(options, toHashCode, new Map()),
     readTag: getHashCode,
     voidTags: voidTags && new Set(voidTags.map(toHashCode)),
     rawTextTags: rawTextTags && new Set(rawTextTags.map(toHashCode)),
+    escapableRawTextTags: escapableRawTextTags && new Set(escapableRawTextTags.map(toHashCode)),
     implicitlyClosedTags:
       implicitlyClosedTags &&
       new Map(
         Object.entries(implicitlyClosedTags).map(entry => [toHashCode(entry[0]), new Set(entry[1].map(toHashCode))])
       ),
+    implicitClosingBoundaryTags: implicitClosingBoundaryTags && new Set(implicitClosingBoundaryTags.map(toHashCode)),
     implicitlyOpenedTags: implicitlyOpenedTags && new Set(implicitlyOpenedTags.map(toHashCode)),
     isFragment: false,
     areUnbalancedStartTagsImplicitlyClosed,
@@ -256,7 +290,6 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
 function resolveContextualTokenReaderOptions(
   options: ContextualTokenizerOptions,
-  parentOptions: ContextualTokenReaderOptions | undefined,
   toHashCode: (str: string) => number,
   resolvedOptionsCache: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>
 ): ContextualTokenReaderOptions {
@@ -275,7 +308,6 @@ function resolveContextualTokenReaderOptions(
 
   const resolvedOptions: ContextualTokenReaderOptions = {
     foreignTags: undefined,
-    parentOptions,
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,
     areProcessingInstructionsRecognized,
@@ -290,7 +322,7 @@ function resolveContextualTokenReaderOptions(
   resolvedOptions.foreignTags = new Map(
     Object.entries(foreignTags).map(entry => [
       toHashCode(entry[0]),
-      resolveContextualTokenReaderOptions(entry[1], resolvedOptions, toHashCode, resolvedOptionsCache),
+      resolveContextualTokenReaderOptions(entry[1], toHashCode, resolvedOptionsCache),
     ])
   );
 

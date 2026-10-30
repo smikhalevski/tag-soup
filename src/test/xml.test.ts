@@ -9,9 +9,13 @@ test('parses XML DOM', () => {
 });
 
 test('serializes XML', () => {
-  expect(toXML(XMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;</p><p>bbb<br/></p>'))).toBe(
-    '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<br/></p>'
+  expect(toXML(XMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<br/></p>'))).toBe(
+    '<!DOCTYPE html><p>aaa&gt;&lt;<br/></p>'
   );
+});
+
+test('serializes processing instruction without data', () => {
+  expect(toXML(XMLDOMParser.parseFragment('<?aaa?>'))).toBe('<?aaa?>');
 });
 
 test('parses large XML', () => {
