@@ -426,7 +426,7 @@ Memory consumption (RAM) is measured in bytes, the lower number is better.
 </td>
 <td align="right"><strong>35 Hz</strong></td>
 <td align="right"><strong>22 MB</strong></td>
-<td align="right"><strong>54 Hz</strong></td>
+<td align="right"><strong>44 Hz</strong></td>
 <td align="right"><strong>22 kB</strong></td>
 </tr>
 
