@@ -9,8 +9,7 @@ import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMark
  */
 export interface SerializerOptions {
   /**
-   * The list of tags that can't have any contents (since there's no end tag, no content can be put between the start
-   * tag and the end tag).
+   * The list of tags that can't have content. Void tags are written without an end tag, and their children are ignored.
    *
    * @example
    * ['link', 'meta']
@@ -19,7 +18,7 @@ export interface SerializerOptions {
   voidTags?: string[];
 
   /**
-   * The list of tags which text content is written as is, without {@link encodeText}.
+   * The list of tags whose text content is written as is, without {@link encodeText}.
    *
    * @example
    * ['script', 'style']
@@ -43,17 +42,32 @@ export interface SerializerOptions {
   areSelfClosingTagsSupported?: boolean;
 
   /**
-   * Encodes text content. Use this method to encode HTML/XML entities.
+   * Encodes text content and attribute values. Use this method to encode HTML/XML entities. Comments, CDATA sections
+   * and processing instructions are written as is.
    *
    * @param text Text to encode.
+   * @default No encoding
    */
   encodeText?: (text: string) => string;
 }
 
 /**
- * Serializes DOM node as HTML/XML string.
+ * Creates a serializer that converts a DOM node to an HTML/XML string.
+ *
+ * @example
+ * import { createSerializer, HTMLDOMParser } from 'tag-soup';
+ * import { escapeXML } from 'speedy-entities';
+ *
+ * const serialize = createSerializer({
+ *   voidTags: ['br'],
+ *   encodeText: escapeXML,
+ * });
+ *
+ * serialize(HTMLDOMParser.parseFragment('<p>hello<br></p>'));
+ * // ⮕ '<p>hello<br></p>'
  *
  * @param options Serialization options.
+ * @returns The serializer function.
  * @see {@link toHTML}
  * @see {@link toXML}
  * @group Serializer
@@ -64,6 +78,12 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
   return node => serializeMarkup(node, resolvedOptions);
 }
 
+/**
+ * Converts human-readable serializer options into options consumed by {@link serializeMarkup}.
+ *
+ * @param options Serialization options.
+ * @internal
+ */
 export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
   const { voidTags, rawTextTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
 

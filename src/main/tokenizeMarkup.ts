@@ -1,5 +1,17 @@
 /**
- * The error thrown by a parser if a {@link ParserError.input input} is malformed.
+ * The error thrown by a tokenizer or a parser if an {@link ParserError.input input} is malformed.
+ *
+ * Forgiving parsers, like {@link HTMLDOMParser}, never throw this error.
+ *
+ * @example
+ * try {
+ *   XMLDOMParser.parseFragment('<p>hello</br>');
+ * } catch (error) {
+ *   if (error instanceof ParserError) {
+ *     error.input.substring(error.startIndex, error.endIndex);
+ *     // ⮕ 'br'
+ *   }
+ * }
  *
  * @group Parser
  */
@@ -9,8 +21,9 @@ export class ParserError extends SyntaxError {
    *
    * @param message The error message.
    * @param input The text where an error was detected.
-   * @param startIndex The index of the first char in text where an error was detected, inclusive.
-   * @param endIndex The index of the last char in text where an error was detected, exclusive.
+   * @param startIndex The index of the first char in text where an error was detected, inclusive, or -1 if unknown.
+   * @param endIndex The index of the last char in text where an error was detected, exclusive. Equals to
+   * `startIndex` if the error points to a position rather than to a range of chars.
    */
   constructor(
     message: string,
@@ -28,7 +41,23 @@ export class ParserError extends SyntaxError {
 ParserError.prototype.name = 'ParserError';
 
 /**
- * A token that can be read from a text.
+ * A token that can be read from a text. Indices passed to {@link TokenCallback} along with a token point to:
+ *
+ * - `TEXT`: text between tags.
+ * - `START_TAG_NAME`: the tag name in a start tag, `p` in `<p>`.
+ * - `START_TAG_CLOSING`: the `>` that closes a start tag.
+ * - `START_TAG_SELF_CLOSING`: the `/>` that closes a self-closing tag.
+ * - `END_TAG_NAME`: the tag name in an end tag, `p` in `</p>`.
+ * - `ATTRIBUTE_NAME`: an attribute name.
+ * - `ATTRIBUTE_VALUE`: an attribute value without quotes. Entities aren't decoded.
+ * - `COMMENT`: comment content between `<!--` and `-->`.
+ * - `PROCESSING_INSTRUCTION_TARGET`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
+ * - `PROCESSING_INSTRUCTION_DATA`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
+ * - `CDATA_SECTION`: CDATA section content between `<![CDATA[` and `]]>`.
+ * - `DOCTYPE_NAME`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
+ *
+ * End tags that are inserted by a tokenizer, for void tags and implicitly closed tags, have equal start and end
+ * indices.
  *
  * @group Tokenizer
  */
@@ -57,22 +86,50 @@ export type Token =
 export type TokenCallback = (token: Token, startIndex: number, endIndex: number) => void;
 
 /**
- * Options of {@link tokenizeMarkup}.
+ * Options of {@link tokenizeMarkup} produced by {@link resolveTokenizerOptions}. Tags are represented by hash codes
+ * returned by {@link TokenReaderOptions.getTagHashCode}.
+ *
+ * @internal
  */
 export interface ResolvedTokenizerOptions extends TokenReaderOptions {
+  /**
+   * Hash codes of {@link TokenizerOptions.voidTags}.
+   */
   voidTagSet?: Set<number>;
+
+  /**
+   * The map from a hash code of a tag to hash codes of tags that it implicitly closes.
+   *
+   * @see {@link TokenizerOptions.implicitlyClosedTags}
+   */
   implicitlyClosedTagMap?: Map<number, Set<number>>;
+
+  /**
+   * Hash codes of {@link TokenizerOptions.implicitClosingBoundaryTags}.
+   */
   implicitClosingBoundaryTagSet?: Set<number>;
+
+  /**
+   * Hash codes of {@link TokenizerOptions.implicitlyOpenedTags}.
+   */
   implicitlyOpenedTagSet?: Set<number>;
+
+  /**
+   * @see {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyClosed}
+   */
   areUnbalancedStartTagsImplicitlyClosed?: boolean;
+
+  /**
+   * @see {@link TokenizerOptions.areUnbalancedEndTagsIgnored}
+   */
   areUnbalancedEndTagsIgnored?: boolean;
 }
 
 /**
  * Reads tokens from text and returns them by invoking a callback.
  *
- * Tokens are _guaranteed_ to be returned in correct order. Missing tokens are inserted to restore the correct order if
- * needed.
+ * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
+ * if needed. Foreign tags switch contextual options for their content.
  *
  * @example
  * tokenizeMarkup(
@@ -86,6 +143,8 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Tokenizer options prepared by {@link resolveTokenizerOptions}.
+ * @throws {@link ParserError} If input is malformed and options don't allow to recover.
+ * @internal
  */
 export function tokenizeMarkup(input: string, callback: TokenCallback, options: ResolvedTokenizerOptions = {}): void {
   const {
@@ -302,30 +361,85 @@ const TOKEN_PROCESSING_INSTRUCTION_DATA = 'PROCESSING_INSTRUCTION_DATA';
 const TOKEN_CDATA_SECTION = 'CDATA_SECTION';
 const TOKEN_DOCTYPE_NAME = 'DOCTYPE_NAME';
 
+/**
+ * Options that are applied depending on the enclosing foreign tag.
+ *
+ * @see {@link ContextualTokenizerOptions}
+ * @internal
+ */
 export interface ContextualTokenReaderOptions {
   /**
-   * Foreign tags are tracked by {@link tokenizeMarkup}, {@link readTokens} ignores them.
+   * The map from a hash code of a foreign tag to options applied to its content. Foreign tags are tracked by
+   * {@link tokenizeMarkup}, {@link readTokens} ignores them.
    */
   foreignTagMap?: Map<number, ContextualTokenReaderOptions>;
+
+  /**
+   * @see {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized}
+   */
   areSelfClosingTagsRecognized?: boolean;
+
+  /**
+   * @see {@link ContextualTokenizerOptions.areCDATASectionsRecognized}
+   */
   areCDATASectionsRecognized?: boolean;
+
+  /**
+   * @see {@link ContextualTokenizerOptions.areProcessingInstructionsRecognized}
+   */
   areProcessingInstructionsRecognized?: boolean;
 }
 
+/**
+ * Options of {@link readTokens}.
+ *
+ * @internal
+ */
 export interface TokenReaderOptions extends ContextualTokenReaderOptions {
+  /**
+   * Returns a hash code of a tag name. Tags are compared by their hash codes.
+   *
+   * @default getCaseSensitiveHashCode
+   */
   getTagHashCode?: (input: string, startIndex: number, endIndex: number) => number;
+
+  /**
+   * Hash codes of {@link TokenizerOptions.rawTextTags}.
+   */
   rawTextTagSet?: Set<number>;
+
+  /**
+   * Hash codes of {@link TokenizerOptions.escapableRawTextTags}.
+   */
   escapableRawTextTagSet?: Set<number>;
+
+  /**
+   * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
+   * DOCTYPE isn't recognized.
+   *
+   * @default false
+   */
   isFragment?: boolean;
+
+  /**
+   * @see {@link TokenizerOptions.isStrict}
+   */
   isStrict?: boolean;
 }
 
 /**
- * Reads tokens from the text and returns tokens by invoking a callback.
+ * Reads tokens from text and returns them by invoking a callback.
  *
- * Tokens returned in the same order they are listed in text.
+ * Tokens are returned in the order they appear in text, nothing is inserted, so start and end tags may be unbalanced.
+ * Use {@link tokenizeMarkup} to get balanced tokens.
  *
  * Contextual options are read from the options object on every use, so the callback can change them.
+ *
+ * @param input The text to read tokens from.
+ * @param callback The callback that is invoked when a token is read.
+ * @param options Token reader options.
+ * @throws {@link ParserError} If {@link TokenReaderOptions.isStrict} is `true` and input is malformed.
+ * @internal
  */
 export function readTokens(input: string, callback: TokenCallback, options: TokenReaderOptions = {}): void {
   const {

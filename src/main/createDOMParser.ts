@@ -15,28 +15,31 @@ import type { ParserOptions, ResolvedParserOptions } from './types.js';
 /**
  * Parses text as a DOM.
  *
+ * @see {@link createDOMParser}
  * @group DOM
  */
 export interface DOMParser {
   /**
-   * Parses text as a document.
+   * Parses text as a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @returns The document node.
+   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
    */
   parseDocument(input: string): Document;
 
   /**
-   * Parses text as a document fragment.
+   * Parses text as a document fragment. DOCTYPE isn't recognized.
    *
    * @param input The text to parse.
    * @returns The document fragment node.
+   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string): DocumentFragment;
 }
 
 /**
- * Parses text as a DOM.
+ * Creates a parser that parses text as a DOM.
  *
  * @example
  * import { HTMLDOMParser } from 'tag-soup';
@@ -45,6 +48,7 @@ export interface DOMParser {
  * // ⮕ DocumentFragment
  *
  * @param options Parser options.
+ * @returns The new DOM parser.
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
@@ -70,7 +74,9 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  *
  * @param input The text to parse.
  * @param options Parser options.
- * @returns The document or document fragment node.
+ * @returns The document node, or the document fragment node if {@link ResolvedParserOptions.isFragment} is `true`.
+ * @throws {@link ParserError} If input is malformed and options don't allow to recover.
+ * @internal
  */
 export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
   const { getTagHashCode = getCaseSensitiveHashCode, rawTextTagSet, isFragment, decodeText = identity } = options;

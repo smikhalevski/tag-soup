@@ -139,29 +139,36 @@ const htmlSerializerOptions: SerializerOptions = {
 };
 
 /**
- * Tokenizes HTML markup as a stream of tokens.
+ * Tokenizes HTML markup as a stream of tokens. Never throws, malformed markup is recovered the way browsers do in
+ * most cases.
  *
  * @group Tokenizer
  */
 export const HTMLTokenizer = createTokenizer(htmlParserOptions);
 
 /**
- * Parses HTML markup as DOM.
+ * Parses HTML markup as DOM. Decodes HTML entities with
+ * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html). Never throws, malformed
+ * markup is recovered the way browsers do in most cases.
  *
  * @group DOM
  */
 export const HTMLDOMParser = createDOMParser(htmlParserOptions);
 
 /**
- * Parses HTML markup as a stream of tokens.
+ * Parses HTML markup and calls {@link SAXHandler} methods when tokens are read. Decodes HTML entities with
+ * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html). Never throws, malformed
+ * markup is recovered the way browsers do in most cases.
  *
  * @group SAX
  */
 export const HTMLSAXParser = createSAXParser(htmlParserOptions);
 
 /**
- * Serializes DOM node as HTML string.
+ * Serializes DOM node as HTML string. Encodes text with
+ * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html), except for the content of
+ * raw text tags, like `script` and `style`.
  *
- * @group DOM
+ * @group Serializer
  */
 export const toHTML = createSerializer(htmlSerializerOptions);

@@ -3,7 +3,11 @@ import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './
 import type { ParserOptions, ResolvedParserOptions } from './types.js';
 
 /**
- * Handler which methods are called during parsing.
+ * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
+ *
+ * Callbacks for a tag are called in this order: {@link onStartTagOpening}, {@link onAttribute} for each attribute,
+ * {@link onStartTagClosing} or {@link onStartTagSelfClosing}, {@link onStartTag}, and then {@link onEndTag} after
+ * the tag content.
  *
  * @group SAX
  */
@@ -11,40 +15,42 @@ export interface SAXHandler {
   /**
    * Called when a text is read.
    *
-   * @param text The decoded text.
+   * @param text The decoded text. Text inside {@link TokenizerOptions.rawTextTags raw text tags} isn't decoded.
    */
   onText?(text: string): void;
 
   /**
-   * Called when a start tag name is read.
+   * Called when a start tag name is read, before its attributes.
    *
    * @param tagName The start tag name.
    */
   onStartTagOpening?(tagName: string): void;
 
   /**
-   * Called when a start tag is closed.
+   * Called when a start tag is closed with `>`.
    */
   onStartTagClosing?(): void;
 
   /**
-   * Called when a start tag is self-closed.
+   * Called when a start tag is closed with `/>`. Only called if
+   * {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
    */
   onStartTagSelfClosing?(): void;
 
   /**
-   * Called when a start tag is closed.
+   * Called when a start tag and all its attributes are read.
    *
    * @param tagName The start tag name.
-   * @param attributes Associated attributes.
-   * @param isSelfClosing `true` if tag is self-closing.
+   * @param attributes Decoded attribute values by attribute name.
+   * @param isSelfClosing `true` if tag is self-closing. {@link onEndTag} isn't called for self-closing tags.
    */
   onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
 
   /**
-   * Called when an end tag is read.
+   * Called when a tag is closed: by its end tag, implicitly, or right after the start tag of a void tag. Not called for
+   * self-closing tags.
    *
-   * @param tagName The tag name that matches the currently opened start tag.
+   * @param tagName The name of the start tag that is closed.
    */
   onEndTag?(tagName: string): void;
 
@@ -52,21 +58,21 @@ export interface SAXHandler {
    * Called when an attribute and its value are read.
    *
    * @param name The attribute name.
-   * @param value The decoded attribute value.
+   * @param value The decoded attribute value. An empty string if attribute has no value.
    */
   onAttribute?(name: string, value: string): void;
 
   /**
    * Called when a CDATA section is read.
    *
-   * @param data The CDATA section value.
+   * @param data The CDATA section content.
    */
   onCDATASection?(data: string): void;
 
   /**
    * Called when a comment is read.
    *
-   * @param data The decoded comment.
+   * @param data The comment content.
    */
   onComment?(data: string): void;
 
@@ -87,30 +93,33 @@ export interface SAXHandler {
 }
 
 /**
- * Parses text as a stream of tokens.
+ * Parses text and calls {@link SAXHandler} methods when tokens are read.
  *
+ * @see {@link createSAXParser}
  * @group SAX
  */
 export interface SAXParser {
   /**
-   * Parses text as a document.
+   * Parses text as a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @param handler The token handler.
+   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
    */
   parseDocument(input: string, handler: SAXHandler): void;
 
   /**
-   * Parses text as a document fragment.
+   * Parses text as a document fragment. DOCTYPE isn't recognized.
    *
    * @param input The text to parse.
    * @param handler The token handler.
+   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string, handler: SAXHandler): void;
 }
 
 /**
- * Parses text as a stream of tokens.
+ * Creates a parser that parses text and calls {@link SAXHandler} methods when tokens are read.
  *
  * @example
  * import { HTMLSAXParser } from 'tag-soup';
@@ -122,6 +131,7 @@ export interface SAXParser {
  * });
  *
  * @param options Parser options.
+ * @returns The new SAX parser.
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
@@ -143,12 +153,13 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
 }
 
 /**
- * Parses text as a stream of tokens.
+ * Parses text and calls {@link SAXHandler} methods when tokens are read.
  *
  * @param input The text to parse.
  * @param handler The token handler.
  * @param options Parser options.
- * @returns The document node.
+ * @throws {@link ParserError} If input is malformed and options don't allow to recover.
+ * @internal
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
   const { getTagHashCode = getCaseSensitiveHashCode, rawTextTagSet, decodeText = identity } = options;

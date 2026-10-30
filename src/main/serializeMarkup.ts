@@ -12,13 +12,34 @@ import {
 } from 'flyweight-dom';
 
 /**
- * Options of {@link serializeMarkup}.
+ * Options of {@link serializeMarkup} produced by {@link resolveSerializerOptions}.
+ *
+ * @internal
  */
 export interface ResolvedSerializerOptions {
-  toHashCode: (str: string) => number;
+  /**
+   * Returns a hash code of a tag name. Tags are compared by their hash codes.
+   */
+  toHashCode: (tagName: string) => number;
+
+  /**
+   * Hash codes of {@link SerializerOptions.voidTags}.
+   */
   voidTagSet?: Set<number>;
+
+  /**
+   * Hash codes of {@link SerializerOptions.rawTextTags}.
+   */
   rawTextTagSet?: Set<number>;
+
+  /**
+   * @see {@link SerializerOptions.areSelfClosingTagsSupported}
+   */
   areSelfClosingTagsSupported?: boolean;
+
+  /**
+   * @see {@link SerializerOptions.encodeText}
+   */
   encodeText?: (text: string) => string;
 }
 
@@ -27,6 +48,8 @@ export interface ResolvedSerializerOptions {
  *
  * @param node DOM node to serialize.
  * @param options Serialization options.
+ * @returns The serialized node.
+ * @internal
  */
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
   const { toHashCode, voidTagSet, rawTextTagSet, areSelfClosingTagsSupported, encodeText = identity } = options;

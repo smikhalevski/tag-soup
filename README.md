@@ -8,6 +8,7 @@ TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser and seria
 - Tolerant of malformed tag nesting, missing end tags, etc.
 - Recognizes CDATA sections, processing instructions, and DOCTYPE declarations.
 - Supports both strict XML and forgiving HTML parsing modes.
+- Parses foreign content, like SVG and MathML inside HTML, with its own rules.
 - [20 kB gzipped](https://bundlephobia.com/result?p=tag-soup), including dependencies.
 - Check out TagSoup dependencies: [Speedy Entities](https://github.com/smikhalevski/speedy-entities#readme)
   and [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme).
@@ -22,6 +23,7 @@ npm install --save-prod tag-soup
 - [Tokenization](#tokenization)
 - [Serialization](#serialization)
 - [Parser options](#parser-options)
+- [Error handling](#error-handling)
 - [Performance](#performance)
 - [Limitations](#limitations)
 
@@ -72,7 +74,7 @@ const document = HTMLDOMParser.parseDocument('<!DOCTYPE html><html>hello</html>'
 document.doctype.name;
 // ⮕ 'html'
 
-document.textContent;
+document.documentElement.textContent;
 // ⮕ 'hello'
 ```
 
@@ -134,7 +136,7 @@ XMLSAXParser.parseFragment('<p>hello</br>', {});
 
 XMLSAXParser.parseFragment('<p>hello<br/></p>', {
   onEndTag(tagName) {
-    // Called with 'br' and 'p'
+    // Called with 'p', self-closing 'br' has no end tag
   },
 });
 ```
@@ -159,21 +161,32 @@ myParser.parseFragment('<p><br></p>', {
 ## SAX handler callbacks
 
 The [`SAXHandler`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html) defines the following optional
-callbacks. Implement only the ones you need.
+callbacks. Implement only the ones you need. Callbacks for a tag are called in the order they're listed below.
 
-| Callback                                                                                                                | Description                                    |
-| :---------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
-| [`onStartTagOpening`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagopening)             | A start tag name is read.                      |
-| [`onAttribute`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onattribute)                         | An attribute and its decoded value were read.  |
-| [`onStartTagClosing`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagclosing)             | A start tag is closed `>`.                     |
-| [`onStartTagSelfClosing`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagselfclosing)     | A start tag is self-closed `/>`.               |
-| [`onStartTag`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag)                           | A start tag and its atributes were read.       |
-| [`onEndTag`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag)                               | An end tag matching an open start tag is read. |
-| [`onText`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ontext)                                   | A decoded text content is read.                |
-| [`onComment`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncomment)                             | A comment is read.                             |
-| [`onDoctype`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ondoctype)                             | A DOCTYPE declaration is read.                 |
-| [`onCDATASection`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncdatasection)                   | A CDATA section is read.                       |
-| [`onProcessingInstruction`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onprocessinginstruction) | A processing instruction is read.              |
+<dl>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagopening"><code>onStartTagOpening(tagName)</code></a></dt>
+<dd>A start tag name is read, before its attributes.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onattribute"><code>onAttribute(name, value)</code></a></dt>
+<dd>An attribute is read. The value is decoded, and is an empty string if the attribute has no value.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagclosing"><code>onStartTagClosing()</code></a></dt>
+<dd>A start tag is closed with <code>&gt;</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagselfclosing"><code>onStartTagSelfClosing()</code></a></dt>
+<dd>A start tag is closed with <code>/&gt;</code>. Only called if self-closing tags are recognized.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag"><code>onStartTag(tagName, attributes, isSelfClosing)</code></a></dt>
+<dd>A start tag and all its attributes are read.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag"><code>onEndTag(tagName)</code></a></dt>
+<dd>A tag is closed: by its end tag, implicitly, or right after the start tag of a void tag. Not called for self-closing tags.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ontext"><code>onText(text)</code></a></dt>
+<dd>A text is read. The text is decoded, except inside raw text tags.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncomment"><code>onComment(data)</code></a></dt>
+<dd>A comment is read.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ondoctype"><code>onDoctype(name)</code></a></dt>
+<dd>A DOCTYPE declaration is read.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncdatasection"><code>onCDATASection(data)</code></a></dt>
+<dd>A CDATA section is read.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onprocessinginstruction"><code>onProcessingInstruction(target, data)</code></a></dt>
+<dd>A processing instruction is read.</dd>
+</dl>
 
 Example using several callbacks at once:
 
@@ -208,7 +221,7 @@ HTMLSAXParser.parseFragment('<!-- greeting --><p class="x">hello</p>', {
 # Tokenization
 
 TagSoup exports preconfigured
-[`HTMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html) which parses HTML markup and
+[`HTMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/HTMLTokenizer.html) which parses HTML markup and
 invokes a callback when a token is read. This tokenizer never throws errors during tokenization and forgives malformed
 markup:
 
@@ -251,22 +264,53 @@ myTokenizer.tokenizeFragment('<p><br></p>', (token, startIndex, endIndex) => {
 ```
 
 The [`Token`](https://smikhalevski.github.io/tag-soup/types/Token.html) passed to the callback is one of the
-following string literals. `startIndex` and `endIndex` are the character positions of the token's value in the input.
+following string literals. `startIndex` and `endIndex` point to the token's value in the input: `startIndex` is
+inclusive and `endIndex` is exclusive.
 
-| Token                             | Description                                                          |
-| :-------------------------------- | :------------------------------------------------------------------- |
-| `"TEXT"`                          | Text content between tags.                                           |
-| `"START_TAG_NAME"`                | The name portion of an opening tag, e.g. `p` in `<p>`.               |
-| `"START_TAG_CLOSING"`             | The `>` that closes an opening tag.                                  |
-| `"START_TAG_SELF_CLOSING"`        | The `/>` that self-closes a tag.                                     |
-| `"END_TAG_NAME"`                  | The name portion of a closing tag, e.g. `p` in `</p>`.               |
-| `"ATTRIBUTE_NAME"`                | An attribute name.                                                   |
-| `"ATTRIBUTE_VALUE"`               | A decoded attribute value.                                           |
-| `"COMMENT"`                       | Comment content, excluding `<!--` and `-->`.                         |
-| `"PROCESSING_INSTRUCTION_TARGET"` | The target of a processing instruction, e.g. `xml` in `<?xml ...?>`. |
-| `"PROCESSING_INSTRUCTION_DATA"`   | The data portion of a processing instruction.                        |
-| `"CDATA_SECTION"`                 | Content of a CDATA section, excluding `<![CDATA[` and `]]>`.         |
-| `"DOCTYPE_NAME"`                  | The name in a DOCTYPE declaration, e.g. `html` in `<!DOCTYPE html>`. |
+<dl>
+<dt><code>"TEXT"</code></dt>
+<dd>Text between tags.</dd>
+<dt><code>"START_TAG_NAME"</code></dt>
+<dd>The tag name in a start tag, <code>p</code> in <code>&lt;p&gt;</code>.</dd>
+<dt><code>"START_TAG_CLOSING"</code></dt>
+<dd>The <code>&gt;</code> that closes a start tag.</dd>
+<dt><code>"START_TAG_SELF_CLOSING"</code></dt>
+<dd>The <code>/&gt;</code> that closes a self-closing tag.</dd>
+<dt><code>"END_TAG_NAME"</code></dt>
+<dd>The tag name in an end tag, <code>p</code> in <code>&lt;/p&gt;</code>.</dd>
+<dt><code>"ATTRIBUTE_NAME"</code></dt>
+<dd>An attribute name.</dd>
+<dt><code>"ATTRIBUTE_VALUE"</code></dt>
+<dd>An attribute value without quotes. Tokenizers don't decode entities.</dd>
+<dt><code>"COMMENT"</code></dt>
+<dd>Comment content between <code>&lt;!--</code> and <code>--&gt;</code>.</dd>
+<dt><code>"PROCESSING_INSTRUCTION_TARGET"</code></dt>
+<dd>The target of a processing instruction, <code>xml</code> in <code>&lt;?xml version="1.0"?&gt;</code>.</dd>
+<dt><code>"PROCESSING_INSTRUCTION_DATA"</code></dt>
+<dd>The data of a processing instruction, <code>version="1.0"</code> in <code>&lt;?xml version="1.0"?&gt;</code>.</dd>
+<dt><code>"CDATA_SECTION"</code></dt>
+<dd>CDATA section content between <code>&lt;![CDATA[</code> and <code>]]&gt;</code>.</dd>
+<dt><code>"DOCTYPE_NAME"</code></dt>
+<dd>The name in a DOCTYPE declaration, <code>html</code> in <code>&lt;!DOCTYPE html&gt;</code>.</dd>
+</dl>
+
+Tokens are balanced: each start tag is followed by a matching end tag. End tags that the tokenizer inserts, for void
+tags and implicitly closed tags, have `startIndex` equal to `endIndex`.
+
+Use indices to read token values from the input:
+
+```ts
+import { HTMLTokenizer } from 'tag-soup';
+
+const input = '<p class="x">hello</p>';
+
+HTMLTokenizer.tokenizeFragment(input, (token, startIndex, endIndex) => {
+  if (token === 'ATTRIBUTE_VALUE') {
+    input.substring(startIndex, endIndex);
+    // ⮕ 'x'
+  }
+});
+```
 
 # Serialization
 
@@ -304,12 +348,18 @@ mySerializer(fragment);
 [`SerializerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html) accepts the
 following properties:
 
-| Option                                                                                                                                  | Description                                                       |
-| :-------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------- |
-| [`voidTags`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#voidtags)                                        | Tags that have no content and no closing tag (e.g. `br`, `img`).  |
-| [`encodeText`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodetext)                                    | Callback to encode text content and attribute values.             |
-| [`areSelfClosingTags​Supported`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#areselfclosingtagssupported) | If `true`, void tags are serialized as `<br/>` instead of `<br>`. |
-| [`areTagNamesCaseInsensitive`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#aretagnamescaseinsensitive)    | If `true`, tag name comparisons are case-insensitive.             |
+<dl>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#voidtags"><code>voidTags</code></a></dt>
+<dd>Tags that can't have content, like <code>br</code> and <code>img</code>. They are written without an end tag.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#rawtexttags"><code>rawTextTags</code></a></dt>
+<dd>Tags whose text content is written without <code>encodeText</code>, like <code>script</code> and <code>style</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodetext"><code>encodeText</code></a></dt>
+<dd>Encodes text content and attribute values, for example <code>escapeXML</code> from <code>speedy-entities</code>. Comments, CDATA sections and processing instructions are written as is.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#areselfclosingtagssupported"><code>areSelfClosingTagsSupported</code></a></dt>
+<dd>If <code>true</code>, elements without children are written as <code>&lt;a/&gt;</code>, otherwise as <code>&lt;a&gt;&lt;/a&gt;</code>. Void tags are always written without an end tag.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
+<dd>If <code>true</code>, void and raw text tags are matched ignoring ASCII case.</dd>
+</dl>
 
 Serialize XML with entity encoding:
 
@@ -330,32 +380,53 @@ toXMLEncoded(fragment);
 
 # Parser options
 
-`createDOMParser`, `createSAXParser`, and `createTokenizer` accept a
-[`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html) object.
+[`createDOMParser`](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html) and
+[`createSAXParser`](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html) accept
+[`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html).
+[`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html) accepts
+[`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html), which are the same options except
+`decodeText`.
 
-| Option                                                                                                                                                     | Description                                                                                                                                                                    |
-| :--------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`voidTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#voidtags)                                                               | Tags that have no content and no end tag (e.g. `br`, `img`). See [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements).                |
-| [`rawTextTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#rawtexttags)                                                         | Tags whose content is treated as raw text (e.g. `script`, `style`). See [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements). |
-| [`foreignTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags)                                                         | Map from a tag to tokenizer options that are applied inside the tag.                                                                                                           |
-| [`decodeText`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext)                                                           | Callback to decode text content and attribute values (e.g. `decodeHTML` from `speedy-entities`).                                                                               |
-| [`implicitlyClosedTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyclosedtags)                                       | Map from a tag to the list of open tags it implicitly closes. For example `{ h1: ['p'] }` means an opening `<h1>` closes any currently open `<p>`.                             |
-| [`implicitlyOpenedTags`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyopenedtags)                                       | Tags for which a synthetic start tag is inserted when an unbalanced end tag is encountered (e.g. `['p', 'br']` so `</p>` becomes `<p></p>`).                                   |
-| [`areTagNames​CaseInsensitive`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#aretagnamescaseinsensitive)                          | If `true`, tag name comparisons ignore ASCII case.                                                                                                                             |
-| [`areCDATASections​Recognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized)                          | If `true`, CDATA sections (`<![CDATA[...]]>`) are recognized.                                                                                                                  |
-| [`areProcessing​Instructions​Recognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areprocessinginstructionsrecognized)       | If `true`, processing instructions (`<?target data?>`) are recognized.                                                                                                         |
-| [`areSelfClosingTags​Recognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized)                      | If `true`, self-closing tags (`<br/>`) are recognized; otherwise treated as start tags.                                                                                        |
-| [`isStrict`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#isstrict)                                                               | If `true`, tag names and attributes are validated against XML constraints.                                                                                                     |
-| [`areUnbalanced​EndTags​Ignored`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedendtagsignored)                       | If `true`, end tags without a matching start tag are silently dropped instead of throwing.                                                                                     |
-| [`areUnbalanced​StartTags​ImplicitlyClosed`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyclosed) | If `true`, unclosed start tags are forcefully closed at the end of their parent.                                                                                               |
+<dl>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#voidtags"><code>voidTags</code></a></dt>
+<dd>Tags that can't have content, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements">HTML5 Void Elements</a>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#rawtexttags"><code>rawTextTags</code></a></dt>
+<dd>Tags whose content is read as text until the matching end tag, like <code>script</code> and <code>style</code>. This text isn't decoded. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements">HTML5 Raw Text Elements</a>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#escapablerawtexttags"><code>escapableRawTextTags</code></a></dt>
+<dd>Same as <code>rawTextTags</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements">HTML5 Escapable Raw Text Elements</a>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext"><code>decodeText</code></a></dt>
+<dd>Decodes text content and attribute values, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyclosedtags"><code>implicitlyClosedTags</code></a></dt>
+<dd>The map from a tag to tags that it implicitly closes. For example, <code>{ h1: ['p'] }</code> means that <code>&lt;h1&gt;</code> closes an open <code>&lt;p&gt;</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitclosingboundarytags"><code>implicitClosingBoundaryTags</code></a></dt>
+<dd>Tags that limit <code>implicitlyClosedTags</code>: tags outside the nearest boundary tag aren't closed. For example, with <code>{ li: ['li'] }</code> and <code>['ul', 'ol']</code>, a nested <code>&lt;li&gt;</code> doesn't close the <code>&lt;li&gt;</code> of the outer list.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyopenedtags"><code>implicitlyOpenedTags</code></a></dt>
+<dd>Tags for which a start tag is inserted if an unbalanced end tag is read. For example, with <code>['p', 'br']</code>, <code>&lt;/p&gt;</code> becomes <code>&lt;p&gt;&lt;/p&gt;</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags"><code>foreignTags</code></a></dt>
+<dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is closed. Foreign tag options can contain <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
+<dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
+<dd>If <code>true</code>, CDATA sections (<code>&lt;![CDATA[…]]&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areprocessinginstructionsrecognized"><code>areProcessingInstructionsRecognized</code></a></dt>
+<dd>If <code>true</code>, processing instructions (<code>&lt;?target data?&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
+<dd>If <code>true</code>, ASCII letters in tag names are compared ignoring case.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyclosed"><code>areUnbalancedStartTagsImplicitlyClosed</code></a></dt>
+<dd>If <code>true</code>, start tags that aren't closed before the end tag of an ancestor, or before the end of the input, are closed implicitly. Otherwise, <code>ParserError</code> is thrown.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedendtagsignored"><code>areUnbalancedEndTagsIgnored</code></a></dt>
+<dd>If <code>true</code>, end tags without a matching start tag are ignored. Otherwise, <code>ParserError</code> is thrown.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#isstrict"><code>isStrict</code></a></dt>
+<dd>If <code>true</code>, input must satisfy XML constraints, otherwise <code>ParserError</code> is thrown: tag names, attribute names and processing instruction targets must be valid XML names, attribute values must be double-quoted, comments, CDATA sections and processing instructions must be terminated, and a document must have a single root element.</dd>
+</dl>
 
 A parser that mimics browser HTML behavior:
 
 ```ts
-import { createDOMParser } from 'tag-soup';
+import { createDOMParser, type ParserOptions } from 'tag-soup';
 import { decodeHTML } from 'speedy-entities';
 
-const myParser = createDOMParser({
+const htmlOptions: ParserOptions = {
   voidTags: [
     'area',
     'base',
@@ -373,7 +444,8 @@ const myParser = createDOMParser({
     'wbr',
   ],
   rawTextTags: ['script', 'style'],
-  decodeText,
+  escapableRawTextTags: ['textarea', 'title'],
+  decodeText: decodeHTML,
   areTagNamesCaseInsensitive: true,
   areUnbalancedEndTagsIgnored: true,
   areUnbalancedStartTagsImplicitlyClosed: true,
@@ -384,20 +456,52 @@ const myParser = createDOMParser({
     dt: ['dd', 'dt'],
     dd: ['dd', 'dt'],
   },
-  foreignTags: {
-    svg: {
-      areCDATASectionsRecognized: true,
-      areProcessingInstructionsRecognized: true,
-      areSelfClosingTagsRecognized: true,
-    },
-    math: {
-      areCDATASectionsRecognized: true,
-      areProcessingInstructionsRecognized: true,
-      areSelfClosingTagsRecognized: true,
-    },
+  implicitClosingBoundaryTags: ['ul', 'ol', 'dl', 'table'],
+  implicitlyOpenedTags: ['p', 'br'],
+};
+
+htmlOptions.foreignTags = {
+  svg: {
+    areCDATASectionsRecognized: true,
+    areProcessingInstructionsRecognized: true,
+    areSelfClosingTagsRecognized: true,
+
+    // Content of foreignObject is parsed as HTML again
+    foreignTags: { foreignObject: htmlOptions },
   },
-});
+  math: {
+    areCDATASectionsRecognized: true,
+    areProcessingInstructionsRecognized: true,
+    areSelfClosingTagsRecognized: true,
+  },
+};
+
+const myParser = createDOMParser(htmlOptions);
 ```
+
+# Error handling
+
+Parsers and tokenizers that aren't configured to recover from malformed markup throw
+[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html). Its `startIndex` and `endIndex` point to the
+malformed part of the `input`:
+
+```ts
+import { ParserError, XMLDOMParser } from 'tag-soup';
+
+try {
+  XMLDOMParser.parseFragment('<p>hello</br>');
+} catch (error) {
+  if (error instanceof ParserError) {
+    error.message;
+    // ⮕ 'Unexpected end tag.'
+
+    error.input.substring(error.startIndex, error.endIndex);
+    // ⮕ 'br'
+  }
+}
+```
+
+`HTMLDOMParser`, `HTMLSAXParser` and `HTMLTokenizer` never throw.
 
 # Performance
 
@@ -462,7 +566,7 @@ Performance was measured when parsing [the 3.64 MB HTML file](./src/test/test.
 
 Tests were conducted using [TooFast](https://github.com/smikhalevski/toofast#readme) on Apple M1 with Node.js v25.6.0.
 
-To reproduce [the performance test suite](./src/test/perf/overall.perf.js) results, clone this repo and run:
+To reproduce [the performance test suite](./src/test/perf.js) results, clone this repo and run:
 
 ```shell
 npm ci

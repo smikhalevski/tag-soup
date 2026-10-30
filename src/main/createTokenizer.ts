@@ -8,32 +8,48 @@ import {
 } from './tokenizeMarkup.js';
 
 /**
- * Options of the {@link createTokenizer} that are applied depending on the enclosing context.
+ * Options of {@link createTokenizer} that can be changed by {@link foreignTags foreign tags}.
  *
  * @group Tokenizer
  */
 export interface ContextualTokenizerOptions {
   /**
-   * The map from a foreign tag name to a tokenizer options applied to the tag children.
+   * The map from a foreign tag name to options that are applied to its attributes and content. Options are restored
+   * when the foreign tag is closed. Options can reference each other, so foreign content may contain tags that switch
+   * back to the outer options.
+   *
+   * For example, in HTML `svg` content is parsed with XML rules, while `foreignObject` inside `svg` switches back to
+   * HTML rules:
+   *
+   * ```ts
+   * const htmlOptions: TokenizerOptions = { voidTags: ['br'] };
+   *
+   * htmlOptions.foreignTags = {
+   *   svg: {
+   *     areSelfClosingTagsRecognized: true,
+   *     foreignTags: { foreignObject: htmlOptions },
+   *   },
+   * };
+   * ```
    */
   foreignTags?: Record<string, ContextualTokenizerOptions>;
 
   /**
-   * If `true` then self-closing tags are recognized, otherwise they are treated as start tags.
+   * If `true` then self-closing tags (`<br/>`) are recognized, otherwise they are treated as start tags.
    *
    * @default false
    */
   areSelfClosingTagsRecognized?: boolean;
 
   /**
-   * If `true` then CDATA sections are recognized.
+   * If `true` then CDATA sections (`<![CDATA[…]]>`) are recognized, otherwise they are treated as comments.
    *
    * @default false
    */
   areCDATASectionsRecognized?: boolean;
 
   /**
-   * If `true` then processing instructions are recognized.
+   * If `true` then processing instructions (`<?target data?>`) are recognized, otherwise they are treated as comments.
    *
    * @default false
    */
@@ -41,14 +57,13 @@ export interface ContextualTokenizerOptions {
 }
 
 /**
- * Options of the {@link createTokenizer}.
+ * Options of {@link createTokenizer}.
  *
  * @group Tokenizer
  */
 export interface TokenizerOptions extends ContextualTokenizerOptions {
   /**
-   * The list of tags that can't have any contents (since there's no end tag, no content can be put between the start
-   * tag and the end tag).
+   * The list of tags that can't have content. An end tag is inserted right after the start tag of a void tag.
    *
    * @example
    * ['link', 'meta']
@@ -57,7 +72,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   voidTags?: string[];
 
   /**
-   * The list of tags which content is interpreted as plain text.
+   * The list of tags whose content is read as text until the matching end tag. Parsers don't decode this text.
    *
    * @example
    * ['script', 'style']
@@ -66,8 +81,8 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   rawTextTags?: string[];
 
   /**
-   * The list of tags which content is interpreted as plain text, but unlike {@link rawTextTags}, the content is
-   * decoded and encoded.
+   * The list of tags whose content is read as text until the matching end tag. Unlike {@link rawTextTags}, parsers
+   * decode this text.
    *
    * @example
    * ['textarea', 'title']
@@ -92,7 +107,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    * { h1: ['p'] }
    * ```
    *
-   * Use in conjunctions with {@link areUnbalancedStartTagsImplicitlyClosed} and {@link implicitClosingBoundaryTags}.
+   * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyClosed} and {@link implicitClosingBoundaryTags}.
    */
   implicitlyClosedTags?: Record<string, string[]>;
 
@@ -121,7 +136,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    *
    * You can ignore unbalanced end tags with {@link areUnbalancedEndTagsIgnored}.
    *
-   * For example, in HTML `p` and `br` tags follow this semantics:
+   * For example, in HTML `p` and `br` tags follow these semantics:
    *
    * ```html
    * </p>   →  <p></p>
@@ -149,9 +164,10 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   areTagNamesCaseInsensitive?: boolean;
 
   /**
-   * If `true` then unbalanced start tags are forcefully closed. Otherwise, a {@link ParserError} is thrown.
+   * If `true` then start tags that aren't closed before the end tag of an ancestor, or before the end of the input,
+   * are implicitly closed. Otherwise, a {@link ParserError} is thrown.
    *
-   * Use in conjunctions with {@link areUnbalancedEndTagsIgnored}.
+   * Use in conjunction with {@link areUnbalancedEndTagsIgnored}.
    *
    * ```html
    * <a><b></a>  →  <a><b></b></a>
@@ -166,7 +182,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    * If `true` then end tags that don't have a corresponding start tag are ignored. Otherwise,
    * a {@link ParserError} is thrown.
    *
-   * Use in conjunctions with {@link areUnbalancedStartTagsImplicitlyClosed}.
+   * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyClosed}.
    *
    * ```html
    * <a></b></a> → <a></a>
@@ -178,8 +194,12 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   areUnbalancedEndTagsIgnored?: boolean;
 
   /**
-   * If `true` then tag names and attributes are processed with XML constraints, comments, CDATA sections and processing
-   * instructions must be terminated, and a document must have a single root element.
+   * If `true` then input is read with XML constraints, and a {@link ParserError} is thrown if input doesn't satisfy them:
+   *
+   * - tag names, attribute names and processing instruction targets must be valid XML names;
+   * - attributes must have double-quoted values;
+   * - comments, CDATA sections and processing instructions must be terminated;
+   * - a document must have a single root element.
    *
    * @default false
    */
@@ -194,27 +214,29 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
  */
 export interface Tokenizer {
   /**
-   * Reads tokens from text and returns them by invoking a callback.
+   * Reads tokens from a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
-   * @param text The text string to read tokens from.
+   * @param text The text to read tokens from.
    * @param callback The callback that is invoked when a token is read.
+   * @throws {@link ParserError} If text is malformed and tokenizer options don't allow to recover.
    */
   tokenizeDocument(text: string, callback: TokenCallback): void;
 
   /**
-   * Reads tokens from text and returns them by invoking a callback.
+   * Reads tokens from a document fragment. DOCTYPE isn't recognized.
    *
-   * @param text The text string to read tokens from.
+   * @param text The text to read tokens from.
    * @param callback The callback that is invoked when a token is read.
+   * @throws {@link ParserError} If text is malformed and tokenizer options don't allow to recover.
    */
   tokenizeFragment(text: string, callback: TokenCallback): void;
 }
 
 /**
- * Reads tokens from text and returns them by invoking a callback.
+ * Creates a tokenizer that reads tokens from text and returns them by invoking a callback.
  *
- * Tokens are _guaranteed_ to be returned in correct order. Missing tokens are inserted to restore the correct order if
- * needed.
+ * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
+ * if needed.
  *
  * @example
  * import { createTokenizer } from 'tag-soup';
@@ -229,6 +251,7 @@ export interface Tokenizer {
  * );
  *
  * @param options Tokenizer options.
+ * @returns The new tokenizer.
  * @group Tokenizer
  */
 export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
@@ -249,6 +272,9 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
 
 /**
  * Converts human-readable tokenizer options into options consumed by {@link tokenizeMarkup}.
+ *
+ * @param options Tokenizer options.
+ * @internal
  */
 export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedTokenizerOptions {
   const {
