@@ -73,10 +73,10 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @returns The document or document fragment node.
  */
 export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
-  const { readTag = getCaseSensitiveHashCode, rawTextTags, isFragment, decodeText = identity } = options;
+  const { getTagHashCode = getCaseSensitiveHashCode, rawTextTagSet, isFragment, decodeText = identity } = options;
 
   // Text inside raw text tags isn't decoded
-  const undecodedTextTags = options.decodeText !== undefined ? rawTextTags : undefined;
+  const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
 
   const root = isFragment ? new DocumentFragment() : new Document();
 
@@ -87,15 +87,16 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
-      case 'TEXT':
+      case 'TEXT': {
         const text = input.substring(startIndex, endIndex);
 
         parent.appendChild(new Text(isRawText ? text : decodeText(text)));
         break;
+      }
 
       case 'START_TAG_NAME':
-        if (undecodedTextTags !== undefined) {
-          isRawText = undecodedTextTags.has(readTag(input, startIndex, endIndex));
+        if (undecodedTextTagSet !== undefined) {
+          isRawText = undecodedTextTagSet.has(getTagHashCode(input, startIndex, endIndex));
         }
 
         parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));

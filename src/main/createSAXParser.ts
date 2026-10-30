@@ -151,12 +151,12 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @returns The document node.
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
-  const { readTag = getCaseSensitiveHashCode, rawTextTags, decodeText = identity } = options;
+  const { getTagHashCode = getCaseSensitiveHashCode, rawTextTagSet, decodeText = identity } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
   // Text inside raw text tags isn't decoded
-  const undecodedTextTags = options.decodeText !== undefined ? rawTextTags : undefined;
+  const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -178,11 +178,11 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         }
         break;
 
-      case 'START_TAG_NAME':
+      case 'START_TAG_NAME': {
         let tagName;
 
-        if (undecodedTextTags !== undefined) {
-          isRawText = undecodedTextTags.has(readTag(input, startIndex, endIndex));
+        if (undecodedTextTagSet !== undefined) {
+          isRawText = undecodedTextTagSet.has(getTagHashCode(input, startIndex, endIndex));
         }
 
         if (handler.onStartTagOpening !== undefined) {
@@ -199,6 +199,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
           attributes = Object.create(null);
         }
         break;
+      }
 
       case 'START_TAG_CLOSING':
         if (handler.onStartTagClosing !== undefined) {
@@ -241,7 +242,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         attributeNameEndIndex = endIndex;
         break;
 
-      case 'ATTRIBUTE_VALUE':
+      case 'ATTRIBUTE_VALUE': {
         if (attributes === undefined && handler.onAttribute === undefined) {
           break;
         }
@@ -257,6 +258,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
           handler.onAttribute(attributeName, attributeValue);
         }
         break;
+      }
 
       case 'CDATA_SECTION':
         if (handler.onCDATASection !== undefined) {

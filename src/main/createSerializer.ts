@@ -73,8 +73,8 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
 
   return {
     toHashCode,
-    voidTags: voidTags && new Set(voidTags.map(toHashCode)),
-    rawTextTags: rawTextTags && new Set(rawTextTags.map(toHashCode)),
+    voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
+    rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
     areSelfClosingTagsSupported,
     encodeText,
   };

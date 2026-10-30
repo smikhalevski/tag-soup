@@ -60,10 +60,10 @@ export type TokenCallback = (token: Token, startIndex: number, endIndex: number)
  * Options of {@link tokenizeMarkup}.
  */
 export interface ResolvedTokenizerOptions extends TokenReaderOptions {
-  voidTags?: Set<number>;
-  implicitlyClosedTags?: Map<number, Set<number>>;
-  implicitClosingBoundaryTags?: Set<number>;
-  implicitlyOpenedTags?: Set<number>;
+  voidTagSet?: Set<number>;
+  implicitlyClosedTagMap?: Map<number, Set<number>>;
+  implicitClosingBoundaryTagSet?: Set<number>;
+  implicitlyOpenedTagSet?: Set<number>;
   areUnbalancedStartTagsImplicitlyClosed?: boolean;
   areUnbalancedEndTagsIgnored?: boolean;
 }
@@ -89,11 +89,11 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  */
 export function tokenizeMarkup(input: string, callback: TokenCallback, options: ResolvedTokenizerOptions = {}): void {
   const {
-    readTag = getCaseSensitiveHashCode,
-    voidTags,
-    implicitlyClosedTags,
-    implicitClosingBoundaryTags,
-    implicitlyOpenedTags,
+    getTagHashCode = getCaseSensitiveHashCode,
+    voidTagSet,
+    implicitlyClosedTagMap,
+    implicitClosingBoundaryTagSet,
+    implicitlyOpenedTagSet,
     areUnbalancedStartTagsImplicitlyClosed = false,
     areUnbalancedEndTagsIgnored = false,
     isFragment = false,
@@ -103,12 +103,12 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
   // readTokens reads contextual options on every use, so they are switched here when a foreign tag is opened or closed
   const readerOptions: TokenReaderOptions = { ...options };
 
-  const tagStack = [0, 0, 0, 0, 0, 0, 0, 0];
+  const tagHashCodeStack = [0, 0, 0, 0, 0, 0, 0, 0];
 
-  // Contextual options that are applied to children of the tag at the same index in tagStack
+  // Contextual options that are applied to children of the tag at the same index in tagHashCodeStack
   const contextStack: ContextualTokenReaderOptions[] = [];
 
-  let tagStackCursor = -1;
+  let tagHashCodeStackCursor = -1;
   let context: ContextualTokenReaderOptions = options;
   let isStartTagOpened = false;
   let isRootElementRead = false;
@@ -126,23 +126,27 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
   }
 
   function popTag(): void {
-    --tagStackCursor;
+    --tagHashCodeStackCursor;
 
-    switchContext(tagStackCursor !== -1 ? contextStack[tagStackCursor] : options);
+    switchContext(tagHashCodeStackCursor !== -1 ? contextStack[tagHashCodeStackCursor] : options);
   }
 
-  function insertImplicitEndTags(tagsToClose: Set<number> | undefined, insertionIndex: number): void {
-    if (tagsToClose === undefined) {
+  function insertImplicitEndTags(implicitlyClosedTagSet: Set<number> | undefined, insertionIndex: number): void {
+    if (implicitlyClosedTagSet === undefined) {
       return;
     }
 
     let index = -1;
 
-    if (implicitClosingBoundaryTags !== undefined) {
+    if (implicitClosingBoundaryTagSet !== undefined) {
       // Tags outside the nearest boundary aren't closed, unless the boundary itself must be closed
-      index = tagStackCursor;
+      index = tagHashCodeStackCursor;
 
-      while (index !== -1 && (!implicitClosingBoundaryTags.has(tagStack[index]) || tagsToClose.has(tagStack[index]))) {
+      while (
+        index !== -1 &&
+        (!implicitClosingBoundaryTagSet.has(tagHashCodeStack[index]) ||
+          implicitlyClosedTagSet.has(tagHashCodeStack[index]))
+      ) {
         --index;
       }
     }
@@ -150,11 +154,11 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
     // Find the outermost tag that must be closed
     ++index;
 
-    while (index <= tagStackCursor && !tagsToClose.has(tagStack[index])) {
+    while (index <= tagHashCodeStackCursor && !implicitlyClosedTagSet.has(tagHashCodeStack[index])) {
       ++index;
     }
 
-    while (index <= tagStackCursor) {
+    while (index <= tagHashCodeStackCursor) {
       callback(TOKEN_END_TAG_NAME, insertionIndex, insertionIndex);
       popTag();
     }
@@ -162,14 +166,14 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
-      case TOKEN_START_TAG_NAME:
-        const startTag = readTag(input, startIndex, endIndex);
+      case TOKEN_START_TAG_NAME: {
+        const startTagHashCode = getTagHashCode(input, startIndex, endIndex);
 
-        if (implicitlyClosedTags !== undefined) {
-          insertImplicitEndTags(implicitlyClosedTags.get(startTag), startIndex - 1);
+        if (implicitlyClosedTagMap !== undefined) {
+          insertImplicitEndTags(implicitlyClosedTagMap.get(startTagHashCode), startIndex - 1);
         }
 
-        if (isStrict && !isFragment && tagStackCursor === -1) {
+        if (isStrict && !isFragment && tagHashCodeStackCursor === -1) {
           if (isRootElementRead) {
             throw new ParserError('Expected a single root element.', input, startIndex - 1, endIndex);
           }
@@ -178,22 +182,24 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
 
         callback(TOKEN_START_TAG_NAME, startIndex, endIndex);
 
-        const foreignContext = context.foreignTags !== undefined ? context.foreignTags.get(startTag) : undefined;
+        const foreignContext =
+          context.foreignTagMap !== undefined ? context.foreignTagMap.get(startTagHashCode) : undefined;
 
-        tagStack[++tagStackCursor] = startTag;
-        contextStack[tagStackCursor] = foreignContext !== undefined ? foreignContext : context;
+        tagHashCodeStack[++tagHashCodeStackCursor] = startTagHashCode;
+        contextStack[tagHashCodeStackCursor] = foreignContext !== undefined ? foreignContext : context;
 
-        switchContext(contextStack[tagStackCursor]);
+        switchContext(contextStack[tagHashCodeStackCursor]);
 
         isStartTagOpened = true;
         break;
+      }
 
       case TOKEN_START_TAG_CLOSING:
         isStartTagOpened = false;
 
         callback(TOKEN_START_TAG_CLOSING, startIndex, endIndex);
 
-        if (voidTags !== undefined && voidTags.has(tagStack[tagStackCursor])) {
+        if (voidTagSet !== undefined && voidTagSet.has(tagHashCodeStack[tagHashCodeStackCursor])) {
           callback(TOKEN_END_TAG_NAME, endIndex, endIndex);
           popTag();
         }
@@ -206,10 +212,10 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
         popTag();
         break;
 
-      case TOKEN_END_TAG_NAME:
-        const endTag = readTag(input, startIndex, endIndex);
+      case TOKEN_END_TAG_NAME: {
+        const endTagHashCode = getTagHashCode(input, startIndex, endIndex);
 
-        if (tagStackCursor !== -1 && tagStack[tagStackCursor] === endTag) {
+        if (tagHashCodeStackCursor !== -1 && tagHashCodeStack[tagHashCodeStackCursor] === endTagHashCode) {
           // Correctly closed parent tag
           callback(TOKEN_END_TAG_NAME, startIndex, endIndex);
           popTag();
@@ -219,16 +225,17 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
         // Include "</"
         const endTagStartIndex = startIndex - 2;
 
-        const startTagIndex = tagStackCursor !== -1 ? tagStack.lastIndexOf(endTag, tagStackCursor) : -1;
+        const startTagIndex =
+          tagHashCodeStackCursor !== -1 ? tagHashCodeStack.lastIndexOf(endTagHashCode, tagHashCodeStackCursor) : -1;
 
         // Found a start tag
         if (startTagIndex !== -1) {
-          if (!areUnbalancedStartTagsImplicitlyClosed && startTagIndex !== tagStackCursor) {
+          if (!areUnbalancedStartTagsImplicitlyClosed && startTagIndex !== tagHashCodeStackCursor) {
             throw new ParserError('Expected an end tag.', input, endTagStartIndex);
           }
 
           // Insert unbalanced end tags before the opened start tag
-          while (startTagIndex < tagStackCursor) {
+          while (startTagIndex < tagHashCodeStackCursor) {
             callback(TOKEN_END_TAG_NAME, endTagStartIndex, endTagStartIndex);
             popTag();
           }
@@ -238,21 +245,22 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
           break;
         }
 
-        if (implicitlyOpenedTags === undefined || !implicitlyOpenedTags.has(endTag)) {
+        if (implicitlyOpenedTagSet === undefined || !implicitlyOpenedTagSet.has(endTagHashCode)) {
           if (!areUnbalancedEndTagsIgnored) {
             throw new ParserError('Unexpected end tag.', input, startIndex, endIndex);
           }
           break;
         }
 
-        if (implicitlyClosedTags !== undefined) {
-          insertImplicitEndTags(implicitlyClosedTags.get(endTag), endTagStartIndex);
+        if (implicitlyClosedTagMap !== undefined) {
+          insertImplicitEndTags(implicitlyClosedTagMap.get(endTagHashCode), endTagStartIndex);
         }
 
         callback(TOKEN_START_TAG_NAME, startIndex, endIndex);
         callback(TOKEN_START_TAG_CLOSING, endIndex, endIndex + 1);
         callback(TOKEN_END_TAG_NAME, startIndex, endIndex);
         break;
+      }
 
       default:
         callback(token, startIndex, endIndex);
@@ -262,7 +270,7 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
 
   readTokens(input, tokenCallback, readerOptions);
 
-  if (tagStackCursor !== -1 && !areUnbalancedStartTagsImplicitlyClosed) {
+  if (tagHashCodeStackCursor !== -1 && !areUnbalancedStartTagsImplicitlyClosed) {
     throw new ParserError('Unexpected end of the document.', input, input.length);
   }
 
@@ -271,7 +279,7 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
     tokenCallback(TOKEN_START_TAG_CLOSING, input.length, input.length);
   }
 
-  while (tagStackCursor !== -1) {
+  while (tagHashCodeStackCursor !== -1) {
     callback(TOKEN_END_TAG_NAME, input.length, input.length);
     popTag();
   }
@@ -298,16 +306,16 @@ export interface ContextualTokenReaderOptions {
   /**
    * Foreign tags are tracked by {@link tokenizeMarkup}, {@link readTokens} ignores them.
    */
-  foreignTags?: Map<number, ContextualTokenReaderOptions>;
+  foreignTagMap?: Map<number, ContextualTokenReaderOptions>;
   areSelfClosingTagsRecognized?: boolean;
   areCDATASectionsRecognized?: boolean;
   areProcessingInstructionsRecognized?: boolean;
 }
 
 export interface TokenReaderOptions extends ContextualTokenReaderOptions {
-  readTag?: (input: string, startIndex: number, endIndex: number) => number;
-  rawTextTags?: Set<number>;
-  escapableRawTextTags?: Set<number>;
+  getTagHashCode?: (input: string, startIndex: number, endIndex: number) => number;
+  rawTextTagSet?: Set<number>;
+  escapableRawTextTagSet?: Set<number>;
   isFragment?: boolean;
   isStrict?: boolean;
 }
@@ -321,9 +329,9 @@ export interface TokenReaderOptions extends ContextualTokenReaderOptions {
  */
 export function readTokens(input: string, callback: TokenCallback, options: TokenReaderOptions = {}): void {
   const {
-    readTag = getCaseSensitiveHashCode,
-    rawTextTags,
-    escapableRawTextTags,
+    getTagHashCode = getCaseSensitiveHashCode,
+    rawTextTagSet,
+    escapableRawTextTagSet,
     isFragment,
     isStrict = false,
   } = options;
@@ -336,7 +344,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
   const skipName = isStrict ? skipXMLName : skipHTMLName;
   const skipAttributeName = isStrict ? skipXMLName : skipHTMLAttributeName;
 
-  let enclosingRawTextTag = 0;
+  let enclosingRawTextTagHashCode = 0;
 
   for (let index = textStartIndex, nextIndex = index; index < inputLength; index = nextIndex) {
     let charCode = input.charCodeAt(index);
@@ -357,7 +365,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
         callback(TOKEN_START_TAG_SELF_CLOSING, index, nextIndex);
 
         // Self-closing raw text tag has no content
-        enclosingRawTextTag = 0;
+        enclosingRawTextTagHashCode = 0;
 
         scope = SCOPE_TEXT;
         textStartIndex = nextIndex;
@@ -440,11 +448,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       // ----------------------------------------------------------
 
       if (quoteCharCode !== /* " */ 34 && quoteCharCode !== /* ' */ 39) {
-        callback(
-          TOKEN_ATTRIBUTE_VALUE,
-          nextIndex,
-          (nextIndex = skipChars(input, nextIndex, isUnquotedAttributeValueChar))
-        );
+        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = skipChars(input, nextIndex, isUnquotedAttributeValueChar)));
 
         textStartIndex = nextIndex = skipSpaces(input, nextIndex);
         continue;
@@ -496,7 +500,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     // Processing instruction
     // ----------------------------------------------------------
 
-    if (options.areProcessingInstructionsRecognized && enclosingRawTextTag === 0 && charCode === /* ? */ 63) {
+    if (options.areProcessingInstructionsRecognized && enclosingRawTextTagHashCode === 0 && charCode === /* ? */ 63) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
         callback(TOKEN_TEXT, textStartIndex, index);
@@ -544,7 +548,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     // DOCTYPE
     // ----------------------------------------------------------
 
-    if (scope === SCOPE_PROLOGUE && enclosingRawTextTag === 0 && isDoctypeSectionOpening(input, nextIndex)) {
+    if (scope === SCOPE_PROLOGUE && enclosingRawTextTagHashCode === 0 && isDoctypeSectionOpening(input, nextIndex)) {
       // Skip "!DOCTYPE"
       nextIndex += 8;
 
@@ -562,7 +566,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
 
     if (
       options.areCDATASectionsRecognized &&
-      enclosingRawTextTag === 0 &&
+      enclosingRawTextTagHashCode === 0 &&
       isCDATASectionOpening(input, nextIndex, isStrict)
     ) {
       if (textStartIndex !== index) {
@@ -591,7 +595,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     // ----------------------------------------------------------
 
     if (
-      enclosingRawTextTag === 0 &&
+      enclosingRawTextTagHashCode === 0 &&
       charCode === /* ! */ 33 &&
       getCharCodeAt(input, nextIndex + 1) === /* - */ 45 &&
       getCharCodeAt(input, nextIndex + 2) === /* - */ 45
@@ -628,7 +632,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     // Quirky comment
     // ----------------------------------------------------------
 
-    if (enclosingRawTextTag === 0 && (charCode === /* ? */ 63 || charCode === /* ! */ 33)) {
+    if (enclosingRawTextTagHashCode === 0 && (charCode === /* ? */ 63 || charCode === /* ! */ 33)) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
         callback(TOKEN_TEXT, textStartIndex, index);
@@ -689,7 +693,10 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       }
 
       // Doesn't match the current raw text tag
-      if (enclosingRawTextTag !== 0 && enclosingRawTextTag !== readTag(input, tagNameStartIndex, nextIndex)) {
+      if (
+        enclosingRawTextTagHashCode !== 0 &&
+        enclosingRawTextTagHashCode !== getTagHashCode(input, tagNameStartIndex, nextIndex)
+      ) {
         nextIndex = skipUntilTagOpening(input, nextIndex);
         continue;
       }
@@ -701,7 +708,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       callback(TOKEN_END_TAG_NAME, tagNameStartIndex, nextIndex);
 
       // Close the raw text tag
-      enclosingRawTextTag = 0;
+      enclosingRawTextTagHashCode = 0;
 
       if (!isStrict) {
         // Skip unparsable characters after the tag name
@@ -727,7 +734,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     // ----------------------------------------------------------
 
     // Start tags are ignored inside raw text tags
-    if (enclosingRawTextTag !== 0) {
+    if (enclosingRawTextTagHashCode !== 0) {
       nextIndex = skipUntilTagOpening(input, nextIndex);
       continue;
     }
@@ -750,15 +757,15 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       callback(TOKEN_TEXT, textStartIndex, index);
     }
 
-    if (rawTextTags !== undefined || escapableRawTextTags !== undefined) {
-      const startTag = readTag(input, tagNameStartIndex, nextIndex);
+    if (rawTextTagSet !== undefined || escapableRawTextTagSet !== undefined) {
+      const startTagHashCode = getTagHashCode(input, tagNameStartIndex, nextIndex);
 
       if (
-        (rawTextTags !== undefined && rawTextTags.has(startTag)) ||
-        (escapableRawTextTags !== undefined && escapableRawTextTags.has(startTag))
+        (rawTextTagSet !== undefined && rawTextTagSet.has(startTagHashCode)) ||
+        (escapableRawTextTagSet !== undefined && escapableRawTextTagSet.has(startTagHashCode))
       ) {
         // Start of the raw text tag
-        enclosingRawTextTag = startTag;
+        enclosingRawTextTagHashCode = startTagHashCode;
       }
     }
 

@@ -270,17 +270,21 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   return {
     ...resolveContextualTokenReaderOptions(options, toHashCode, new Map()),
-    readTag: getHashCode,
-    voidTags: voidTags && new Set(voidTags.map(toHashCode)),
-    rawTextTags: rawTextTags && new Set(rawTextTags.map(toHashCode)),
-    escapableRawTextTags: escapableRawTextTags && new Set(escapableRawTextTags.map(toHashCode)),
-    implicitlyClosedTags:
-      implicitlyClosedTags &&
-      new Map(
-        Object.entries(implicitlyClosedTags).map(entry => [toHashCode(entry[0]), new Set(entry[1].map(toHashCode))])
-      ),
-    implicitClosingBoundaryTags: implicitClosingBoundaryTags && new Set(implicitClosingBoundaryTags.map(toHashCode)),
-    implicitlyOpenedTags: implicitlyOpenedTags && new Set(implicitlyOpenedTags.map(toHashCode)),
+    getTagHashCode: getHashCode,
+    voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
+    rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
+    escapableRawTextTagSet:
+      escapableRawTextTags !== undefined ? new Set(escapableRawTextTags.map(toHashCode)) : undefined,
+    implicitlyClosedTagMap:
+      implicitlyClosedTags !== undefined
+        ? new Map(
+            Object.entries(implicitlyClosedTags).map(entry => [toHashCode(entry[0]), new Set(entry[1].map(toHashCode))])
+          )
+        : undefined,
+    implicitClosingBoundaryTagSet:
+      implicitClosingBoundaryTags !== undefined ? new Set(implicitClosingBoundaryTags.map(toHashCode)) : undefined,
+    implicitlyOpenedTagSet:
+      implicitlyOpenedTags !== undefined ? new Set(implicitlyOpenedTags.map(toHashCode)) : undefined,
     isFragment: false,
     areUnbalancedStartTagsImplicitlyClosed,
     areUnbalancedEndTagsIgnored,
@@ -291,9 +295,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 function resolveContextualTokenReaderOptions(
   options: ContextualTokenizerOptions,
   toHashCode: (str: string) => number,
-  resolvedOptionsCache: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>
+  resolvedOptionsMap: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>
 ): ContextualTokenReaderOptions {
-  const alreadyResolvedOptions = resolvedOptionsCache.get(options);
+  const alreadyResolvedOptions = resolvedOptionsMap.get(options);
 
   if (alreadyResolvedOptions !== undefined) {
     return alreadyResolvedOptions;
@@ -307,22 +311,22 @@ function resolveContextualTokenReaderOptions(
   } = options;
 
   const resolvedOptions: ContextualTokenReaderOptions = {
-    foreignTags: undefined,
+    foreignTagMap: undefined,
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,
     areProcessingInstructionsRecognized,
   };
 
-  resolvedOptionsCache.set(options, resolvedOptions);
+  resolvedOptionsMap.set(options, resolvedOptions);
 
   if (foreignTags === undefined) {
     return resolvedOptions;
   }
 
-  resolvedOptions.foreignTags = new Map(
+  resolvedOptions.foreignTagMap = new Map(
     Object.entries(foreignTags).map(entry => [
       toHashCode(entry[0]),
-      resolveContextualTokenReaderOptions(entry[1], toHashCode, resolvedOptionsCache),
+      resolveContextualTokenReaderOptions(entry[1], toHashCode, resolvedOptionsMap),
     ])
   );
 
