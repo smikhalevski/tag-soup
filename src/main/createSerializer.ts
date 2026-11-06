@@ -58,12 +58,14 @@ export interface TagSerializationOptions {
   /**
    * The kind of the tag:
    *
+   * - `'normal'`: children of the tag are written, and its text content is encoded with
+   *   {@link SerializerOptions.encodeText}.
    * - `'void'`: the tag is written without an end tag, and its children are ignored.
    * - `'raw_text'`: text content of the tag is written as is, without {@link SerializerOptions.encodeText}.
-   * - `'escapable_raw_text'`: text content of the tag is encoded, like in tags of any other kind. This kind is
-   *   accepted, so parsers and serializers can share tag options.
+   * - `'escapable_raw_text'`: same as `'normal'`. This kind is accepted, so parsers and serializers can share tag
+   *   options.
    *
-   * By default, the tag can contain tags and text.
+   * @default 'normal'
    */
   kind?: TagKind;
 }

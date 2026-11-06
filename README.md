@@ -180,7 +180,7 @@ callbacks. Implement only the ones you need. Callbacks for a tag are called in t
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag"><code>onStartTag(tagName, attributes, isSelfClosing)</code></a></dt>
 <dd>A start tag and all its attributes are read.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag"><code>onEndTag(tagName)</code></a></dt>
-<dd>A tag is closed: by its end tag, implicitly, or right after the start tag of a void tag. Not called for self-closing tags.</dd>
+<dd>A tag is ended: by its end tag, implicitly, or right after the start tag of a void tag. Not called for self-closing tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ontext"><code>onText(text)</code></a></dt>
 <dd>A text is read. The text is decoded, except inside raw text tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncomment"><code>onComment(data)</code></a></dt>
@@ -299,7 +299,7 @@ string literals. `startIndex` and `endIndex` point to the token's value in the i
 </dl>
 
 Tokens are balanced: each start tag is followed by a matching end tag. End tags that the tokenizer inserts, for void
-tags and implicitly closed tags, have `startIndex` equal to `endIndex`.
+tags and implicitly ended tags, have `startIndex` equal to `endIndex`.
 
 Use indices to read token values from the input:
 
@@ -390,13 +390,13 @@ options except `decodeText` and `decodeAttribute`.
 
 <dl>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tags"><code>tags</code></a></dt>
-<dd>The map from a tag name to <a href="#tag-options">tag options</a>, which describe what the tag can contain, and how it is implicitly closed and opened.</dd>
+<dd>The map from a tag name to <a href="#tag-options">tag options</a>, which describe what the tag can contain, and how it is implicitly ended and started.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext"><code>decodeText</code></a></dt>
 <dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags"><code>foreignTags</code></a></dt>
-<dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is closed. Foreign tag options can contain <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>.</dd>
+<dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is ended. Foreign tag options can contain <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
 <dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
@@ -405,8 +405,8 @@ options except `decodeText` and `decodeAttribute`.
 <dd>If <code>true</code>, processing instructions (<code>&lt;?target data?&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
 <dd>If <code>true</code>, ASCII letters in tag names are compared ignoring case.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyclosed"><code>areUnbalancedStartTagsImplicitlyClosed</code></a></dt>
-<dd>If <code>true</code>, start tags that aren't closed before the end tag of an ancestor, or before the end of the input, are closed implicitly. Otherwise, <code>ParserError</code> is thrown.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyended"><code>areUnbalancedStartTagsImplicitlyEnded</code></a></dt>
+<dd>If <code>true</code>, tags that aren't ended before the end tag of an ancestor, or before the end of the input, are implicitly ended. Otherwise, <code>ParserError</code> is thrown.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedendtagsignored"><code>areUnbalancedEndTagsIgnored</code></a></dt>
 <dd>If <code>true</code>, end tags without a matching start tag are ignored. Otherwise, <code>ParserError</code> is thrown.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#isstrict"><code>isStrict</code></a></dt>
@@ -421,17 +421,17 @@ options except `decodeText` and `decodeAttribute`.
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#kind"><code>kind</code></a></dt>
 <dd>The <a href="https://smikhalevski.github.io/tag-soup/types/TagKind.html"><code>TagKind</code></a> of the tag, which defines what the tag can contain:
 <ul>
-<li><code>'void'</code>: nothing, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements">HTML5 Void Elements</a>.</li>
-<li><code>'raw_text'</code>: text that is read until the matching end tag, like in <code>script</code> and <code>style</code>. This text isn't decoded. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements">HTML5 Raw Text Elements</a>.</li>
-<li><code>'escapable_raw_text'</code>: same as <code>'raw_text'</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements">HTML5 Escapable Raw Text Elements</a>.</li>
-</ul>
-By default, the tag can contain tags and text.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#implicitlyclosedby"><code>implicitlyClosedBy</code></a></dt>
-<dd>Tags that implicitly close this tag when they are opened. For example, <code>{ p: { implicitlyClosedBy: ['h1'] } }</code> means that <code>&lt;h1&gt;</code> closes an open <code>&lt;p&gt;</code>.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isscoping"><code>isScoping</code></a></dt>
-<dd>If <code>true</code>, the tag starts a new scope for implicit closing: tags that are opened inside it don't close tags outside of it. For example, with <code>{ li: { implicitlyClosedBy: ['li'] }, ul: { isScoping: true } }</code>, a nested <code>&lt;li&gt;</code> doesn't close the <code>&lt;li&gt;</code> of the outer list.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitlyopened"><code>isImplicitlyOpened</code></a></dt>
-<dd>If <code>true</code>, a start tag is inserted if an unbalanced end tag of this tag is read. For example, with <code>{ p: { isImplicitlyOpened: true } }</code>, <code>&lt;/p&gt;</code> becomes <code>&lt;p&gt;&lt;/p&gt;</code>.</dd>
+<li><code>'normal'</code>: tags and text, which is the default. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#normal-elements">HTML Normal Elements</a>.</li>
+<li><code>'void'</code>: nothing, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#void-elements">HTML Void Elements</a>.</li>
+<li><code>'raw_text'</code>: text that is read until the matching end tag, like in <code>script</code> and <code>style</code>. This text isn't decoded. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements">HTML Raw Text Elements</a>.</li>
+<li><code>'escapable_raw_text'</code>: same as <code>'raw_text'</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements">HTML Escapable Raw Text Elements</a>.</li>
+</ul></dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#implicitlyendedby"><code>implicitlyEndedBy</code></a></dt>
+<dd>Tags that implicitly end this tag when they are started. For example, <code>{ p: { implicitlyEndedBy: ['h1'] } }</code> means that <code>&lt;h1&gt;</code> ends an open <code>&lt;p&gt;</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitendingboundary"><code>isImplicitEndingBoundary</code></a></dt>
+<dd>If <code>true</code>, the tag is a boundary for implicit ending: tags that are started inside it don't end tags outside of it. For example, with <code>{ li: { implicitlyEndedBy: ['li'] }, ul: { isImplicitEndingBoundary: true } }</code>, a nested <code>&lt;li&gt;</code> doesn't end the <code>&lt;li&gt;</code> of the outer list.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitlystarted"><code>isImplicitlyStarted</code></a></dt>
+<dd>If <code>true</code>, a start tag is inserted if an unbalanced end tag of this tag is read. For example, with <code>{ p: { isImplicitlyStarted: true } }</code>, <code>&lt;/p&gt;</code> becomes <code>&lt;p&gt;&lt;/p&gt;</code>.</dd>
 </dl>
 
 A parser that mimics browser HTML behavior:
@@ -444,36 +444,36 @@ const htmlOptions: ParserOptions = {
   tags: {
     area: { kind: 'void' },
     base: { kind: 'void' },
-    br: { kind: 'void', isImplicitlyOpened: true },
+    br: { kind: 'void', isImplicitlyStarted: true },
     col: { kind: 'void' },
-    dd: { implicitlyClosedBy: ['dd', 'dt'] },
-    dl: { isScoping: true },
-    dt: { implicitlyClosedBy: ['dd', 'dt'] },
+    dd: { implicitlyEndedBy: ['dd', 'dt'] },
+    dl: { isImplicitEndingBoundary: true },
+    dt: { implicitlyEndedBy: ['dd', 'dt'] },
     embed: { kind: 'void' },
     hr: { kind: 'void' },
     img: { kind: 'void' },
     input: { kind: 'void' },
-    li: { implicitlyClosedBy: ['li'] },
+    li: { implicitlyEndedBy: ['li'] },
     link: { kind: 'void' },
     meta: { kind: 'void' },
-    ol: { isScoping: true },
-    p: { implicitlyClosedBy: ['h1', 'h2'], isImplicitlyOpened: true },
+    ol: { isImplicitEndingBoundary: true },
+    p: { implicitlyEndedBy: ['h1', 'h2'], isImplicitlyStarted: true },
     param: { kind: 'void' },
     script: { kind: 'raw_text' },
     source: { kind: 'void' },
     style: { kind: 'raw_text' },
-    table: { isScoping: true },
+    table: { isImplicitEndingBoundary: true },
     textarea: { kind: 'escapable_raw_text' },
     title: { kind: 'escapable_raw_text' },
     track: { kind: 'void' },
-    ul: { isScoping: true },
+    ul: { isImplicitEndingBoundary: true },
     wbr: { kind: 'void' },
   },
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
   areTagNamesCaseInsensitive: true,
   areUnbalancedEndTagsIgnored: true,
-  areUnbalancedStartTagsImplicitlyClosed: true,
+  areUnbalancedStartTagsImplicitlyEnded: true,
 };
 
 htmlOptions.foreignTags = {

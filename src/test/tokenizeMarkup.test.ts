@@ -535,7 +535,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 23, 29);
   });
 
-  test('does not close raw text tag with end tag that has the same hash code but a different name', () => {
+  test('does not end a raw text tag with an end tag that has the same hash code but a different name', () => {
     // "aQ" and "b0" have the same hash code
     readTokens('<aQ></b0></aQ>', callbackMock, resolveTokenizerOptions({ tags: { aQ: { kind: 'raw_text' } } }));
 
@@ -966,7 +966,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa><bbb>ccc',
       callbackMock,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true })
+      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
@@ -979,13 +979,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 13, 13);
   });
 
-  test('implicitly closes the immediate parent', () => {
+  test('implicitly ends the immediate parent', () => {
     tokenizeMarkup(
       '<aaa>bbb<ccc>ddd',
       callbackMock,
       resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyClosed: true,
-        tags: { aaa: { implicitlyClosedBy: ['ccc'] } },
+        areUnbalancedStartTagsImplicitlyEnded: true,
+        tags: { aaa: { implicitlyEndedBy: ['ccc'] } },
       })
     );
 
@@ -1000,13 +1000,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 16, 16);
   });
 
-  test('implicitly closes the ancestor', () => {
+  test('implicitly ends the ancestor', () => {
     tokenizeMarkup(
       '<aaa>bbb<ccc>ddd<eee>',
       callbackMock,
       resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyClosed: true,
-        tags: { aaa: { implicitlyClosedBy: ['eee'] } },
+        areUnbalancedStartTagsImplicitlyEnded: true,
+        tags: { aaa: { implicitlyEndedBy: ['eee'] } },
       })
     );
 
@@ -1024,13 +1024,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 21, 21);
   });
 
-  test('implicitly closes the topmost ancestor', () => {
+  test('implicitly ends the topmost ancestor', () => {
     tokenizeMarkup(
       '<aaa>bbb<ccc>ddd<eee>fff<ggg>',
       callbackMock,
       resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyClosed: true,
-        tags: { aaa: { implicitlyClosedBy: ['ggg'] }, eee: { implicitlyClosedBy: ['ggg'] } },
+        areUnbalancedStartTagsImplicitlyEnded: true,
+        tags: { aaa: { implicitlyEndedBy: ['ggg'] }, eee: { implicitlyEndedBy: ['ggg'] } },
       })
     );
 
@@ -1090,11 +1090,11 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 12, 15);
   });
 
-  test('implicitly closes a tag', () => {
+  test('implicitly ends a tag', () => {
     tokenizeMarkup(
       '<aaa><bbb></aaa>',
       callbackMock,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true })
+      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
@@ -1122,7 +1122,7 @@ describe('tokenizeMarkup', () => {
   });
 
   test('inserts start tags for unbalanced end tags', () => {
-    tokenizeMarkup('</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { isImplicitlyOpened: true } } }));
+    tokenizeMarkup('</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 2, 5);
@@ -1130,13 +1130,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 2, 5);
   });
 
-  test('implicitly closes a tag', () => {
+  test('implicitly ends a tag', () => {
     tokenizeMarkup(
       '<aaa><bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { aaa: { implicitlyClosedBy: ['bbb'] } },
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        tags: { aaa: { implicitlyEndedBy: ['bbb'] } },
+        areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
 
@@ -1149,12 +1149,12 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
   });
 
-  test('inserts start tag that forcefully closes preceding tag', () => {
+  test('inserts start tag that forcefully ends preceding tag', () => {
     tokenizeMarkup(
       '<aaa></bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { aaa: { implicitlyClosedBy: ['bbb'] }, bbb: { isImplicitlyOpened: true } },
+        tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { isImplicitlyStarted: true } },
       })
     );
 
@@ -1172,7 +1172,7 @@ describe('tokenizeMarkup', () => {
       'aaa<xxx>bbb<xxx>ccc</xxx>ddd</xxx>eee',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { xxx: { implicitlyClosedBy: ['xxx'], isImplicitlyOpened: true } },
+        tags: { xxx: { implicitlyEndedBy: ['xxx'], isImplicitlyStarted: true } },
       })
     );
 
@@ -1197,7 +1197,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa></AAA>',
       callbackMock,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true, areUnbalancedEndTagsIgnored: true })
+      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true, areUnbalancedEndTagsIgnored: true })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
@@ -1221,7 +1221,7 @@ describe('tokenizeMarkup', () => {
       callbackMock,
       resolveTokenizerOptions({
         areTagNamesCaseInsensitive: true,
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        areUnbalancedStartTagsImplicitlyEnded: true,
         areUnbalancedEndTagsIgnored: true,
       })
     );
@@ -1232,12 +1232,12 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 17, 17);
   });
 
-  test('closes unbalanced tags', () => {
+  test('ends unbalanced tags', () => {
     tokenizeMarkup(
       '<a><b></a></b>',
       callbackMock,
       resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        areUnbalancedStartTagsImplicitlyEnded: true,
         areUnbalancedEndTagsIgnored: true,
       })
     );
@@ -1251,13 +1251,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 8, 9);
   });
 
-  test('implicitly closes tags inside the nearest scoping tag', () => {
+  test('implicitly ends tags inside the nearest boundary', () => {
     tokenizeMarkup(
       '<aaa><bbb><aaa><bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { aaa: { isScoping: true }, bbb: { implicitlyClosedBy: ['bbb'] } },
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        tags: { aaa: { isImplicitEndingBoundary: true }, bbb: { implicitlyEndedBy: ['bbb'] } },
+        areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
 
@@ -1276,13 +1276,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(12, 'END_TAG_NAME', 20, 20);
   });
 
-  test('implicitly closes the scoping tag that must be closed', () => {
+  test('implicitly ends the boundary tag that must be ended', () => {
     tokenizeMarkup(
       '<aaa><bbb><aaa>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { aaa: { implicitlyClosedBy: ['aaa'], isScoping: true } },
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        tags: { aaa: { implicitlyEndedBy: ['aaa'], isImplicitEndingBoundary: true } },
+        areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
 
@@ -1304,7 +1304,7 @@ describe('tokenizeMarkup', () => {
       callbackMock,
       resolveTokenizerOptions({
         foreignTags: { ccc: { areSelfClosingTagsRecognized: true } },
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
 
@@ -1356,7 +1356,7 @@ describe('tokenizeMarkup', () => {
             },
           },
         },
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
 
@@ -1393,13 +1393,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 14, 17);
   });
 
-  test('restores options after an implicitly closed foreign tag', () => {
+  test('restores options after an implicitly ended foreign tag', () => {
     tokenizeMarkup(
       '<aaa><bbb></aaa><ccc/></ccc>',
       callbackMock,
       resolveTokenizerOptions({
         foreignTags: { bbb: { areSelfClosingTagsRecognized: true } },
-        areUnbalancedStartTagsImplicitlyClosed: true,
+        areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
 
@@ -1436,15 +1436,15 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 30, 33);
   });
 
-  test('does not close start tag with end tag that has the same hash code but a different name', () => {
+  test('does not end a tag with an end tag that has the same hash code but a different name', () => {
     // "aQ" and "b0" have the same hash code
     expect(() => tokenizeMarkup('<aQ></b0>', callbackMock)).toThrow(
       new ParserError('Unexpected end tag.', '<aQ></b0>', 6, 8)
     );
   });
 
-  test('sets the tag hash code and the tag options before an implicitly opened start tag name is passed to the callback', () => {
-    const options = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyOpened: true } } });
+  test('sets the tag hash code and the tag options before an implicitly started start tag name is passed to the callback', () => {
+    const options = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } });
     const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
     const states: Partial<TokenizerState>[] = [];
 
@@ -1462,13 +1462,13 @@ describe('tokenizeMarkup', () => {
     expect(states).toEqual([
       {
         tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3),
-        tagOptions: expect.objectContaining({ isImplicitlyOpened: true }),
+        tagOptions: expect.objectContaining({ isImplicitlyStarted: true }),
       },
     ]);
   });
 
   test('closes the start tag at the end of the input', () => {
-    tokenizeMarkup('<aaa', callbackMock, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true }));
+    tokenizeMarkup('<aaa', callbackMock, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);

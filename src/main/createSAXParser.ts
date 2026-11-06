@@ -46,10 +46,10 @@ export interface SAXHandler {
   onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
 
   /**
-   * Called when a tag is closed: by its end tag, implicitly, or right after the start tag of a void tag. Not called for
+   * Called when a tag is ended: by its end tag, implicitly, or right after the start tag of a void tag. Not called for
    * self-closing tags.
    *
-   * @param tagName The name of the start tag that is closed.
+   * @param tagName The name of the tag that is ended.
    */
   onEndTag?(tagName: string): void;
 

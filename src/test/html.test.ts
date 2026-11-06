@@ -24,19 +24,19 @@ test('parses unquoted attribute values with slashes', () => {
   );
 });
 
-test('closes list items inside the nearest list', () => {
+test('ends list items inside the nearest list', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<ul><li>aaa<ul><li>bbb</ul></ul>'))).toBe(
     '<ul><li>aaa<ul><li>bbb</li></ul></li></ul>'
   );
 });
 
-test('closes table cells inside the table section', () => {
+test('ends table cells inside the table section', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<table><thead><tr><td>aaa<td>bbb</table>'))).toBe(
     '<table><thead><tr><td>aaa</td><td>bbb</td></tr></thead></table>'
   );
 });
 
-test('closes the table section when the next one starts', () => {
+test('ends the table section when the next one starts', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<table><thead><tr><th>aaa<tbody><tr><td>bbb</table>'))).toBe(
     '<table><thead><tr><th>aaa</th></tr></thead><tbody><tr><td>bbb</td></tr></tbody></table>'
   );

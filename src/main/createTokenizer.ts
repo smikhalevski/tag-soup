@@ -18,7 +18,7 @@ import {
 export interface ContextualTokenizerOptions {
   /**
    * The map from a foreign tag name to options that are applied to its attributes and content. Options are restored
-   * when the foreign tag is closed. Options can reference each other, so foreign content may contain tags that switch
+   * when the foreign tag is ended. Options can reference each other, so foreign content may contain tags that switch
    * back to the outer options.
    *
    * For example, in HTML `svg` content is parsed with XML rules, while `foreignObject` inside `svg` switches back to
@@ -72,7 +72,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    * {
    *   br: { kind: 'void' },
    *   script: { kind: 'raw_text' },
-   *   p: { implicitlyClosedBy: ['div', 'p'], isImplicitlyOpened: true },
+   *   p: { implicitlyEndedBy: ['div', 'p'], isImplicitlyStarted: true },
    * }
    */
   tags?: Record<string, TagParsingOptions>;
@@ -85,25 +85,25 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   areTagNamesCaseInsensitive?: boolean;
 
   /**
-   * If `true` then start tags that aren't closed before the end tag of an ancestor, or before the end of the input,
-   * are implicitly closed. Otherwise, a {@link ParserError} is thrown.
+   * If `true` then tags that aren't ended before the end tag of an ancestor, or before the end of the input, are
+   * implicitly ended. Otherwise, a {@link ParserError} is thrown.
    *
    * Use in conjunction with {@link areUnbalancedEndTagsIgnored}.
    *
    * ```html
    * <a><b></a>  →  <a><b></b></a>
-   *                      ^^^^ b is implicitly closed
+   *                      ^^^^ b is implicitly ended
    * ```
    *
    * @default false
    */
-  areUnbalancedStartTagsImplicitlyClosed?: boolean;
+  areUnbalancedStartTagsImplicitlyEnded?: boolean;
 
   /**
    * If `true` then end tags that don't have a corresponding start tag are ignored. Otherwise,
    * a {@link ParserError} is thrown.
    *
-   * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyClosed}.
+   * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyEnded}.
    *
    * ```html
    * <a></b></a>  →  <a></a>
@@ -130,18 +130,18 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
 /**
  * The kind of a tag, which defines what the tag can contain:
  *
- * - `'void'`: the tag can't have content.
- * - `'raw_text'`: the content is text up to the matching end tag. Entities in this text aren't decoded or encoded.
+ * - `'normal'`: tags and text.
+ * - `'void'`: nothing, the tag can't have content.
+ * - `'raw_text'`: text up to the matching end tag. Entities in this text aren't decoded or encoded.
  * - `'escapable_raw_text'`: same as `'raw_text'`, but entities are decoded and encoded.
  *
- * Tags of any other kind can contain tags and text.
- *
- * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
- * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
- * @see [HTML5 Escapable Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements)
+ * @see [HTML Normal Elements](https://html.spec.whatwg.org/multipage/syntax.html#normal-elements)
+ * @see [HTML Void Elements](https://html.spec.whatwg.org/multipage/syntax.html#void-elements)
+ * @see [HTML Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements)
+ * @see [HTML Escapable Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements)
  * @group Tokenizer
  */
-export type TagKind = 'void' | 'raw_text' | 'escapable_raw_text';
+export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text';
 
 /**
  * Options of a tag that tokenizers and parsers use.
@@ -154,60 +154,61 @@ export interface TagParsingOptions {
   /**
    * The kind of the tag:
    *
+   * - `'normal'`: the tag can contain tags and text.
    * - `'void'`: an end tag is inserted right after the start tag.
    * - `'raw_text'`: the content is read as text until the matching end tag. Parsers don't decode this text.
    * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text.
    *
-   * By default, the tag can contain tags and text.
+   * @default 'normal'
    */
   kind?: TagKind;
 
   /**
-   * The list of tags that implicitly close this tag when they are opened.
+   * The list of tags that implicitly end this tag when they are started.
    *
-   * For example, in HTML `p` is implicitly closed by `h1`:
+   * For example, in HTML `p` is implicitly ended by `h1`:
    *
    * ```html
    * <p><h1>  →  <p></p><h1></h1>
-   *                ^^^^ p is implicitly closed by h1
+   *                ^^^^ p is implicitly ended by h1
    * ```
    *
    * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
    *
    * ```ts
-   * { p: { implicitlyClosedBy: ['h1'] } }
+   * { p: { implicitlyEndedBy: ['h1'] } }
    * ```
    *
-   * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyClosed} and
-   * {@link isScoping}.
+   * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded} and
+   * {@link isImplicitEndingBoundary}.
    */
-  implicitlyClosedBy?: string[];
+  implicitlyEndedBy?: string[];
 
   /**
-   * If `true` then the tag starts a new scope for {@link implicitlyClosedBy implicit closing}: tags that are opened
-   * inside this tag don't implicitly close tags outside of it. A scoping tag that must be implicitly closed itself
-   * doesn't limit anything.
+   * If `true` then the tag is a boundary for {@link implicitlyEndedBy implicit ending}: tags that are started inside
+   * this tag don't implicitly end tags outside of it. A boundary tag that must be implicitly ended itself doesn't limit
+   * anything.
    *
-   * For example, in HTML `li` is implicitly closed by `li`, but only inside the nearest list:
+   * For example, in HTML `li` is implicitly ended by `li`, but only inside the nearest list:
    *
    * ```html
    * <ul><li><ul><li>  →  <ul><li><ul><li></li></ul></li></ul>
-   *                                  ^^^^ outer li isn't closed by the nested li
+   *                                  ^^^^ outer li isn't ended by the nested li
    * ```
    *
    * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
    *
    * ```ts
    * {
-   *   li: { implicitlyClosedBy: ['li'] },
-   *   ul: { isScoping: true },
-   *   ol: { isScoping: true },
+   *   li: { implicitlyEndedBy: ['li'] },
+   *   ul: { isImplicitEndingBoundary: true },
+   *   ol: { isImplicitEndingBoundary: true },
    * }
    * ```
    *
    * @default false
    */
-  isScoping?: boolean;
+  isImplicitEndingBoundary?: boolean;
 
   /**
    * If `true` then a start tag is inserted if an unbalanced end tag of this tag is met. Otherwise, a {@link ParserError}
@@ -219,24 +220,24 @@ export interface TagParsingOptions {
    *
    * ```html
    * </p>   →  <p></p>
-   *           ^^^ p is implicitly opened
+   *           ^^^ p is implicitly started
    *
    * </br>  →  <br/>
-   *              ^ br is implicitly opened
+   *              ^ br is implicitly started
    * ```
    *
    * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
    *
    * ```ts
    * {
-   *   p: { isImplicitlyOpened: true },
-   *   br: { isImplicitlyOpened: true },
+   *   p: { isImplicitlyStarted: true },
+   *   br: { isImplicitlyStarted: true },
    * }
    * ```
    *
    * @default false
    */
-  isImplicitlyOpened?: boolean;
+  isImplicitlyStarted?: boolean;
 }
 
 /**
@@ -313,7 +314,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   const {
     tags = {},
     areTagNamesCaseInsensitive,
-    areUnbalancedStartTagsImplicitlyClosed,
+    areUnbalancedStartTagsImplicitlyEnded,
     areUnbalancedEndTagsIgnored,
     isStrict,
   } = options;
@@ -337,14 +338,14 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
     isFragment: false,
     isStrict,
     initialOpenTagCounts,
-    areUnbalancedStartTagsImplicitlyClosed,
+    areUnbalancedStartTagsImplicitlyEnded,
     areUnbalancedEndTagsIgnored,
   };
 }
 
 /**
  * Resolves options of each tag into a single map, so {@link tokenizeMarkup} looks up a start tag once. Tags that can be
- * implicitly closed get sequential IDs, so open tags can be counted in an array. Tags that are foreign in any of the
+ * implicitly ended get sequential IDs, so open tags can be counted in an array. Tags that are foreign in any of the
  * resolved contexts are marked as foreign.
  */
 function resolveTagOptions(
@@ -354,7 +355,7 @@ function resolveTagOptions(
 ) {
   const resolvedTagOptionsMap = new Map<number, ResolvedTagOptions>();
 
-  let implicitlyClosableTagCount = 0;
+  let endableTagCount = 0;
 
   function getResolvedTagOptions(tagHashCode: number) {
     let resolvedTagOptions = resolvedTagOptionsMap.get(tagHashCode);
@@ -365,10 +366,10 @@ function resolveTagOptions(
         isRawText: false,
         isEscapableRawText: false,
         isForeign: false,
-        isScoping: false,
-        isImplicitlyOpened: false,
-        closedTagIds: [],
-        closableTagId: -1,
+        isImplicitEndingBoundary: false,
+        isImplicitlyStarted: false,
+        endedTagIds: [],
+        endableTagId: -1,
       };
       resolvedTagOptionsMap.set(tagHashCode, resolvedTagOptions);
     }
@@ -376,22 +377,27 @@ function resolveTagOptions(
   }
 
   for (const [tagName, tagOptions] of Object.entries(tags)) {
-    const { kind, implicitlyClosedBy = [], isScoping = false, isImplicitlyOpened = false } = tagOptions;
+    const {
+      kind = 'normal',
+      implicitlyEndedBy = [],
+      isImplicitEndingBoundary = false,
+      isImplicitlyStarted = false,
+    } = tagOptions;
 
     const resolvedTagOptions = getResolvedTagOptions(toHashCode(tagName));
 
     resolvedTagOptions.isVoid = kind === 'void';
     resolvedTagOptions.isRawText = kind === 'raw_text';
     resolvedTagOptions.isEscapableRawText = kind === 'escapable_raw_text';
-    resolvedTagOptions.isScoping = isScoping;
-    resolvedTagOptions.isImplicitlyOpened = isImplicitlyOpened;
+    resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
+    resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
 
-    // Tags that close this tag keep its ID, so they know which tags to close when they are opened
-    for (const closingTagName of implicitlyClosedBy) {
-      if (resolvedTagOptions.closableTagId === -1) {
-        resolvedTagOptions.closableTagId = implicitlyClosableTagCount++;
+    // Tags that end this tag keep its ID, so they know which tags to end when they are started
+    for (const endingTagName of implicitlyEndedBy) {
+      if (resolvedTagOptions.endableTagId === -1) {
+        resolvedTagOptions.endableTagId = endableTagCount++;
       }
-      getResolvedTagOptions(toHashCode(closingTagName)).closedTagIds.push(resolvedTagOptions.closableTagId);
+      getResolvedTagOptions(toHashCode(endingTagName)).endedTagIds.push(resolvedTagOptions.endableTagId);
     }
   }
 
@@ -406,7 +412,7 @@ function resolveTagOptions(
 
   const initialOpenTagCounts: number[] = [];
 
-  for (let i = 0; i < implicitlyClosableTagCount; ++i) {
+  for (let i = 0; i < endableTagCount; ++i) {
     initialOpenTagCounts.push(0);
   }
 
