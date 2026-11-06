@@ -197,7 +197,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    * If `true` then input is read with XML constraints, and a {@link ParserError} is thrown if input doesn't satisfy them:
    *
    * - tag names, attribute names and processing instruction targets must be valid XML names;
-   * - attributes must have double-quoted values;
+   * - attributes must have values in double or single quotes;
    * - comments, CDATA sections and processing instructions must be terminated;
    * - a document must have a single root element.
    *

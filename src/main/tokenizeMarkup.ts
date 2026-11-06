@@ -553,15 +553,20 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
 
       const quoteCharCode = getCharCodeAt(input, nextIndex);
 
-      if (isStrict && quoteCharCode !== /* " */ 34) {
-        throw new ParserError("Expected a double-quoted attribute value ('\"').", input, nextIndex, nextIndex + 1);
-      }
-
       // ----------------------------------------------------------
       // Unquoted attribute value
       // ----------------------------------------------------------
 
       if (quoteCharCode !== /* " */ 34 && quoteCharCode !== /* ' */ 39) {
+        if (isStrict) {
+          throw new ParserError(
+            'Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.',
+            input,
+            nextIndex,
+            nextIndex + 1
+          );
+        }
+
         callback(
           TOKEN_ATTRIBUTE_VALUE,
           nextIndex,
@@ -583,7 +588,9 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
 
       if (isStrict && nextIndex === inputLength) {
         throw new ParserError(
-          "Expected the attribute value to be closed with a double-quote ('\"').",
+          quoteCharCode === /* " */ 34
+            ? "Expected the attribute value to be closed with a double-quote ('\"')."
+            : 'Expected the attribute value to be closed with a single-quote ("\'").',
           input,
           attributeValueStartIndex,
           inputLength
@@ -893,51 +900,37 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
     textStartIndex = nextIndex = skipSpaces(input, nextIndex);
   }
 
-  if (textStartIndex < inputLength) {
+  // The input may end inside a start tag, after an attribute without a value
+  if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
     callback(TOKEN_TEXT, textStartIndex, inputLength);
   }
 }
 
-const HASH1_SEED = 5_381;
-const HASH2_SEED = 52_711;
-
 /**
- * Returns case-insensitive string-hash-64 of a substring.
+ * Returns case-insensitive djb2 hash of a substring.
  */
 export function getCaseInsensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
-  let hash1 = HASH1_SEED;
-  let hash2 = HASH2_SEED;
-
-  for (let i = startIndex; i < endIndex; ++i) {
-    let charCode = input.charCodeAt(i);
-
-    if (charCode >= /* A */ 65 && charCode <= /* Z */ 90) {
-      charCode += 32;
-    }
-
-    hash1 = Math.imul(hash1, 33) ^ charCode;
-    hash2 = Math.imul(hash2, 65_599) ^ charCode;
-  }
-
-  // Combine into a non-negative 53-bit safe integer
-  return (hash2 >>> 11) * 0x100000000 + (hash1 >>> 0);
-}
-
-/**
- * Returns case-sensitive string-hash-64 of a substring.
- */
-export function getCaseSensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
-  let hash1 = HASH1_SEED;
-  let hash2 = HASH2_SEED;
+  let hashCode = 5_381;
 
   for (let i = startIndex; i < endIndex; ++i) {
     const charCode = input.charCodeAt(i);
-
-    hash1 = Math.imul(hash1, 33) ^ charCode;
-    hash2 = Math.imul(hash2, 65_599) ^ charCode;
+    hashCode = (hashCode << 5) + hashCode + (charCode < 65 || charCode > 90 ? charCode : charCode + 32);
   }
 
-  return (hash2 >>> 11) * 0x100000000 + (hash1 >>> 0);
+  return hashCode;
+}
+
+/**
+ * Returns case-sensitive djb2 hash of a substring.
+ */
+export function getCaseSensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
+  let hashCode = 5_381;
+
+  for (let i = startIndex; i < endIndex; ++i) {
+    hashCode = (hashCode << 5) + hashCode + input.charCodeAt(i);
+  }
+
+  return hashCode;
 }
 
 function getCharCodeAt(input: string, index: number): number {

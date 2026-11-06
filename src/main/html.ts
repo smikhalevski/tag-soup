@@ -15,7 +15,7 @@ const ddtTags = ['dd', 'dt'];
 
 const rtpTags = ['rt', 'rp'];
 
-const tableSectionTags = ['thead', 'tbody'];
+const tableSectionTags = ['thead', 'tbody', 'tr', 'th', 'td'];
 
 const htmlParserOptions: ParserOptions = {
   voidTags: [

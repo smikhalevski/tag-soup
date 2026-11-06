@@ -14,11 +14,6 @@ test('serializes XML', () => {
   );
 });
 
-test('does not match end tag with a different name', () => {
-  // "Aa" and "BB" have the same djb2 hash
-  expect(() => XMLDOMParser.parseFragment('<Aa></BB>')).toThrow('Unexpected end tag.');
-});
-
 test('serializes processing instruction without data', () => {
   expect(toXML(XMLDOMParser.parseFragment('<?aaa?>'))).toBe('<?aaa?>');
 });

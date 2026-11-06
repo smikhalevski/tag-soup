@@ -30,6 +30,12 @@ test('closes table cells inside the table section', () => {
   );
 });
 
+test('closes the table section when the next one starts', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<table><thead><tr><th>aaa<tbody><tr><td>bbb</table>'))).toBe(
+    '<table><thead><tr><th>aaa</th></tr></thead><tbody><tr><td>bbb</td></tr></tbody></table>'
+  );
+});
+
 test('round-trips raw text and escapable raw text', () => {
   const html = '<script>aaa<bbb&lt;</script><textarea>aaa&lt;bbb</textarea>';
 

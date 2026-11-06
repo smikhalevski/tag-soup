@@ -285,6 +285,15 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 12, 13);
   });
 
+  test('reads valueless attribute at the end of the input', () => {
+    readTokens('<xxx aaa', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(3);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 8, 8);
+  });
+
   test('reads equals sign in unquoted attribute value', () => {
     readTokens('<xxx aaa= bbb=>', callbackMock);
 
@@ -749,13 +758,29 @@ describe('readTokens', () => {
 
   test('strict throws if attribute has no value', () => {
     expect(() => readTokens('<aaa bbb=', callbackMock, resolveTokenizerOptions({ isStrict: true }))).toThrow(
-      new ParserError("Expected a double-quoted attribute value ('\"').", '<aaa bbb=', 9, 10)
+      new ParserError('Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.', '<aaa bbb=', 9, 10)
     );
+  });
+
+  test('strict reads single-quoted attribute value', () => {
+    readTokens("<aaa bbb='ccc'>", callbackMock, resolveTokenizerOptions({ isStrict: true }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 14, 15);
   });
 
   test('strict throws if attribute value is not terminated', () => {
     expect(() => readTokens('<aaa bbb="ccc', callbackMock, resolveTokenizerOptions({ isStrict: true }))).toThrow(
       new ParserError("Expected the attribute value to be closed with a double-quote ('\"').", '<aaa bbb="ccc', 10, 13)
+    );
+  });
+
+  test('strict throws if single-quoted attribute value is not terminated', () => {
+    expect(() => readTokens("<aaa bbb='ccc", callbackMock, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+      new ParserError('Expected the attribute value to be closed with a single-quote ("\'").', "<aaa bbb='ccc", 10, 13)
     );
   });
 
