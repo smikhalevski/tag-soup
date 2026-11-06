@@ -8,6 +8,10 @@ test('parses XML DOM', () => {
   expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
 });
 
+test('decodes attribute values', () => {
+  expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(f.f(f.aaa({ bbb: '<' })));
+});
+
 test('serializes XML', () => {
   expect(toXML(XMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<br/></p>'))).toBe(
     '<!DOCTYPE html><p>aaa&gt;&lt;<br/></p>'

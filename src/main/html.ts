@@ -1,4 +1,4 @@
-import { decodeHTML, escapeXML } from 'speedy-entities';
+import { decodeHTML, decodeHTMLAttribute, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer, type SerializerOptions } from './createSerializer.ts';
@@ -112,6 +112,7 @@ const htmlParserOptions: ParserOptions = {
   areUnbalancedStartTagsImplicitlyClosed: true,
   areUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
+  decodeAttribute: decodeHTMLAttribute,
 };
 
 htmlParserOptions.foreignTags = {
@@ -147,18 +148,20 @@ const htmlSerializerOptions: SerializerOptions = {
 export const HTMLTokenizer = createTokenizer(htmlParserOptions);
 
 /**
- * Parses HTML markup as DOM. Decodes HTML entities with
- * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html). Never throws, malformed
- * markup is recovered the way browsers do in most cases.
+ * Parses HTML markup as DOM. Decodes HTML entities in text with
+ * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html), and in attribute values with
+ * [`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html). Never
+ * throws, malformed markup is recovered the way browsers do in most cases.
  *
  * @group DOM
  */
 export const HTMLDOMParser = createDOMParser(htmlParserOptions);
 
 /**
- * Parses HTML markup and calls {@link SAXHandler} methods when tokens are read. Decodes HTML entities with
- * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html). Never throws, malformed
- * markup is recovered the way browsers do in most cases.
+ * Parses HTML markup and calls {@link SAXHandler} methods when tokens are read. Decodes HTML entities in text with
+ * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html), and in attribute values with
+ * [`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html). Never
+ * throws, malformed markup is recovered the way browsers do in most cases.
  *
  * @group SAX
  */

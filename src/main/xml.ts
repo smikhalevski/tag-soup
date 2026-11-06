@@ -11,6 +11,7 @@ const xmlParserOptions: ParserOptions = {
   areCDATASectionsRecognized: true,
   isStrict: true,
   decodeText: decodeXML,
+  decodeAttribute: decodeXML,
 };
 
 const xmlSerializerOptions: SerializerOptions = {

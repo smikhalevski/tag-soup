@@ -17,7 +17,7 @@
     "typecheck": "tsc",
     "lint": "oxlint --tsconfig tsconfig.json src/main",
     "format": "oxfmt 'src/**/*.{ts,js}'",
-    "perf": "NODE_OPTIONS=--expose-gc toofast",
+    "perf": "npm run build && toofast",
     "docs": "typedoc"
   },
   "repository": {

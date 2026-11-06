@@ -41,6 +41,12 @@ test('does not decode text in raw text tags', () => {
   ).toEqual(f.doc(f.aaa('&lt;')));
 });
 
+test('decodes attribute values with decodeAttribute', () => {
+  expect(parseDOM('<aaa bbb="&lt;">&lt;</aaa>', { decodeAttribute: decodeXML })).toEqual(
+    f.doc(f.aaa({ bbb: '<' }, '&lt;'))
+  );
+});
+
 test('parses comments in elements', () => {
   expect(parseDOM('<aaa><!--xxx--></aaa>')).toEqual(f.doc(f.aaa(f.comment('xxx'))));
 });

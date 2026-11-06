@@ -52,11 +52,12 @@ export interface DOMParser {
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
-  const { decodeText } = options;
+  const { decodeText, decodeAttribute } = options;
 
   const documentOptions: ResolvedParserOptions = {
     ...resolveTokenizerOptions(options),
     decodeText,
+    decodeAttribute,
   };
 
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
@@ -82,7 +83,13 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @internal
  */
 export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
-  const { getTagHashCode = getCaseSensitiveHashCode, rawTextTagSet, isFragment, decodeText = identity } = options;
+  const {
+    getTagHashCode = getCaseSensitiveHashCode,
+    rawTextTagSet,
+    isFragment,
+    decodeText = identity,
+    decodeAttribute = identity,
+  } = options;
 
   // Text inside raw text tags isn't decoded
   const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
@@ -125,7 +132,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
         break;
 
       case 'ATTRIBUTE_VALUE':
-        (parent as Element).setAttribute(attributeName, decodeText(input.substring(startIndex, endIndex)));
+        (parent as Element).setAttribute(attributeName, decodeAttribute(input.substring(startIndex, endIndex)));
         break;
 
       case 'CDATA_SECTION':

@@ -284,6 +284,13 @@ test('does not decode text in raw text tags', () => {
   expect(mockHandler.onText).toHaveBeenNthCalledWith(2, '<');
 });
 
+test('decodes attribute values with decodeAttribute', () => {
+  parseSAX('<aaa bbb="&lt;">&lt;</aaa>', mockHandler, { decodeAttribute: decodeXML });
+
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'bbb', '<');
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
+});
+
 test('preserves __proto__ attribute', () => {
   parseSAX('<aaa __proto__="bbb"></aaa>', mockHandler);
 

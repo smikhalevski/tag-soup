@@ -12,6 +12,12 @@ test('serializes HTML', () => {
   );
 });
 
+test('decodes attribute values differently from text', () => {
+  expect(HTMLDOMParser.parseFragment('<a href="?aaa=111&amp;bbb=222&copy=333">&copy=333</a>')).toStrictEqual(
+    f.f(f.a({ href: '?aaa=111&bbb=222&copy=333' }, '©=333'))
+  );
+});
+
 test('parses unquoted attribute values with slashes', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<a href=http://aaa/bbb>ccc</a>'))).toBe(
     '<a href="http://aaa/bbb">ccc</a>'

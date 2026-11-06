@@ -135,11 +135,12 @@ export interface SAXParser {
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
-  const { decodeText } = options;
+  const { decodeText, decodeAttribute } = options;
 
   const documentOptions: ResolvedParserOptions = {
     ...resolveTokenizerOptions(options),
     decodeText,
+    decodeAttribute,
   };
 
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
@@ -165,7 +166,12 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @internal
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
-  const { getTagHashCode = getCaseSensitiveHashCode, rawTextTagSet, decodeText = identity } = options;
+  const {
+    getTagHashCode = getCaseSensitiveHashCode,
+    rawTextTagSet,
+    decodeText = identity,
+    decodeAttribute = identity,
+  } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
@@ -262,7 +268,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         }
 
         const attributeName = input.substring(attributeNameStartIndex, attributeNameEndIndex);
-        const attributeValue = decodeText(input.substring(startIndex, endIndex));
+        const attributeValue = decodeAttribute(input.substring(startIndex, endIndex));
 
         if (attributes !== undefined) {
           attributes[attributeName] = attributeValue;
