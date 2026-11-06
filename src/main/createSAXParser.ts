@@ -1,6 +1,5 @@
-import { resolveTokenizerOptions } from './createTokenizer.ts';
 import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
-import type { ParserOptions, ResolvedParserOptions } from './types.ts';
+import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
@@ -15,7 +14,7 @@ export interface SAXHandler {
   /**
    * Called when text is read.
    *
-   * @param text The decoded text. Text inside {@link TokenizerOptions.rawTextTags raw text tags} isn't decoded.
+   * @param text The decoded text. Text inside {@link TagParsingOptions.kind raw text tags} isn't decoded.
    */
   onText?(text: string): void;
 
@@ -135,13 +134,7 @@ export interface SAXParser {
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
-  const { decodeText, decodeAttribute } = options;
-
-  const documentOptions: ResolvedParserOptions = {
-    ...resolveTokenizerOptions(options),
-    decodeText,
-    decodeAttribute,
-  };
+  const documentOptions: ResolvedParserOptions = resolveParserOptions(options);
 
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 
@@ -165,13 +158,13 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @throws {@link ParserError} If input is malformed and options don't allow to recover.
  * @internal
  */
-export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
+export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = { context: {} }): void {
   const { decodeText = identity, decodeAttribute = identity } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
-  const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
+  const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -197,7 +190,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         let tagName;
 
         // Text inside raw text tags isn't decoded
-        isRawText = state.tagInfo !== undefined && state.tagInfo.isRawText;
+        isRawText = state.tagOptions !== undefined && state.tagOptions.isRawText;
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);

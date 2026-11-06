@@ -1,4 +1,4 @@
-import type { TokenizerOptions } from './createTokenizer.ts';
+import { resolveTokenizerOptions, type TokenizerOptions } from './createTokenizer.ts';
 import type { ResolvedTokenizerOptions } from './tokenizeMarkup.ts';
 
 /**
@@ -9,7 +9,8 @@ import type { ResolvedTokenizerOptions } from './tokenizeMarkup.ts';
 export interface ParserOptions extends TokenizerOptions {
   /**
    * Decodes text content. Use this method to decode HTML/XML entities. Text inside
-   * {@link rawTextTags raw text tags}, comments, CDATA sections and processing instructions isn't decoded.
+   * {@link TagParsingOptions.kind raw text tags}, comments, CDATA sections and processing instructions isn't
+   * decoded.
    *
    * By default, text isn't decoded.
    *
@@ -54,4 +55,16 @@ export interface ResolvedParserOptions extends ResolvedTokenizerOptions {
    * @see {@link ParserOptions.decodeAttribute}
    */
   decodeAttribute?: (value: string) => string;
+}
+
+/**
+ * Converts human-readable parser options into options consumed by {@link parseDOM} and {@link parseSAX}.
+ *
+ * @param options Parser options.
+ * @internal
+ */
+export function resolveParserOptions(options: ParserOptions): ResolvedParserOptions {
+  const { decodeText, decodeAttribute } = options;
+
+  return { ...resolveTokenizerOptions(options), decodeText, decodeAttribute };
 }

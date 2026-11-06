@@ -103,7 +103,7 @@ Create a custom DOM parser using
 import { createDOMParser } from 'tag-soup';
 
 const myParser = createDOMParser({
-  voidTags: ['br'],
+  tags: { br: { kind: 'void' } },
 });
 
 myParser.parseFragment('<p><br></p>');
@@ -153,7 +153,7 @@ Create a custom SAX parser using
 import { createSAXParser } from 'tag-soup';
 
 const myParser = createSAXParser({
-  voidTags: ['br'],
+  tags: { br: { kind: 'void' } },
 });
 
 myParser.parseFragment('<p><br></p>', {
@@ -259,7 +259,7 @@ Create a custom tokenizer using
 import { createTokenizer } from 'tag-soup';
 
 const myTokenizer = createTokenizer({
-  voidTags: ['br'],
+  tags: { br: { kind: 'void' } },
 });
 
 myTokenizer.tokenizeFragment('<p><br></p>', (token, startIndex, endIndex) => {
@@ -338,7 +338,7 @@ Create a custom serializer using
 import { HTMLDOMParser, createSerializer } from 'tag-soup';
 
 const mySerializer = createSerializer({
-  voidTags: ['br'],
+  tags: { br: { kind: 'void' } },
 });
 
 const fragment = HTMLDOMParser.parseFragment('<p>hello</br>');
@@ -352,10 +352,8 @@ mySerializer(fragment);
 properties:
 
 <dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#voidtags"><code>voidTags</code></a></dt>
-<dd>Tags that can't have content, like <code>br</code> and <code>img</code>. They are written without an end tag.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#rawtexttags"><code>rawTextTags</code></a></dt>
-<dd>Tags whose text content is written without <code>encodeText</code>, like <code>script</code> and <code>style</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#tags"><code>tags</code></a></dt>
+<dd>The map from a tag name to <a href="https://smikhalevski.github.io/tag-soup/interfaces/TagSerializationOptions.html"><code>TagSerializationOptions</code></a>: void tags, like <code>br</code> and <code>img</code>, are written without an end tag, and text content of raw text tags, like <code>script</code> and <code>style</code>, is written without <code>encodeText</code>. <a href="#tag-options">Tag options</a> of a parser can be passed here too, so parsers and serializers can share them.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodetext"><code>encodeText</code></a></dt>
 <dd>Encodes text content and attribute values, for example <code>escapeXML</code> from <code>speedy-entities</code>. Comments, CDATA sections and processing instructions are written as is.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#areselfclosingtagssupported"><code>areSelfClosingTagsSupported</code></a></dt>
@@ -391,22 +389,12 @@ toXMLEncoded(fragment);
 options except `decodeText` and `decodeAttribute`.
 
 <dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#voidtags"><code>voidTags</code></a></dt>
-<dd>Tags that can't have content, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements">HTML5 Void Elements</a>.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#rawtexttags"><code>rawTextTags</code></a></dt>
-<dd>Tags whose content is read as text until the matching end tag, like <code>script</code> and <code>style</code>. This text isn't decoded. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements">HTML5 Raw Text Elements</a>.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#escapablerawtexttags"><code>escapableRawTextTags</code></a></dt>
-<dd>Same as <code>rawTextTags</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements">HTML5 Escapable Raw Text Elements</a>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tags"><code>tags</code></a></dt>
+<dd>The map from a tag name to <a href="#tag-options">tag options</a>, which describe what the tag can contain, and how it is implicitly closed and opened.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext"><code>decodeText</code></a></dt>
 <dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyclosedtags"><code>implicitlyClosedTags</code></a></dt>
-<dd>The map from a tag to tags that it implicitly closes. For example, <code>{ h1: ['p'] }</code> means that <code>&lt;h1&gt;</code> closes an open <code>&lt;p&gt;</code>.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitclosingboundarytags"><code>implicitClosingBoundaryTags</code></a></dt>
-<dd>Tags that limit <code>implicitlyClosedTags</code>: tags outside the nearest boundary tag aren't closed. For example, with <code>{ li: ['li'] }</code> and <code>['ul', 'ol']</code>, a nested <code>&lt;li&gt;</code> doesn't close the <code>&lt;li&gt;</code> of the outer list.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#implicitlyopenedtags"><code>implicitlyOpenedTags</code></a></dt>
-<dd>Tags for which a start tag is inserted if an unbalanced end tag is read. For example, with <code>['p', 'br']</code>, <code>&lt;/p&gt;</code> becomes <code>&lt;p&gt;&lt;/p&gt;</code>.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags"><code>foreignTags</code></a></dt>
 <dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is closed. Foreign tag options can contain <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
@@ -425,6 +413,27 @@ options except `decodeText` and `decodeAttribute`.
 <dd>If <code>true</code>, input must satisfy XML constraints, otherwise <code>ParserError</code> is thrown: tag names, attribute names and processing instruction targets must be valid XML names, attribute values must be in double or single quotes, comments, CDATA sections and processing instructions must be terminated, and a document must have a single root element.</dd>
 </dl>
 
+## Tag options
+
+[`TagParsingOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html) describe how a tag is read:
+
+<dl>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#kind"><code>kind</code></a></dt>
+<dd>The <a href="https://smikhalevski.github.io/tag-soup/types/TagKind.html"><code>TagKind</code></a> of the tag, which defines what the tag can contain:
+<ul>
+<li><code>'void'</code>: nothing, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements">HTML5 Void Elements</a>.</li>
+<li><code>'raw_text'</code>: text that is read until the matching end tag, like in <code>script</code> and <code>style</code>. This text isn't decoded. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements">HTML5 Raw Text Elements</a>.</li>
+<li><code>'escapable_raw_text'</code>: same as <code>'raw_text'</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements">HTML5 Escapable Raw Text Elements</a>.</li>
+</ul>
+By default, the tag can contain tags and text.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#implicitlyclosedby"><code>implicitlyClosedBy</code></a></dt>
+<dd>Tags that implicitly close this tag when they are opened. For example, <code>{ p: { implicitlyClosedBy: ['h1'] } }</code> means that <code>&lt;h1&gt;</code> closes an open <code>&lt;p&gt;</code>.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isscoping"><code>isScoping</code></a></dt>
+<dd>If <code>true</code>, the tag starts a new scope for implicit closing: tags that are opened inside it don't close tags outside of it. For example, with <code>{ li: { implicitlyClosedBy: ['li'] }, ul: { isScoping: true } }</code>, a nested <code>&lt;li&gt;</code> doesn't close the <code>&lt;li&gt;</code> of the outer list.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitlyopened"><code>isImplicitlyOpened</code></a></dt>
+<dd>If <code>true</code>, a start tag is inserted if an unbalanced end tag of this tag is read. For example, with <code>{ p: { isImplicitlyOpened: true } }</code>, <code>&lt;/p&gt;</code> becomes <code>&lt;p&gt;&lt;/p&gt;</code>.</dd>
+</dl>
+
 A parser that mimics browser HTML behavior:
 
 ```ts
@@ -432,38 +441,39 @@ import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
 import { createDOMParser, type ParserOptions } from 'tag-soup';
 
 const htmlOptions: ParserOptions = {
-  voidTags: [
-    'area',
-    'base',
-    'br',
-    'col',
-    'embed',
-    'hr',
-    'img',
-    'input',
-    'link',
-    'meta',
-    'param',
-    'source',
-    'track',
-    'wbr',
-  ],
-  rawTextTags: ['script', 'style'],
-  escapableRawTextTags: ['textarea', 'title'],
+  tags: {
+    area: { kind: 'void' },
+    base: { kind: 'void' },
+    br: { kind: 'void', isImplicitlyOpened: true },
+    col: { kind: 'void' },
+    dd: { implicitlyClosedBy: ['dd', 'dt'] },
+    dl: { isScoping: true },
+    dt: { implicitlyClosedBy: ['dd', 'dt'] },
+    embed: { kind: 'void' },
+    hr: { kind: 'void' },
+    img: { kind: 'void' },
+    input: { kind: 'void' },
+    li: { implicitlyClosedBy: ['li'] },
+    link: { kind: 'void' },
+    meta: { kind: 'void' },
+    ol: { isScoping: true },
+    p: { implicitlyClosedBy: ['h1', 'h2'], isImplicitlyOpened: true },
+    param: { kind: 'void' },
+    script: { kind: 'raw_text' },
+    source: { kind: 'void' },
+    style: { kind: 'raw_text' },
+    table: { isScoping: true },
+    textarea: { kind: 'escapable_raw_text' },
+    title: { kind: 'escapable_raw_text' },
+    track: { kind: 'void' },
+    ul: { isScoping: true },
+    wbr: { kind: 'void' },
+  },
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
   areTagNamesCaseInsensitive: true,
   areUnbalancedEndTagsIgnored: true,
   areUnbalancedStartTagsImplicitlyClosed: true,
-  implicitlyClosedTags: {
-    h1: ['p'],
-    h2: ['p'],
-    li: ['li'],
-    dt: ['dd', 'dt'],
-    dd: ['dd', 'dt'],
-  },
-  implicitClosingBoundaryTags: ['ul', 'ol', 'dl', 'table'],
-  implicitlyOpenedTags: ['p', 'br'],
 };
 
 htmlOptions.foreignTags = {

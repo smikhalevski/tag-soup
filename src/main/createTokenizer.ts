@@ -4,8 +4,8 @@ import {
   type ContextualTokenReaderOptions,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
+  type ResolvedTagOptions,
   type ResolvedTokenizerOptions,
-  type TagInfo,
   type TokenCallback,
   tokenizeMarkup,
 } from './tokenizeMarkup.ts';
@@ -25,7 +25,7 @@ export interface ContextualTokenizerOptions {
    * HTML rules:
    *
    * ```ts
-   * const htmlOptions: TokenizerOptions = { voidTags: ['br'] };
+   * const htmlOptions: TokenizerOptions = { tags: { br: { kind: 'void' } } };
    *
    * htmlOptions.foreignTags = {
    *   svg: {
@@ -66,98 +66,16 @@ export interface ContextualTokenizerOptions {
  */
 export interface TokenizerOptions extends ContextualTokenizerOptions {
   /**
-   * The list of tags that can't have content. An end tag is inserted right after the start tag of a void tag.
+   * The map from a tag name to options of the tag.
    *
    * @example
-   * ['link', 'meta']
-   * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
+   * {
+   *   br: { kind: 'void' },
+   *   script: { kind: 'raw_text' },
+   *   p: { implicitlyClosedBy: ['div', 'p'], isImplicitlyOpened: true },
+   * }
    */
-  voidTags?: string[];
-
-  /**
-   * The list of tags whose content is read as text until the matching end tag. Parsers don't decode this text.
-   *
-   * @example
-   * ['script', 'style']
-   * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
-   */
-  rawTextTags?: string[];
-
-  /**
-   * The list of tags whose content is read as text until the matching end tag. Unlike {@link rawTextTags}, parsers
-   * decode this text.
-   *
-   * @example
-   * ['textarea', 'title']
-   * @see [HTML5 Escapable Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements)
-   */
-  escapableRawTextTags?: string[];
-
-  /**
-   * The map from a tag (A) to a list of tags that must be closed if tag (A) is opened.
-   *
-   * For example, in HTML `p` and `h1` tags have the following semantics:
-   *
-   * ```html
-   * <p><h1>  →  <p></p><h1></h1>
-   *                ^^^^ p is implicitly closed by h1
-   * ```
-   *
-   * To achieve this behavior, set this option to:
-   *
-   * ```ts
-   * // h1 implicitly closes p
-   * { h1: ['p'] }
-   * ```
-   *
-   * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyClosed} and {@link implicitClosingBoundaryTags}.
-   */
-  implicitlyClosedTags?: Record<string, string[]>;
-
-  /**
-   * The list of tags that limit {@link implicitlyClosedTags}: tags outside the nearest boundary tag aren't implicitly
-   * closed. A boundary tag that must be implicitly closed itself doesn't limit anything.
-   *
-   * For example, in HTML `li` closes `li`, but only inside the nearest list:
-   *
-   * ```html
-   * <ul><li><ul><li>  →  <ul><li><ul><li></li></ul></li></ul>
-   *                                  ^^^^ outer li isn't closed by the nested li
-   * ```
-   *
-   * To achieve this behavior, set this option to:
-   *
-   * ```ts
-   * ['ul', 'ol']
-   * ```
-   */
-  implicitClosingBoundaryTags?: string[];
-
-  /**
-   * The list of tags for which a start tag is inserted if an unbalanced end tag is met. Otherwise,
-   * a {@link ParserError} is thrown.
-   *
-   * You can ignore unbalanced end tags with {@link areUnbalancedEndTagsIgnored}.
-   *
-   * For example, in HTML `p` and `br` tags follow these semantics:
-   *
-   * ```html
-   * </p>   →  <p></p>
-   *           ^^^ p is implicitly opened
-   *
-   * </br>  →  <br/>
-   *              ^ br is implicitly opened
-   * ```
-   *
-   * To achieve this behavior, set this option to:
-   *
-   * ```ts
-   * ['p', 'br']
-   * ```
-   *
-   * @see {@link areUnbalancedEndTagsIgnored}
-   */
-  implicitlyOpenedTags?: string[];
+  tags?: Record<string, TagParsingOptions>;
 
   /**
    * If `true` then ASCII alpha characters are case-insensitive in tag names.
@@ -210,6 +128,118 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
 }
 
 /**
+ * The kind of a tag, which defines what the tag can contain:
+ *
+ * - `'void'`: the tag can't have content.
+ * - `'raw_text'`: the content is text up to the matching end tag. Entities in this text aren't decoded or encoded.
+ * - `'escapable_raw_text'`: same as `'raw_text'`, but entities are decoded and encoded.
+ *
+ * Tags of any other kind can contain tags and text.
+ *
+ * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
+ * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
+ * @see [HTML5 Escapable Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#escapable-raw-text-elements)
+ * @group Tokenizer
+ */
+export type TagKind = 'void' | 'raw_text' | 'escapable_raw_text';
+
+/**
+ * Options of a tag that tokenizers and parsers use.
+ *
+ * @see {@link TokenizerOptions.tags}
+ * @see {@link TagSerializationOptions}
+ * @group Tokenizer
+ */
+export interface TagParsingOptions {
+  /**
+   * The kind of the tag:
+   *
+   * - `'void'`: an end tag is inserted right after the start tag.
+   * - `'raw_text'`: the content is read as text until the matching end tag. Parsers don't decode this text.
+   * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text.
+   *
+   * By default, the tag can contain tags and text.
+   */
+  kind?: TagKind;
+
+  /**
+   * The list of tags that implicitly close this tag when they are opened.
+   *
+   * For example, in HTML `p` is implicitly closed by `h1`:
+   *
+   * ```html
+   * <p><h1>  →  <p></p><h1></h1>
+   *                ^^^^ p is implicitly closed by h1
+   * ```
+   *
+   * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
+   *
+   * ```ts
+   * { p: { implicitlyClosedBy: ['h1'] } }
+   * ```
+   *
+   * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyClosed} and
+   * {@link isScoping}.
+   */
+  implicitlyClosedBy?: string[];
+
+  /**
+   * If `true` then the tag starts a new scope for {@link implicitlyClosedBy implicit closing}: tags that are opened
+   * inside this tag don't implicitly close tags outside of it. A scoping tag that must be implicitly closed itself
+   * doesn't limit anything.
+   *
+   * For example, in HTML `li` is implicitly closed by `li`, but only inside the nearest list:
+   *
+   * ```html
+   * <ul><li><ul><li>  →  <ul><li><ul><li></li></ul></li></ul>
+   *                                  ^^^^ outer li isn't closed by the nested li
+   * ```
+   *
+   * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
+   *
+   * ```ts
+   * {
+   *   li: { implicitlyClosedBy: ['li'] },
+   *   ul: { isScoping: true },
+   *   ol: { isScoping: true },
+   * }
+   * ```
+   *
+   * @default false
+   */
+  isScoping?: boolean;
+
+  /**
+   * If `true` then a start tag is inserted if an unbalanced end tag of this tag is met. Otherwise, a {@link ParserError}
+   * is thrown.
+   *
+   * You can ignore unbalanced end tags with {@link TokenizerOptions.areUnbalancedEndTagsIgnored}.
+   *
+   * For example, in HTML `p` and `br` tags follow these semantics:
+   *
+   * ```html
+   * </p>   →  <p></p>
+   *           ^^^ p is implicitly opened
+   *
+   * </br>  →  <br/>
+   *              ^ br is implicitly opened
+   * ```
+   *
+   * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
+   *
+   * ```ts
+   * {
+   *   p: { isImplicitlyOpened: true },
+   *   br: { isImplicitlyOpened: true },
+   * }
+   * ```
+   *
+   * @default false
+   */
+  isImplicitlyOpened?: boolean;
+}
+
+/**
  * Reads tokens from text and returns them by invoking a callback.
  *
  * @see {@link createTokenizer}
@@ -244,7 +274,7 @@ export interface Tokenizer {
  * @example
  * import { createTokenizer } from 'tag-soup';
  *
- * const tokenizer = createTokenizer({ voidTags: ['br'] });
+ * const tokenizer = createTokenizer({ tags: { br: { kind: 'void' } } });
  *
  * tokenizer.tokenizeFragment(
  *   'Hello, <b>Bob</b>!',
@@ -280,119 +310,99 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
  * @internal
  */
 export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedTokenizerOptions {
-  const { areTagNamesCaseInsensitive, areUnbalancedStartTagsImplicitlyClosed, areUnbalancedEndTagsIgnored, isStrict } =
-    options;
-
-  const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-
-  const toHashCode = (str: string) => getHashCode(str, 0, str.length);
-
-  return {
-    ...resolveContextualTokenReaderOptions(options, toHashCode, new Map()),
-    ...resolveTagInfoOptions(options, toHashCode),
-    getTagHashCode: getHashCode,
-    areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
-    isFragment: false,
+  const {
+    tags = {},
+    areTagNamesCaseInsensitive,
     areUnbalancedStartTagsImplicitlyClosed,
     areUnbalancedEndTagsIgnored,
     isStrict,
+  } = options;
+
+  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+
+  const toHashCode = (str: string) => getTagHashCode(str, 0, str.length);
+
+  // Foreign tag options can reference each other, so each of them is resolved once
+  const contextMap = new Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>();
+
+  const context = resolveContextualTokenReaderOptions(options, toHashCode, contextMap);
+
+  const { tagOptionsMap, initialOpenTagCounts } = resolveTagOptions(tags, contextMap.values(), toHashCode);
+
+  return {
+    getTagHashCode,
+    areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
+    tagOptionsMap,
+    context,
+    isFragment: false,
+    isStrict,
+    initialOpenTagCounts,
+    areUnbalancedStartTagsImplicitlyClosed,
+    areUnbalancedEndTagsIgnored,
   };
 }
 
 /**
- * Collects everything options say about each tag into a single map, so {@link tokenizeMarkup} looks up a start tag
- * once. Tags that can be implicitly closed get sequential IDs, so open tags can be counted in an array.
+ * Resolves options of each tag into a single map, so {@link tokenizeMarkup} looks up a start tag once. Tags that can be
+ * implicitly closed get sequential IDs, so open tags can be counted in an array. Tags that are foreign in any of the
+ * resolved contexts are marked as foreign.
  */
-function resolveTagInfoOptions(
-  options: TokenizerOptions,
+function resolveTagOptions(
+  tags: Record<string, TagParsingOptions>,
+  contexts: Iterable<ContextualTokenReaderOptions>,
   toHashCode: (str: string) => number
-): ResolvedTokenizerOptions {
-  const {
-    voidTags = [],
-    rawTextTags = [],
-    escapableRawTextTags = [],
-    implicitlyClosedTags = {},
-    implicitClosingBoundaryTags = [],
-    implicitlyOpenedTags = [],
-  } = options;
-
-  const tagInfoMap = new Map<number, TagInfo>();
-
-  // Foreign tag options can reference each other
-  const visitedOptionsSet = new Set<ContextualTokenizerOptions>();
+) {
+  const resolvedTagOptionsMap = new Map<number, ResolvedTagOptions>();
 
   let implicitlyClosableTagCount = 0;
 
-  function getTagInfo(tagName: string) {
-    const tagHashCode = toHashCode(tagName);
+  function getResolvedTagOptions(tagHashCode: number) {
+    let resolvedTagOptions = resolvedTagOptionsMap.get(tagHashCode);
 
-    let tagInfo = tagInfoMap.get(tagHashCode);
-
-    if (tagInfo === undefined) {
-      tagInfo = {
+    if (resolvedTagOptions === undefined) {
+      resolvedTagOptions = {
         isVoid: false,
         isRawText: false,
         isEscapableRawText: false,
         isForeign: false,
-        isImplicitClosingBoundary: false,
+        isScoping: false,
         isImplicitlyOpened: false,
         closedTagIds: [],
         closableTagId: -1,
       };
-      tagInfoMap.set(tagHashCode, tagInfo);
+      resolvedTagOptionsMap.set(tagHashCode, resolvedTagOptions);
     }
-    return tagInfo;
+    return resolvedTagOptions;
   }
 
-  function markForeignTags(contextualOptions: ContextualTokenizerOptions): void {
-    const foreignTags = contextualOptions.foreignTags;
+  for (const [tagName, tagOptions] of Object.entries(tags)) {
+    const { kind, implicitlyClosedBy = [], isScoping = false, isImplicitlyOpened = false } = tagOptions;
 
-    if (foreignTags === undefined || visitedOptionsSet.has(contextualOptions)) {
-      return;
-    }
+    const resolvedTagOptions = getResolvedTagOptions(toHashCode(tagName));
 
-    visitedOptionsSet.add(contextualOptions);
+    resolvedTagOptions.isVoid = kind === 'void';
+    resolvedTagOptions.isRawText = kind === 'raw_text';
+    resolvedTagOptions.isEscapableRawText = kind === 'escapable_raw_text';
+    resolvedTagOptions.isScoping = isScoping;
+    resolvedTagOptions.isImplicitlyOpened = isImplicitlyOpened;
 
-    for (const [tagName, foreignOptions] of Object.entries(foreignTags)) {
-      getTagInfo(tagName).isForeign = true;
-      markForeignTags(foreignOptions);
-    }
-  }
-
-  for (const tagName of voidTags) {
-    getTagInfo(tagName).isVoid = true;
-  }
-
-  for (const tagName of rawTextTags) {
-    getTagInfo(tagName).isRawText = true;
-  }
-
-  for (const tagName of escapableRawTextTags) {
-    getTagInfo(tagName).isEscapableRawText = true;
-  }
-
-  for (const tagName of implicitClosingBoundaryTags) {
-    getTagInfo(tagName).isImplicitClosingBoundary = true;
-  }
-
-  for (const tagName of implicitlyOpenedTags) {
-    getTagInfo(tagName).isImplicitlyOpened = true;
-  }
-
-  for (const [tagName, closedTagNames] of Object.entries(implicitlyClosedTags)) {
-    const closedTagIds = getTagInfo(tagName).closedTagIds;
-
-    for (const closedTagName of closedTagNames) {
-      const closedTagInfo = getTagInfo(closedTagName);
-
-      if (closedTagInfo.closableTagId === -1) {
-        closedTagInfo.closableTagId = implicitlyClosableTagCount++;
+    // Tags that close this tag keep its ID, so they know which tags to close when they are opened
+    for (const closingTagName of implicitlyClosedBy) {
+      if (resolvedTagOptions.closableTagId === -1) {
+        resolvedTagOptions.closableTagId = implicitlyClosableTagCount++;
       }
-      closedTagIds.push(closedTagInfo.closableTagId);
+      getResolvedTagOptions(toHashCode(closingTagName)).closedTagIds.push(resolvedTagOptions.closableTagId);
     }
   }
 
-  markForeignTags(options);
+  // Contexts are already resolved, so foreign tags are taken from them rather than from options
+  for (const context of contexts) {
+    if (context.foreignTagMap !== undefined) {
+      for (const tagHashCode of context.foreignTagMap.keys()) {
+        getResolvedTagOptions(tagHashCode).isForeign = true;
+      }
+    }
+  }
 
   const initialOpenTagCounts: number[] = [];
 
@@ -402,7 +412,7 @@ function resolveTagInfoOptions(
 
   return {
     // Start tags aren't looked up if options don't mention any tags
-    tagInfoMap: tagInfoMap.size !== 0 ? tagInfoMap : undefined,
+    tagOptionsMap: resolvedTagOptionsMap.size !== 0 ? resolvedTagOptionsMap : undefined,
     initialOpenTagCounts,
   };
 }

@@ -1,4 +1,5 @@
 import { Node } from 'flyweight-dom';
+import type { TagKind } from './createTokenizer.ts';
 import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.ts';
 import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './tokenizeMarkup.ts';
 
@@ -9,22 +10,16 @@ import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './tokenize
  */
 export interface SerializerOptions {
   /**
-   * The list of tags that can't have content. Void tags are written without an end tag, and their children are ignored.
+   * The map from a tag name to options of the tag. Tag options of a parser can be passed here too, so parsers and
+   * serializers can share them.
    *
    * @example
-   * ['link', 'meta']
-   * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
+   * {
+   *   br: { kind: 'void' },
+   *   script: { kind: 'raw_text' },
+   * }
    */
-  voidTags?: string[];
-
-  /**
-   * The list of tags whose text content is written as is, without {@link encodeText}.
-   *
-   * @example
-   * ['script', 'style']
-   * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
-   */
-  rawTextTags?: string[];
+  tags?: Record<string, TagSerializationOptions>;
 
   /**
    * If `true` then ASCII alpha characters are case-insensitive in tag names.
@@ -53,6 +48,27 @@ export interface SerializerOptions {
 }
 
 /**
+ * Options of a tag that serializers use. {@link TagParsingOptions} have the same {@link kind} option, so tag options
+ * of a parser can be passed to a serializer as well.
+ *
+ * @see {@link SerializerOptions.tags}
+ * @group Serializer
+ */
+export interface TagSerializationOptions {
+  /**
+   * The kind of the tag:
+   *
+   * - `'void'`: the tag is written without an end tag, and its children are ignored.
+   * - `'raw_text'`: text content of the tag is written as is, without {@link SerializerOptions.encodeText}.
+   * - `'escapable_raw_text'`: text content of the tag is encoded, like in tags of any other kind. This kind is
+   *   accepted, so parsers and serializers can share tag options.
+   *
+   * By default, the tag can contain tags and text.
+   */
+  kind?: TagKind;
+}
+
+/**
  * Creates a serializer that converts a DOM node to an HTML/XML string.
  *
  * @example
@@ -60,7 +76,7 @@ export interface SerializerOptions {
  * import { escapeXML } from 'speedy-entities';
  *
  * const serialize = createSerializer({
- *   voidTags: ['br'],
+ *   tags: { br: { kind: 'void' } },
  *   encodeText: escapeXML,
  * });
  *
@@ -86,16 +102,28 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
  * @internal
  */
 export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
-  const { voidTags, rawTextTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
+  const { tags = {}, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
 
   const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
+  const voidTagSet = new Set<number>();
+  const rawTextTagSet = new Set<number>();
+
+  for (const [tagName, tagOptions] of Object.entries(tags)) {
+    if (tagOptions.kind === 'void') {
+      voidTagSet.add(toHashCode(tagName));
+    } else if (tagOptions.kind === 'raw_text') {
+      rawTextTagSet.add(toHashCode(tagName));
+    }
+  }
+
   return {
     toHashCode,
-    voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
-    rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
+    // Tag names aren't hashed if there are no tags to look up
+    voidTagSet: voidTagSet.size !== 0 ? voidTagSet : undefined,
+    rawTextTagSet: rawTextTagSet.size !== 0 ? rawTextTagSet : undefined,
     areSelfClosingTagsSupported,
     encodeText,
   };

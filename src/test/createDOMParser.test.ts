@@ -2,7 +2,7 @@ import { f } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
 import { expect, test } from 'vitest';
 import { parseDOM } from '../main/createDOMParser.ts';
-import { resolveTokenizerOptions } from '../main/createTokenizer.ts';
+import { resolveParserOptions } from '../main/types.ts';
 
 test('parses text', () => {
   expect(parseDOM('aaa')).toStrictEqual(f.doc('aaa'));
@@ -21,7 +21,9 @@ test('parses nested elements', () => {
 });
 
 test('parses self-closing tags elements', () => {
-  expect(parseDOM('<aaa><bbb/></aaa>', { areSelfClosingTagsRecognized: true })).toEqual(f.doc(f.aaa(f.bbb())));
+  expect(parseDOM('<aaa><bbb/></aaa>', resolveParserOptions({ areSelfClosingTagsRecognized: true }))).toEqual(
+    f.doc(f.aaa(f.bbb()))
+  );
 });
 
 test('parses comments', () => {
@@ -29,20 +31,17 @@ test('parses comments', () => {
 });
 
 test('does not decode comments', () => {
-  expect(parseDOM('<!--&amp;-->', { decodeText: decodeXML })).toEqual(f.doc(f.comment('&amp;')));
+  expect(parseDOM('<!--&amp;-->', resolveParserOptions({ decodeText: decodeXML }))).toEqual(f.doc(f.comment('&amp;')));
 });
 
 test('does not decode text in raw text tags', () => {
   expect(
-    parseDOM('<aaa>&lt;</aaa>', {
-      ...resolveTokenizerOptions({ rawTextTags: ['aaa'] }),
-      decodeText: decodeXML,
-    })
+    parseDOM('<aaa>&lt;</aaa>', resolveParserOptions({ tags: { aaa: { kind: 'raw_text' } }, decodeText: decodeXML }))
   ).toEqual(f.doc(f.aaa('&lt;')));
 });
 
 test('decodes attribute values with decodeAttribute', () => {
-  expect(parseDOM('<aaa bbb="&lt;">&lt;</aaa>', { decodeAttribute: decodeXML })).toEqual(
+  expect(parseDOM('<aaa bbb="&lt;">&lt;</aaa>', resolveParserOptions({ decodeAttribute: decodeXML }))).toEqual(
     f.doc(f.aaa({ bbb: '<' }, '&lt;'))
   );
 });
@@ -52,15 +51,18 @@ test('parses comments in elements', () => {
 });
 
 test('parses processing instructions in elements', () => {
-  expect(parseDOM('<aaa><?xxx yyy?></aaa>', { areProcessingInstructionsRecognized: true })).toEqual(
-    f.doc(f.aaa(f.pi('xxx', 'yyy')))
-  );
+  expect(
+    parseDOM('<aaa><?xxx yyy?></aaa>', resolveParserOptions({ areProcessingInstructionsRecognized: true }))
+  ).toEqual(f.doc(f.aaa(f.pi('xxx', 'yyy'))));
 });
 
 test('parses DOCTYPE, processing instruction and text', () => {
-  expect(parseDOM('   <!DOCTYPE html>  <?xxx yyy?>  vvv', { areProcessingInstructionsRecognized: true })).toEqual(
-    f.doc(f.doctype('html'), f.pi('xxx', 'yyy'), 'vvv')
-  );
+  expect(
+    parseDOM(
+      '   <!DOCTYPE html>  <?xxx yyy?>  vvv',
+      resolveParserOptions({ areProcessingInstructionsRecognized: true })
+    )
+  ).toEqual(f.doc(f.doctype('html'), f.pi('xxx', 'yyy'), 'vvv'));
 });
 
 test('parses DOCTYPE, text and quirky comment', () => {

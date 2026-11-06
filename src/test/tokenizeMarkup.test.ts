@@ -154,7 +154,7 @@ describe('readTokens', () => {
   });
 
   test('parses body DTD as comment', () => {
-    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true });
+    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true, context: {} });
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -167,7 +167,7 @@ describe('readTokens', () => {
   });
 
   test('parse empty DTD as comment', () => {
-    readTokens('aaa<!>bbb', callbackMock, { isFragment: true });
+    readTokens('aaa<!>bbb', callbackMock, { isFragment: true, context: {} });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -176,7 +176,7 @@ describe('readTokens', () => {
   });
 
   test('parses processing instructions as comments', () => {
-    readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isFragment: true });
+    readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isFragment: true, context: {} });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -185,7 +185,7 @@ describe('readTokens', () => {
   });
 
   test('parses empty processing instructions as comments', () => {
-    readTokens('aaa<?>bbb', callbackMock, { isFragment: true });
+    readTokens('aaa<?>bbb', callbackMock, { isFragment: true, context: {} });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -384,7 +384,7 @@ describe('readTokens', () => {
   });
 
   test('reads self-closing tag', () => {
-    readTokens('<xxx/>', callbackMock, { areSelfClosingTagsRecognized: true });
+    readTokens('<xxx/>', callbackMock, resolveTokenizerOptions({ areSelfClosingTagsRecognized: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -392,7 +392,7 @@ describe('readTokens', () => {
   });
 
   test('does not read self-closing tag with the unquoted attribute that ends with a slash', () => {
-    readTokens('<xxx aaa=bbb//>', callbackMock, { areSelfClosingTagsRecognized: true });
+    readTokens('<xxx aaa=bbb//>', callbackMock, resolveTokenizerOptions({ areSelfClosingTagsRecognized: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -447,7 +447,11 @@ describe('readTokens', () => {
   });
 
   test('ignores tags in raw text tags', () => {
-    readTokens('<script><aaa>bbb</aaa></script>', callbackMock, resolveTokenizerOptions({ rawTextTags: ['script'] }));
+    readTokens(
+      '<script><aaa>bbb</aaa></script>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
@@ -460,7 +464,7 @@ describe('readTokens', () => {
     readTokens(
       '<script aaa="xxx" ccc="yyy">zzz</script>',
       callbackMock,
-      resolveTokenizerOptions({ rawTextTags: ['script'] })
+      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
@@ -478,7 +482,7 @@ describe('readTokens', () => {
     readTokens(
       '<aaa/><bbb></bbb>',
       callbackMock,
-      resolveTokenizerOptions({ rawTextTags: ['aaa'], areSelfClosingTagsRecognized: true })
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } }, areSelfClosingTagsRecognized: true })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
@@ -490,7 +494,11 @@ describe('readTokens', () => {
   });
 
   test('ignores tags in escapable raw text tags', () => {
-    readTokens('<aaa><bbb></aaa>', callbackMock, resolveTokenizerOptions({ escapableRawTextTags: ['aaa'] }));
+    readTokens(
+      '<aaa><bbb></aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'escapable_raw_text' } } })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -500,7 +508,11 @@ describe('readTokens', () => {
   });
 
   test('ignores comments in raw text tags', () => {
-    readTokens('<script><!-->bbb</--></script>', callbackMock, resolveTokenizerOptions({ rawTextTags: ['script'] }));
+    readTokens(
+      '<script><!-->bbb</--></script>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
@@ -513,7 +525,7 @@ describe('readTokens', () => {
     readTokens(
       '<script><!-->bbb</--></SCRIPT>',
       callbackMock,
-      resolveTokenizerOptions({ rawTextTags: ['script'], areTagNamesCaseInsensitive: true })
+      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } }, areTagNamesCaseInsensitive: true })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
@@ -525,7 +537,7 @@ describe('readTokens', () => {
 
   test('does not close raw text tag with end tag that has the same hash code but a different name', () => {
     // "aQ" and "b0" have the same hash code
-    readTokens('<aQ></b0></aQ>', callbackMock, resolveTokenizerOptions({ rawTextTags: ['aQ'] }));
+    readTokens('<aQ></b0></aQ>', callbackMock, resolveTokenizerOptions({ tags: { aQ: { kind: 'raw_text' } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 3);
@@ -578,9 +590,11 @@ describe('readTokens', () => {
   });
 
   test('reads DOCTYPE and processing instruction after comment', () => {
-    readTokens('<!--xxx-->   \n\n   <!DOCTYPE html><!--xxx-->   \n\n   <?xml aaa?>', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '<!--xxx-->   \n\n   <!DOCTYPE html><!--xxx-->   \n\n   <?xml aaa?>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
@@ -591,9 +605,11 @@ describe('readTokens', () => {
   });
 
   test('reads processing instruction and DOCTYPE separated with spaces', () => {
-    readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '   <?xml aaa?>   <!DOCTYPE html>   ',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
@@ -623,9 +639,11 @@ describe('readTokens', () => {
   });
 
   test('closes prolog with DOCTYPE after text', () => {
-    readTokens('<!DOCTYPE html>aaa<?xml aaa?>', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '<!DOCTYPE html>aaa<?xml aaa?>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 10, 14);
@@ -635,9 +653,11 @@ describe('readTokens', () => {
   });
 
   test('closes prolog with processing instruction after text', () => {
-    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '<?xml aaa?>aaa<!DOCTYPE html>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -647,9 +667,11 @@ describe('readTokens', () => {
   });
 
   test('closes multiple processing instruction in prolog', () => {
-    readTokens('   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
@@ -661,9 +683,11 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after tag', () => {
-    readTokens('<?xml aaa?><aaa><!DOCTYPE html>', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '<?xml aaa?><aaa><!DOCTYPE html>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -674,9 +698,11 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after text', () => {
-    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, {
-      areProcessingInstructionsRecognized: true,
-    });
+    readTokens(
+      '<?xml aaa?>aaa<!DOCTYPE html>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -693,14 +719,14 @@ describe('readTokens', () => {
   });
 
   test('reads empty CDATA', () => {
-    readTokens('<![CDATA[]]>', callbackMock, { areCDATASectionsRecognized: true });
+    readTokens('<![CDATA[]]>', callbackMock, resolveTokenizerOptions({ areCDATASectionsRecognized: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 9);
   });
 
   test('reads non-empty CDATA', () => {
-    readTokens('<![CDATA[aaa]]>', callbackMock, { areCDATASectionsRecognized: true });
+    readTokens('<![CDATA[aaa]]>', callbackMock, resolveTokenizerOptions({ areCDATASectionsRecognized: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 12);
@@ -710,7 +736,7 @@ describe('readTokens', () => {
     readTokens(
       '<aaa><![CDATA[aaa]]></aaa>',
       callbackMock,
-      resolveTokenizerOptions({ rawTextTags: ['aaa'], areCDATASectionsRecognized: true })
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } }, areCDATASectionsRecognized: true })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
@@ -721,7 +747,7 @@ describe('readTokens', () => {
   });
 
   test('does not read CDATA without an exclamation mark', () => {
-    readTokens('<a[CDATA[]]>', callbackMock, { areCDATASectionsRecognized: true });
+    readTokens('<a[CDATA[]]>', callbackMock, resolveTokenizerOptions({ areCDATASectionsRecognized: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 11);
@@ -902,24 +928,25 @@ describe('readTokens', () => {
     );
   });
 
-  test('sets the tag hash code and the tag info before a start tag name is passed to the callback', () => {
-    const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
-    const states: TokenizerState[] = [];
+  test('sets the tag hash code and the tag options before a start tag name is passed to the callback', () => {
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'void' } } });
+    const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
+    const states: Partial<TokenizerState>[] = [];
 
     readTokens(
       '<aaa><bbb>',
       token => {
         if (token === 'START_TAG_NAME') {
-          states.push({ ...state });
+          states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
         }
       },
-      resolveTokenizerOptions({ voidTags: ['aaa'] }),
+      options,
       state
     );
 
     expect(states).toEqual([
-      { tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3), tagInfo: expect.objectContaining({ isVoid: true }) },
-      { tagHashCode: getCaseSensitiveHashCode('bbb', 0, 3), tagInfo: undefined },
+      { tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3), tagOptions: expect.objectContaining({ isVoid: true }) },
+      { tagHashCode: getCaseSensitiveHashCode('bbb', 0, 3), tagOptions: undefined },
     ]);
   });
 });
@@ -936,7 +963,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads the unbalanced start tag', () => {
-    tokenizeMarkup('<aaa><bbb>ccc', callbackMock, { areUnbalancedStartTagsImplicitlyClosed: true });
+    tokenizeMarkup(
+      '<aaa><bbb>ccc',
+      callbackMock,
+      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -954,7 +985,7 @@ describe('tokenizeMarkup', () => {
       callbackMock,
       resolveTokenizerOptions({
         areUnbalancedStartTagsImplicitlyClosed: true,
-        implicitlyClosedTags: { ccc: ['aaa'] },
+        tags: { aaa: { implicitlyClosedBy: ['ccc'] } },
       })
     );
 
@@ -975,7 +1006,7 @@ describe('tokenizeMarkup', () => {
       callbackMock,
       resolveTokenizerOptions({
         areUnbalancedStartTagsImplicitlyClosed: true,
-        implicitlyClosedTags: { eee: ['aaa'] },
+        tags: { aaa: { implicitlyClosedBy: ['eee'] } },
       })
     );
 
@@ -999,7 +1030,7 @@ describe('tokenizeMarkup', () => {
       callbackMock,
       resolveTokenizerOptions({
         areUnbalancedStartTagsImplicitlyClosed: true,
-        implicitlyClosedTags: { ggg: ['aaa', 'eee'] },
+        tags: { aaa: { implicitlyClosedBy: ['ggg'] }, eee: { implicitlyClosedBy: ['ggg'] } },
       })
     );
 
@@ -1022,7 +1053,7 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads the void tag', () => {
-    tokenizeMarkup('<aaa>bbb', callbackMock, resolveTokenizerOptions({ voidTags: ['aaa'] }));
+    tokenizeMarkup('<aaa>bbb', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'void' } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -1032,7 +1063,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads consequent void tags', () => {
-    tokenizeMarkup('<aaa><bbb>', callbackMock, resolveTokenizerOptions({ voidTags: ['aaa', 'bbb'] }));
+    tokenizeMarkup(
+      '<aaa><bbb>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'void' }, bbb: { kind: 'void' } } })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -1044,7 +1079,7 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads the void tag in the container', () => {
-    tokenizeMarkup('<aaa><bbb></aaa>', callbackMock, resolveTokenizerOptions({ voidTags: ['bbb'] }));
+    tokenizeMarkup('<aaa><bbb></aaa>', callbackMock, resolveTokenizerOptions({ tags: { bbb: { kind: 'void' } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -1087,7 +1122,7 @@ describe('tokenizeMarkup', () => {
   });
 
   test('inserts start tags for unbalanced end tags', () => {
-    tokenizeMarkup('</aaa>', callbackMock, resolveTokenizerOptions({ implicitlyOpenedTags: ['aaa'] }));
+    tokenizeMarkup('</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { isImplicitlyOpened: true } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 2, 5);
@@ -1100,7 +1135,7 @@ describe('tokenizeMarkup', () => {
       '<aaa><bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        implicitlyClosedTags: { bbb: ['aaa'] },
+        tags: { aaa: { implicitlyClosedBy: ['bbb'] } },
         areUnbalancedStartTagsImplicitlyClosed: true,
       })
     );
@@ -1119,8 +1154,7 @@ describe('tokenizeMarkup', () => {
       '<aaa></bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        implicitlyClosedTags: { bbb: ['aaa'] },
-        implicitlyOpenedTags: ['bbb'],
+        tags: { aaa: { implicitlyClosedBy: ['bbb'] }, bbb: { isImplicitlyOpened: true } },
       })
     );
 
@@ -1138,8 +1172,7 @@ describe('tokenizeMarkup', () => {
       'aaa<xxx>bbb<xxx>ccc</xxx>ddd</xxx>eee',
       callbackMock,
       resolveTokenizerOptions({
-        implicitlyClosedTags: { xxx: ['xxx'] },
-        implicitlyOpenedTags: ['xxx'],
+        tags: { xxx: { implicitlyClosedBy: ['xxx'], isImplicitlyOpened: true } },
       })
     );
 
@@ -1161,10 +1194,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads case-sensitive end tags by default', () => {
-    tokenizeMarkup('<aaa></AAA>', callbackMock, {
-      areUnbalancedStartTagsImplicitlyClosed: true,
-      areUnbalancedEndTagsIgnored: true,
-    });
+    tokenizeMarkup(
+      '<aaa></AAA>',
+      callbackMock,
+      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true, areUnbalancedEndTagsIgnored: true })
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -1217,13 +1251,12 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 8, 9);
   });
 
-  test('implicitly closes tags inside the nearest boundary', () => {
+  test('implicitly closes tags inside the nearest scoping tag', () => {
     tokenizeMarkup(
       '<aaa><bbb><aaa><bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        implicitlyClosedTags: { bbb: ['bbb'] },
-        implicitClosingBoundaryTags: ['aaa'],
+        tags: { aaa: { isScoping: true }, bbb: { implicitlyClosedBy: ['bbb'] } },
         areUnbalancedStartTagsImplicitlyClosed: true,
       })
     );
@@ -1243,13 +1276,12 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(12, 'END_TAG_NAME', 20, 20);
   });
 
-  test('implicitly closes the boundary tag that must be closed', () => {
+  test('implicitly closes the scoping tag that must be closed', () => {
     tokenizeMarkup(
       '<aaa><bbb><aaa>',
       callbackMock,
       resolveTokenizerOptions({
-        implicitlyClosedTags: { aaa: ['aaa'] },
-        implicitClosingBoundaryTags: ['aaa'],
+        tags: { aaa: { implicitlyClosedBy: ['aaa'], isScoping: true } },
         areUnbalancedStartTagsImplicitlyClosed: true,
       })
     );
@@ -1411,31 +1443,32 @@ describe('tokenizeMarkup', () => {
     );
   });
 
-  test('sets the tag hash code and the tag info before an implicitly opened start tag name is passed to the callback', () => {
-    const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
-    const states: TokenizerState[] = [];
+  test('sets the tag hash code and the tag options before an implicitly opened start tag name is passed to the callback', () => {
+    const options = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyOpened: true } } });
+    const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
+    const states: Partial<TokenizerState>[] = [];
 
     tokenizeMarkup(
       '</aaa>',
       token => {
         if (token === 'START_TAG_NAME') {
-          states.push({ ...state });
+          states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
         }
       },
-      resolveTokenizerOptions({ implicitlyOpenedTags: ['aaa'] }),
+      options,
       state
     );
 
     expect(states).toEqual([
       {
         tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3),
-        tagInfo: expect.objectContaining({ isImplicitlyOpened: true }),
+        tagOptions: expect.objectContaining({ isImplicitlyOpened: true }),
       },
     ]);
   });
 
   test('closes the start tag at the end of the input', () => {
-    tokenizeMarkup('<aaa', callbackMock, { areUnbalancedStartTagsImplicitlyClosed: true });
+    tokenizeMarkup('<aaa', callbackMock, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);

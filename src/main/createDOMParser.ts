@@ -8,9 +8,8 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import { resolveTokenizerOptions } from './createTokenizer.ts';
 import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
-import type { ParserOptions, ResolvedParserOptions } from './types.ts';
+import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
 
 /**
  * Parses text as a DOM.
@@ -52,13 +51,7 @@ export interface DOMParser {
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
-  const { decodeText, decodeAttribute } = options;
-
-  const documentOptions: ResolvedParserOptions = {
-    ...resolveTokenizerOptions(options),
-    decodeText,
-    decodeAttribute,
-  };
+  const documentOptions: ResolvedParserOptions = resolveParserOptions(options);
 
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 
@@ -82,11 +75,11 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @throws {@link ParserError} If input is malformed and options don't allow to recover.
  * @internal
  */
-export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
+export function parseDOM(input: string, options: ResolvedParserOptions = { context: {} }): Document | DocumentFragment {
   const { isFragment, decodeText = identity, decodeAttribute = identity } = options;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
-  const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
+  const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
 
   const root = isFragment ? new DocumentFragment() : new Document();
 
@@ -106,7 +99,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
 
       case 'START_TAG_NAME':
         // Text inside raw text tags isn't decoded
-        isRawText = state.tagInfo !== undefined && state.tagInfo.isRawText;
+        isRawText = state.tagOptions !== undefined && state.tagOptions.isRawText;
 
         parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));
         break;

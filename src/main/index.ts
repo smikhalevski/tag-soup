@@ -1,9 +1,11 @@
 export { createDOMParser, type DOMParser } from './createDOMParser.ts';
 export { createSAXParser, type SAXParser, type SAXHandler } from './createSAXParser.ts';
-export { createSerializer, type SerializerOptions } from './createSerializer.ts';
+export { createSerializer, type SerializerOptions, type TagSerializationOptions } from './createSerializer.ts';
 export {
   createTokenizer,
   type ContextualTokenizerOptions,
+  type TagKind,
+  type TagParsingOptions,
   type Tokenizer,
   type TokenizerOptions,
 } from './createTokenizer.ts';

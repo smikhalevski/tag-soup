@@ -23,12 +23,12 @@ export interface ResolvedSerializerOptions {
   toHashCode: (tagName: string) => number;
 
   /**
-   * Hash codes of {@link SerializerOptions.voidTags}.
+   * Hash codes of tags whose {@link TagSerializationOptions.kind} is `'void'`.
    */
   voidTagSet?: Set<number>;
 
   /**
-   * Hash codes of {@link SerializerOptions.rawTextTags}.
+   * Hash codes of tags whose {@link TagSerializationOptions.kind} is `'raw_text'`.
    */
   rawTextTagSet?: Set<number>;
 
