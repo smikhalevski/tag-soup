@@ -1,4 +1,6 @@
 import {
+  areCaseInsensitiveSubstringsEqual,
+  areCaseSensitiveSubstringsEqual,
   type ContextualTokenReaderOptions,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
@@ -297,6 +299,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   return {
     ...resolveContextualTokenReaderOptions(options, toHashCode, new Map()),
     getTagHashCode: getHashCode,
+    areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
     voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
     rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
     escapableRawTextTagSet:

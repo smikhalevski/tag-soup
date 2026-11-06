@@ -149,6 +149,7 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
 export function tokenizeMarkup(input: string, callback: TokenCallback, options: ResolvedTokenizerOptions = {}): void {
   const {
     getTagHashCode = getCaseSensitiveHashCode,
+    areTagNamesEqual = areCaseSensitiveSubstringsEqual,
     voidTagSet,
     implicitlyClosedTagMap,
     implicitClosingBoundaryTagSet,
@@ -163,6 +164,10 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
   const readerOptions: TokenReaderOptions = { ...options };
 
   const tagHashCodeStack = [0, 0, 0, 0, 0, 0, 0, 0];
+
+  // Positions of start tag names in the input, to compare them with end tag names
+  const tagNameStartIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
+  const tagNameEndIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
 
   // Contextual options that are applied to children of the tag at the same index in tagHashCodeStack
   const contextStack: ContextualTokenReaderOptions[] = [];
@@ -188,6 +193,25 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
     --tagHashCodeStackCursor;
 
     switchContext(tagHashCodeStackCursor !== -1 ? contextStack[tagHashCodeStackCursor] : options);
+  }
+
+  // Returns the index of the nearest open start tag that has the same name as the end tag, or -1 if there's none
+  function getStartTagIndex(endTagHashCode: number, endTagNameStartIndex: number, endTagNameEndIndex: number): number {
+    for (let index = tagHashCodeStackCursor; index !== -1; --index) {
+      if (
+        tagHashCodeStack[index] === endTagHashCode &&
+        areTagNamesEqual(
+          input,
+          tagNameStartIndexStack[index],
+          tagNameEndIndexStack[index],
+          endTagNameStartIndex,
+          endTagNameEndIndex
+        )
+      ) {
+        return index;
+      }
+    }
+    return -1;
   }
 
   function insertImplicitEndTags(implicitlyClosedTagSet: Set<number> | undefined, insertionIndex: number): void {
@@ -245,6 +269,8 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
           context.foreignTagMap !== undefined ? context.foreignTagMap.get(startTagHashCode) : undefined;
 
         tagHashCodeStack[++tagHashCodeStackCursor] = startTagHashCode;
+        tagNameStartIndexStack[tagHashCodeStackCursor] = startIndex;
+        tagNameEndIndexStack[tagHashCodeStackCursor] = endIndex;
         contextStack[tagHashCodeStackCursor] = foreignContext !== undefined ? foreignContext : context;
 
         switchContext(contextStack[tagHashCodeStackCursor]);
@@ -272,20 +298,29 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
         break;
 
       case TOKEN_END_TAG_NAME: {
-        const endTagHashCode = getTagHashCode(input, startIndex, endIndex);
-
-        if (tagHashCodeStackCursor !== -1 && tagHashCodeStack[tagHashCodeStackCursor] === endTagHashCode) {
+        // Names are compared without hash codes here, since equal names have equal hash codes
+        if (
+          tagHashCodeStackCursor !== -1 &&
+          areTagNamesEqual(
+            input,
+            tagNameStartIndexStack[tagHashCodeStackCursor],
+            tagNameEndIndexStack[tagHashCodeStackCursor],
+            startIndex,
+            endIndex
+          )
+        ) {
           // Correctly closed parent tag
           callback(TOKEN_END_TAG_NAME, startIndex, endIndex);
           popTag();
           break;
         }
 
+        const endTagHashCode = getTagHashCode(input, startIndex, endIndex);
+
         // Include "</"
         const endTagStartIndex = startIndex - 2;
 
-        const startTagIndex =
-          tagHashCodeStackCursor !== -1 ? tagHashCodeStack.lastIndexOf(endTagHashCode, tagHashCodeStackCursor) : -1;
+        const startTagIndex = getStartTagIndex(endTagHashCode, startIndex, endIndex);
 
         // Found a start tag
         if (startTagIndex !== -1) {
@@ -404,6 +439,20 @@ export interface TokenReaderOptions extends ContextualTokenReaderOptions {
   getTagHashCode?: (input: string, startIndex: number, endIndex: number) => number;
 
   /**
+   * Returns `true` if two tag names are equal. End tags are matched with start tags by name, since different names can
+   * have equal hash codes.
+   *
+   * @default areCaseSensitiveSubstringsEqual
+   */
+  areTagNamesEqual?: (
+    input: string,
+    startIndex1: number,
+    endIndex1: number,
+    startIndex2: number,
+    endIndex2: number
+  ) => boolean;
+
+  /**
    * Hash codes of {@link TokenizerOptions.rawTextTags}.
    */
   rawTextTagSet?: Set<number>;
@@ -444,6 +493,7 @@ export interface TokenReaderOptions extends ContextualTokenReaderOptions {
 export function readTokens(input: string, callback: TokenCallback, options: TokenReaderOptions = {}): void {
   const {
     getTagHashCode = getCaseSensitiveHashCode,
+    areTagNamesEqual = areCaseSensitiveSubstringsEqual,
     rawTextTagSet,
     escapableRawTextTagSet,
     isFragment,
@@ -459,6 +509,8 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
   const skipAttributeName = isStrict ? skipXMLName : skipHTMLAttributeName;
 
   let enclosingRawTextTagHashCode = 0;
+  let enclosingRawTextTagNameStartIndex = 0;
+  let enclosingRawTextTagNameEndIndex = 0;
 
   for (let index = textStartIndex, nextIndex = index; index < inputLength; index = nextIndex) {
     let charCode = input.charCodeAt(index);
@@ -820,7 +872,14 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       // Doesn't match the current raw text tag
       if (
         enclosingRawTextTagHashCode !== 0 &&
-        enclosingRawTextTagHashCode !== getTagHashCode(input, tagNameStartIndex, nextIndex)
+        (enclosingRawTextTagHashCode !== getTagHashCode(input, tagNameStartIndex, nextIndex) ||
+          !areTagNamesEqual(
+            input,
+            enclosingRawTextTagNameStartIndex,
+            enclosingRawTextTagNameEndIndex,
+            tagNameStartIndex,
+            nextIndex
+          ))
       ) {
         nextIndex = skipUntilTagOpening(input, nextIndex);
         continue;
@@ -891,6 +950,8 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       ) {
         // Start of the raw text tag
         enclosingRawTextTagHashCode = startTagHashCode;
+        enclosingRawTextTagNameStartIndex = tagNameStartIndex;
+        enclosingRawTextTagNameEndIndex = nextIndex;
       }
     }
 
@@ -933,14 +994,66 @@ export function getCaseSensitiveHashCode(input: string, startIndex: number, endI
   return hashCode;
 }
 
+/**
+ * Returns `true` if two substrings are equal, ignoring the case of ASCII letters.
+ */
+export function areCaseInsensitiveSubstringsEqual(
+  input: string,
+  startIndex1: number,
+  endIndex1: number,
+  startIndex2: number,
+  endIndex2: number
+): boolean {
+  if (endIndex1 - startIndex1 !== endIndex2 - startIndex2) {
+    return false;
+  }
+
+  for (let i = startIndex1, j = startIndex2; i < endIndex1; ++i, ++j) {
+    const charCode1 = input.charCodeAt(i);
+    const charCode2 = input.charCodeAt(j);
+
+    // Case is folded only if chars differ, since end tags usually repeat start tags exactly
+    if (charCode1 !== charCode2 && toLowerCaseCharCode(charCode1) !== toLowerCaseCharCode(charCode2)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Returns `true` if two substrings are equal.
+ */
+export function areCaseSensitiveSubstringsEqual(
+  input: string,
+  startIndex1: number,
+  endIndex1: number,
+  startIndex2: number,
+  endIndex2: number
+): boolean {
+  if (endIndex1 - startIndex1 !== endIndex2 - startIndex2) {
+    return false;
+  }
+
+  for (let i = startIndex1, j = startIndex2; i < endIndex1; ++i, ++j) {
+    if (input.charCodeAt(i) !== input.charCodeAt(j)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function getCharCodeAt(input: string, index: number): number {
   return index < input.length ? input.charCodeAt(index) : -1;
 }
 
 function getCaseInsensitiveCharCodeAt(input: string, index: number): number {
-  const charCode = getCharCodeAt(input, index);
+  return toLowerCaseCharCode(getCharCodeAt(input, index));
+}
 
-  return charCode < 65 || charCode > 90 ? charCode : charCode + 32;
+function toLowerCaseCharCode(charCode: number): number {
+  return charCode < /* A */ 65 || charCode > /* Z */ 90 ? charCode : charCode + 32;
 }
 
 /**

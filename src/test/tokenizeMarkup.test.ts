@@ -516,6 +516,17 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 23, 29);
   });
 
+  test('does not close raw text tag with end tag that has the same hash code but a different name', () => {
+    // "aQ" and "b0" have the same hash code
+    readTokens('<aQ></b0></aQ>', callbackMock, resolveTokenizerOptions({ rawTextTags: ['aQ'] }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 3, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 4, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 11, 13);
+  });
+
   test('reads lower-case DOCTYPE', () => {
     readTokens('<!doctype html>', callbackMock);
 
@@ -1363,6 +1374,13 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 23, 26);
     expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 27, 28);
     expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 30, 33);
+  });
+
+  test('does not close start tag with end tag that has the same hash code but a different name', () => {
+    // "aQ" and "b0" have the same hash code
+    expect(() => tokenizeMarkup('<aQ></b0>', callbackMock)).toThrow(
+      new ParserError('Unexpected end tag.', '<aQ></b0>', 6, 8)
+    );
   });
 
   test('closes the start tag at the end of the input', () => {
