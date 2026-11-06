@@ -619,11 +619,7 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
           );
         }
 
-        callback(
-          TOKEN_ATTRIBUTE_VALUE,
-          nextIndex,
-          (nextIndex = skipChars(input, nextIndex, isUnquotedAttributeValueChar))
-        );
+        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = skipUnquotedAttributeValue(input, nextIndex)));
 
         textStartIndex = nextIndex = skipSpaces(input, nextIndex);
         continue;
@@ -1093,21 +1089,17 @@ function isCDATASectionOpening(input: string, index: number, isCaseSensitive: bo
   );
 }
 
-/**
- * Skips chars until they match a predicate.
- */
-function skipChars(input: string, index: number, predicate: (charCode: number) => boolean): number {
-  while (index < input.length && predicate(input.charCodeAt(index))) {
-    ++index;
-  }
-  return index;
-}
+// Skip functions have their own loops rather than a shared loop that accepts a char predicate, since V8 doesn't inline
+// a predicate that is passed as an argument
 
 /**
  * Skips whitespace chars.
  */
 function skipSpaces(input: string, index: number): number {
-  return skipChars(input, index, isSpaceChar);
+  while (index < input.length && isSpaceChar(input.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
 }
 
 // https://www.w3.org/TR/xml/#NT-S
@@ -1165,15 +1157,45 @@ function isUnquotedAttributeValueChar(charCode: number): boolean {
 
 // https://www.w3.org/TR/xml/#NT-Name
 function skipXMLName(input: string, index: number): number {
-  return isXMLNameStartChar(getCharCodeAt(input, index)) ? skipChars(input, index + 1, isXMLNameChar) : index;
+  if (!isXMLNameStartChar(getCharCodeAt(input, index))) {
+    return index;
+  }
+
+  // Skip the start char
+  ++index;
+
+  while (index < input.length && isXMLNameChar(input.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
 }
 
 function skipHTMLName(input: string, index: number): number {
-  return isXMLNameStartChar(getCharCodeAt(input, index)) ? skipChars(input, index + 1, isHTMLNameChar) : index;
+  if (!isXMLNameStartChar(getCharCodeAt(input, index))) {
+    return index;
+  }
+
+  // Skip the start char
+  ++index;
+
+  while (index < input.length && isHTMLNameChar(input.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
 }
 
 function skipHTMLAttributeName(input: string, index: number): number {
-  return skipChars(input, index, isHTMLAttributeNameChar);
+  while (index < input.length && isHTMLAttributeNameChar(input.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
+}
+
+function skipUnquotedAttributeValue(input: string, index: number): number {
+  while (index < input.length && isUnquotedAttributeValueChar(input.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
 }
 
 function getIndexOfOrLength(input: string, searchString: string, index: number): number {
