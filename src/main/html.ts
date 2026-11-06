@@ -1,9 +1,9 @@
-import { decodeHTML, escapeXML } from 'speedy-entities';
-import { ParserOptions } from './types.js';
-import { createDOMParser } from './createDOMParser.js';
-import { createSAXParser } from './createSAXParser.js';
-import { createSerializer, SerializerOptions } from './createSerializer.js';
-import { createTokenizer } from './createTokenizer.js';
+import { decodeHTML, decodeHTMLAttribute, escapeXML } from 'speedy-entities';
+import { createDOMParser } from './createDOMParser.ts';
+import { createSAXParser } from './createSAXParser.ts';
+import { createSerializer, type SerializerOptions } from './createSerializer.ts';
+import { createTokenizer } from './createTokenizer.ts';
+import type { ParserOptions } from './types.ts';
 
 const formTags = ['input', 'option', 'optgroup', 'select', 'button', 'datalist', 'textarea'];
 
@@ -15,7 +15,7 @@ const ddtTags = ['dd', 'dt'];
 
 const rtpTags = ['rt', 'rp'];
 
-const tableSectionTags = ['thead', 'tbody'];
+const tableSectionTags = ['thead', 'tbody', 'tr', 'th', 'td'];
 
 const htmlParserOptions: ParserOptions = {
   voidTags: [
@@ -39,11 +39,12 @@ const htmlParserOptions: ParserOptions = {
     'track',
     'wbr',
   ],
-  rawTextTags: ['script', 'style', 'textarea', 'iframe', 'noembed', 'noframes', 'plaintext'],
+  rawTextTags: ['script', 'style', 'iframe', 'noembed', 'noframes', 'plaintext'],
+  escapableRawTextTags: ['textarea'],
   implicitlyClosedTags: {
     tr: ['tr', 'th', 'td'],
     th: ['th', 'td'],
-    td: ['thead', 'th', 'td'],
+    td: ['th', 'td'],
     body: ['head', 'link', 'script'],
     a: ['a'],
     li: ['li'],
@@ -90,11 +91,28 @@ const htmlParserOptions: ParserOptions = {
     tbody: tableSectionTags,
     tfoot: tableSectionTags,
   },
+  // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
+  implicitClosingBoundaryTags: [
+    'applet',
+    'button',
+    'caption',
+    'dl',
+    'html',
+    'marquee',
+    'object',
+    'ol',
+    'table',
+    'td',
+    'template',
+    'th',
+    'ul',
+  ],
   implicitlyOpenedTags: ['p', 'br'],
   areTagNamesCaseInsensitive: true,
   areUnbalancedStartTagsImplicitlyClosed: true,
   areUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
+  decodeAttribute: decodeHTMLAttribute,
 };
 
 htmlParserOptions.foreignTags = {
@@ -115,35 +133,45 @@ htmlParserOptions.foreignTags = {
 
 const htmlSerializerOptions: SerializerOptions = {
   voidTags: htmlParserOptions.voidTags,
+  rawTextTags: htmlParserOptions.rawTextTags,
   areTagNamesCaseInsensitive: true,
   areSelfClosingTagsSupported: false,
   encodeText: escapeXML,
 };
 
 /**
- * Tokenizes HTML markup as a stream of tokens.
+ * Tokenizes HTML markup as a stream of tokens. Never throws, malformed markup is recovered the way browsers do in
+ * most cases.
  *
  * @group Tokenizer
  */
 export const HTMLTokenizer = createTokenizer(htmlParserOptions);
 
 /**
- * Parses HTML markup as DOM.
+ * Parses HTML markup as a DOM. Decodes HTML entities in text with
+ * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html), and in attribute values with
+ * [`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html). Never
+ * throws, malformed markup is recovered the way browsers do in most cases.
  *
  * @group DOM
  */
 export const HTMLDOMParser = createDOMParser(htmlParserOptions);
 
 /**
- * Parses HTML markup as a stream of tokens.
+ * Parses HTML markup and calls {@link SAXHandler} methods when tokens are read. Decodes HTML entities in text with
+ * [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html), and in attribute values with
+ * [`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html). Never
+ * throws, malformed markup is recovered the way browsers do in most cases.
  *
  * @group SAX
  */
 export const HTMLSAXParser = createSAXParser(htmlParserOptions);
 
 /**
- * Serializes DOM node as HTML string.
+ * Serializes a DOM node as an HTML string. Encodes text with
+ * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html), except for the content of
+ * raw text tags, like `script` and `style`.
  *
- * @group DOM
+ * @group Serializer
  */
 export const toHTML = createSerializer(htmlSerializerOptions);

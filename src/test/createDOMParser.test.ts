@@ -1,6 +1,8 @@
-import { expect, test } from 'vitest';
-import { parseDOM } from '../main/createDOMParser.js';
 import { f } from 'flyweight-dom/dsl';
+import { decodeXML } from 'speedy-entities';
+import { expect, test } from 'vitest';
+import { parseDOM } from '../main/createDOMParser.ts';
+import { resolveTokenizerOptions } from '../main/createTokenizer.ts';
 
 test('parses text', () => {
   expect(parseDOM('aaa')).toStrictEqual(f.doc('aaa'));
@@ -24,6 +26,25 @@ test('parses self-closing tags elements', () => {
 
 test('parses comments', () => {
   expect(parseDOM('<!--xxx-->')).toEqual(f.doc(f.comment('xxx')));
+});
+
+test('does not decode comments', () => {
+  expect(parseDOM('<!--&amp;-->', { decodeText: decodeXML })).toEqual(f.doc(f.comment('&amp;')));
+});
+
+test('does not decode text in raw text tags', () => {
+  expect(
+    parseDOM('<aaa>&lt;</aaa>', {
+      ...resolveTokenizerOptions({ rawTextTags: ['aaa'] }),
+      decodeText: decodeXML,
+    })
+  ).toEqual(f.doc(f.aaa('&lt;')));
+});
+
+test('decodes attribute values with decodeAttribute', () => {
+  expect(parseDOM('<aaa bbb="&lt;">&lt;</aaa>', { decodeAttribute: decodeXML })).toEqual(
+    f.doc(f.aaa({ bbb: '<' }, '&lt;'))
+  );
 });
 
 test('parses comments in elements', () => {

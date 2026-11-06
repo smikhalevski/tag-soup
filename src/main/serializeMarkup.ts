@@ -12,23 +12,47 @@ import {
 } from 'flyweight-dom';
 
 /**
- * Options of {@link serializeMarkup}.
+ * Options of {@link serializeMarkup} produced by {@link resolveSerializerOptions}.
+ *
+ * @internal
  */
 export interface ResolvedSerializerOptions {
-  toHashCode: (str: string) => number;
-  voidTags?: Set<number>;
+  /**
+   * Returns a hash code of a tag name. Tags are compared by their hash codes.
+   */
+  toHashCode: (tagName: string) => number;
+
+  /**
+   * Hash codes of {@link SerializerOptions.voidTags}.
+   */
+  voidTagSet?: Set<number>;
+
+  /**
+   * Hash codes of {@link SerializerOptions.rawTextTags}.
+   */
+  rawTextTagSet?: Set<number>;
+
+  /**
+   * @see {@link SerializerOptions.areSelfClosingTagsSupported}
+   */
   areSelfClosingTagsSupported?: boolean;
+
+  /**
+   * @see {@link SerializerOptions.encodeText}
+   */
   encodeText?: (text: string) => string;
 }
 
 /**
- * Serializes DOM node as HTML/XML string.
+ * Serializes a DOM node as an HTML/XML string.
  *
- * @param node DOM node to serialize.
- * @param options Serialization options.
+ * @param node The DOM node to serialize.
+ * @param options Serializer options.
+ * @returns The serialized node.
+ * @internal
  */
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
-  const { toHashCode, voidTags, areSelfClosingTagsSupported, encodeText = identity } = options;
+  const { toHashCode, voidTagSet, rawTextTagSet, areSelfClosingTagsSupported, encodeText = identity } = options;
 
   if (node instanceof Element) {
     let output = '<' + node.tagName;
@@ -40,12 +64,19 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
     if (node.firstChild !== null) {
       output += '>';
 
+      // Text inside raw text tags isn't encoded
+      const isRawText = rawTextTagSet !== undefined && rawTextTagSet.has(toHashCode(node.tagName));
+
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
-        output += serializeMarkup(child, options);
+        if (isRawText && child.nodeType === Node.TEXT_NODE) {
+          output += (child as Text).data;
+        } else {
+          output += serializeMarkup(child, options);
+        }
       }
 
       output += '</' + node.tagName + '>';
-    } else if (voidTags !== undefined && voidTags.has(toHashCode(node.tagName))) {
+    } else if (voidTagSet !== undefined && voidTagSet.has(toHashCode(node.tagName))) {
       output += '>';
     } else if (areSelfClosingTagsSupported) {
       output += '/>';
@@ -79,7 +110,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
   }
 
   if (node instanceof ProcessingInstruction) {
-    return '<?' + node.target + ' ' + node.data + '?>';
+    return '<?' + node.target + (node.data.length !== 0 ? ' ' + node.data : '') + '?>';
   }
 
   if (node instanceof Text) {

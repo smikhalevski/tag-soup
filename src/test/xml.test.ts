@@ -1,17 +1,25 @@
-import { expect, test } from 'vitest';
-import { toXML, XMLDOMParser } from '../main/xml.js';
-import { f } from 'flyweight-dom/dsl';
 import fs from 'node:fs';
 import path from 'node:path';
+import { f } from 'flyweight-dom/dsl';
+import { expect, test } from 'vitest';
+import { toXML, XMLDOMParser } from '../main/xml.ts';
 
 test('parses XML DOM', () => {
   expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
 });
 
+test('decodes attribute values', () => {
+  expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(f.f(f.aaa({ bbb: '<' })));
+});
+
 test('serializes XML', () => {
-  expect(toXML(XMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;</p><p>bbb<br/></p>'))).toBe(
-    '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<br/></p>'
+  expect(toXML(XMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<br/></p>'))).toBe(
+    '<!DOCTYPE html><p>aaa&gt;&lt;<br/></p>'
   );
+});
+
+test('serializes processing instruction without data', () => {
+  expect(toXML(XMLDOMParser.parseFragment('<?aaa?>'))).toBe('<?aaa?>');
 });
 
 test('parses large XML', () => {

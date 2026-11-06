@@ -1,8 +1,8 @@
-import { beforeEach, expect, test, vi } from 'vitest';
-import { SAXHandler } from '../main/index.js';
-import { parseSAX } from '../main/createSAXParser.js';
 import { decodeXML } from 'speedy-entities';
-import { resolveTokenizerOptions } from '../main/createTokenizer.js';
+import { beforeEach, expect, test, vi } from 'vitest';
+import { parseSAX } from '../main/createSAXParser.ts';
+import { resolveTokenizerOptions } from '../main/createTokenizer.ts';
+import type { SAXHandler } from '../main/index.ts';
 
 const mockHandler = {
   onText: vi.fn(),
@@ -271,6 +271,37 @@ test('parses quirky comment, DOCTYPE and text', () => {
   expect(mockHandler.onDoctype).toHaveBeenNthCalledWith(1, 'html');
 
   expect(mockHandler.onProcessingInstruction).not.toHaveBeenCalled();
+});
+
+test('does not decode text in raw text tags', () => {
+  parseSAX('<aaa>&lt;</aaa>&lt;', mockHandler, {
+    ...resolveTokenizerOptions({ rawTextTags: ['aaa'] }),
+    decodeText: decodeXML,
+  });
+
+  expect(mockHandler.onText).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(2, '<');
+});
+
+test('decodes attribute values with decodeAttribute', () => {
+  parseSAX('<aaa bbb="&lt;">&lt;</aaa>', mockHandler, { decodeAttribute: decodeXML });
+
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'bbb', '<');
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
+});
+
+test('preserves __proto__ attribute', () => {
+  parseSAX('<aaa __proto__="bbb"></aaa>', mockHandler);
+
+  expect(Object.entries(mockHandler.onStartTag.mock.calls[0][1])).toEqual([['__proto__', 'bbb']]);
+});
+
+test('calls onStartTag for a start tag that is not closed at the end of the input', () => {
+  parseSAX('<aaa', mockHandler, { areUnbalancedStartTagsImplicitlyClosed: true });
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
 });
 
 test('calls onStartTag if it is a single handler', () => {
