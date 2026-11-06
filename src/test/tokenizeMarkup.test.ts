@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { resolveTokenizerOptions, type TokenizerOptions } from '../main/createTokenizer.ts';
-import { ParserError, readTokens, tokenizeMarkup } from '../main/tokenizeMarkup.ts';
+import {
+  getCaseInsensitiveHashCode,
+  getCaseSensitiveHashCode,
+  ParserError,
+  readTokens,
+  tokenizeMarkup,
+} from '../main/tokenizeMarkup.ts';
 
 const callbackMock = vi.fn();
 
@@ -1406,5 +1412,23 @@ describe('tokenizeMarkup', () => {
     expect(() => tokenizeMarkup('<aaa xxx="bbb"', callbackMock)).toThrow(
       new ParserError('Unexpected end of the document.', '<aaa xxx="bbb"', 14)
     );
+  });
+});
+
+describe('getCaseInsensitiveHashCode', () => {
+  test('returns a non-negative 30-bit integer', () => {
+    const hashCode = getCaseInsensitiveHashCode('aaabbbccc', 0, 9);
+
+    expect(hashCode).toBeGreaterThanOrEqual(0);
+    expect(hashCode).toBeLessThan(2 ** 30);
+  });
+});
+
+describe('getCaseSensitiveHashCode', () => {
+  test('returns a non-negative 30-bit integer', () => {
+    const hashCode = getCaseSensitiveHashCode('aaabbbccc', 0, 9);
+
+    expect(hashCode).toBeGreaterThanOrEqual(0);
+    expect(hashCode).toBeLessThan(2 ** 30);
   });
 });

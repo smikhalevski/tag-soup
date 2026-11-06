@@ -968,30 +968,31 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
 }
 
 /**
- * Returns case-insensitive djb2 hash of a substring.
+ * Returns case-insensitive djb2 hash of a substring. The hash is computed in 32 bits and truncated to 30 bits, so V8
+ * stores it as a small integer, which isn't allocated and is faster to look up in a Set or a Map.
  */
 export function getCaseInsensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
   let hashCode = 5_381;
 
   for (let i = startIndex; i < endIndex; ++i) {
-    const charCode = input.charCodeAt(i);
-    hashCode = (hashCode << 5) + hashCode + (charCode < 65 || charCode > 90 ? charCode : charCode + 32);
+    hashCode = ((hashCode << 5) + hashCode + toLowerCaseCharCode(input.charCodeAt(i))) | 0;
   }
 
-  return hashCode;
+  return hashCode & 0x3fffffff;
 }
 
 /**
- * Returns case-sensitive djb2 hash of a substring.
+ * Returns case-sensitive djb2 hash of a substring. The hash is computed in 32 bits and truncated to 30 bits, so V8
+ * stores it as a small integer, which isn't allocated and is faster to look up in a Set or a Map.
  */
 export function getCaseSensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
   let hashCode = 5_381;
 
   for (let i = startIndex; i < endIndex; ++i) {
-    hashCode = (hashCode << 5) + hashCode + input.charCodeAt(i);
+    hashCode = ((hashCode << 5) + hashCode + input.charCodeAt(i)) | 0;
   }
 
-  return hashCode;
+  return hashCode & 0x3fffffff;
 }
 
 /**
