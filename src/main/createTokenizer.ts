@@ -4,6 +4,7 @@ import {
   type ContextualTokenReaderOptions,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
+  type ImplicitClosingTag,
   type ResolvedTokenizerOptions,
   type TokenCallback,
   tokenizeMarkup,
@@ -298,18 +299,13 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   return {
     ...resolveContextualTokenReaderOptions(options, toHashCode, new Map()),
+    ...resolveImplicitClosingOptions(implicitlyClosedTags, toHashCode),
     getTagHashCode: getHashCode,
     areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
     voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
     rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
     escapableRawTextTagSet:
       escapableRawTextTags !== undefined ? new Set(escapableRawTextTags.map(toHashCode)) : undefined,
-    implicitlyClosedTagMap:
-      implicitlyClosedTags !== undefined
-        ? new Map(
-            Object.entries(implicitlyClosedTags).map(entry => [toHashCode(entry[0]), new Set(entry[1].map(toHashCode))])
-          )
-        : undefined,
     implicitClosingBoundaryTagSet:
       implicitClosingBoundaryTags !== undefined ? new Set(implicitClosingBoundaryTags.map(toHashCode)) : undefined,
     implicitlyOpenedTagSet:
@@ -319,6 +315,56 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
     areUnbalancedEndTagsIgnored,
     isStrict,
   };
+}
+
+/**
+ * Converts {@link TokenizerOptions.implicitlyClosedTags} into options consumed by {@link tokenizeMarkup}. Tags that
+ * can be implicitly closed get sequential IDs, so open tags can be counted in an array.
+ */
+function resolveImplicitClosingOptions(
+  implicitlyClosedTags: Record<string, string[]> | undefined,
+  toHashCode: (str: string) => number
+): ResolvedTokenizerOptions {
+  if (implicitlyClosedTags === undefined) {
+    return {};
+  }
+
+  const implicitClosingTagMap = new Map<number, ImplicitClosingTag>();
+
+  let implicitlyClosableTagCount = 0;
+
+  function getImplicitClosingTag(tagName: string) {
+    const tagHashCode = toHashCode(tagName);
+
+    let implicitClosingTag = implicitClosingTagMap.get(tagHashCode);
+
+    if (implicitClosingTag === undefined) {
+      implicitClosingTag = { closedTagIds: [], closableTagId: -1 };
+      implicitClosingTagMap.set(tagHashCode, implicitClosingTag);
+    }
+    return implicitClosingTag;
+  }
+
+  for (const [tagName, closedTagNames] of Object.entries(implicitlyClosedTags)) {
+    const closedTagIds = getImplicitClosingTag(tagName).closedTagIds;
+
+    for (const closedTagName of closedTagNames) {
+      const closedTag = getImplicitClosingTag(closedTagName);
+
+      if (closedTag.closableTagId === -1) {
+        closedTag.closableTagId = implicitlyClosableTagCount++;
+      }
+      closedTagIds.push(closedTag.closableTagId);
+    }
+  }
+
+  const initialOpenTagCounts: number[] = [];
+
+  for (let i = 0; i < implicitlyClosableTagCount; ++i) {
+    initialOpenTagCounts.push(0);
+  }
+
+  return { implicitClosingTagMap, initialOpenTagCounts };
 }
 
 function resolveContextualTokenReaderOptions(

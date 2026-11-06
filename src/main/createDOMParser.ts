@@ -9,7 +9,7 @@ import {
   Text,
 } from 'flyweight-dom';
 import { resolveTokenizerOptions } from './createTokenizer.ts';
-import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
+import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
 import type { ParserOptions, ResolvedParserOptions } from './types.ts';
 
 /**
@@ -89,7 +89,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
   const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
 
   // The tokenizer sets the hash code of each start tag name, so it isn't hashed again here
-  const state = { tagHashCode: 0 };
+  const state: TokenizerState = { tagHashCode: 0 };
 
   const root = isFragment ? new DocumentFragment() : new Document();
 

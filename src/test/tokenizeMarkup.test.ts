@@ -6,6 +6,7 @@ import {
   ParserError,
   readTokens,
   tokenizeMarkup,
+  type TokenizerState,
 } from '../main/tokenizeMarkup.ts';
 
 const callbackMock = vi.fn();
@@ -902,7 +903,7 @@ describe('readTokens', () => {
   });
 
   test('sets the tag hash code before a start tag name is passed to the callback', () => {
-    const state = { tagHashCode: 0 };
+    const state: TokenizerState = { tagHashCode: 0 };
     const tagHashCodes: number[] = [];
 
     readTokens(
@@ -1408,7 +1409,7 @@ describe('tokenizeMarkup', () => {
   });
 
   test('sets the tag hash code before an implicitly opened start tag name is passed to the callback', () => {
-    const state = { tagHashCode: 0 };
+    const state: TokenizerState = { tagHashCode: 0 };
     const tagHashCodes: number[] = [];
 
     tokenizeMarkup(

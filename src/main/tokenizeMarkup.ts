@@ -98,11 +98,17 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
   voidTagSet?: Set<number>;
 
   /**
-   * The map from a hash code of a tag to hash codes of tags that it implicitly closes.
+   * The map from a hash code of a tag to how the tag takes part in implicit closing.
    *
    * @see {@link TokenizerOptions.implicitlyClosedTags}
    */
-  implicitlyClosedTagMap?: Map<number, Set<number>>;
+  implicitClosingTagMap?: Map<number, ImplicitClosingTag>;
+
+  /**
+   * A zero for each {@link ImplicitClosingTag.closableTagId closable tag ID}. {@link tokenizeMarkup} copies this array
+   * to count open tags, which is faster than creating an array of zeros on every call.
+   */
+  initialOpenTagCounts?: number[];
 
   /**
    * Hash codes of {@link TokenizerOptions.implicitClosingBoundaryTags}.
@@ -123,6 +129,27 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
    * @see {@link TokenizerOptions.areUnbalancedEndTagsIgnored}
    */
   areUnbalancedEndTagsIgnored?: boolean;
+}
+
+/**
+ * How a tag takes part in implicit closing.
+ *
+ * Tags that can be implicitly closed have IDs, so {@link tokenizeMarkup} can count open tags with each name, and skip
+ * searching for tags to close if none of them is open.
+ *
+ * @see {@link TokenizerOptions.implicitlyClosedTags}
+ * @internal
+ */
+export interface ImplicitClosingTag {
+  /**
+   * IDs of tags that are implicitly closed when this tag is opened.
+   */
+  closedTagIds: number[];
+
+  /**
+   * The ID of this tag if it can be implicitly closed, or -1 otherwise.
+   */
+  closableTagId: number;
 }
 
 /**
@@ -170,7 +197,8 @@ export function tokenizeMarkup(
     getTagHashCode = getCaseSensitiveHashCode,
     areTagNamesEqual = areCaseSensitiveSubstringsEqual,
     voidTagSet,
-    implicitlyClosedTagMap,
+    implicitClosingTagMap,
+    initialOpenTagCounts,
     implicitClosingBoundaryTagSet,
     implicitlyOpenedTagSet,
     areUnbalancedStartTagsImplicitlyClosed = false,
@@ -187,6 +215,12 @@ export function tokenizeMarkup(
   // Positions of start tag names in the input, to compare them with end tag names
   const tagNameStartIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
   const tagNameEndIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
+
+  // Closable tag IDs of open tags, or -1 for tags that can't be implicitly closed
+  const closableTagIdStack = [-1, -1, -1, -1, -1, -1, -1, -1];
+
+  // The number of open tags by closable tag ID
+  const openTagCounts = initialOpenTagCounts !== undefined ? initialOpenTagCounts.slice() : [];
 
   // Contextual options that are applied to children of the tag at the same index in tagHashCodeStack
   const contextStack: ContextualTokenReaderOptions[] = [];
@@ -209,6 +243,12 @@ export function tokenizeMarkup(
   }
 
   function popTag(): void {
+    const closableTagId = closableTagIdStack[tagHashCodeStackCursor];
+
+    if (closableTagId !== -1) {
+      --openTagCounts[closableTagId];
+    }
+
     --tagHashCodeStackCursor;
 
     switchContext(tagHashCodeStackCursor !== -1 ? contextStack[tagHashCodeStackCursor] : options);
@@ -233,11 +273,16 @@ export function tokenizeMarkup(
     return -1;
   }
 
-  function insertImplicitEndTags(implicitlyClosedTagSet: Set<number> | undefined, insertionIndex: number): void {
-    if (implicitlyClosedTagSet === undefined) {
-      return;
+  function isAnyTagOpen(closableTagIds: number[]): boolean {
+    for (const closableTagId of closableTagIds) {
+      if (openTagCounts[closableTagId] !== 0) {
+        return true;
+      }
     }
+    return false;
+  }
 
+  function insertImplicitEndTags(closedTagIds: number[], insertionIndex: number): void {
     let index = -1;
 
     if (implicitClosingBoundaryTagSet !== undefined) {
@@ -247,7 +292,7 @@ export function tokenizeMarkup(
       while (
         index !== -1 &&
         (!implicitClosingBoundaryTagSet.has(tagHashCodeStack[index]) ||
-          implicitlyClosedTagSet.has(tagHashCodeStack[index]))
+          closedTagIds.includes(closableTagIdStack[index]))
       ) {
         --index;
       }
@@ -256,7 +301,7 @@ export function tokenizeMarkup(
     // Find the outermost tag that must be closed
     ++index;
 
-    while (index <= tagHashCodeStackCursor && !implicitlyClosedTagSet.has(tagHashCodeStack[index])) {
+    while (index <= tagHashCodeStackCursor && !closedTagIds.includes(closableTagIdStack[index])) {
       ++index;
     }
 
@@ -272,8 +317,12 @@ export function tokenizeMarkup(
         // Hashed by readTokens
         const startTagHashCode = state.tagHashCode;
 
-        if (implicitlyClosedTagMap !== undefined) {
-          insertImplicitEndTags(implicitlyClosedTagMap.get(startTagHashCode), startIndex - 1);
+        const implicitClosingTag =
+          implicitClosingTagMap !== undefined ? implicitClosingTagMap.get(startTagHashCode) : undefined;
+
+        // Usually none of the tags that must be closed is open, so the stack isn't searched
+        if (implicitClosingTag !== undefined && isAnyTagOpen(implicitClosingTag.closedTagIds)) {
+          insertImplicitEndTags(implicitClosingTag.closedTagIds, startIndex - 1);
         }
 
         if (isStrict && !isFragment && tagHashCodeStackCursor === -1) {
@@ -288,10 +337,17 @@ export function tokenizeMarkup(
         const foreignContext =
           context.foreignTagMap !== undefined ? context.foreignTagMap.get(startTagHashCode) : undefined;
 
+        const closableTagId = implicitClosingTag !== undefined ? implicitClosingTag.closableTagId : -1;
+
         tagHashCodeStack[++tagHashCodeStackCursor] = startTagHashCode;
         tagNameStartIndexStack[tagHashCodeStackCursor] = startIndex;
         tagNameEndIndexStack[tagHashCodeStackCursor] = endIndex;
+        closableTagIdStack[tagHashCodeStackCursor] = closableTagId;
         contextStack[tagHashCodeStackCursor] = foreignContext !== undefined ? foreignContext : context;
+
+        if (closableTagId !== -1) {
+          ++openTagCounts[closableTagId];
+        }
 
         switchContext(contextStack[tagHashCodeStackCursor]);
 
@@ -366,8 +422,11 @@ export function tokenizeMarkup(
           break;
         }
 
-        if (implicitlyClosedTagMap !== undefined) {
-          insertImplicitEndTags(implicitlyClosedTagMap.get(endTagHashCode), endTagStartIndex);
+        const implicitClosingTag =
+          implicitClosingTagMap !== undefined ? implicitClosingTagMap.get(endTagHashCode) : undefined;
+
+        if (implicitClosingTag !== undefined && isAnyTagOpen(implicitClosingTag.closedTagIds)) {
+          insertImplicitEndTags(implicitClosingTag.closedTagIds, endTagStartIndex);
         }
 
         state.tagHashCode = endTagHashCode;
