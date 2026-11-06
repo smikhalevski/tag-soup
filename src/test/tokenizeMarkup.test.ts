@@ -900,6 +900,24 @@ describe('readTokens', () => {
       )
     );
   });
+
+  test('sets the tag hash code before a start tag name is passed to the callback', () => {
+    const state = { tagHashCode: 0 };
+    const tagHashCodes: number[] = [];
+
+    readTokens(
+      '<aaa><bbb>',
+      token => {
+        if (token === 'START_TAG_NAME') {
+          tagHashCodes.push(state.tagHashCode);
+        }
+      },
+      {},
+      state
+    );
+
+    expect(tagHashCodes).toEqual([getCaseSensitiveHashCode('aaa', 0, 3), getCaseSensitiveHashCode('bbb', 0, 3)]);
+  });
 });
 
 describe('tokenizeMarkup', () => {
@@ -1387,6 +1405,24 @@ describe('tokenizeMarkup', () => {
     expect(() => tokenizeMarkup('<aQ></b0>', callbackMock)).toThrow(
       new ParserError('Unexpected end tag.', '<aQ></b0>', 6, 8)
     );
+  });
+
+  test('sets the tag hash code before an implicitly opened start tag name is passed to the callback', () => {
+    const state = { tagHashCode: 0 };
+    const tagHashCodes: number[] = [];
+
+    tokenizeMarkup(
+      '</aaa>',
+      token => {
+        if (token === 'START_TAG_NAME') {
+          tagHashCodes.push(state.tagHashCode);
+        }
+      },
+      resolveTokenizerOptions({ implicitlyOpenedTags: ['aaa'] }),
+      state
+    );
+
+    expect(tagHashCodes).toEqual([getCaseSensitiveHashCode('aaa', 0, 3)]);
   });
 
   test('closes the start tag at the end of the input', () => {

@@ -1,5 +1,5 @@
 import { resolveTokenizerOptions } from './createTokenizer.ts';
-import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
+import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
 import type { ParserOptions, ResolvedParserOptions } from './types.ts';
 
 /**
@@ -166,17 +166,15 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @internal
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
-  const {
-    getTagHashCode = getCaseSensitiveHashCode,
-    rawTextTagSet,
-    decodeText = identity,
-    decodeAttribute = identity,
-  } = options;
+  const { rawTextTagSet, decodeText = identity, decodeAttribute = identity } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
   // Text inside raw text tags isn't decoded
   const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
+
+  // The tokenizer sets the hash code of each start tag name, so it isn't hashed again here
+  const state = { tagHashCode: 0 };
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -202,7 +200,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         let tagName;
 
         if (undecodedTextTagSet !== undefined) {
-          isRawText = undecodedTextTagSet.has(getTagHashCode(input, startIndex, endIndex));
+          isRawText = undecodedTextTagSet.has(state.tagHashCode);
         }
 
         if (handler.onStartTagOpening !== undefined) {
@@ -314,7 +312,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
     }
   };
 
-  tokenizeMarkup(input, tokenCallback, options);
+  tokenizeMarkup(input, tokenCallback, options, state);
 }
 
 function identity(value: string): string {

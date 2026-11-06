@@ -126,6 +126,19 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
 }
 
 /**
+ * The state that {@link readTokens} and {@link tokenizeMarkup} update before invoking a callback.
+ *
+ * @internal
+ */
+export interface TokenizerState {
+  /**
+   * The hash code of the start tag name, set before a `START_TAG_NAME` token is passed to a callback, so the callback
+   * doesn't have to hash the name again.
+   */
+  tagHashCode: number;
+}
+
+/**
  * Reads tokens from text and returns them by invoking a callback.
  *
  * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
@@ -143,10 +156,16 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Tokenizer options prepared by {@link resolveTokenizerOptions}.
+ * @param state The state that is updated before the callback is invoked.
  * @throws {@link ParserError} If input is malformed and options don't allow to recover.
  * @internal
  */
-export function tokenizeMarkup(input: string, callback: TokenCallback, options: ResolvedTokenizerOptions = {}): void {
+export function tokenizeMarkup(
+  input: string,
+  callback: TokenCallback,
+  options: ResolvedTokenizerOptions = {},
+  state: TokenizerState = { tagHashCode: 0 }
+): void {
   const {
     getTagHashCode = getCaseSensitiveHashCode,
     areTagNamesEqual = areCaseSensitiveSubstringsEqual,
@@ -250,7 +269,8 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
       case TOKEN_START_TAG_NAME: {
-        const startTagHashCode = getTagHashCode(input, startIndex, endIndex);
+        // Hashed by readTokens
+        const startTagHashCode = state.tagHashCode;
 
         if (implicitlyClosedTagMap !== undefined) {
           insertImplicitEndTags(implicitlyClosedTagMap.get(startTagHashCode), startIndex - 1);
@@ -350,6 +370,8 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
           insertImplicitEndTags(implicitlyClosedTagMap.get(endTagHashCode), endTagStartIndex);
         }
 
+        state.tagHashCode = endTagHashCode;
+
         callback(TOKEN_START_TAG_NAME, startIndex, endIndex);
         callback(TOKEN_START_TAG_CLOSING, endIndex, endIndex + 1);
         callback(TOKEN_END_TAG_NAME, startIndex, endIndex);
@@ -362,7 +384,7 @@ export function tokenizeMarkup(input: string, callback: TokenCallback, options: 
     }
   };
 
-  readTokens(input, tokenCallback, readerOptions);
+  readTokens(input, tokenCallback, readerOptions, state);
 
   if (tagHashCodeStackCursor !== -1 && !areUnbalancedStartTagsImplicitlyClosed) {
     throw new ParserError('Unexpected end of the document.', input, input.length);
@@ -487,10 +509,16 @@ export interface TokenReaderOptions extends ContextualTokenReaderOptions {
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Token reader options.
+ * @param state The state that is updated before the callback is invoked.
  * @throws {@link ParserError} If {@link TokenReaderOptions.isStrict} is `true` and input is malformed.
  * @internal
  */
-export function readTokens(input: string, callback: TokenCallback, options: TokenReaderOptions = {}): void {
+export function readTokens(
+  input: string,
+  callback: TokenCallback,
+  options: TokenReaderOptions = {},
+  state: TokenizerState = { tagHashCode: 0 }
+): void {
   const {
     getTagHashCode = getCaseSensitiveHashCode,
     areTagNamesEqual = areCaseSensitiveSubstringsEqual,
@@ -937,19 +965,19 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       callback(TOKEN_TEXT, textStartIndex, index);
     }
 
-    if (rawTextTagSet !== undefined || escapableRawTextTagSet !== undefined) {
-      const startTagHashCode = getTagHashCode(input, tagNameStartIndex, nextIndex);
+    const startTagHashCode = getTagHashCode(input, tagNameStartIndex, nextIndex);
 
-      if (
-        (rawTextTagSet !== undefined && rawTextTagSet.has(startTagHashCode)) ||
-        (escapableRawTextTagSet !== undefined && escapableRawTextTagSet.has(startTagHashCode))
-      ) {
-        // Start of the raw text tag
-        enclosingRawTextTagHashCode = startTagHashCode;
-        enclosingRawTextTagNameStartIndex = tagNameStartIndex;
-        enclosingRawTextTagNameEndIndex = nextIndex;
-      }
+    if (
+      (rawTextTagSet !== undefined && rawTextTagSet.has(startTagHashCode)) ||
+      (escapableRawTextTagSet !== undefined && escapableRawTextTagSet.has(startTagHashCode))
+    ) {
+      // Start of the raw text tag
+      enclosingRawTextTagHashCode = startTagHashCode;
+      enclosingRawTextTagNameStartIndex = tagNameStartIndex;
+      enclosingRawTextTagNameEndIndex = nextIndex;
     }
+
+    state.tagHashCode = startTagHashCode;
 
     callback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex);
 
