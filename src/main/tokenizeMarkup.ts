@@ -41,7 +41,7 @@ export class ParserError extends SyntaxError {
 ParserError.prototype.name = 'ParserError';
 
 /**
- * A token that can be read from a text. Indices passed to {@link TokenCallback} along with a token point to:
+ * A token that can be read from text. Indices passed to {@link TokenCallback} along with a token point to:
  *
  * - `TEXT`: text between tags.
  * - `START_TAG_NAME`: the tag name in a start tag, `p` in `<p>`.
@@ -76,7 +76,7 @@ export type Token =
   | 'DOCTYPE_NAME';
 
 /**
- * A callback that is invoked when a token is read from a text.
+ * A callback that is invoked when a token is read from text.
  *
  * @param token The token that was read.
  * @param startIndex The start index of the first meaningful token char, inclusive.

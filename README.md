@@ -68,7 +68,7 @@ toXML(fragment);
 ```
 
 `XMLDOMParser` decodes both XML entities and numeric character references with
-[`decodeXML`](https://smikhalevski.github.io/speedy-entities/variables/decodeXML.html).
+[`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
 
 TagSoup uses [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme) nodes, which provide many standard
 DOM manipulation features:

@@ -44,10 +44,10 @@ export interface ResolvedSerializerOptions {
 }
 
 /**
- * Serializes DOM node as HTML/XML string.
+ * Serializes a DOM node as an HTML/XML string.
  *
- * @param node DOM node to serialize.
- * @param options Serialization options.
+ * @param node The DOM node to serialize.
+ * @param options Serializer options.
  * @returns The serialized node.
  * @internal
  */

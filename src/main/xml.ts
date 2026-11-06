@@ -28,8 +28,8 @@ const xmlSerializerOptions: SerializerOptions = {
 export const XMLTokenizer = createTokenizer(xmlParserOptions);
 
 /**
- * Parses XML markup as DOM. Decodes XML entities with
- * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/variables/decodeXML.html).
+ * Parses XML markup as a DOM. Decodes XML entities with
+ * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
  *
  * @throws {@link ParserError} If markup isn't well-formed XML.
  * @group DOM
@@ -38,7 +38,7 @@ export const XMLDOMParser = createDOMParser(xmlParserOptions);
 
 /**
  * Parses XML markup and calls {@link SAXHandler} methods when tokens are read. Decodes XML entities with
- * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/variables/decodeXML.html).
+ * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
  *
  * @throws {@link ParserError} If markup isn't well-formed XML.
  * @group SAX
@@ -46,7 +46,7 @@ export const XMLDOMParser = createDOMParser(xmlParserOptions);
 export const XMLSAXParser = createSAXParser(xmlParserOptions);
 
 /**
- * Serializes DOM node as XML string. Encodes text with
+ * Serializes a DOM node as an XML string. Encodes text with
  * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html). Elements without children
  * are written as self-closing tags.
  *

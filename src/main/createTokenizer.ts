@@ -185,7 +185,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyClosed}.
    *
    * ```html
-   * <a></b></a> → <a></a>
+   * <a></b></a>  →  <a></a>
    *    ^^^^ b is ignored
    * ```
    *
@@ -207,7 +207,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
 }
 
 /**
- * A tokenizer that reads tokens from text and returns them by invoking a callback.
+ * Reads tokens from text and returns them by invoking a callback.
  *
  * @see {@link createTokenizer}
  * @group Tokenizer

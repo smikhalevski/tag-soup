@@ -11,13 +11,14 @@ export interface ParserOptions extends TokenizerOptions {
    * Decodes text content. Use this method to decode HTML/XML entities. Text inside
    * {@link rawTextTags raw text tags}, comments, CDATA sections and processing instructions isn't decoded.
    *
+   * By default, text isn't decoded.
+   *
    * @example
    * import { decodeHTML } from 'speedy-entities';
    *
    * createDOMParser({ decodeText: decodeHTML });
    *
-   * @param text Text to decode.
-   * @default No decoding
+   * @param text The text to decode.
    */
   decodeText?: (text: string) => string;
 
@@ -26,13 +27,14 @@ export interface ParserOptions extends TokenizerOptions {
    * because HTML decodes attribute values differently: `&copy=2` stays intact in an attribute value, but becomes `©=2`
    * in text.
    *
+   * By default, attribute values aren't decoded.
+   *
    * @example
    * import { decodeHTMLAttribute } from 'speedy-entities';
    *
    * createDOMParser({ decodeAttribute: decodeHTMLAttribute });
    *
-   * @param value Attribute value to decode.
-   * @default No decoding
+   * @param value The attribute value to decode.
    */
   decodeAttribute?: (value: string) => string;
 }

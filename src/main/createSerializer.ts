@@ -45,8 +45,9 @@ export interface SerializerOptions {
    * Encodes text content and attribute values. Use this method to encode HTML/XML entities. Comments, CDATA sections
    * and processing instructions are written as is.
    *
-   * @param text Text to encode.
-   * @default No encoding
+   * By default, text content and attribute values aren't encoded.
+   *
+   * @param text The text to encode.
    */
   encodeText?: (text: string) => string;
 }
@@ -66,8 +67,8 @@ export interface SerializerOptions {
  * serialize(HTMLDOMParser.parseFragment('<p>hello<br></p>'));
  * // ⮕ '<p>hello<br></p>'
  *
- * @param options Serialization options.
- * @returns The serializer function.
+ * @param options Serializer options.
+ * @returns The new serializer.
  * @see {@link toHTML}
  * @see {@link toXML}
  * @group Serializer
@@ -81,7 +82,7 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
 /**
  * Converts human-readable serializer options into options consumed by {@link serializeMarkup}.
  *
- * @param options Serialization options.
+ * @param options Serializer options.
  * @internal
  */
 export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {

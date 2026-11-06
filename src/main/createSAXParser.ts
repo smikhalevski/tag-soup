@@ -13,7 +13,7 @@ import type { ParserOptions, ResolvedParserOptions } from './types.ts';
  */
 export interface SAXHandler {
   /**
-   * Called when a text is read.
+   * Called when text is read.
    *
    * @param text The decoded text. Text inside {@link TokenizerOptions.rawTextTags raw text tags} isn't decoded.
    */
@@ -41,8 +41,8 @@ export interface SAXHandler {
    * Called when a start tag and all its attributes are read.
    *
    * @param tagName The start tag name.
-   * @param attributes Decoded attribute values by attribute name.
-   * @param isSelfClosing `true` if tag is self-closing. {@link onEndTag} isn't called for self-closing tags.
+   * @param attributes The decoded attribute values by attribute name.
+   * @param isSelfClosing `true` if the tag is self-closing. {@link onEndTag} isn't called for self-closing tags.
    */
   onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
 
@@ -58,7 +58,7 @@ export interface SAXHandler {
    * Called when an attribute and its value are read.
    *
    * @param name The attribute name.
-   * @param value The decoded attribute value. An empty string if attribute has no value.
+   * @param value The decoded attribute value. An empty string if the attribute has no value.
    */
   onAttribute?(name: string, value: string): void;
 
