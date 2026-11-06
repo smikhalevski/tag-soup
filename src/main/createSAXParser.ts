@@ -1,6 +1,6 @@
-import { resolveTokenizerOptions } from './createTokenizer.js';
-import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
-import type { ParserOptions, ResolvedParserOptions } from './types.js';
+import { resolveTokenizerOptions } from './createTokenizer.ts';
+import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
+import type { ParserOptions, ResolvedParserOptions } from './types.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
@@ -137,7 +137,10 @@ export interface SAXParser {
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
   const { decodeText } = options;
 
-  const documentOptions: ResolvedParserOptions = { ...resolveTokenizerOptions(options), decodeText };
+  const documentOptions: ResolvedParserOptions = {
+    ...resolveTokenizerOptions(options),
+    decodeText,
+  };
 
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 

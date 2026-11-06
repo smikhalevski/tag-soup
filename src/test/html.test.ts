@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest';
-import { HTMLDOMParser, toHTML } from '../main/html.js';
 import { f } from 'flyweight-dom/dsl';
+import { expect, test } from 'vitest';
+import { HTMLDOMParser, toHTML } from '../main/html.ts';
 
 test('parses HTML DOM', () => {
   expect(HTMLDOMParser.parseFragment('<p>aaa<p>bbb</br>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));

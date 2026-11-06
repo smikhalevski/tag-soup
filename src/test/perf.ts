@@ -1,26 +1,23 @@
-import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
-import path from 'node:path';
 import fs from 'node:fs';
+import * as fastXmlParser from 'fast-xml-parser';
 import * as htmlparser2 from 'htmlparser2';
+import * as hyntax from 'hyntax';
 import * as parse5 from 'parse5';
 import * as parse5SAXParser from 'parse5-sax-parser';
-import * as hyntax from 'hyntax';
-import * as fastXmlParser from 'fast-xml-parser';
+import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
+// @ts-ignore
 import * as tagSoup from '../../lib/index.js';
+import { collectGarbage } from './test-utils.ts';
 
-const filesDir = path.resolve(import.meta.dirname, '../../node_modules/htmlparser-benchmark/files');
+const filesDir = new URL('../../node_modules/htmlparser-benchmark/files/', import.meta.url);
 
-const smallHtmlSources = fs
-  .readdirSync(filesDir)
-  .map(fileName => fs.readFileSync(path.join(filesDir, fileName), 'utf8'));
+const smallHtmlSources = fs.readdirSync(filesDir).map(fileName => fs.readFileSync(new URL(fileName, filesDir), 'utf8'));
 
-const largeHtmlSource = fs.readFileSync(path.resolve(import.meta.dirname, 'test.html'), 'utf8');
+const largeHtmlSource = fs.readFileSync(new URL('test.html', import.meta.url), 'utf8');
 
-const xmlSource = fs.readFileSync(path.resolve(import.meta.dirname, 'test.xml'), 'utf8');
+const xmlSource = fs.readFileSync(new URL('test.xml', import.meta.url), 'utf8');
 
-beforeBatch(() => {
-  gc();
-});
+beforeBatch(collectGarbage);
 
 describe('HTML SAX (large source)', () => {
   test('tag-soup', () => {
@@ -32,7 +29,7 @@ describe('HTML SAX (large source)', () => {
   });
 
   test('htmlparser2', () => {
-    let parser;
+    let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
       parser = new htmlparser2.Parser(
@@ -54,7 +51,7 @@ describe('HTML SAX (large source)', () => {
   });
 
   test('parse5', () => {
-    let parser;
+    let parser: parse5SAXParser.SAXParser;
     let transformCallback = () => undefined;
 
     beforeIteration(() => {
@@ -75,7 +72,7 @@ describe('HTML DOM (large source)', () => {
   });
 
   test('htmlparser2', () => {
-    let parser;
+    let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
       parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
@@ -118,7 +115,7 @@ describe('HTML SAX (small sources)', () => {
   });
 
   test('htmlparser2', () => {
-    let parser;
+    let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
       parser = new htmlparser2.Parser(
@@ -152,7 +149,7 @@ describe('HTML DOM (small sources)', () => {
   });
 
   test('htmlparser2', () => {
-    let parser;
+    let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
       parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {

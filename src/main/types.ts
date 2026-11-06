@@ -1,5 +1,5 @@
-import type { ResolvedTokenizerOptions } from './tokenizeMarkup.js';
-import type { TokenizerOptions } from './createTokenizer.js';
+import type { TokenizerOptions } from './createTokenizer.ts';
+import type { ResolvedTokenizerOptions } from './tokenizeMarkup.ts';
 
 /**
  * Options of {@link createDOMParser} and {@link createSAXParser}.

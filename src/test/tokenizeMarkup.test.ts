@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { ParserError, readTokens, tokenizeMarkup } from '../main/tokenizeMarkup.js';
-import { resolveTokenizerOptions, type TokenizerOptions } from '../main/createTokenizer.js';
+import { resolveTokenizerOptions, type TokenizerOptions } from '../main/createTokenizer.ts';
+import { ParserError, readTokens, tokenizeMarkup } from '../main/tokenizeMarkup.ts';
 
 const callbackMock = vi.fn();
 
@@ -564,7 +564,9 @@ describe('readTokens', () => {
   });
 
   test('reads processing instruction and DOCTYPE separated with spaces', () => {
-    readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callbackMock, { areProcessingInstructionsRecognized: true });
+    readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callbackMock, {
+      areProcessingInstructionsRecognized: true,
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
@@ -594,7 +596,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog with DOCTYPE after text', () => {
-    readTokens('<!DOCTYPE html>aaa<?xml aaa?>', callbackMock, { areProcessingInstructionsRecognized: true });
+    readTokens('<!DOCTYPE html>aaa<?xml aaa?>', callbackMock, {
+      areProcessingInstructionsRecognized: true,
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 10, 14);
@@ -604,7 +608,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog with processing instruction after text', () => {
-    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, { areProcessingInstructionsRecognized: true });
+    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, {
+      areProcessingInstructionsRecognized: true,
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -614,7 +620,9 @@ describe('readTokens', () => {
   });
 
   test('closes multiple processing instruction in prolog', () => {
-    readTokens('   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>', callbackMock, { areProcessingInstructionsRecognized: true });
+    readTokens('   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>', callbackMock, {
+      areProcessingInstructionsRecognized: true,
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
@@ -626,7 +634,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after tag', () => {
-    readTokens('<?xml aaa?><aaa><!DOCTYPE html>', callbackMock, { areProcessingInstructionsRecognized: true });
+    readTokens('<?xml aaa?><aaa><!DOCTYPE html>', callbackMock, {
+      areProcessingInstructionsRecognized: true,
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -637,7 +647,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after text', () => {
-    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, { areProcessingInstructionsRecognized: true });
+    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, {
+      areProcessingInstructionsRecognized: true,
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -876,7 +888,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa>bbb<ccc>ddd',
       callbackMock,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true, implicitlyClosedTags: { ccc: ['aaa'] } })
+      resolveTokenizerOptions({
+        areUnbalancedStartTagsImplicitlyClosed: true,
+        implicitlyClosedTags: { ccc: ['aaa'] },
+      })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
@@ -894,7 +909,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa>bbb<ccc>ddd<eee>',
       callbackMock,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true, implicitlyClosedTags: { eee: ['aaa'] } })
+      resolveTokenizerOptions({
+        areUnbalancedStartTagsImplicitlyClosed: true,
+        implicitlyClosedTags: { eee: ['aaa'] },
+      })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
@@ -1017,7 +1035,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa><bbb>',
       callbackMock,
-      resolveTokenizerOptions({ implicitlyClosedTags: { bbb: ['aaa'] }, areUnbalancedStartTagsImplicitlyClosed: true })
+      resolveTokenizerOptions({
+        implicitlyClosedTags: { bbb: ['aaa'] },
+        areUnbalancedStartTagsImplicitlyClosed: true,
+      })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
@@ -1033,7 +1054,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa></bbb>',
       callbackMock,
-      resolveTokenizerOptions({ implicitlyClosedTags: { bbb: ['aaa'] }, implicitlyOpenedTags: ['bbb'] })
+      resolveTokenizerOptions({
+        implicitlyClosedTags: { bbb: ['aaa'] },
+        implicitlyOpenedTags: ['bbb'],
+      })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
@@ -1049,7 +1073,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       'aaa<xxx>bbb<xxx>ccc</xxx>ddd</xxx>eee',
       callbackMock,
-      resolveTokenizerOptions({ implicitlyClosedTags: { xxx: ['xxx'] }, implicitlyOpenedTags: ['xxx'] })
+      resolveTokenizerOptions({
+        implicitlyClosedTags: { xxx: ['xxx'] },
+        implicitlyOpenedTags: ['xxx'],
+      })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(14);
@@ -1111,7 +1138,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<a><b></a></b>',
       callbackMock,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyClosed: true, areUnbalancedEndTagsIgnored: true })
+      resolveTokenizerOptions({
+        areUnbalancedStartTagsImplicitlyClosed: true,
+        areUnbalancedEndTagsIgnored: true,
+      })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
@@ -1292,7 +1322,9 @@ describe('tokenizeMarkup', () => {
   test('restores options after a foreign tag that shares options with the root', () => {
     const options: TokenizerOptions = {};
 
-    options.foreignTags = { aaa: { areSelfClosingTagsRecognized: true, foreignTags: { bbb: options } } };
+    options.foreignTags = {
+      aaa: { areSelfClosingTagsRecognized: true, foreignTags: { bbb: options } },
+    };
 
     tokenizeMarkup('<aaa><bbb></bbb></aaa><ccc/></ccc>', callbackMock, resolveTokenizerOptions(options));
 

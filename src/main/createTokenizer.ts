@@ -5,7 +5,7 @@ import {
   type ResolvedTokenizerOptions,
   type TokenCallback,
   tokenizeMarkup,
-} from './tokenizeMarkup.js';
+} from './tokenizeMarkup.ts';
 
 /**
  * Options of {@link createTokenizer} that can be changed by {@link foreignTags foreign tags}.

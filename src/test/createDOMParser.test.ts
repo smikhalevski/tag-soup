@@ -1,8 +1,8 @@
-import { expect, test } from 'vitest';
-import { parseDOM } from '../main/createDOMParser.js';
 import { f } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
-import { resolveTokenizerOptions } from '../main/createTokenizer.js';
+import { expect, test } from 'vitest';
+import { parseDOM } from '../main/createDOMParser.ts';
+import { resolveTokenizerOptions } from '../main/createTokenizer.ts';
 
 test('parses text', () => {
   expect(parseDOM('aaa')).toStrictEqual(f.doc('aaa'));
@@ -34,7 +34,10 @@ test('does not decode comments', () => {
 
 test('does not decode text in raw text tags', () => {
   expect(
-    parseDOM('<aaa>&lt;</aaa>', { ...resolveTokenizerOptions({ rawTextTags: ['aaa'] }), decodeText: decodeXML })
+    parseDOM('<aaa>&lt;</aaa>', {
+      ...resolveTokenizerOptions({ rawTextTags: ['aaa'] }),
+      decodeText: decodeXML,
+    })
   ).toEqual(f.doc(f.aaa('&lt;')));
 });
 

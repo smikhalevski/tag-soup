@@ -1,8 +1,8 @@
-import { beforeEach, expect, test, vi } from 'vitest';
-import { SAXHandler } from '../main/index.js';
-import { parseSAX } from '../main/createSAXParser.js';
 import { decodeXML } from 'speedy-entities';
-import { resolveTokenizerOptions } from '../main/createTokenizer.js';
+import { beforeEach, expect, test, vi } from 'vitest';
+import { parseSAX } from '../main/createSAXParser.ts';
+import { resolveTokenizerOptions } from '../main/createTokenizer.ts';
+import type { SAXHandler } from '../main/index.ts';
 
 const mockHandler = {
   onText: vi.fn(),

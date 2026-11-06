@@ -1,9 +1,9 @@
 import { decodeXML, escapeXML } from 'speedy-entities';
-import { type ParserOptions } from './types.js';
-import { createDOMParser } from './createDOMParser.js';
-import { createSAXParser } from './createSAXParser.js';
-import { createSerializer, type SerializerOptions } from './createSerializer.js';
-import { createTokenizer } from './createTokenizer.js';
+import { createDOMParser } from './createDOMParser.ts';
+import { createSAXParser } from './createSAXParser.ts';
+import { createSerializer, type SerializerOptions } from './createSerializer.ts';
+import { createTokenizer } from './createTokenizer.ts';
+import { type ParserOptions } from './types.ts';
 
 const xmlParserOptions: ParserOptions = {
   areSelfClosingTagsRecognized: true,

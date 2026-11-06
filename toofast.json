@@ -1,7 +1,8 @@
 {
+  "$schema": "./node_modules/toofast/config_schema.json",
   "testOptions": {
-    "warmupIterationCount": 10,
+    "maxWarmupBatchIterationCount": 1000,
     "targetRme": 0.05
   },
-  "include": ["./src/test/perf.js"]
+  "testFilePatterns": ["./src/test/perf.ts"]
 }

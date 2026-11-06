@@ -562,7 +562,11 @@ export function readTokens(input: string, callback: TokenCallback, options: Toke
       // ----------------------------------------------------------
 
       if (quoteCharCode !== /* " */ 34 && quoteCharCode !== /* ' */ 39) {
-        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = skipChars(input, nextIndex, isUnquotedAttributeValueChar)));
+        callback(
+          TOKEN_ATTRIBUTE_VALUE,
+          nextIndex,
+          (nextIndex = skipChars(input, nextIndex, isUnquotedAttributeValueChar))
+        );
 
         textStartIndex = nextIndex = skipSpaces(input, nextIndex);
         continue;

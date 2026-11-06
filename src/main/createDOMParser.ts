@@ -1,5 +1,3 @@
-import { resolveTokenizerOptions } from './createTokenizer.js';
-import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.js';
 import {
   CDATASection,
   Comment,
@@ -10,7 +8,9 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import type { ParserOptions, ResolvedParserOptions } from './types.js';
+import { resolveTokenizerOptions } from './createTokenizer.ts';
+import { getCaseSensitiveHashCode, type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
+import type { ParserOptions, ResolvedParserOptions } from './types.ts';
 
 /**
  * Parses text as a DOM.
@@ -54,7 +54,10 @@ export interface DOMParser {
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
   const { decodeText } = options;
 
-  const documentOptions: ResolvedParserOptions = { ...resolveTokenizerOptions(options), decodeText };
+  const documentOptions: ResolvedParserOptions = {
+    ...resolveTokenizerOptions(options),
+    decodeText,
+  };
 
   const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
 
