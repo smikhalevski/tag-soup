@@ -166,15 +166,12 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @internal
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
-  const { rawTextTagSet, decodeText = identity, decodeAttribute = identity } = options;
+  const { decodeText = identity, decodeAttribute = identity } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
-  // Text inside raw text tags isn't decoded
-  const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
-
-  // The tokenizer sets the hash code of each start tag name, so it isn't hashed again here
-  const state: TokenizerState = { tagHashCode: 0 };
+  // The tokenizer looks up each start tag, so it isn't looked up again here
+  const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -199,9 +196,8 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
       case 'START_TAG_NAME': {
         let tagName;
 
-        if (undecodedTextTagSet !== undefined) {
-          isRawText = undecodedTextTagSet.has(state.tagHashCode);
-        }
+        // Text inside raw text tags isn't decoded
+        isRawText = state.tagInfo !== undefined && state.tagInfo.isRawText;
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);

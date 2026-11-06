@@ -4,8 +4,8 @@ import {
   type ContextualTokenReaderOptions,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
-  type ImplicitClosingTag,
   type ResolvedTokenizerOptions,
+  type TagInfo,
   type TokenCallback,
   tokenizeMarkup,
 } from './tokenizeMarkup.ts';
@@ -280,18 +280,8 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
  * @internal
  */
 export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedTokenizerOptions {
-  const {
-    voidTags,
-    rawTextTags,
-    escapableRawTextTags,
-    implicitlyClosedTags,
-    implicitClosingBoundaryTags,
-    implicitlyOpenedTags,
-    areTagNamesCaseInsensitive,
-    areUnbalancedStartTagsImplicitlyClosed,
-    areUnbalancedEndTagsIgnored,
-    isStrict,
-  } = options;
+  const { areTagNamesCaseInsensitive, areUnbalancedStartTagsImplicitlyClosed, areUnbalancedEndTagsIgnored, isStrict } =
+    options;
 
   const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
@@ -299,17 +289,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   return {
     ...resolveContextualTokenReaderOptions(options, toHashCode, new Map()),
-    ...resolveImplicitClosingOptions(implicitlyClosedTags, toHashCode),
+    ...resolveTagInfoOptions(options, toHashCode),
     getTagHashCode: getHashCode,
     areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
-    voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
-    rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
-    escapableRawTextTagSet:
-      escapableRawTextTags !== undefined ? new Set(escapableRawTextTags.map(toHashCode)) : undefined,
-    implicitClosingBoundaryTagSet:
-      implicitClosingBoundaryTags !== undefined ? new Set(implicitClosingBoundaryTags.map(toHashCode)) : undefined,
-    implicitlyOpenedTagSet:
-      implicitlyOpenedTags !== undefined ? new Set(implicitlyOpenedTags.map(toHashCode)) : undefined,
     isFragment: false,
     areUnbalancedStartTagsImplicitlyClosed,
     areUnbalancedEndTagsIgnored,
@@ -318,45 +300,99 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 }
 
 /**
- * Converts {@link TokenizerOptions.implicitlyClosedTags} into options consumed by {@link tokenizeMarkup}. Tags that
- * can be implicitly closed get sequential IDs, so open tags can be counted in an array.
+ * Collects everything options say about each tag into a single map, so {@link tokenizeMarkup} looks up a start tag
+ * once. Tags that can be implicitly closed get sequential IDs, so open tags can be counted in an array.
  */
-function resolveImplicitClosingOptions(
-  implicitlyClosedTags: Record<string, string[]> | undefined,
+function resolveTagInfoOptions(
+  options: TokenizerOptions,
   toHashCode: (str: string) => number
 ): ResolvedTokenizerOptions {
-  if (implicitlyClosedTags === undefined) {
-    return {};
-  }
+  const {
+    voidTags = [],
+    rawTextTags = [],
+    escapableRawTextTags = [],
+    implicitlyClosedTags = {},
+    implicitClosingBoundaryTags = [],
+    implicitlyOpenedTags = [],
+  } = options;
 
-  const implicitClosingTagMap = new Map<number, ImplicitClosingTag>();
+  const tagInfoMap = new Map<number, TagInfo>();
+
+  // Foreign tag options can reference each other
+  const visitedOptionsSet = new Set<ContextualTokenizerOptions>();
 
   let implicitlyClosableTagCount = 0;
 
-  function getImplicitClosingTag(tagName: string) {
+  function getTagInfo(tagName: string) {
     const tagHashCode = toHashCode(tagName);
 
-    let implicitClosingTag = implicitClosingTagMap.get(tagHashCode);
+    let tagInfo = tagInfoMap.get(tagHashCode);
 
-    if (implicitClosingTag === undefined) {
-      implicitClosingTag = { closedTagIds: [], closableTagId: -1 };
-      implicitClosingTagMap.set(tagHashCode, implicitClosingTag);
+    if (tagInfo === undefined) {
+      tagInfo = {
+        isVoid: false,
+        isRawText: false,
+        isEscapableRawText: false,
+        isForeign: false,
+        isImplicitClosingBoundary: false,
+        isImplicitlyOpened: false,
+        closedTagIds: [],
+        closableTagId: -1,
+      };
+      tagInfoMap.set(tagHashCode, tagInfo);
     }
-    return implicitClosingTag;
+    return tagInfo;
+  }
+
+  function markForeignTags(contextualOptions: ContextualTokenizerOptions): void {
+    const foreignTags = contextualOptions.foreignTags;
+
+    if (foreignTags === undefined || visitedOptionsSet.has(contextualOptions)) {
+      return;
+    }
+
+    visitedOptionsSet.add(contextualOptions);
+
+    for (const [tagName, foreignOptions] of Object.entries(foreignTags)) {
+      getTagInfo(tagName).isForeign = true;
+      markForeignTags(foreignOptions);
+    }
+  }
+
+  for (const tagName of voidTags) {
+    getTagInfo(tagName).isVoid = true;
+  }
+
+  for (const tagName of rawTextTags) {
+    getTagInfo(tagName).isRawText = true;
+  }
+
+  for (const tagName of escapableRawTextTags) {
+    getTagInfo(tagName).isEscapableRawText = true;
+  }
+
+  for (const tagName of implicitClosingBoundaryTags) {
+    getTagInfo(tagName).isImplicitClosingBoundary = true;
+  }
+
+  for (const tagName of implicitlyOpenedTags) {
+    getTagInfo(tagName).isImplicitlyOpened = true;
   }
 
   for (const [tagName, closedTagNames] of Object.entries(implicitlyClosedTags)) {
-    const closedTagIds = getImplicitClosingTag(tagName).closedTagIds;
+    const closedTagIds = getTagInfo(tagName).closedTagIds;
 
     for (const closedTagName of closedTagNames) {
-      const closedTag = getImplicitClosingTag(closedTagName);
+      const closedTagInfo = getTagInfo(closedTagName);
 
-      if (closedTag.closableTagId === -1) {
-        closedTag.closableTagId = implicitlyClosableTagCount++;
+      if (closedTagInfo.closableTagId === -1) {
+        closedTagInfo.closableTagId = implicitlyClosableTagCount++;
       }
-      closedTagIds.push(closedTag.closableTagId);
+      closedTagIds.push(closedTagInfo.closableTagId);
     }
   }
+
+  markForeignTags(options);
 
   const initialOpenTagCounts: number[] = [];
 
@@ -364,7 +400,11 @@ function resolveImplicitClosingOptions(
     initialOpenTagCounts.push(0);
   }
 
-  return { implicitClosingTagMap, initialOpenTagCounts };
+  return {
+    // Start tags aren't looked up if options don't mention any tags
+    tagInfoMap: tagInfoMap.size !== 0 ? tagInfoMap : undefined,
+    initialOpenTagCounts,
+  };
 }
 
 function resolveContextualTokenReaderOptions(
