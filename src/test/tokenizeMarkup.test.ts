@@ -6,6 +6,7 @@ import {
   ParserError,
   readTokens,
   tokenizeMarkup,
+  type TokenizerState,
 } from '../main/tokenizeMarkup.ts';
 
 const callbackMock = vi.fn();
@@ -901,22 +902,25 @@ describe('readTokens', () => {
     );
   });
 
-  test('sets the tag hash code before a start tag name is passed to the callback', () => {
-    const state = { tagHashCode: 0 };
-    const tagHashCodes: number[] = [];
+  test('sets the tag hash code and the tag info before a start tag name is passed to the callback', () => {
+    const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
+    const states: TokenizerState[] = [];
 
     readTokens(
       '<aaa><bbb>',
       token => {
         if (token === 'START_TAG_NAME') {
-          tagHashCodes.push(state.tagHashCode);
+          states.push({ ...state });
         }
       },
-      {},
+      resolveTokenizerOptions({ voidTags: ['aaa'] }),
       state
     );
 
-    expect(tagHashCodes).toEqual([getCaseSensitiveHashCode('aaa', 0, 3), getCaseSensitiveHashCode('bbb', 0, 3)]);
+    expect(states).toEqual([
+      { tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3), tagInfo: expect.objectContaining({ isVoid: true }) },
+      { tagHashCode: getCaseSensitiveHashCode('bbb', 0, 3), tagInfo: undefined },
+    ]);
   });
 });
 
@@ -1407,22 +1411,27 @@ describe('tokenizeMarkup', () => {
     );
   });
 
-  test('sets the tag hash code before an implicitly opened start tag name is passed to the callback', () => {
-    const state = { tagHashCode: 0 };
-    const tagHashCodes: number[] = [];
+  test('sets the tag hash code and the tag info before an implicitly opened start tag name is passed to the callback', () => {
+    const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
+    const states: TokenizerState[] = [];
 
     tokenizeMarkup(
       '</aaa>',
       token => {
         if (token === 'START_TAG_NAME') {
-          tagHashCodes.push(state.tagHashCode);
+          states.push({ ...state });
         }
       },
       resolveTokenizerOptions({ implicitlyOpenedTags: ['aaa'] }),
       state
     );
 
-    expect(tagHashCodes).toEqual([getCaseSensitiveHashCode('aaa', 0, 3)]);
+    expect(states).toEqual([
+      {
+        tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3),
+        tagInfo: expect.objectContaining({ isImplicitlyOpened: true }),
+      },
+    ]);
   });
 
   test('closes the start tag at the end of the input', () => {

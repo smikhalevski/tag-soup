@@ -9,7 +9,7 @@ import {
   Text,
 } from 'flyweight-dom';
 import { resolveTokenizerOptions } from './createTokenizer.ts';
-import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
+import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
 import type { ParserOptions, ResolvedParserOptions } from './types.ts';
 
 /**
@@ -83,13 +83,10 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @internal
  */
 export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
-  const { rawTextTagSet, isFragment, decodeText = identity, decodeAttribute = identity } = options;
+  const { isFragment, decodeText = identity, decodeAttribute = identity } = options;
 
-  // Text inside raw text tags isn't decoded
-  const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
-
-  // The tokenizer sets the hash code of each start tag name, so it isn't hashed again here
-  const state = { tagHashCode: 0 };
+  // The tokenizer looks up each start tag, so it isn't looked up again here
+  const state: TokenizerState = { tagHashCode: 0, tagInfo: undefined };
 
   const root = isFragment ? new DocumentFragment() : new Document();
 
@@ -108,9 +105,8 @@ export function parseDOM(input: string, options: ResolvedParserOptions = {}): Do
       }
 
       case 'START_TAG_NAME':
-        if (undecodedTextTagSet !== undefined) {
-          isRawText = undecodedTextTagSet.has(state.tagHashCode);
-        }
+        // Text inside raw text tags isn't decoded
+        isRawText = state.tagInfo !== undefined && state.tagInfo.isRawText;
 
         parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));
         break;
