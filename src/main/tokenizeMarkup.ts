@@ -917,8 +917,9 @@ export function readTokens(
     if (
       enclosingRawTextTagHashCode === 0 &&
       charCode === /* ! */ 33 &&
-      getCharCodeAt(input, nextIndex + 1) === /* - */ 45 &&
-      getCharCodeAt(input, nextIndex + 2) === /* - */ 45
+      nextIndex + 2 < inputLength &&
+      input.charCodeAt(nextIndex + 1) === /* - */ 45 &&
+      input.charCodeAt(nextIndex + 2) === /* - */ 45
     ) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
@@ -1163,7 +1164,7 @@ function getScriptDataEndIndex(
 ): number {
   // Most "<" in script data aren't followed by the tag name, so the first char is compared before the whole name. It's
   // compared ignoring case, which is enough to skip a char for case-sensitive names too.
-  const tagNameCharCode = getCaseInsensitiveCharCodeAt(input, tagNameStartIndex);
+  const tagNameCharCode = getUncheckedCaseInsensitiveCharCodeAt(input, tagNameStartIndex);
 
   let isEscaped = false;
   let isDoubleEscaped = false;
@@ -1180,16 +1181,18 @@ function getScriptDataEndIndex(
       isDoubleEscaped = false;
     }
 
-    if (tagOpeningIndex === input.length) {
-      return tagOpeningIndex;
+    // There's no tag opening, or the input ends with it
+    if (tagOpeningIndex + 1 >= input.length) {
+      return input.length;
     }
 
     // Skip "<"
     index = tagOpeningIndex + 1;
 
-    if (getCharCodeAt(input, index) === /* / */ 47) {
+    if (input.charCodeAt(index) === /* / */ 47) {
       if (
-        getCaseInsensitiveCharCodeAt(input, index + 1) === tagNameCharCode &&
+        index + 1 < input.length &&
+        getUncheckedCaseInsensitiveCharCodeAt(input, index + 1) === tagNameCharCode &&
         isRawTextTagNameAt(input, index + 1, tagNameStartIndex, tagNameEndIndex, areTagNamesEqual)
       ) {
         if (!isDoubleEscaped) {
@@ -1202,9 +1205,10 @@ function getScriptDataEndIndex(
 
     if (!isEscaped) {
       if (
-        getCharCodeAt(input, index) === /* ! */ 33 &&
-        getCharCodeAt(input, index + 1) === /* - */ 45 &&
-        getCharCodeAt(input, index + 2) === /* - */ 45
+        index + 2 < input.length &&
+        input.charCodeAt(index) === /* ! */ 33 &&
+        input.charCodeAt(index + 1) === /* - */ 45 &&
+        input.charCodeAt(index + 2) === /* - */ 45
       ) {
         isEscaped = true;
 
@@ -1215,7 +1219,7 @@ function getScriptDataEndIndex(
     }
 
     if (
-      getCaseInsensitiveCharCodeAt(input, index) === tagNameCharCode &&
+      getUncheckedCaseInsensitiveCharCodeAt(input, index) === tagNameCharCode &&
       isRawTextTagNameAt(input, index, tagNameStartIndex, tagNameEndIndex, areTagNamesEqual)
     ) {
       isDoubleEscaped = true;
@@ -1305,12 +1309,18 @@ function getCharCodeAt(input: string, index: number): number {
   return index < input.length ? input.charCodeAt(index) : -1;
 }
 
-function getCaseInsensitiveCharCodeAt(input: string, index: number): number {
-  return toLowerCaseCharCode(getCharCodeAt(input, index));
+function getIndexOfOrLength(input: string, searchString: string, index: number): number {
+  index = input.indexOf(searchString, index);
+
+  return index !== -1 ? index : input.length;
 }
 
 function toLowerCaseCharCode(charCode: number): number {
   return charCode < /* A */ 65 || charCode > /* Z */ 90 ? charCode : charCode + 32;
+}
+
+function getUncheckedCaseInsensitiveCharCodeAt(input: string, index: number): number {
+  return toLowerCaseCharCode(input.charCodeAt(index));
 }
 
 /**
@@ -1318,14 +1328,15 @@ function toLowerCaseCharCode(charCode: number): number {
  */
 function isDoctypeSectionOpening(input: string, index: number): boolean {
   return (
-    getCharCodeAt(input, index) === /* ! */ 33 &&
-    getCaseInsensitiveCharCodeAt(input, index + 1) === /* d */ 100 &&
-    getCaseInsensitiveCharCodeAt(input, index + 2) === /* o */ 111 &&
-    getCaseInsensitiveCharCodeAt(input, index + 3) === /* c */ 99 &&
-    getCaseInsensitiveCharCodeAt(input, index + 4) === /* t */ 116 &&
-    getCaseInsensitiveCharCodeAt(input, index + 5) === /* y */ 121 &&
-    getCaseInsensitiveCharCodeAt(input, index + 6) === /* p */ 112 &&
-    getCaseInsensitiveCharCodeAt(input, index + 7) === /* e */ 101
+    index + 7 < input.length &&
+    input.charCodeAt(index) === /* ! */ 33 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 1) === /* d */ 100 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 2) === /* o */ 111 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 3) === /* c */ 99 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 4) === /* t */ 116 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 5) === /* y */ 121 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 6) === /* p */ 112 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 7) === /* e */ 101
   );
 }
 
@@ -1338,29 +1349,21 @@ function isCDATASectionOpening(input: string, index: number, isCaseSensitive: bo
   }
 
   return (
-    getCharCodeAt(input, index) === /* ! */ 33 &&
-    getCharCodeAt(input, index + 1) === /* [ */ 91 &&
-    getCaseInsensitiveCharCodeAt(input, index + 2) === /* c */ 99 &&
-    getCaseInsensitiveCharCodeAt(input, index + 3) === /* d */ 100 &&
-    getCaseInsensitiveCharCodeAt(input, index + 4) === /* a */ 97 &&
-    getCaseInsensitiveCharCodeAt(input, index + 5) === /* t */ 116 &&
-    getCaseInsensitiveCharCodeAt(input, index + 6) === /* a */ 97 &&
-    getCharCodeAt(input, index + 7) === /* [ */ 91
+    index + 7 < input.length &&
+    input.charCodeAt(index) === /* ! */ 33 &&
+    input.charCodeAt(index + 1) === /* [ */ 91 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 2) === /* c */ 99 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 3) === /* d */ 100 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 4) === /* a */ 97 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 5) === /* t */ 116 &&
+    getUncheckedCaseInsensitiveCharCodeAt(input, index + 6) === /* a */ 97 &&
+    input.charCodeAt(index + 7) === /* [ */ 91
   );
 }
 
-// Skip functions have their own loops rather than a shared loop that accepts a char predicate, since V8 doesn't inline
-// a predicate that is passed as an argument
-
-/**
- * Skips whitespace chars.
- */
-function skipSpaces(input: string, index: number): number {
-  while (index < input.length && isSpaceChar(input.charCodeAt(index))) {
-    ++index;
-  }
-  return index;
-}
+// ----------------------------------------------------------
+// Check chars
+// ----------------------------------------------------------
 
 // https://www.w3.org/TR/xml/#NT-S
 function isSpaceChar(charCode: number): boolean {
@@ -1415,6 +1418,20 @@ function isUnquotedAttributeValueChar(charCode: number): boolean {
   return !(charCode === /* > */ 62 || isSpaceChar(charCode));
 }
 
+// ----------------------------------------------------------
+// Skip char sequences
+// ----------------------------------------------------------
+
+// Skip functions have their own loops rather than a shared loop that accepts a char predicate, since V8 doesn't inline
+// a predicate that is passed as an argument
+
+function skipSpaces(input: string, index: number): number {
+  while (index < input.length && isSpaceChar(input.charCodeAt(index))) {
+    ++index;
+  }
+  return index;
+}
+
 // https://www.w3.org/TR/xml/#NT-Name
 function skipXMLName(input: string, index: number): number {
   if (!isXMLNameStartChar(getCharCodeAt(input, index))) {
@@ -1456,12 +1473,6 @@ function skipUnquotedAttributeValue(input: string, index: number): number {
     ++index;
   }
   return index;
-}
-
-function getIndexOfOrLength(input: string, searchString: string, index: number): number {
-  index = input.indexOf(searchString, index);
-
-  return index !== -1 ? index : input.length;
 }
 
 function skipUntilTagOpening(input: string, index: number): number {
