@@ -165,7 +165,8 @@ export interface ResolvedTagOptions {
   /**
    * The ID of this tag if it can be implicitly ended, or -1 otherwise. Tags that can be implicitly ended have IDs, so
    * {@link tokenizeMarkup} can count open tags with each name, and skip searching for tags to end if none of them is
-   * open. IDs are unique across contexts, so open tags of all contexts are counted in one array.
+   * open. IDs are unique across contexts, so open tags of all contexts are counted in one array. Tags with the same
+   * {@link TagParsingOptions options object} share the ID, since they are ended by the same tags.
    */
   endableTagId: number;
 }

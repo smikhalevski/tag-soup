@@ -12,7 +12,8 @@ const headingTagNames = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
 const ddtTagNames = ['dd', 'dt'];
 
-const rtpTagNames = ['rt', 'rp'];
+// Tags inside ruby that implicitly end each other
+const rubyTagNames = ['rb', 'rp', 'rt', 'rtc'];
 
 const tableSectionTagNames = ['tbody', 'tfoot'];
 
@@ -69,6 +70,7 @@ const htmlParserOptions: ParserOptions = {
     area: { kind: 'void' },
     base: { kind: 'void' },
     basefont: { kind: 'void' },
+    bgsound: { kind: 'void' },
     br: { kind: 'void', isImplicitlyStarted: true },
     button: { implicitlyEndedBy: formTagNames, isImplicitEndingBoundary: true },
     caption: { isImplicitEndingBoundary: true },
@@ -118,9 +120,14 @@ const htmlParserOptions: ParserOptions = {
         'article',
         'aside',
         'blockquote',
+        'center',
+        'dd',
         'details',
+        'dialog',
+        'dir',
         'div',
         'dl',
+        'dt',
         'fieldset',
         'figcaption',
         'figure',
@@ -128,22 +135,32 @@ const htmlParserOptions: ParserOptions = {
         'form',
         ...headingTagNames,
         'header',
+        'hgroup',
         'hr',
+        'li',
+        'listing',
         'main',
+        'menu',
         'nav',
         'ol',
         'p',
+        'plaintext',
         'pre',
+        'search',
         'section',
+        'summary',
         'table',
         'ul',
+        'xmp',
       ],
       isImplicitlyStarted: true,
     },
     param: { kind: 'void' },
     plaintext: { kind: 'raw_text' },
-    rp: { implicitlyEndedBy: rtpTagNames },
-    rt: { implicitlyEndedBy: rtpTagNames },
+    rb: { implicitlyEndedBy: rubyTagNames },
+    rp: { implicitlyEndedBy: rubyTagNames },
+    rt: { implicitlyEndedBy: rubyTagNames },
+    rtc: { implicitlyEndedBy: ['rb', 'rtc'] },
     script: { kind: 'script_data', implicitlyEndedBy: ['body'] },
     select: { implicitlyEndedBy: formTagNames },
     source: { kind: 'void' },
@@ -156,11 +173,12 @@ const htmlParserOptions: ParserOptions = {
     textarea: { kind: 'escapable_raw_text', implicitlyEndedBy: formTagNames },
     th: { implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames], isImplicitEndingBoundary: true },
     thead: { implicitlyEndedBy: tableSectionTagNames },
-    title: { isImplicitEndingBoundary: true },
+    title: { kind: 'escapable_raw_text' },
     tr: { implicitlyEndedBy: ['tr', ...tableSectionTagNames] },
     track: { kind: 'void' },
     ul: { isImplicitEndingBoundary: true },
     wbr: { kind: 'void' },
+    xmp: { kind: 'raw_text' },
   },
   areTagNamesCaseInsensitive: true,
   areUnbalancedStartTagsImplicitlyEnded: true,
@@ -169,9 +187,12 @@ const htmlParserOptions: ParserOptions = {
   decodeAttribute: decodeHTMLAttribute,
 };
 
+// SVG and MathML title is a tag rather than escapable raw text, and SVG title is an integration point
+const foreignContentTags = { ...htmlParserOptions.tags, title: { isImplicitEndingBoundary: true } };
+
 htmlParserOptions.foreignTags = {
   svg: {
-    tags: htmlParserOptions.tags,
+    tags: foreignContentTags,
     areCDATASectionsRecognized: true,
     areProcessingInstructionsRecognized: true,
     areSelfClosingTagsRecognized: true,
@@ -180,7 +201,7 @@ htmlParserOptions.foreignTags = {
     },
   },
   math: {
-    tags: htmlParserOptions.tags,
+    tags: foreignContentTags,
     areCDATASectionsRecognized: true,
     areProcessingInstructionsRecognized: true,
     areSelfClosingTagsRecognized: true,

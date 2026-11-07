@@ -42,6 +42,38 @@ test('ends the table section when the next one starts', () => {
   );
 });
 
+test('ends a paragraph with list items and blocks', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<p>aaa<li>bbb<p>ccc<center>ddd'))).toBe(
+    '<p>aaa</p><li>bbb<p>ccc</p><center>ddd</center></li>'
+  );
+});
+
+test('ends ruby annotations', () => {
+  expect(
+    toHTML(HTMLDOMParser.parseFragment('<ruby><rb>aaa<rt>bbb<rp>ccc<rb>ddd<rtc>eee<rp>fff<rtc>ggg<rb>hhh</ruby>'))
+  ).toBe(
+    '<ruby><rb>aaa</rb><rt>bbb</rt><rp>ccc</rp><rb>ddd</rb><rtc>eee<rp>fff</rp></rtc><rtc>ggg</rtc><rb>hhh</rb></ruby>'
+  );
+});
+
+test('parses bgsound as a void tag', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<bgsound>aaa'))).toBe('<bgsound>aaa');
+});
+
+test('parses xmp as raw text that ends a paragraph', () => {
+  expect(HTMLDOMParser.parseFragment('<p>aaa<xmp><p>&amp;</xmp>')).toStrictEqual(f.f(f.p('aaa'), f.xmp('<p>&amp;')));
+});
+
+test('parses title as escapable raw text', () => {
+  expect(HTMLDOMParser.parseFragment('<title><b>&amp;</b></title>')).toStrictEqual(f.f(f.title('<b>&</b>')));
+});
+
+test('parses title inside SVG and MathML as a tag', () => {
+  const html = '<svg><title><a>aaa</a></title></svg><math><title><mi>bbb</mi></title></math>';
+
+  expect(toHTML(HTMLDOMParser.parseFragment(html))).toBe(html);
+});
+
 test('round-trips raw text and escapable raw text', () => {
   const html = '<script>aaa<bbb&lt;</script><textarea>aaa&lt;bbb</textarea>';
 

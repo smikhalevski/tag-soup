@@ -374,9 +374,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
 /**
  * Resolves tags of each context into a map, so {@link tokenizeMarkup} looks up a start tag once. Contexts with the same
- * tags share the map. Tags that can be implicitly ended get sequential IDs that are unique across all maps, so open
- * tags can be counted in a single array. Tags are ended by name, so a tag that ends other tags has the same ended tag
- * IDs in every map. Tags that are foreign in a context are marked as foreign in its map.
+ * tags share the map. Tags that can be implicitly ended get sequential IDs that are unique across all maps, unless tags
+ * share options, so open tags can be counted in a single array. Tags are ended by name, so a tag that ends other tags
+ * has the same ended tag IDs in every map. Tags that are foreign in a context are marked as foreign in its map.
  *
  * Returns a zero for each ID.
  */
@@ -388,6 +388,10 @@ function resolveTagOptions(
 
   // The map from a hash code of a tag to IDs of tags that it ends
   const endedTagIdsMap = new Map<number, number[]>();
+
+  // The map from tag options to the ID of tags with these options, so tags whose options are spread into tags of
+  // another context have one ID, and tags that end them check it once
+  const endableTagIdMap = new Map<TagParsingOptions, number>();
 
   let endableTagCount = 0;
 
@@ -431,10 +435,19 @@ function resolveTagOptions(
       resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
       resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
 
+      const endableTagId = endableTagIdMap.get(tagOptions);
+
+      // Tags that end this tag already keep its ID
+      if (endableTagId !== undefined) {
+        resolvedTagOptions.endableTagId = endableTagId;
+        continue;
+      }
+
       // Tags that end this tag keep its ID, so they know which tags to end when they are started
       for (const endingTagName of implicitlyEndedBy) {
         if (resolvedTagOptions.endableTagId === -1) {
           resolvedTagOptions.endableTagId = endableTagCount++;
+          endableTagIdMap.set(tagOptions, resolvedTagOptions.endableTagId);
         }
 
         const endingTagHashCode = toHashCode(endingTagName);
