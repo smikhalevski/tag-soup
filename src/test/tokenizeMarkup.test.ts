@@ -839,6 +839,22 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'PROCESSING_INSTRUCTION_DATA', 35, 38);
   });
 
+  test('reads text after processing instruction', () => {
+    readTokens(
+      '<aaa><?xxx bbb?>ccc</aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(6);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'PROCESSING_INSTRUCTION_TARGET', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'PROCESSING_INSTRUCTION_DATA', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 21, 24);
+  });
+
   test('closes prolog after tag', () => {
     readTokens(
       '<?xml aaa?><aaa><!DOCTYPE html>',

@@ -864,10 +864,14 @@ export function readTokens(
       callback(TOKEN_PROCESSING_INSTRUCTION_DATA, nextIndex, (nextIndex = dataEndIndex));
 
       // Skip "?>"
-      nextIndex += 2;
+      textStartIndex = nextIndex += 2;
 
-      textStartIndex = nextIndex =
-        scope === SCOPE_PROLOGUE ? skipSpaces(input, nextIndex) : skipUntilTagOpening(input, nextIndex);
+      if (scope === SCOPE_PROLOGUE) {
+        textStartIndex = nextIndex = skipSpaces(input, nextIndex);
+        continue;
+      }
+
+      nextIndex = skipUntilTagOpening(input, nextIndex);
       continue;
     }
 
