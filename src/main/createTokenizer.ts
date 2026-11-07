@@ -336,14 +336,14 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   // Contextual options can reference each other, so each of them is resolved once
   const contextMap = new Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>();
 
-  const context = resolveContextualTokenReaderOptions(options, contextMap);
+  const initialContext = resolveContextualTokenReaderOptions(options, contextMap);
 
   const initialOpenTagCounts = resolveTagOptions(contextMap, toHashCode);
 
   return {
     getTagHashCode,
     areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
-    context,
+    initialContext,
     isFragment: false,
     isStrict,
     initialOpenTagCounts,

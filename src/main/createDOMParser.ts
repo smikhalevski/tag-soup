@@ -75,11 +75,14 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @throws {@link ParserError} If input is malformed and options don't allow to recover.
  * @internal
  */
-export function parseDOM(input: string, options: ResolvedParserOptions = { context: {} }): Document | DocumentFragment {
+export function parseDOM(
+  input: string,
+  options: ResolvedParserOptions = { initialContext: {} }
+): Document | DocumentFragment {
   const { isFragment, decodeText = identity, decodeAttribute = identity } = options;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
-  const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
+  const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.initialContext };
 
   const root = isFragment ? new DocumentFragment() : new Document();
 

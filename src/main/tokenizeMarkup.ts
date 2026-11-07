@@ -112,6 +112,12 @@ export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 's
  */
 export interface ResolvedTokenizerOptions extends TokenReaderOptions {
   /**
+   * Contextual options that are applied outside of foreign tags. Parsers and tokenizers start
+   * {@link TokenizerState.context} with these options.
+   */
+  initialContext: ContextualTokenReaderOptions;
+
+  /**
    * A zero for each {@link ResolvedTagOptions.endableTagId endable tag ID}. {@link tokenizeMarkup} copies this array
    * to count open tags, which is faster than creating an array of zeros on every call.
    */
@@ -194,9 +200,9 @@ export interface TokenizerState {
   tagOptions: ResolvedTagOptions | undefined;
 
   /**
-   * Contextual options of the content that is being read. Starts as {@link TokenReaderOptions.context}.
-   * {@link tokenizeMarkup} switches it when a foreign tag is started or ended, and {@link readTokens} reads it on every
-   * use.
+   * Contextual options of the content that is being read. {@link tokenizeMarkup} switches it when a foreign tag is
+   * started or ended, and restores the initial context when all foreign tags are ended. {@link readTokens} reads it on
+   * every use.
    */
   context: ContextualTokenReaderOptions;
 }
@@ -219,15 +225,16 @@ export interface TokenizerState {
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Tokenizer options prepared by {@link resolveTokenizerOptions}.
- * @param state The state of the call, which is shared with the callback.
+ * @param state The state of the call, which is shared with the callback. Its context is applied outside of foreign
+ *   tags. By default, the context is {@link ResolvedTokenizerOptions.initialContext}.
  * @throws {@link ParserError} If input is malformed and options don't allow to recover.
  * @internal
  */
 export function tokenizeMarkup(
   input: string,
   callback: TokenCallback,
-  options: ResolvedTokenizerOptions = { context: {} },
-  state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context }
+  options: ResolvedTokenizerOptions = { initialContext: {} },
+  state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.initialContext }
 ): void {
   const {
     getTagHashCode = getCaseSensitiveHashCode,
@@ -254,6 +261,9 @@ export function tokenizeMarkup(
   // Contextual options that are applied to children of the tag at the same index in tagHashCodeStack
   const contextStack: ContextualTokenReaderOptions[] = [];
 
+  // Contextual options outside of foreign tags
+  const initialContext = state.context;
+
   let tagHashCodeStackCursor = -1;
   let isStartTagOpened = false;
   let isRootElementRead = false;
@@ -267,7 +277,7 @@ export function tokenizeMarkup(
 
     --tagHashCodeStackCursor;
 
-    state.context = tagHashCodeStackCursor !== -1 ? contextStack[tagHashCodeStackCursor] : options.context;
+    state.context = tagHashCodeStackCursor !== -1 ? contextStack[tagHashCodeStackCursor] : initialContext;
   }
 
   // Returns the index of the nearest open start tag that has the same name as the end tag, or -1 if there's none
@@ -287,15 +297,6 @@ export function tokenizeMarkup(
       }
     }
     return -1;
-  }
-
-  function isAnyTagOpen(endableTagIds: number[]): boolean {
-    for (const endableTagId of endableTagIds) {
-      if (openTagCounts[endableTagId] !== 0) {
-        return true;
-      }
-    }
-    return false;
   }
 
   function insertImplicitEndTags(endedTagIds: number[], insertionIndex: number): void {
@@ -330,7 +331,7 @@ export function tokenizeMarkup(
         let startTagOptions = state.tagOptions;
 
         // Usually none of the tags that must be ended is open, so the stack isn't searched
-        if (startTagOptions !== undefined && isAnyTagOpen(startTagOptions.endedTagIds)) {
+        if (startTagOptions !== undefined && isAnyTagOpen(openTagCounts, startTagOptions.endedTagIds)) {
           insertImplicitEndTags(startTagOptions.endedTagIds, startIndex - 1);
 
           // Ended foreign tags restore outer options, so the start tag is read with tags of the restored context
@@ -438,7 +439,7 @@ export function tokenizeMarkup(
           break;
         }
 
-        if (isAnyTagOpen(endTagOptions.endedTagIds)) {
+        if (isAnyTagOpen(openTagCounts, endTagOptions.endedTagIds)) {
           insertImplicitEndTags(endTagOptions.endedTagIds, endTagStartIndex);
         }
 
@@ -488,6 +489,18 @@ function getTagOptions(context: ContextualTokenReaderOptions, tagHashCode: numbe
  */
 function isImplicitEndingBoundary(tagOptions: ResolvedTagOptions | undefined): boolean {
   return tagOptions !== undefined && tagOptions.isImplicitEndingBoundary;
+}
+
+/**
+ * Returns `true` if a tag with any of endable tag IDs is open, given the number of open tags by endable tag ID.
+ */
+function isAnyTagOpen(openTagCounts: number[], endableTagIds: number[]): boolean {
+  for (const endableTagId of endableTagIds) {
+    if (openTagCounts[endableTagId] !== 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -582,11 +595,6 @@ export interface TokenReaderOptions {
   areTagNamesEqual?: TagNameEqualityComparer;
 
   /**
-   * Contextual options that are applied outside of foreign tags.
-   */
-  context: ContextualTokenReaderOptions;
-
-  /**
    * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
    * DOCTYPE isn't recognized.
    *
@@ -612,15 +620,16 @@ export interface TokenReaderOptions {
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Token reader options.
- * @param state The state of the call, which is shared with the callback.
+ * @param state The state of the call, which is shared with the callback. By default, no contextual options are
+ *   applied.
  * @throws {@link ParserError} If {@link TokenReaderOptions.isStrict} is `true` and input is malformed.
  * @internal
  */
 export function readTokens(
   input: string,
   callback: TokenCallback,
-  options: TokenReaderOptions = { context: {} },
-  state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context }
+  options: TokenReaderOptions = {},
+  state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: {} }
 ): void {
   const {
     getTagHashCode = getCaseSensitiveHashCode,

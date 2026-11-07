@@ -5,11 +5,16 @@ import {
   getCaseSensitiveHashCode,
   ParserError,
   readTokens,
+  type ResolvedTokenizerOptions,
   tokenizeMarkup,
   type TokenizerState,
 } from '../main/tokenizeMarkup.ts';
 
 const callbackMock = vi.fn();
+
+function makeTestState(options: ResolvedTokenizerOptions): TokenizerState {
+  return { tagHashCode: 0, tagOptions: undefined, context: options.initialContext };
+}
 
 beforeEach(() => {
   callbackMock.mockReset();
@@ -230,7 +235,7 @@ describe('readTokens', () => {
   });
 
   test('parses body DTD as comment', () => {
-    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true, context: {} });
+    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -243,7 +248,7 @@ describe('readTokens', () => {
   });
 
   test('parse empty DTD as comment', () => {
-    readTokens('aaa<!>bbb', callbackMock, { isFragment: true, context: {} });
+    readTokens('aaa<!>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -252,7 +257,7 @@ describe('readTokens', () => {
   });
 
   test('parses processing instructions as comments', () => {
-    readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isFragment: true, context: {} });
+    readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -261,7 +266,7 @@ describe('readTokens', () => {
   });
 
   test('parses empty processing instructions as comments', () => {
-    readTokens('aaa<?>bbb', callbackMock, { isFragment: true, context: {} });
+    readTokens('aaa<?>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
@@ -462,7 +467,9 @@ describe('readTokens', () => {
   });
 
   test('reads self-closing tag', () => {
-    readTokens('<xxx/>', callbackMock, resolveTokenizerOptions({ areSelfClosingTagsRecognized: true }));
+    const options = resolveTokenizerOptions({ areSelfClosingTagsRecognized: true });
+
+    readTokens('<xxx/>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -470,7 +477,9 @@ describe('readTokens', () => {
   });
 
   test('does not read self-closing tag with the unquoted attribute that ends with a slash', () => {
-    readTokens('<xxx aaa=bbb//>', callbackMock, resolveTokenizerOptions({ areSelfClosingTagsRecognized: true }));
+    const options = resolveTokenizerOptions({ areSelfClosingTagsRecognized: true });
+
+    readTokens('<xxx aaa=bbb//>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -525,11 +534,9 @@ describe('readTokens', () => {
   });
 
   test('ignores tags in raw text tags', () => {
-    readTokens(
-      '<script><aaa>bbb</aaa></script>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } });
+
+    readTokens('<script><aaa>bbb</aaa></script>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
@@ -539,11 +546,9 @@ describe('readTokens', () => {
   });
 
   test('reads attributes of a raw text tag', () => {
-    readTokens(
-      '<script aaa="xxx" ccc="yyy">zzz</script>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } });
+
+    readTokens('<script aaa="xxx" ccc="yyy">zzz</script>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
@@ -557,11 +562,12 @@ describe('readTokens', () => {
   });
 
   test('reads tags after a self-closing raw text tag', () => {
-    readTokens(
-      '<aaa/><bbb></bbb>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } }, areSelfClosingTagsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { kind: 'raw_text' } },
+      areSelfClosingTagsRecognized: true,
+    });
+
+    readTokens('<aaa/><bbb></bbb>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -572,11 +578,9 @@ describe('readTokens', () => {
   });
 
   test('ignores tags in escapable raw text tags', () => {
-    readTokens(
-      '<aaa><bbb></aaa>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'escapable_raw_text' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'escapable_raw_text' } } });
+
+    readTokens('<aaa><bbb></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -586,11 +590,9 @@ describe('readTokens', () => {
   });
 
   test('ignores comments in raw text tags', () => {
-    readTokens(
-      '<script><!-->bbb</--></script>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } } });
+
+    readTokens('<script><!-->bbb</--></script>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
@@ -600,11 +602,12 @@ describe('readTokens', () => {
   });
 
   test('matches case-insensitive end raw text tags', () => {
-    readTokens(
-      '<script><!-->bbb</--></SCRIPT>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { script: { kind: 'raw_text' } }, areTagNamesCaseInsensitive: true })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { script: { kind: 'raw_text' } },
+      areTagNamesCaseInsensitive: true,
+    });
+
+    readTokens('<script><!-->bbb</--></SCRIPT>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
@@ -615,7 +618,9 @@ describe('readTokens', () => {
 
   test('does not end a raw text tag with an end tag that has the same hash code but a different name', () => {
     // "aQ" and "b0" have the same hash code
-    readTokens('<aQ></b0></aQ>', callbackMock, resolveTokenizerOptions({ tags: { aQ: { kind: 'raw_text' } } }));
+    const options = resolveTokenizerOptions({ tags: { aQ: { kind: 'raw_text' } } });
+
+    readTokens('<aQ></b0></aQ>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 3);
@@ -625,7 +630,9 @@ describe('readTokens', () => {
   });
 
   test('does not end raw text with an end tag at the end of the input', () => {
-    readTokens('<aaa></aaa', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } } }));
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } } });
+
+    readTokens('<aaa></aaa', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -634,7 +641,9 @@ describe('readTokens', () => {
   });
 
   test('ends raw text with an end tag that follows another end tag without a closing', () => {
-    readTokens('<aaa></bbb</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } } }));
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } } });
+
+    readTokens('<aaa></bbb</aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -644,11 +653,9 @@ describe('readTokens', () => {
   });
 
   test('does not end script data with an end tag after an escaped start tag', () => {
-    readTokens(
-      '<aaa><!--<aaa></aaa></aaa>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } });
+
+    readTokens('<aaa><!--<aaa></aaa></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -658,7 +665,9 @@ describe('readTokens', () => {
   });
 
   test('ends escaped script data with an end tag', () => {
-    readTokens('<aaa><!--</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } }));
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } });
+
+    readTokens('<aaa><!--</aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -668,11 +677,9 @@ describe('readTokens', () => {
   });
 
   test('ends escaping of script data at -->', () => {
-    readTokens(
-      '<aaa><!--<aaa>--></aaa>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } });
+
+    readTokens('<aaa><!--<aaa>--></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -682,11 +689,9 @@ describe('readTokens', () => {
   });
 
   test('does not escape script data with <!-->', () => {
-    readTokens(
-      '<aaa><!--><aaa></aaa>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } });
+
+    readTokens('<aaa><!--><aaa></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -739,10 +744,13 @@ describe('readTokens', () => {
   });
 
   test('reads DOCTYPE and processing instruction after comment', () => {
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
     readTokens(
       '<!--xxx-->   \n\n   <!DOCTYPE html><!--xxx-->   \n\n   <?xml aaa?>',
       callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
+      options,
+      makeTestState(options)
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
@@ -754,11 +762,9 @@ describe('readTokens', () => {
   });
 
   test('reads processing instruction and DOCTYPE separated with spaces', () => {
-    readTokens(
-      '   <?xml aaa?>   <!DOCTYPE html>   ',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
@@ -796,11 +802,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog with DOCTYPE after text', () => {
-    readTokens(
-      '<!DOCTYPE html>aaa<?xml aaa?>',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('<!DOCTYPE html>aaa<?xml aaa?>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 10, 14);
@@ -810,11 +814,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog with processing instruction after text', () => {
-    readTokens(
-      '<?xml aaa?>aaa<!DOCTYPE html>',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -824,11 +826,9 @@ describe('readTokens', () => {
   });
 
   test('closes multiple processing instruction in prolog', () => {
-    readTokens(
-      '   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
@@ -840,11 +840,9 @@ describe('readTokens', () => {
   });
 
   test('reads text after processing instruction', () => {
-    readTokens(
-      '<aaa><?xxx bbb?>ccc</aaa>',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('<aaa><?xxx bbb?>ccc</aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -856,11 +854,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after tag', () => {
-    readTokens(
-      '<?xml aaa?><aaa><!DOCTYPE html>',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('<?xml aaa?><aaa><!DOCTYPE html>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -887,11 +883,9 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after text', () => {
-    readTokens(
-      '<?xml aaa?>aaa<!DOCTYPE html>',
-      callbackMock,
-      resolveTokenizerOptions({ areProcessingInstructionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areProcessingInstructionsRecognized: true });
+
+    readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
@@ -908,25 +902,27 @@ describe('readTokens', () => {
   });
 
   test('reads empty CDATA', () => {
-    readTokens('<![CDATA[]]>', callbackMock, resolveTokenizerOptions({ areCDATASectionsRecognized: true }));
+    const options = resolveTokenizerOptions({ areCDATASectionsRecognized: true });
+
+    readTokens('<![CDATA[]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 9);
   });
 
   test('reads non-empty CDATA', () => {
-    readTokens('<![CDATA[aaa]]>', callbackMock, resolveTokenizerOptions({ areCDATASectionsRecognized: true }));
+    const options = resolveTokenizerOptions({ areCDATASectionsRecognized: true });
+
+    readTokens('<![CDATA[aaa]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 12);
   });
 
   test('ignores CDATA in raw tag', () => {
-    readTokens(
-      '<aaa><![CDATA[aaa]]></aaa>',
-      callbackMock,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } }, areCDATASectionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } }, areCDATASectionsRecognized: true });
+
+    readTokens('<aaa><![CDATA[aaa]]></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
@@ -936,7 +932,9 @@ describe('readTokens', () => {
   });
 
   test('does not read CDATA without an exclamation mark', () => {
-    readTokens('<a[CDATA[]]>', callbackMock, resolveTokenizerOptions({ areCDATASectionsRecognized: true }));
+    const options = resolveTokenizerOptions({ areCDATASectionsRecognized: true });
+
+    readTokens('<a[CDATA[]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 11);
@@ -944,11 +942,9 @@ describe('readTokens', () => {
   });
 
   test('does not read tags inside CDATA', () => {
-    readTokens(
-      '<![CDATA[<aaa>bbb</aaa>]]>',
-      callbackMock,
-      resolveTokenizerOptions({ areCDATASectionsRecognized: true })
-    );
+    const options = resolveTokenizerOptions({ areCDATASectionsRecognized: true });
+
+    readTokens('<![CDATA[<aaa>bbb</aaa>]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 23);
@@ -961,13 +957,9 @@ describe('readTokens', () => {
   });
 
   test('strict throws if invalid char in self-closing start tag', () => {
-    expect(() =>
-      readTokens(
-        '<aaa ///',
-        callbackMock,
-        resolveTokenizerOptions({ isStrict: true, areSelfClosingTagsRecognized: true })
-      )
-    ).toThrow(
+    const options = resolveTokenizerOptions({ isStrict: true, areSelfClosingTagsRecognized: true });
+
+    expect(() => readTokens('<aaa ///', callbackMock, options, makeTestState(options))).toThrow(
       new ParserError(
         "Expected an attribute name, a self-closing start tag ('/>'), or a start tag closing ('>').",
         '<aaa ///',
@@ -1018,21 +1010,15 @@ describe('readTokens', () => {
   });
 
   test('strict throws if processing instruction does not have a target', () => {
-    expect(() =>
-      readTokens(
-        '<??>',
-        callbackMock,
-        resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true })
-      )
-    ).toThrow(new ParserError('Expected a processing instruction target.', '<??>', 2, 3));
+    const options = resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true });
 
-    expect(() =>
-      readTokens(
-        '<?   aaa?>',
-        callbackMock,
-        resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true })
-      )
-    ).toThrow(new ParserError('Expected a processing instruction target.', '<?   aaa?>', 2, 3));
+    expect(() => readTokens('<??>', callbackMock, options, makeTestState(options))).toThrow(
+      new ParserError('Expected a processing instruction target.', '<??>', 2, 3)
+    );
+
+    expect(() => readTokens('<?   aaa?>', callbackMock, options, makeTestState(options))).toThrow(
+      new ParserError('Expected a processing instruction target.', '<?   aaa?>', 2, 3)
+    );
   });
 
   test('strict throws if start tag has no name', () => {
@@ -1061,33 +1047,25 @@ describe('readTokens', () => {
   });
 
   test('strict throws if CDATA section is not terminated', () => {
-    expect(() =>
-      readTokens(
-        '<![CDATA[aaa',
-        callbackMock,
-        resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true })
-      )
-    ).toThrow(new ParserError("Expected the CDATA section to be closed with ']]>'.", '<![CDATA[aaa', 0, 12));
+    const options = resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true });
+
+    expect(() => readTokens('<![CDATA[aaa', callbackMock, options, makeTestState(options))).toThrow(
+      new ParserError("Expected the CDATA section to be closed with ']]>'.", '<![CDATA[aaa', 0, 12)
+    );
   });
 
   test('strict throws if processing instruction is not terminated', () => {
-    expect(() =>
-      readTokens(
-        '<?aaa',
-        callbackMock,
-        resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true })
-      )
-    ).toThrow(new ParserError("Expected the processing instruction to be closed with '?>'.", '<?aaa', 0, 5));
+    const options = resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true });
+
+    expect(() => readTokens('<?aaa', callbackMock, options, makeTestState(options))).toThrow(
+      new ParserError("Expected the processing instruction to be closed with '?>'.", '<?aaa', 0, 5)
+    );
   });
 
   test('strict does not read lower-case CDATA', () => {
-    expect(() =>
-      readTokens(
-        '<![cdata[]]>',
-        callbackMock,
-        resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true })
-      )
-    ).toThrow(
+    const options = resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true });
+
+    expect(() => readTokens('<![cdata[]]>', callbackMock, options, makeTestState(options))).toThrow(
       new ParserError(
         "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[').",
         '<![cdata[]]>',
@@ -1112,9 +1090,9 @@ describe('readTokens', () => {
       new ParserError("Expected a comment ('<!--').", 'aaa<![CDATA[]]>', 3, 5)
     );
 
-    expect(() =>
-      readTokens('<!bbb>', callbackMock, resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true }))
-    ).toThrow(
+    const options = resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true });
+
+    expect(() => readTokens('<!bbb>', callbackMock, options, makeTestState(options))).toThrow(
       new ParserError(
         "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[').",
         '<!bbb>',
@@ -1126,7 +1104,7 @@ describe('readTokens', () => {
 
   test('sets the tag hash code and the tag options before a start tag name is passed to the callback', () => {
     const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'void' } } });
-    const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
+    const state = makeTestState(options);
     const states: Partial<TokenizerState>[] = [];
 
     readTokens(
@@ -1591,6 +1569,22 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 14, 17);
   });
 
+  test('restores the initial context of the state after a foreign tag', () => {
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { foreignContext: {} } },
+      areSelfClosingTagsRecognized: true,
+    });
+
+    tokenizeMarkup('<aaa></aaa><bbb/>', callbackMock, resolveTokenizerOptions({}), makeTestState(options));
+
+    expect(callbackMock).toHaveBeenCalledTimes(5);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_SELF_CLOSING', 15, 17);
+  });
+
   test('restores options after an implicitly ended foreign tag', () => {
     tokenizeMarkup(
       '<aaa><bbb></aaa><ccc/></ccc>',
@@ -1776,7 +1770,7 @@ describe('tokenizeMarkup', () => {
 
   test('sets the tag hash code and the tag options before an implicitly started start tag name is passed to the callback', () => {
     const options = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } });
-    const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
+    const state = makeTestState(options);
     const states: Partial<TokenizerState>[] = [];
 
     tokenizeMarkup(
