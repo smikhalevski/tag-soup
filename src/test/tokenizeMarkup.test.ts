@@ -1141,7 +1141,7 @@ describe('readTokens', () => {
     );
 
     expect(states).toEqual([
-      { tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3), tagOptions: expect.objectContaining({ isVoid: true }) },
+      { tagHashCode: getCaseSensitiveHashCode('aaa', 0, 3), tagOptions: expect.objectContaining({ kind: 'void' }) },
       { tagHashCode: getCaseSensitiveHashCode('bbb', 0, 3), tagOptions: undefined },
     ]);
   });

@@ -6,6 +6,7 @@ import {
   getCaseSensitiveHashCode,
   type ResolvedTagOptions,
   type ResolvedTokenizerOptions,
+  type TagKind,
   type TokenCallback,
   tokenizeMarkup,
 } from './tokenizeMarkup.ts';
@@ -106,25 +107,6 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
    */
   isStrict?: boolean;
 }
-
-/**
- * The kind of a tag, which defines what the tag can contain:
- *
- * - `'normal'`: tags and text.
- * - `'void'`: nothing, the tag can't have content.
- * - `'raw_text'`: text up to the matching end tag. Entities in this text aren't decoded or encoded.
- * - `'escapable_raw_text'`: same as `'raw_text'`, but entities are decoded and encoded.
- * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
- *   end tag or `-->`, like in HTML `script`.
- *
- * @see [HTML Normal Elements](https://html.spec.whatwg.org/multipage/syntax.html#normal-elements)
- * @see [HTML Void Elements](https://html.spec.whatwg.org/multipage/syntax.html#void-elements)
- * @see [HTML Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements)
- * @see [HTML Escapable Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements)
- * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
- * @group Tokenizer
- */
-export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 'script_data';
 
 /**
  * Options of a tag that tokenizers and parsers use.
@@ -398,10 +380,7 @@ function resolveTagOptions(
 
     if (resolvedTagOptions === undefined) {
       resolvedTagOptions = {
-        isVoid: false,
-        isRawText: false,
-        isEscapableRawText: false,
-        isScriptData: false,
+        kind: 'normal',
         foreignContext: undefined,
         isImplicitEndingBoundary: false,
         isImplicitlyStarted: false,
@@ -427,10 +406,7 @@ function resolveTagOptions(
 
       const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, toHashCode(tagName));
 
-      resolvedTagOptions.isVoid = kind === 'void';
-      resolvedTagOptions.isRawText = kind === 'raw_text' || kind === 'script_data';
-      resolvedTagOptions.isEscapableRawText = kind === 'escapable_raw_text';
-      resolvedTagOptions.isScriptData = kind === 'script_data';
+      resolvedTagOptions.kind = kind;
       resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
       resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
 

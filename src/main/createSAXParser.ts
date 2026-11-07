@@ -187,10 +187,12 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         break;
 
       case 'START_TAG_NAME': {
+        const tagOptions = state.tagOptions;
+
         let tagName;
 
         // Text inside raw text tags isn't decoded
-        isRawText = state.tagOptions !== undefined && state.tagOptions.isRawText;
+        isRawText = tagOptions !== undefined && (tagOptions.kind === 'raw_text' || tagOptions.kind === 'script_data');
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);

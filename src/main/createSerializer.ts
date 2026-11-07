@@ -1,7 +1,6 @@
 import { Node } from 'flyweight-dom';
-import type { TagKind } from './createTokenizer.ts';
 import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './tokenizeMarkup.ts';
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, type TagKind } from './tokenizeMarkup.ts';
 
 /**
  * Options of {@link createSerializer}.

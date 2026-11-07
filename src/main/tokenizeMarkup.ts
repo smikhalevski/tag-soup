@@ -86,6 +86,25 @@ export type Token =
 export type TokenCallback = (token: Token, startIndex: number, endIndex: number) => void;
 
 /**
+ * The kind of a tag, which defines what the tag can contain:
+ *
+ * - `'normal'`: tags and text.
+ * - `'void'`: nothing, the tag can't have content.
+ * - `'raw_text'`: text up to the matching end tag. Entities in this text aren't decoded or encoded.
+ * - `'escapable_raw_text'`: same as `'raw_text'`, but entities are decoded and encoded.
+ * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
+ *   end tag or `-->`, like in HTML `script`.
+ *
+ * @see [HTML Normal Elements](https://html.spec.whatwg.org/multipage/syntax.html#normal-elements)
+ * @see [HTML Void Elements](https://html.spec.whatwg.org/multipage/syntax.html#void-elements)
+ * @see [HTML Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements)
+ * @see [HTML Escapable Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements)
+ * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
+ * @group Tokenizer
+ */
+export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 'script_data';
+
+/**
  * Options of {@link tokenizeMarkup} produced by {@link resolveTokenizerOptions}. Tags are represented by hash codes
  * returned by {@link TokenReaderOptions.getTagHashCode}.
  *
@@ -120,24 +139,9 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  */
 export interface ResolvedTagOptions {
   /**
-   * `true` if {@link TagParsingOptions.kind} is `'void'`.
+   * @see {@link TagParsingOptions.kind}
    */
-  isVoid: boolean;
-
-  /**
-   * `true` if {@link TagParsingOptions.kind} is `'raw_text'` or `'script_data'`.
-   */
-  isRawText: boolean;
-
-  /**
-   * `true` if {@link TagParsingOptions.kind} is `'escapable_raw_text'`.
-   */
-  isEscapableRawText: boolean;
-
-  /**
-   * `true` if {@link TagParsingOptions.kind} is `'script_data'`.
-   */
-  isScriptData: boolean;
+  kind: TagKind;
 
   /**
    * Resolved {@link TagParsingOptions.foreignContext}, or `undefined` if the tag isn't foreign.
@@ -368,7 +372,7 @@ export function tokenizeMarkup(
 
         const startTagOptions = tagOptionsStack[tagHashCodeStackCursor];
 
-        if (startTagOptions !== undefined && startTagOptions.isVoid) {
+        if (startTagOptions !== undefined && startTagOptions.kind === TAG_KIND_VOID) {
           callback(TOKEN_END_TAG_NAME, endIndex, endIndex);
           popTag();
         }
@@ -492,6 +496,10 @@ function isImplicitEndingBoundary(tagOptions: ResolvedTagOptions | undefined): b
 function isImplicitlyEnded(tagOptions: ResolvedTagOptions | undefined, endedTagIds: number[]): boolean {
   return tagOptions !== undefined && endedTagIds.includes(tagOptions.endableTagId);
 }
+
+const TAG_KIND_NORMAL = 'normal';
+const TAG_KIND_VOID = 'void';
+const TAG_KIND_SCRIPT_DATA = 'script_data';
 
 const SCOPE_PROLOGUE = 0;
 const SCOPE_TEXT = 1;
@@ -1124,12 +1132,16 @@ export function readTokens(
     // The callback can switch the context, which changes options of the start tag
     const startTagOptions = state.tagOptions;
 
-    if (startTagOptions !== undefined && (startTagOptions.isRawText || startTagOptions.isEscapableRawText)) {
-      // Start of the raw text tag
+    // Start of a raw text tag of any kind
+    if (
+      startTagOptions !== undefined &&
+      startTagOptions.kind !== TAG_KIND_NORMAL &&
+      startTagOptions.kind !== TAG_KIND_VOID
+    ) {
       enclosingRawTextTagHashCode = startTagHashCode;
       enclosingRawTextTagNameStartIndex = tagNameStartIndex;
       enclosingRawTextTagNameEndIndex = nextIndex;
-      isEnclosingRawTextTagScriptData = startTagOptions.isScriptData;
+      isEnclosingRawTextTagScriptData = startTagOptions.kind === TAG_KIND_SCRIPT_DATA;
     }
 
     scope = SCOPE_START_TAG;
