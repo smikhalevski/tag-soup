@@ -258,11 +258,8 @@ export function tokenizeMarkup(
   // The number of open tags by endable tag ID
   const openTagCounts = initialOpenTagCounts !== undefined ? initialOpenTagCounts.slice() : [];
 
-  // Contextual options that are applied to children of the tag at the same index in tagHashCodeStack
-  const contextStack: ContextualTokenReaderOptions[] = [];
-
-  // Contextual options outside of foreign tags
-  const initialContext = state.context;
+  // Contextual options that were current when each open foreign tag was started, so they're restored when it ends
+  const outerContextStack: ContextualTokenReaderOptions[] = [];
 
   let tagHashCodeStackCursor = -1;
   let isStartTagOpened = false;
@@ -277,7 +274,9 @@ export function tokenizeMarkup(
 
     --tagHashCodeStackCursor;
 
-    state.context = tagHashCodeStackCursor !== -1 ? contextStack[tagHashCodeStackCursor] : initialContext;
+    if (tagOptions !== undefined && tagOptions.foreignContext !== undefined) {
+      state.context = outerContextStack.pop()!;
+    }
   }
 
   // Returns the index of the nearest open start tag that has the same name as the end tag, or -1 if there's none
@@ -324,6 +323,7 @@ export function tokenizeMarkup(
   }
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
+    // Cases are compared in order, so self-closing tags, which are rare in HTML, come last
     switch (token) {
       case TOKEN_START_TAG_NAME: {
         // Hashed and looked up by readTokens
@@ -349,6 +349,7 @@ export function tokenizeMarkup(
         callback(TOKEN_START_TAG_NAME, startIndex, endIndex);
 
         if (startTagOptions !== undefined && startTagOptions.foreignContext !== undefined) {
+          outerContextStack.push(state.context);
           state.context = startTagOptions.foreignContext;
         }
 
@@ -356,7 +357,6 @@ export function tokenizeMarkup(
         tagNameStartIndexStack[tagHashCodeStackCursor] = startIndex;
         tagNameEndIndexStack[tagHashCodeStackCursor] = endIndex;
         tagOptionsStack[tagHashCodeStackCursor] = startTagOptions;
-        contextStack[tagHashCodeStackCursor] = state.context;
 
         if (startTagOptions !== undefined && startTagOptions.endableTagId !== -1) {
           ++openTagCounts[startTagOptions.endableTagId];
@@ -379,13 +379,6 @@ export function tokenizeMarkup(
         }
         break;
       }
-
-      case TOKEN_START_TAG_SELF_CLOSING:
-        isStartTagOpened = false;
-
-        callback(TOKEN_START_TAG_SELF_CLOSING, startIndex, endIndex);
-        popTag();
-        break;
 
       case TOKEN_END_TAG_NAME: {
         // Names are compared without hash codes here, since equal names have equal hash codes
@@ -451,6 +444,13 @@ export function tokenizeMarkup(
         callback(TOKEN_END_TAG_NAME, startIndex, endIndex);
         break;
       }
+
+      case TOKEN_START_TAG_SELF_CLOSING:
+        isStartTagOpened = false;
+
+        callback(TOKEN_START_TAG_SELF_CLOSING, startIndex, endIndex);
+        popTag();
+        break;
 
       default:
         callback(token, startIndex, endIndex);
@@ -654,6 +654,7 @@ export function readTokens(
   // The index of the end tag that ends the enclosing script data
   let scriptDataEndIndex = -1;
 
+  // Conditions below compare the char code first, since it rules out most branches before contextual options are read
   for (let index = textStartIndex, nextIndex = index; index < inputLength; index = nextIndex) {
     let charCode = input.charCodeAt(index);
 
@@ -663,8 +664,8 @@ export function readTokens(
       // ----------------------------------------------------------
 
       if (
-        state.context.areSelfClosingTagsRecognized &&
         charCode === /* / */ 47 &&
+        state.context.areSelfClosingTagsRecognized &&
         getCharCodeAt(input, index + 1) === /* > */ 62
       ) {
         // Skip "/>"
@@ -828,9 +829,9 @@ export function readTokens(
     // ----------------------------------------------------------
 
     if (
+      charCode === /* ? */ 63 &&
       state.context.areProcessingInstructionsRecognized &&
-      enclosingRawTextTagHashCode === 0 &&
-      charCode === /* ? */ 63
+      enclosingRawTextTagHashCode === 0
     ) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
@@ -900,6 +901,7 @@ export function readTokens(
     // ----------------------------------------------------------
 
     if (
+      charCode === /* ! */ 33 &&
       state.context.areCDATASectionsRecognized &&
       enclosingRawTextTagHashCode === 0 &&
       isCDATASectionOpening(input, nextIndex, isStrict)
@@ -930,8 +932,8 @@ export function readTokens(
     // ----------------------------------------------------------
 
     if (
-      enclosingRawTextTagHashCode === 0 &&
       charCode === /* ! */ 33 &&
+      enclosingRawTextTagHashCode === 0 &&
       nextIndex + 2 < inputLength &&
       input.charCodeAt(nextIndex + 1) === /* - */ 45 &&
       input.charCodeAt(nextIndex + 2) === /* - */ 45
@@ -970,7 +972,7 @@ export function readTokens(
     // Quirky comment
     // ----------------------------------------------------------
 
-    if (enclosingRawTextTagHashCode === 0 && (charCode === /* ? */ 63 || charCode === /* ! */ 33)) {
+    if ((charCode === /* ? */ 63 || charCode === /* ! */ 33) && enclosingRawTextTagHashCode === 0) {
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
         callback(TOKEN_TEXT, textStartIndex, index);
@@ -1449,7 +1451,8 @@ function getIndexOfOrLength(input: string, searchString: string, index: number):
 }
 
 function toLowerCaseCharCode(charCode: number): number {
-  return charCode < /* A */ 65 || charCode > /* Z */ 90 ? charCode : charCode + 32;
+  // Lower-case letters are the most common, and they're above "Z"
+  return charCode > /* Z */ 90 || charCode < /* A */ 65 ? charCode : charCode + 32;
 }
 
 function getUncheckedCaseInsensitiveCharCodeAt(input: string, index: number): number {
@@ -1500,7 +1503,11 @@ function isCDATASectionOpening(input: string, index: number, isCaseSensitive: bo
 
 // https://www.w3.org/TR/xml/#NT-S
 function isSpaceChar(charCode: number): boolean {
-  return charCode === /* \s */ 32 || charCode === /* \n */ 10 || charCode === /* \t */ 9 || charCode === /* \r */ 13;
+  // Most chars are above the space, so they're rejected with a single comparison
+  return (
+    charCode <= /* \s */ 32 &&
+    (charCode === /* \s */ 32 || charCode === /* \n */ 10 || charCode === /* \t */ 9 || charCode === /* \r */ 13)
+  );
 }
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
@@ -1527,6 +1534,19 @@ function isXMLNameStartChar(charCode: number): boolean {
 
 // https://www.w3.org/TR/xml/#NT-NameChar
 function isXMLNameChar(charCode: number): boolean {
+  // Most names are ASCII, so ranges of other chars aren't checked for them
+  if (charCode < 0x80) {
+    return (
+      (charCode >= /* a */ 97 && charCode <= /* z */ 122) ||
+      (charCode >= /* A */ 65 && charCode <= /* Z */ 90) ||
+      (charCode >= /* 0 */ 48 && charCode <= /* 9 */ 57) ||
+      charCode === /* - */ 45 ||
+      charCode === /* . */ 46 ||
+      charCode === /* _ */ 95 ||
+      charCode === /* : */ 58
+    );
+  }
+
   return (
     isXMLNameStartChar(charCode) ||
     charCode === /* - */ 45 ||
@@ -1538,17 +1558,22 @@ function isXMLNameChar(charCode: number): boolean {
   );
 }
 
+// Chars that end names and unquoted values are all below letters, so letters are accepted with a single comparison
+
 function isHTMLNameChar(charCode: number): boolean {
-  return !(charCode === /* / */ 47 || charCode === /* > */ 62 || isSpaceChar(charCode));
+  return charCode > /* > */ 62 || !(charCode === /* / */ 47 || charCode === /* > */ 62 || isSpaceChar(charCode));
 }
 
 function isHTMLAttributeNameChar(charCode: number): boolean {
-  return !(charCode === /* / */ 47 || charCode === /* > */ 62 || charCode === /* = */ 61 || isSpaceChar(charCode));
+  return (
+    charCode > /* > */ 62 ||
+    !(charCode === /* / */ 47 || charCode === /* > */ 62 || charCode === /* = */ 61 || isSpaceChar(charCode))
+  );
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(unquoted)-state
 function isUnquotedAttributeValueChar(charCode: number): boolean {
-  return !(charCode === /* > */ 62 || isSpaceChar(charCode));
+  return charCode > /* > */ 62 || !(charCode === /* > */ 62 || isSpaceChar(charCode));
 }
 
 // ----------------------------------------------------------
@@ -1608,10 +1633,24 @@ function skipUnquotedAttributeValue(input: string, index: number): number {
   return index;
 }
 
+// Tags often follow each other or are separated by a single char, and ">" usually follows the name of an end tag, so
+// the nearest chars are checked before indexOf is called, which costs more than a few comparisons
+
 function skipUntilTagOpening(input: string, index: number): number {
+  if (index + 1 < input.length) {
+    if (input.charCodeAt(index) === /* < */ 60) {
+      return index;
+    }
+    if (input.charCodeAt(index + 1) === /* < */ 60) {
+      return index + 1;
+    }
+  }
   return getIndexOfOrLength(input, '<', index);
 }
 
 function skipUntilTagClosing(input: string, index: number): number {
+  if (index < input.length && input.charCodeAt(index) === /* > */ 62) {
+    return index;
+  }
   return getIndexOfOrLength(input, '>', index);
 }

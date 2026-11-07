@@ -61,6 +61,12 @@ export interface ResolvedSerializerOptions {
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
   const { voidTagNameMap, rawTextTagNameMap, areSelfClosingTagsSupported, encodeText = identity } = options;
 
+  // Text is the most common node, and comparing the node type is faster than instanceof checks that walk the prototype
+  // chain
+  if (node.nodeType === Node.TEXT_NODE) {
+    return encodeText((node as Text).data);
+  }
+
   if (node instanceof Element) {
     let output = '<' + node.tagName;
 
@@ -75,8 +81,9 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
       const isRawText = hasTagName(rawTextTagNameMap, node.tagName, options);
 
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
-        if (isRawText && child.nodeType === Node.TEXT_NODE) {
-          output += (child as Text).data;
+        // Text children are written here, rather than serialized recursively
+        if (child.nodeType === Node.TEXT_NODE) {
+          output += isRawText ? (child as Text).data : encodeText((child as Text).data);
         } else {
           output += serializeMarkup(child, options);
         }
@@ -118,10 +125,6 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
 
   if (node instanceof ProcessingInstruction) {
     return '<?' + node.target + (node.data.length !== 0 ? ' ' + node.data : '') + '?>';
-  }
-
-  if (node instanceof Text) {
-    return encodeText(node.data);
   }
 
   return '';
