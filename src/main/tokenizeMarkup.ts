@@ -553,6 +553,19 @@ export interface ContextualTokenReaderOptions {
 }
 
 /**
+ * Returns `true` if two tag names in the input are equal.
+ *
+ * @internal
+ */
+export type TagNameEqualityComparer = (
+  input: string,
+  startIndex1: number,
+  endIndex1: number,
+  startIndex2: number,
+  endIndex2: number
+) => boolean;
+
+/**
  * Options of {@link readTokens}.
  *
  * @internal
@@ -571,13 +584,7 @@ export interface TokenReaderOptions {
    *
    * @default areCaseSensitiveSubstringsEqual
    */
-  areTagNamesEqual?: (
-    input: string,
-    startIndex1: number,
-    endIndex1: number,
-    startIndex2: number,
-    endIndex2: number
-  ) => boolean;
+  areTagNamesEqual?: TagNameEqualityComparer;
 
   /**
    * Contextual options that are applied outside of foreign tags.
@@ -929,16 +936,18 @@ export function readTokens(
       // Skip "!--"
       nextIndex += 3;
 
-      const commentEndIndex = getIndexOfOrLength(input, '-->', nextIndex);
+      const commentEndIndex = isStrict
+        ? getIndexOfOrLength(input, '-->', nextIndex)
+        : getHTMLCommentEndIndex(input, nextIndex);
 
       if (isStrict && commentEndIndex === inputLength) {
         throw new ParserError("Expected the comment to be closed with '-->'.", input, index, inputLength);
       }
 
-      callback(TOKEN_COMMENT, nextIndex, (nextIndex = commentEndIndex));
+      callback(TOKEN_COMMENT, nextIndex, commentEndIndex);
 
-      // Skip "-->"
-      textStartIndex = nextIndex += 3;
+      // Skip the comment closing, which ends with the first ">" after the comment
+      textStartIndex = nextIndex = skipUntilTagClosing(input, commentEndIndex) + 1;
 
       if (scope === SCOPE_PROLOGUE) {
         textStartIndex = nextIndex = skipSpaces(input, nextIndex);
@@ -973,6 +982,11 @@ export function readTokens(
         );
       }
 
+      // Skip "!", unlike "?" it isn't a part of the comment
+      if (charCode === /* ! */ 33) {
+        ++nextIndex;
+      }
+
       callback(TOKEN_COMMENT, nextIndex, (nextIndex = skipUntilTagClosing(input, nextIndex)));
 
       // Skip ">"
@@ -986,12 +1000,6 @@ export function readTokens(
       nextIndex = skipUntilTagOpening(input, nextIndex);
       continue;
     }
-
-    // ----------------------------------------------------------
-    // End of prolog
-    // ----------------------------------------------------------
-
-    scope = SCOPE_TEXT;
 
     // ----------------------------------------------------------
     // End tag
@@ -1009,9 +1017,35 @@ export function readTokens(
           throw new ParserError('Expected a name for the end tag.', input, tagNameStartIndex, tagNameStartIndex + 1);
         }
 
+        // "</" is a part of raw text, and of text at the end of the input
+        if (enclosingRawTextTagHashCode !== 0 || nextIndex === inputLength) {
+          nextIndex = skipUntilTagOpening(input, nextIndex);
+          continue;
+        }
+
+        if (textStartIndex !== index) {
+          callback(TOKEN_TEXT, textStartIndex, index);
+        }
+
+        // "</>" is ignored, and anything else is a comment, like "#" in "</#>"
+        if (input.charCodeAt(nextIndex) !== /* > */ 62) {
+          callback(TOKEN_COMMENT, nextIndex, (nextIndex = skipUntilTagClosing(input, nextIndex)));
+        }
+
+        // Skip ">"
+        textStartIndex = ++nextIndex;
+
+        if (scope === SCOPE_PROLOGUE) {
+          textStartIndex = nextIndex = skipSpaces(input, nextIndex);
+          continue;
+        }
+
         nextIndex = skipUntilTagOpening(input, nextIndex);
         continue;
       }
+
+      // End of prolog
+      scope = SCOPE_TEXT;
 
       // Doesn't match the current raw text tag, the end tag of script data is already checked
       if (
@@ -1078,6 +1112,8 @@ export function readTokens(
         throw new ParserError('Expected a name for the start tag.', input, tagNameStartIndex, tagNameStartIndex + 1);
       }
 
+      // "<" is a part of text, which ends the prolog
+      scope = SCOPE_TEXT;
       nextIndex = skipUntilTagOpening(input, nextIndex);
       continue;
     }
@@ -1130,7 +1166,7 @@ function isRawTextTagNameAt(
   index: number,
   tagNameStartIndex: number,
   tagNameEndIndex: number,
-  areTagNamesEqual: NonNullable<TokenReaderOptions['areTagNamesEqual']>
+  areTagNamesEqual: TagNameEqualityComparer
 ): boolean {
   const endIndex = index + tagNameEndIndex - tagNameStartIndex;
   const charCode = getCharCodeAt(input, endIndex);
@@ -1160,7 +1196,7 @@ function getScriptDataEndIndex(
   index: number,
   tagNameStartIndex: number,
   tagNameEndIndex: number,
-  areTagNamesEqual: NonNullable<TokenReaderOptions['areTagNamesEqual']>
+  areTagNamesEqual: TagNameEqualityComparer
 ): number {
   // Most "<" in script data aren't followed by the tag name, so the first char is compared before the whole name. It's
   // compared ignoring case, which is enough to skip a char for case-sensitive names too.
@@ -1224,6 +1260,69 @@ function getScriptDataEndIndex(
     ) {
       isDoubleEscaped = true;
     }
+  }
+}
+
+/**
+ * Returns the index where the content of an HTML comment ends.
+ *
+ * A comment is closed by `-->` or `--!>`, and `<!-->` and `<!--->` are empty comments. If the comment isn't closed,
+ * its content ends with the input, except for `-`, `--` or `--!`, which start a comment closing.
+ *
+ * @param input The input that contains the comment.
+ * @param index The index in the input where the comment content starts, after `<!--`.
+ * @see [HTML Comment Start State](https://html.spec.whatwg.org/multipage/parsing.html#comment-start-state)
+ */
+function getHTMLCommentEndIndex(input: string, index: number): number {
+  // "<!-->"
+  if (index < input.length && input.charCodeAt(index) === /* > */ 62) {
+    return index;
+  }
+
+  // "<!--->"
+  if (
+    index + 1 < input.length &&
+    input.charCodeAt(index) === /* - */ 45 &&
+    input.charCodeAt(index + 1) === /* > */ 62
+  ) {
+    return index;
+  }
+
+  const contentStartIndex = index;
+
+  while (true) {
+    index = input.indexOf('--', index);
+
+    if (index === -1) {
+      // The comment isn't closed, but a dash at the end of the input can start a comment closing
+      if (input.length > contentStartIndex && input.charCodeAt(input.length - 1) === /* - */ 45) {
+        return input.length - 1;
+      }
+      return input.length;
+    }
+
+    // The comment closing starts with the last two dashes in a row, like in "--->"
+    while (index + 2 < input.length && input.charCodeAt(index + 2) === /* - */ 45) {
+      ++index;
+    }
+
+    // The comment isn't closed, and ends with "--"
+    if (index + 2 === input.length) {
+      return index;
+    }
+
+    const charCode = input.charCodeAt(index + 2);
+
+    // "-->", "--!>", or the comment isn't closed and ends with "--!"
+    if (
+      charCode === /* > */ 62 ||
+      (charCode === /* ! */ 33 && (index + 3 === input.length || input.charCodeAt(index + 3) === /* > */ 62))
+    ) {
+      return index;
+    }
+
+    // Skip "--" that isn't a comment closing
+    index += 2;
   }
 }
 

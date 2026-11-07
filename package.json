@@ -52,7 +52,7 @@
     "parse5": "^8.1.0",
     "parse5-sax-parser": "^8.0.0",
     "rimraf": "^6.1.4",
-    "toofast": "^4.1.0",
+    "toofast": "^4.2.0",
     "tslib": "^2.9.1",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mdn-links": "^5.1.1",

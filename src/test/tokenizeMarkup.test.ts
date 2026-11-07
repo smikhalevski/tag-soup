@@ -76,25 +76,42 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 12, 15);
   });
 
-  test('reads empty tag names as text', () => {
+  test('reads empty start tag names as text and empty end tag names as comments', () => {
     readTokens('< ></ >', callbackMock);
 
-    expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 7);
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 5, 6);
   });
 
-  test('reads non-alpha tag names as text', () => {
+  test('reads non-alpha start tag names as text and non-alpha end tag names as comments', () => {
     readTokens('<111></111>', callbackMock);
 
-    expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 11);
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 7, 10);
   });
 
-  test('reads the malformed end tag as a text', () => {
+  test('reads the malformed end tag as a comment', () => {
     readTokens('</ xxx>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 2, 6);
+  });
+
+  test('ignores end tags without a name and content', () => {
+    readTokens('aaa</>bbb', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 6, 9);
+  });
+
+  test('reads </ at the end of the input as text', () => {
+    readTokens('aaa</', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 5);
   });
 
   test('reads unterminated start tags', () => {
@@ -153,6 +170,65 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 10, 13);
   });
 
+  test('reads <!--> as an empty comment', () => {
+    readTokens('<!-->aaa', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 5, 8);
+  });
+
+  test('reads <!---> as an empty comment', () => {
+    readTokens('<!--->aaa', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 6, 9);
+  });
+
+  test('reads comments closed with --!>', () => {
+    readTokens('<!--aaa--!>bbb', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 11, 14);
+  });
+
+  test('reads dashes before the comment closing as a part of the comment', () => {
+    readTokens('<!--aaa--->', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 8);
+  });
+
+  test('reads an unclosed comment without -- at the end of the input', () => {
+    readTokens('<!--aaa--', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+  });
+
+  test('reads an unclosed comment without --! at the end of the input', () => {
+    readTokens('<!--aaa--!', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+  });
+
+  test('reads an unclosed comment without - at the end of the input', () => {
+    readTokens('<!--aaa-', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+  });
+
+  test('reads an unclosed empty comment', () => {
+    readTokens('<!--', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 4);
+  });
+
   test('parses body DTD as comment', () => {
     readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true, context: {} });
 
@@ -161,7 +237,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 7, 8);
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 12, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 13, 18);
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 19, 25);
     expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 27, 30);
   });
@@ -171,7 +247,7 @@ describe('readTokens', () => {
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 5, 5);
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 6, 9);
   });
 
@@ -196,8 +272,10 @@ describe('readTokens', () => {
   test('does not reads emojis as tag names', () => {
     readTokens('aaa<❤️>bbb</👨‍❤️‍💋‍👨>ccc', callbackMock);
 
-    expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 27);
+    expect(callbackMock).toHaveBeenCalledTimes(3);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 12, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 24, 27);
   });
 
   test('reads lt as an attribute name', () => {
@@ -696,6 +774,14 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'DOCTYPE_NAME', 27, 31);
   });
 
+  test('skips spaces after the malformed end tag in prolog', () => {
+    readTokens('   </#>   aaa', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 10, 13);
+  });
+
   test('reads quirky comment in a container', () => {
     readTokens('   <aaa>   <?xml bbb?>   </aaa>   ', callbackMock);
 
@@ -734,7 +820,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 6, 9);
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 15, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 16, 28);
   });
 
   test('closes multiple processing instruction in prolog', () => {
@@ -765,7 +851,23 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 6, 9);
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 12, 15);
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 15, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 17, 30);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 18, 30);
+  });
+
+  test('closes prolog after end tag', () => {
+    readTokens('</aaa><!DOCTYPE html>', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'END_TAG_NAME', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 8, 20);
+  });
+
+  test('closes prolog after start tag without a name', () => {
+    readTokens('< ><!DOCTYPE html>', callbackMock);
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 5, 17);
   });
 
   test('closes prolog after text', () => {
@@ -779,14 +881,14 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 6, 9);
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 15, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 16, 28);
   });
 
   test('reads CDATA as comment', () => {
     readTokens('<![CDATA[]]>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 1, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 2, 11);
   });
 
   test('reads empty CDATA', () => {
@@ -933,6 +1035,13 @@ describe('readTokens', () => {
     expect(() => readTokens('<!--aaa', callbackMock, resolveTokenizerOptions({ isStrict: true }))).toThrow(
       new ParserError("Expected the comment to be closed with '-->'.", '<!--aaa', 0, 7)
     );
+  });
+
+  test('strict does not read <!--> as an empty comment', () => {
+    readTokens('<!-->aaa-->', callbackMock, resolveTokenizerOptions({ isStrict: true }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(1);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 8);
   });
 
   test('strict throws if CDATA section is not terminated', () => {
