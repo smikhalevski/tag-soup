@@ -386,7 +386,7 @@ toXMLEncoded(fragment);
 [`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html).
 [`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html) accepts
 [`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html), which are the same
-options except `decodeText` and `decodeAttribute`.
+options except `decodeText`, `decodeAttribute`, `areNewlinesNormalized` and `areNullCharactersReplaced`.
 
 <dl>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tags"><code>tags</code></a></dt>
@@ -395,6 +395,10 @@ options except `decodeText` and `decodeAttribute`.
 <dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenewlinesnormalized"><code>areNewlinesNormalized</code></a></dt>
+<dd>If <code>true</code>, CR LF pairs and CR chars are replaced with LF before the input is parsed, like HTML does.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenullcharactersreplaced"><code>areNullCharactersReplaced</code></a></dt>
+<dd>If <code>true</code>, NUL chars are removed from text outside of raw text tags and foreign tags, and replaced with U+FFFD everywhere else, like HTML does.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags"><code>foreignTags</code></a></dt>
 <dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is ended. Foreign tag options can contain <code>tags</code>, <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>, and don't inherit outer options.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
@@ -472,6 +476,8 @@ const htmlOptions: ParserOptions = {
   },
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
+  areNewlinesNormalized: true,
+  areNullCharactersReplaced: true,
   areTagNamesCaseInsensitive: true,
   areUnbalancedEndTagsIgnored: true,
   areUnbalancedStartTagsImplicitlyEnded: true,

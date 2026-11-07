@@ -185,6 +185,8 @@ const htmlParserOptions: ParserOptions = {
   areUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
+  areNewlinesNormalized: true,
+  areNullCharactersReplaced: true,
 };
 
 // SVG and MathML title is a tag rather than escapable raw text, and SVG title is an integration point

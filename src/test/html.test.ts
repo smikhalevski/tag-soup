@@ -18,6 +18,12 @@ test('decodes attribute values differently from text', () => {
   );
 });
 
+test('normalizes newlines and NUL chars', () => {
+  expect(
+    HTMLDOMParser.parseFragment('<p aaa="\r\n">\0bbb\r\n</p><svg>\0<foreignObject>\0</foreignObject></svg>')
+  ).toStrictEqual(f.f(f.p({ aaa: '\n' }, 'bbb\n'), f.svg('\uFFFD', f.foreignObject())));
+});
+
 test('parses unquoted attribute values with slashes', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<a href=http://aaa/bbb>ccc</a>'))).toBe(
     '<a href="http://aaa/bbb">ccc</a>'

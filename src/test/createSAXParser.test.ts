@@ -291,6 +291,51 @@ test('decodes attribute values with decodeAttribute', () => {
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
 });
 
+test('normalizes newlines', () => {
+  parseSAX('<aaa bbb="\r\n">\r\n\r</aaa>', mockHandler, resolveParserOptions({ areNewlinesNormalized: true }));
+
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'bbb', '\n');
+  expect(mockHandler.onText).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '\n\n');
+});
+
+test('removes NUL chars from decoded text', () => {
+  parseSAX(
+    'aaa\0&\0amp;<bbb>\0</bbb>',
+    mockHandler,
+    resolveParserOptions({ decodeText: decodeXML, areNullCharactersReplaced: true })
+  );
+
+  expect(mockHandler.onText).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'aaa&amp;');
+});
+
+test('replaces NUL chars outside of text', () => {
+  parseSAX(
+    '<!DOCTYPE aaa\0><?bbb\0 \0?><![CDATA[\0]]><ccc\0 ddd\0="\0"><!--\0--><eee>\0</eee>\0<fff>\0</fff>\0<ggg>\0</ggg>\0</ccc\0>',
+    mockHandler,
+    resolveParserOptions({
+      tags: { eee: { kind: 'raw_text' }, fff: { kind: 'escapable_raw_text' } },
+      foreignTags: { ggg: {} },
+      areCDATASectionsRecognized: true,
+      areProcessingInstructionsRecognized: true,
+      areNullCharactersReplaced: true,
+    })
+  );
+
+  expect(mockHandler.onDoctype).toHaveBeenNthCalledWith(1, 'aaa\uFFFD');
+  expect(mockHandler.onProcessingInstruction).toHaveBeenNthCalledWith(1, 'bbb\uFFFD', '\uFFFD');
+  expect(mockHandler.onCDATASection).toHaveBeenNthCalledWith(1, '\uFFFD');
+  expect(mockHandler.onStartTagOpening).toHaveBeenNthCalledWith(1, 'ccc\uFFFD');
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'ddd\uFFFD', '\uFFFD');
+  expect(mockHandler.onComment).toHaveBeenNthCalledWith(1, '\uFFFD');
+  expect(mockHandler.onText).toHaveBeenCalledTimes(3);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '\uFFFD');
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(2, '\uFFFD');
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(3, '\uFFFD');
+  expect(mockHandler.onEndTag).toHaveBeenLastCalledWith('ccc\uFFFD');
+});
+
 test('preserves __proto__ attribute', () => {
   parseSAX('<aaa __proto__="bbb"></aaa>', mockHandler);
 
@@ -330,4 +375,15 @@ test('calls onEndTag if it is a single handler', () => {
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'aaa');
+});
+
+test('replaces NUL chars in tag names if onEndTag is a single handler', () => {
+  const mockHandler = {
+    onEndTag: vi.fn(),
+  } satisfies SAXHandler;
+
+  parseSAX('<aaa\0></aaa\0>', mockHandler, resolveParserOptions({ areNullCharactersReplaced: true }));
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa�');
 });

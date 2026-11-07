@@ -1,5 +1,5 @@
 import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
-import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
+import { normalizeNewlines, type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
@@ -159,7 +159,22 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @internal
  */
 export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = { context: {} }): void {
-  const { decodeText = identity, decodeAttribute = identity } = options;
+  const {
+    decodeText = identity,
+    decodeAttribute = identity,
+    areNewlinesNormalized = false,
+    areNullCharactersReplaced = false,
+  } = options;
+
+  if (areNewlinesNormalized) {
+    input = normalizeNewlines(input);
+  }
+
+  const hasNullCharacters = areNullCharactersReplaced && input.indexOf('\0') !== -1;
+
+  // Strings are read from the input with NUL chars replaced. U+FFFD has the same length as NUL, so tokens point to the
+  // same chars in both inputs.
+  const replacedInput = hasNullCharacters ? input.replace(/\0/g, '\uFFFD') : input;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
@@ -170,6 +185,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
 
   let tagNameStackCursor = -1;
   let isRawText = false;
+  let isEscapableRawText = false;
   let attributeNameStartIndex = 0;
   let attributeNameEndIndex = 0;
   let piTargetStartIndex = 0;
@@ -178,13 +194,27 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
-      case 'TEXT':
-        if (handler.onText !== undefined) {
-          const text = input.substring(startIndex, endIndex);
-
-          handler.onText(isRawText ? text : decodeText(text));
+      case 'TEXT': {
+        if (handler.onText === undefined) {
+          break;
         }
+
+        // NUL chars are removed from text outside of raw text and foreign tags, after entities are decoded, so
+        // "&\0amp;" isn't decoded
+        if (hasNullCharacters && !isRawText && !isEscapableRawText && state.context === options.context) {
+          const text = decodeText(input.substring(startIndex, endIndex)).replace(/\0/g, '');
+
+          if (text !== '') {
+            handler.onText(text);
+          }
+          break;
+        }
+
+        const text = replacedInput.substring(startIndex, endIndex);
+
+        handler.onText(isRawText ? text : decodeText(text));
         break;
+      }
 
       case 'START_TAG_NAME': {
         let tagName;
@@ -192,13 +222,17 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         // Text inside raw text tags isn't decoded
         isRawText = state.tagOptions !== undefined && state.tagOptions.isRawText;
 
+        // NUL chars aren't removed from text inside escapable raw text tags
+        isEscapableRawText = state.tagOptions !== undefined && state.tagOptions.isEscapableRawText;
+
         if (handler.onStartTagOpening !== undefined) {
-          tagName = input.substring(startIndex, endIndex);
+          tagName = replacedInput.substring(startIndex, endIndex);
           handler.onStartTagOpening(tagName);
         }
 
         if (isTagNameStackUsed) {
-          tagNameStack[++tagNameStackCursor] = tagName !== undefined ? tagName : input.substring(startIndex, endIndex);
+          tagNameStack[++tagNameStackCursor] =
+            tagName !== undefined ? tagName : replacedInput.substring(startIndex, endIndex);
         }
 
         if (handler.onStartTag !== undefined) {
@@ -221,6 +255,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
 
       case 'START_TAG_SELF_CLOSING':
         isRawText = false;
+        isEscapableRawText = false;
 
         if (handler.onStartTagSelfClosing !== undefined) {
           handler.onStartTagSelfClosing();
@@ -236,6 +271,7 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
 
       case 'END_TAG_NAME':
         isRawText = false;
+        isEscapableRawText = false;
 
         if (handler.onEndTag !== undefined) {
           handler.onEndTag(tagNameStack[tagNameStackCursor]);
@@ -254,8 +290,8 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
           break;
         }
 
-        const attributeName = input.substring(attributeNameStartIndex, attributeNameEndIndex);
-        const attributeValue = decodeAttribute(input.substring(startIndex, endIndex));
+        const attributeName = replacedInput.substring(attributeNameStartIndex, attributeNameEndIndex);
+        const attributeValue = decodeAttribute(replacedInput.substring(startIndex, endIndex));
 
         if (attributes !== undefined) {
           attributes[attributeName] = attributeValue;
@@ -269,19 +305,19 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
 
       case 'CDATA_SECTION':
         if (handler.onCDATASection !== undefined) {
-          handler.onCDATASection(input.substring(startIndex, endIndex));
+          handler.onCDATASection(replacedInput.substring(startIndex, endIndex));
         }
         break;
 
       case 'COMMENT':
         if (handler.onComment !== undefined) {
-          handler.onComment(input.substring(startIndex, endIndex));
+          handler.onComment(replacedInput.substring(startIndex, endIndex));
         }
         break;
 
       case 'DOCTYPE_NAME':
         if (handler.onDoctype !== undefined) {
-          handler.onDoctype(input.substring(startIndex, endIndex));
+          handler.onDoctype(replacedInput.substring(startIndex, endIndex));
         }
         break;
 
@@ -293,8 +329,8 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
       case 'PROCESSING_INSTRUCTION_DATA':
         if (handler.onProcessingInstruction !== undefined) {
           handler.onProcessingInstruction(
-            input.substring(piTargetStartIndex, piTargetEndIndex),
-            input.substring(startIndex, endIndex)
+            replacedInput.substring(piTargetStartIndex, piTargetEndIndex),
+            replacedInput.substring(startIndex, endIndex)
           );
         }
         break;
