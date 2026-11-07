@@ -60,6 +60,12 @@ test('parses bgsound as a void tag', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<bgsound>aaa'))).toBe('<bgsound>aaa');
 });
 
+test('parses command and isindex as normal tags', () => {
+  const html = '<command>aaa</command><isindex>bbb</isindex>';
+
+  expect(toHTML(HTMLDOMParser.parseFragment(html))).toBe(html);
+});
+
 test('parses xmp as raw text that ends a paragraph', () => {
   expect(HTMLDOMParser.parseFragment('<p>aaa<xmp><p>&amp;</xmp>')).toStrictEqual(f.f(f.p('aaa'), f.xmp('<p>&amp;')));
 });
