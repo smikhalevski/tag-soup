@@ -1,6 +1,11 @@
 import { Node } from 'flyweight-dom';
 import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, type TagKind } from './tokenizeMarkup.ts';
+import {
+  areCaseInsensitiveStringsEqual,
+  getCaseInsensitiveHashCode,
+  getCaseSensitiveHashCode,
+  type TagKind,
+} from './tokenizeMarkup.ts';
 
 /**
  * Options of {@link createSerializer}.
@@ -110,23 +115,41 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
 
   const toHashCode = (str: string) => getHashCode(str, 0, str.length);
 
-  const voidTagSet = new Set<number>();
-  const rawTextTagSet = new Set<number>();
+  const voidTagNameMap = new Map<number, string[]>();
+  const rawTextTagNameMap = new Map<number, string[]>();
 
   for (const [tagName, tagOptions] of Object.entries(tags)) {
     if (tagOptions.kind === 'void') {
-      voidTagSet.add(toHashCode(tagName));
+      addTagName(voidTagNameMap, toHashCode(tagName), tagName);
     } else if (tagOptions.kind === 'raw_text' || tagOptions.kind === 'script_data') {
-      rawTextTagSet.add(toHashCode(tagName));
+      addTagName(rawTextTagNameMap, toHashCode(tagName), tagName);
     }
   }
 
   return {
     toHashCode,
+    areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveStringsEqual : areStringsEqual,
     // Tag names aren't hashed if there are no tags to look up
-    voidTagSet: voidTagSet.size !== 0 ? voidTagSet : undefined,
-    rawTextTagSet: rawTextTagSet.size !== 0 ? rawTextTagSet : undefined,
+    voidTagNameMap: voidTagNameMap.size !== 0 ? voidTagNameMap : undefined,
+    rawTextTagNameMap: rawTextTagNameMap.size !== 0 ? rawTextTagNameMap : undefined,
     areSelfClosingTagsSupported,
     encodeText,
   };
+}
+
+/**
+ * Adds a tag name to names of tags with the same hash code.
+ */
+function addTagName(tagNameMap: Map<number, string[]>, hashCode: number, tagName: string): void {
+  const tagNames = tagNameMap.get(hashCode);
+
+  if (tagNames !== undefined) {
+    tagNames.push(tagName);
+  } else {
+    tagNameMap.set(hashCode, [tagName]);
+  }
+}
+
+function areStringsEqual(str1: string, str2: string): boolean {
+  return str1 === str2;
 }

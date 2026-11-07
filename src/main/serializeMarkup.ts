@@ -18,19 +18,26 @@ import {
  */
 export interface ResolvedSerializerOptions {
   /**
-   * Returns a hash code of a tag name. Tags are compared by their hash codes.
+   * Returns a hash code of a tag name. Tags are looked up by their hash codes.
    */
   toHashCode: (tagName: string) => number;
 
   /**
-   * Hash codes of tags whose {@link TagSerializationOptions.kind} is `'void'`.
+   * Returns `true` if two tag names are equal. Names of tags with the same hash code are compared, since different
+   * names can have equal hash codes.
    */
-  voidTagSet?: Set<number>;
+  areTagNamesEqual: (tagName1: string, tagName2: string) => boolean;
 
   /**
-   * Hash codes of tags whose {@link TagSerializationOptions.kind} is `'raw_text'` or `'script_data'`.
+   * The map from a hash code to names of tags whose {@link TagSerializationOptions.kind} is `'void'`.
    */
-  rawTextTagSet?: Set<number>;
+  voidTagNameMap?: Map<number, string[]>;
+
+  /**
+   * The map from a hash code to names of tags whose {@link TagSerializationOptions.kind} is `'raw_text'` or
+   * `'script_data'`.
+   */
+  rawTextTagNameMap?: Map<number, string[]>;
 
   /**
    * @see {@link SerializerOptions.areSelfClosingTagsSupported}
@@ -52,7 +59,7 @@ export interface ResolvedSerializerOptions {
  * @internal
  */
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
-  const { toHashCode, voidTagSet, rawTextTagSet, areSelfClosingTagsSupported, encodeText = identity } = options;
+  const { voidTagNameMap, rawTextTagNameMap, areSelfClosingTagsSupported, encodeText = identity } = options;
 
   if (node instanceof Element) {
     let output = '<' + node.tagName;
@@ -65,7 +72,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
       output += '>';
 
       // Text inside raw text tags isn't encoded
-      const isRawText = rawTextTagSet !== undefined && rawTextTagSet.has(toHashCode(node.tagName));
+      const isRawText = hasTagName(rawTextTagNameMap, node.tagName, options);
 
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
         if (isRawText && child.nodeType === Node.TEXT_NODE) {
@@ -76,7 +83,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
       }
 
       output += '</' + node.tagName + '>';
-    } else if (voidTagSet !== undefined && voidTagSet.has(toHashCode(node.tagName))) {
+    } else if (hasTagName(voidTagNameMap, node.tagName, options)) {
       output += '>';
     } else if (areSelfClosingTagsSupported) {
       output += '/>';
@@ -118,6 +125,32 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
   }
 
   return '';
+}
+
+/**
+ * Returns `true` if a map from a hash code to tag names contains the tag name.
+ */
+function hasTagName(
+  tagNameMap: Map<number, string[]> | undefined,
+  tagName: string,
+  options: ResolvedSerializerOptions
+): boolean {
+  if (tagNameMap === undefined) {
+    return false;
+  }
+
+  const tagNames = tagNameMap.get(options.toHashCode(tagName));
+
+  if (tagNames === undefined) {
+    return false;
+  }
+
+  for (const otherTagName of tagNames) {
+    if (options.areTagNamesEqual(otherTagName, tagName)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function identity(value: string): string {

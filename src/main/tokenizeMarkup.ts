@@ -1416,6 +1416,28 @@ export function areCaseSensitiveSubstringsEqual(
   return true;
 }
 
+/**
+ * Returns `true` if two strings are equal, ignoring the case of ASCII letters.
+ *
+ * @internal
+ */
+export function areCaseInsensitiveStringsEqual(str1: string, str2: string): boolean {
+  if (str1.length !== str2.length) {
+    return false;
+  }
+
+  for (let i = 0; i < str1.length; ++i) {
+    const charCode1 = str1.charCodeAt(i);
+    const charCode2 = str2.charCodeAt(i);
+
+    if (charCode1 !== charCode2 && toLowerCaseCharCode(charCode1) !== toLowerCaseCharCode(charCode2)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function getCharCodeAt(input: string, index: number): number {
   return index < input.length ? input.charCodeAt(index) : -1;
 }
