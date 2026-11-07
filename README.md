@@ -396,7 +396,7 @@ options except `decodeText` and `decodeAttribute`.
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags"><code>foreignTags</code></a></dt>
-<dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is ended. Foreign tag options can contain <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>.</dd>
+<dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is ended. Foreign tag options can contain <code>tags</code>, <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>, and don't inherit outer options.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
 <dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
@@ -478,6 +478,8 @@ const htmlOptions: ParserOptions = {
 
 htmlOptions.foreignTags = {
   svg: {
+    // Foreign tags don't inherit outer tags
+    tags: htmlOptions.tags,
     areCDATASectionsRecognized: true,
     areProcessingInstructionsRecognized: true,
     areSelfClosingTagsRecognized: true,
@@ -486,6 +488,7 @@ htmlOptions.foreignTags = {
     foreignTags: { foreignObject: htmlOptions },
   },
   math: {
+    tags: htmlOptions.tags,
     areCDATASectionsRecognized: true,
     areProcessingInstructionsRecognized: true,
     areSelfClosingTagsRecognized: true,

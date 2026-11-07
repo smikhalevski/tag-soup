@@ -17,9 +17,22 @@ import {
  */
 export interface ContextualTokenizerOptions {
   /**
+   * The map from a tag name to options of the tag. These tags aren't applied to content of
+   * {@link foreignTags foreign tags}, which is read with tags of their own options.
+   *
+   * @example
+   * {
+   *   br: { kind: 'void' },
+   *   script: { kind: 'raw_text' },
+   *   p: { implicitlyEndedBy: ['div', 'p'], isImplicitlyStarted: true },
+   * }
+   */
+  tags?: Record<string, TagParsingOptions>;
+
+  /**
    * The map from a foreign tag name to options that are applied to its attributes and content. Options are restored
-   * when the foreign tag is ended. Options can reference each other, so foreign content may contain tags that switch
-   * back to the outer options.
+   * when the foreign tag is ended. Foreign tag options don't inherit outer options, but they can reference each other,
+   * so foreign content may contain tags that switch back to the outer options.
    *
    * For example, in HTML `svg` content is parsed with XML rules, while `foreignObject` inside `svg` switches back to
    * HTML rules:
@@ -65,18 +78,6 @@ export interface ContextualTokenizerOptions {
  * @group Tokenizer
  */
 export interface TokenizerOptions extends ContextualTokenizerOptions {
-  /**
-   * The map from a tag name to options of the tag.
-   *
-   * @example
-   * {
-   *   br: { kind: 'void' },
-   *   script: { kind: 'raw_text' },
-   *   p: { implicitlyEndedBy: ['div', 'p'], isImplicitlyStarted: true },
-   * }
-   */
-  tags?: Record<string, TagParsingOptions>;
-
   /**
    * If `true` then ASCII alpha characters are case-insensitive in tag names.
    *
@@ -146,7 +147,7 @@ export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text';
 /**
  * Options of a tag that tokenizers and parsers use.
  *
- * @see {@link TokenizerOptions.tags}
+ * @see {@link ContextualTokenizerOptions.tags}
  * @see {@link TagSerializationOptions}
  * @group Tokenizer
  */
@@ -173,7 +174,7 @@ export interface TagParsingOptions {
    *                ^^^^ p is implicitly ended by h1
    * ```
    *
-   * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
    *
    * ```ts
    * { p: { implicitlyEndedBy: ['h1'] } }
@@ -181,6 +182,10 @@ export interface TagParsingOptions {
    *
    * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded} and
    * {@link isImplicitEndingBoundary}.
+   *
+   * A tag is only implicitly ended by tags that are started in a context with the same
+   * {@link ContextualTokenizerOptions.tags tags} object, so pass the same object to
+   * {@link ContextualTokenizerOptions.foreignTags foreign tags} if their content must end outer tags.
    */
   implicitlyEndedBy?: string[];
 
@@ -196,7 +201,7 @@ export interface TagParsingOptions {
    *                                  ^^^^ outer li isn't ended by the nested li
    * ```
    *
-   * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
    *
    * ```ts
    * {
@@ -226,7 +231,7 @@ export interface TagParsingOptions {
    *              ^ br is implicitly started
    * ```
    *
-   * To achieve this behavior, set {@link TokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
    *
    * ```ts
    * {
@@ -311,13 +316,8 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
  * @internal
  */
 export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedTokenizerOptions {
-  const {
-    tags = {},
-    areTagNamesCaseInsensitive,
-    areUnbalancedStartTagsImplicitlyEnded,
-    areUnbalancedEndTagsIgnored,
-    isStrict,
-  } = options;
+  const { areTagNamesCaseInsensitive, areUnbalancedStartTagsImplicitlyEnded, areUnbalancedEndTagsIgnored, isStrict } =
+    options;
 
   const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
@@ -328,12 +328,11 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   const context = resolveContextualTokenReaderOptions(options, toHashCode, contextMap);
 
-  const { tagOptionsMap, initialOpenTagCounts } = resolveTagOptions(tags, contextMap.values(), toHashCode);
+  const initialOpenTagCounts = resolveTagOptions(contextMap, toHashCode);
 
   return {
     getTagHashCode,
     areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
-    tagOptionsMap,
     context,
     isFragment: false,
     isStrict,
@@ -344,21 +343,22 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 }
 
 /**
- * Resolves options of each tag into a single map, so {@link tokenizeMarkup} looks up a start tag once. Tags that can be
- * implicitly ended get sequential IDs, so open tags can be counted in an array. Tags that are foreign in any of the
- * resolved contexts are marked as foreign.
+ * Resolves tags of each context into a map, so {@link tokenizeMarkup} looks up a start tag once. Contexts with the same
+ * tags share the map. Tags that can be implicitly ended get sequential IDs that are unique across all maps, so open
+ * tags can be counted in a single array. Tags that are foreign in a context are marked as foreign in its map.
+ *
+ * Returns a zero for each ID.
  */
 function resolveTagOptions(
-  tags: Record<string, TagParsingOptions>,
-  contexts: Iterable<ContextualTokenReaderOptions>,
+  contextMap: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>,
   toHashCode: (str: string) => number
-) {
-  const resolvedTagOptionsMap = new Map<number, ResolvedTagOptions>();
+): number[] {
+  const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagOptions>>();
 
   let endableTagCount = 0;
 
-  function getResolvedTagOptions(tagHashCode: number) {
-    let resolvedTagOptions = resolvedTagOptionsMap.get(tagHashCode);
+  function getResolvedTagOptions(tagOptionsMap: Map<number, ResolvedTagOptions>, tagHashCode: number) {
+    let resolvedTagOptions = tagOptionsMap.get(tagHashCode);
 
     if (resolvedTagOptions === undefined) {
       resolvedTagOptions = {
@@ -371,43 +371,63 @@ function resolveTagOptions(
         endedTagIds: [],
         endableTagId: -1,
       };
-      resolvedTagOptionsMap.set(tagHashCode, resolvedTagOptions);
+      tagOptionsMap.set(tagHashCode, resolvedTagOptions);
     }
     return resolvedTagOptions;
   }
 
-  for (const [tagName, tagOptions] of Object.entries(tags)) {
-    const {
-      kind = 'normal',
-      implicitlyEndedBy = [],
-      isImplicitEndingBoundary = false,
-      isImplicitlyStarted = false,
-    } = tagOptions;
+  function resolveTags(tags: Record<string, TagParsingOptions>) {
+    const tagOptionsMap = new Map<number, ResolvedTagOptions>();
 
-    const resolvedTagOptions = getResolvedTagOptions(toHashCode(tagName));
+    for (const [tagName, tagOptions] of Object.entries(tags)) {
+      const {
+        kind = 'normal',
+        implicitlyEndedBy = [],
+        isImplicitEndingBoundary = false,
+        isImplicitlyStarted = false,
+      } = tagOptions;
 
-    resolvedTagOptions.isVoid = kind === 'void';
-    resolvedTagOptions.isRawText = kind === 'raw_text';
-    resolvedTagOptions.isEscapableRawText = kind === 'escapable_raw_text';
-    resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
-    resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
+      const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, toHashCode(tagName));
 
-    // Tags that end this tag keep its ID, so they know which tags to end when they are started
-    for (const endingTagName of implicitlyEndedBy) {
-      if (resolvedTagOptions.endableTagId === -1) {
-        resolvedTagOptions.endableTagId = endableTagCount++;
+      resolvedTagOptions.isVoid = kind === 'void';
+      resolvedTagOptions.isRawText = kind === 'raw_text';
+      resolvedTagOptions.isEscapableRawText = kind === 'escapable_raw_text';
+      resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
+      resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
+
+      // Tags that end this tag keep its ID, so they know which tags to end when they are started
+      for (const endingTagName of implicitlyEndedBy) {
+        if (resolvedTagOptions.endableTagId === -1) {
+          resolvedTagOptions.endableTagId = endableTagCount++;
+        }
+        getResolvedTagOptions(tagOptionsMap, toHashCode(endingTagName)).endedTagIds.push(
+          resolvedTagOptions.endableTagId
+        );
       }
-      getResolvedTagOptions(toHashCode(endingTagName)).endedTagIds.push(resolvedTagOptions.endableTagId);
     }
+    return tagOptionsMap;
   }
 
-  // Contexts are already resolved, so foreign tags are taken from them rather than from options
-  for (const context of contexts) {
+  for (const [contextualOptions, context] of contextMap) {
+    const { tags = {} } = contextualOptions;
+
+    // Contexts with the same tags share resolved options, so a tag started in one of them can end tags of another
+    let tagOptionsMap = resolvedTagsMap.get(tags);
+
+    if (tagOptionsMap === undefined) {
+      tagOptionsMap = resolveTags(tags);
+      resolvedTagsMap.set(tags, tagOptionsMap);
+    }
+
+    // Only tags that are marked as foreign are looked up in the foreign tag map of the context
     if (context.foreignTagMap !== undefined) {
       for (const tagHashCode of context.foreignTagMap.keys()) {
-        getResolvedTagOptions(tagHashCode).isForeign = true;
+        getResolvedTagOptions(tagOptionsMap, tagHashCode).isForeign = true;
       }
     }
+
+    // Start tags aren't looked up if options don't mention any tags
+    context.tagOptionsMap = tagOptionsMap.size !== 0 ? tagOptionsMap : undefined;
   }
 
   const initialOpenTagCounts: number[] = [];
@@ -416,11 +436,7 @@ function resolveTagOptions(
     initialOpenTagCounts.push(0);
   }
 
-  return {
-    // Start tags aren't looked up if options don't mention any tags
-    tagOptionsMap: resolvedTagOptionsMap.size !== 0 ? resolvedTagOptionsMap : undefined,
-    initialOpenTagCounts,
-  };
+  return initialOpenTagCounts;
 }
 
 function resolveContextualTokenReaderOptions(
@@ -442,6 +458,7 @@ function resolveContextualTokenReaderOptions(
   } = options;
 
   const resolvedOptions: ContextualTokenReaderOptions = {
+    tagOptionsMap: undefined,
     foreignTagMap: undefined,
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,

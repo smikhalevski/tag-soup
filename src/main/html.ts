@@ -116,6 +116,7 @@ const htmlParserOptions: ParserOptions = {
 
 htmlParserOptions.foreignTags = {
   svg: {
+    tags: htmlParserOptions.tags,
     areCDATASectionsRecognized: true,
     areProcessingInstructionsRecognized: true,
     areSelfClosingTagsRecognized: true,
@@ -124,6 +125,7 @@ htmlParserOptions.foreignTags = {
     },
   },
   math: {
+    tags: htmlParserOptions.tags,
     areCDATASectionsRecognized: true,
     areProcessingInstructionsRecognized: true,
     areSelfClosingTagsRecognized: true,

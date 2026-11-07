@@ -63,3 +63,9 @@ test('parses foreign tags', () => {
     '<body><div><svg><path></path><foreignObject><em></em></foreignObject></svg></div><i></i></body>'
   );
 });
+
+test('implicitly ends a paragraph from SVG and MathML content', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<p>aaa<svg><p>bbb<math><p>ccc'))).toBe(
+    '<p>aaa<svg></svg></p><p>bbb<math></math></p><p>ccc</p>'
+  );
+});

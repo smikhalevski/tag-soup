@@ -113,8 +113,9 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  * Options of a tag consumed by {@link tokenizeMarkup}. All of them are kept in one object, so a start tag is looked up
  * once, rather than once per option.
  *
- * Options are resolved from all tokenizer options, not only from {@link TokenizerOptions.tags}: tags that only end
- * other tags, and {@link ContextualTokenizerOptions.foreignTags foreign tags}, have resolved options too.
+ * Options are resolved separately for each {@link ContextualTokenizerOptions.tags} object. Tags that only end other
+ * tags, and {@link ContextualTokenizerOptions.foreignTags foreign tags} of contexts with this object, have resolved
+ * options too.
  *
  * @internal
  */
@@ -135,8 +136,8 @@ export interface ResolvedTagOptions {
   isEscapableRawText: boolean;
 
   /**
-   * `true` if the tag is one of {@link ContextualTokenizerOptions.foreignTags} in any context. Other tags aren't looked
-   * up in {@link ContextualTokenReaderOptions.foreignTagMap}.
+   * `true` if the tag is one of {@link ContextualTokenizerOptions.foreignTags} in any context with the same tags. Other
+   * tags aren't looked up in {@link ContextualTokenReaderOptions.foreignTagMap}.
    */
   isForeign: boolean;
 
@@ -159,7 +160,7 @@ export interface ResolvedTagOptions {
   /**
    * The ID of this tag if it can be implicitly ended, or -1 otherwise. Tags that can be implicitly ended have IDs, so
    * {@link tokenizeMarkup} can count open tags with each name, and skip searching for tags to end if none of them is
-   * open.
+   * open. IDs are unique across contexts, so a tag is only ended by tags of contexts with the same tags.
    */
   endableTagId: number;
 }
@@ -222,7 +223,6 @@ export function tokenizeMarkup(
   const {
     getTagHashCode = getCaseSensitiveHashCode,
     areTagNamesEqual = areCaseSensitiveSubstringsEqual,
-    tagOptionsMap,
     initialOpenTagCounts,
     areUnbalancedStartTagsImplicitlyEnded = false,
     areUnbalancedEndTagsIgnored = false,
@@ -421,6 +421,8 @@ export function tokenizeMarkup(
           break;
         }
 
+        // Like a start tag, an unbalanced end tag has options of the context it's read in
+        const tagOptionsMap = state.context.tagOptionsMap;
         const endTagOptions = tagOptionsMap !== undefined ? tagOptionsMap.get(endTagHashCode) : undefined;
 
         if (endTagOptions === undefined || !endTagOptions.isImplicitlyStarted) {
@@ -507,6 +509,12 @@ const TOKEN_DOCTYPE_NAME = 'DOCTYPE_NAME';
  */
 export interface ContextualTokenReaderOptions {
   /**
+   * The map from a hash code of a tag to resolved options of the tag in this context. Tags that options don't mention
+   * aren't in the map. Contexts with the same {@link ContextualTokenizerOptions.tags tags} share the map.
+   */
+  tagOptionsMap?: Map<number, ResolvedTagOptions>;
+
+  /**
    * The map from a hash code of a foreign tag to options applied to its content. Foreign tags are tracked by
    * {@link tokenizeMarkup}, {@link readTokens} ignores them.
    */
@@ -556,12 +564,6 @@ export interface TokenReaderOptions {
   ) => boolean;
 
   /**
-   * The map from a hash code of a tag to resolved options of the tag. Tags that options don't mention aren't in the
-   * map.
-   */
-  tagOptionsMap?: Map<number, ResolvedTagOptions>;
-
-  /**
    * Contextual options that are applied outside of foreign tags.
    */
   context: ContextualTokenReaderOptions;
@@ -604,7 +606,6 @@ export function readTokens(
   const {
     getTagHashCode = getCaseSensitiveHashCode,
     areTagNamesEqual = areCaseSensitiveSubstringsEqual,
-    tagOptionsMap,
     isFragment,
     isStrict = false,
   } = options;
@@ -1053,6 +1054,7 @@ export function readTokens(
     const startTagHashCode = getTagHashCode(input, tagNameStartIndex, nextIndex);
 
     // The start tag is looked up only here, tokenizeMarkup and parsers read the result from the state
+    const tagOptionsMap = state.context.tagOptionsMap;
     const startTagOptions = tagOptionsMap !== undefined ? tagOptionsMap.get(startTagHashCode) : undefined;
 
     if (startTagOptions !== undefined && (startTagOptions.isRawText || startTagOptions.isEscapableRawText)) {
