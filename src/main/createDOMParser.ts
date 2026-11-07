@@ -1,10 +1,12 @@
 import {
   CDATASection,
+  type ChildNode,
   Comment,
   Document,
   DocumentFragment,
   DocumentType,
   Element,
+  type ParentNode,
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
@@ -114,14 +116,14 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
           const text = decodeText(input.substring(startIndex, endIndex)).replace(/\0/g, '');
 
           if (text !== '') {
-            parent.appendChild(new Text(text));
+            uncheckedAppendChild(parent, new Text(text));
           }
           break;
         }
 
         const text = replacedInput.substring(startIndex, endIndex);
 
-        parent.appendChild(new Text(isRawText ? text : decodeText(text)));
+        uncheckedAppendChild(parent, new Text(isRawText ? text : decodeText(text)));
         break;
       }
 
@@ -132,7 +134,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
         // NUL chars aren't removed from text inside escapable raw text tags
         isEscapableRawText = state.tagOptions !== undefined && state.tagOptions.isEscapableRawText;
 
-        parent.appendChild((parent = new Element(replacedInput.substring(startIndex, endIndex))));
+        uncheckedAppendChild(parent, (parent = new Element(replacedInput.substring(startIndex, endIndex))));
         break;
 
       case 'START_TAG_CLOSING':
@@ -154,15 +156,15 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
         break;
 
       case 'CDATA_SECTION':
-        parent.appendChild(new CDATASection(replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(parent, new CDATASection(replacedInput.substring(startIndex, endIndex)));
         break;
 
       case 'COMMENT':
-        parent.appendChild(new Comment(replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(parent, new Comment(replacedInput.substring(startIndex, endIndex)));
         break;
 
       case 'DOCTYPE_NAME':
-        parent.appendChild(new DocumentType(replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(parent, new DocumentType(replacedInput.substring(startIndex, endIndex)));
         break;
 
       case 'PROCESSING_INSTRUCTION_TARGET':
@@ -170,7 +172,10 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
         break;
 
       case 'PROCESSING_INSTRUCTION_DATA':
-        parent.appendChild(new ProcessingInstruction(piTarget, replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(
+          parent,
+          new ProcessingInstruction(piTarget, replacedInput.substring(startIndex, endIndex))
+        );
         break;
     }
   };
@@ -182,4 +187,25 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
 
 function identity(value: string): string {
   return value;
+}
+
+/**
+ * Appends a node to the end of the parent's children. Unlike {@link ParentNode.appendChild}, it doesn't check that the
+ * node can be inserted, and doesn't remove it from its current parent, so it's faster. The parser only appends new
+ * nodes that have no parent and aren't document fragments.
+ */
+function uncheckedAppendChild(parent: ParentNode, node: ChildNode): void {
+  const { lastChild } = parent;
+
+  parent['_notifyChildrenChanged']();
+
+  node.parentNode = parent;
+  parent.lastChild = node;
+
+  if (lastChild !== null) {
+    lastChild.nextSibling = node;
+    node.previousSibling = lastChild;
+  } else {
+    parent.firstChild = node;
+  }
 }
