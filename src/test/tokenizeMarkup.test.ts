@@ -1089,7 +1089,7 @@ describe('readTokens', () => {
       )
     ).toThrow(
       new ParserError(
-        "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[[').",
+        "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[').",
         '<![cdata[]]>',
         0,
         2
@@ -1116,7 +1116,7 @@ describe('readTokens', () => {
       readTokens('<!bbb>', callbackMock, resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true }))
     ).toThrow(
       new ParserError(
-        "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[[').",
+        "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[').",
         '<!bbb>',
         0,
         2

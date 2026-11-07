@@ -973,7 +973,7 @@ export function readTokens(
             ? 'Processing instructions are forbidden.'
             : "Expected a comment ('<!--')" +
                 (isFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
-                (state.context.areCDATASectionsRecognized ? ", or a CDATA section ('<![CDATA[[')" : '') +
+                (state.context.areCDATASectionsRecognized ? ", or a CDATA section ('<![CDATA[')" : '') +
                 '.',
           input,
           nextIndex - 1,
