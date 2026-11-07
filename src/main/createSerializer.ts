@@ -64,6 +64,7 @@ export interface TagSerializationOptions {
    * - `'raw_text'`: text content of the tag is written as is, without {@link SerializerOptions.encodeText}.
    * - `'escapable_raw_text'`: same as `'normal'`. This kind is accepted, so parsers and serializers can share tag
    *   options.
+   * - `'script_data'`: same as `'raw_text'`.
    *
    * @default 'normal'
    */
@@ -116,7 +117,7 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
   for (const [tagName, tagOptions] of Object.entries(tags)) {
     if (tagOptions.kind === 'void') {
       voidTagSet.add(toHashCode(tagName));
-    } else if (tagOptions.kind === 'raw_text') {
+    } else if (tagOptions.kind === 'raw_text' || tagOptions.kind === 'script_data') {
       rawTextTagSet.add(toHashCode(tagName));
     }
   }

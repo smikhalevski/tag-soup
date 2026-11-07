@@ -28,7 +28,7 @@ export interface ResolvedSerializerOptions {
   voidTagSet?: Set<number>;
 
   /**
-   * Hash codes of tags whose {@link TagSerializationOptions.kind} is `'raw_text'`.
+   * Hash codes of tags whose {@link TagSerializationOptions.kind} is `'raw_text'` or `'script_data'`.
    */
   rawTextTagSet?: Set<number>;
 

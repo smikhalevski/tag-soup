@@ -48,6 +48,12 @@ test('round-trips raw text and escapable raw text', () => {
   expect(toHTML(HTMLDOMParser.parseFragment(html))).toBe(html);
 });
 
+test('round-trips escaped script data', () => {
+  const html = '<script><!--<script></script></script>';
+
+  expect(toHTML(HTMLDOMParser.parseFragment(html))).toBe(html);
+});
+
 test('parses tags after foreignObject', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<svg><foreignObject></foreignObject></svg><p/>aaa'))).toBe(
     '<svg><foreignObject></foreignObject></svg><p>aaa</p>'

@@ -135,14 +135,17 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
  * - `'void'`: nothing, the tag can't have content.
  * - `'raw_text'`: text up to the matching end tag. Entities in this text aren't decoded or encoded.
  * - `'escapable_raw_text'`: same as `'raw_text'`, but entities are decoded and encoded.
+ * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
+ *   end tag or `-->`, like in HTML `script`.
  *
  * @see [HTML Normal Elements](https://html.spec.whatwg.org/multipage/syntax.html#normal-elements)
  * @see [HTML Void Elements](https://html.spec.whatwg.org/multipage/syntax.html#void-elements)
  * @see [HTML Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements)
  * @see [HTML Escapable Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements)
+ * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
  * @group Tokenizer
  */
-export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text';
+export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 'script_data';
 
 /**
  * Options of a tag that tokenizers and parsers use.
@@ -159,6 +162,16 @@ export interface TagParsingOptions {
    * - `'void'`: an end tag is inserted right after the start tag.
    * - `'raw_text'`: the content is read as text until the matching end tag. Parsers don't decode this text.
    * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text.
+   * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
+   *   end tag or `-->`. Browsers read `script` this way for compatibility with old scripts wrapped in comments:
+   *
+   * ```html
+   * <script><!--<script></script></script>
+   *                              ^^^^^^^^^ ends the script
+   * ```
+   *
+   * In raw text of any kind, an end tag must be followed by a space, `/` or `>`, so `</script` at the end of the input
+   * is text.
    *
    * @default 'normal'
    */
@@ -386,6 +399,7 @@ function resolveTagOptions(
         isVoid: false,
         isRawText: false,
         isEscapableRawText: false,
+        isScriptData: false,
         isForeign: false,
         isImplicitEndingBoundary: false,
         isImplicitlyStarted: false,
@@ -411,8 +425,9 @@ function resolveTagOptions(
       const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, toHashCode(tagName));
 
       resolvedTagOptions.isVoid = kind === 'void';
-      resolvedTagOptions.isRawText = kind === 'raw_text';
+      resolvedTagOptions.isRawText = kind === 'raw_text' || kind === 'script_data';
       resolvedTagOptions.isEscapableRawText = kind === 'escapable_raw_text';
+      resolvedTagOptions.isScriptData = kind === 'script_data';
       resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
       resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
 

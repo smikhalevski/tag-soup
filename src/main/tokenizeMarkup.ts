@@ -126,7 +126,7 @@ export interface ResolvedTagOptions {
   isVoid: boolean;
 
   /**
-   * `true` if {@link TagParsingOptions.kind} is `'raw_text'`.
+   * `true` if {@link TagParsingOptions.kind} is `'raw_text'` or `'script_data'`.
    */
   isRawText: boolean;
 
@@ -134,6 +134,11 @@ export interface ResolvedTagOptions {
    * `true` if {@link TagParsingOptions.kind} is `'escapable_raw_text'`.
    */
   isEscapableRawText: boolean;
+
+  /**
+   * `true` if {@link TagParsingOptions.kind} is `'script_data'`.
+   */
+  isScriptData: boolean;
 
   /**
    * `true` if the tag is one of {@link ContextualTokenizerOptions.foreignTags} in any context with the same tags. Other
@@ -633,6 +638,10 @@ export function readTokens(
   let enclosingRawTextTagHashCode = 0;
   let enclosingRawTextTagNameStartIndex = 0;
   let enclosingRawTextTagNameEndIndex = 0;
+  let isEnclosingRawTextTagScriptData = false;
+
+  // The index of the end tag that ends the enclosing script data
+  let scriptDataEndIndex = -1;
 
   for (let index = textStartIndex, nextIndex = index; index < inputLength; index = nextIndex) {
     let charCode = input.charCodeAt(index);
@@ -673,7 +682,19 @@ export function readTokens(
 
         scope = SCOPE_TEXT;
         textStartIndex = nextIndex;
-        nextIndex = skipUntilTagOpening(input, nextIndex);
+
+        // Script data can contain end tags that don't end it, so the end tag that does is searched for in advance
+        if (enclosingRawTextTagHashCode !== 0 && isEnclosingRawTextTagScriptData) {
+          nextIndex = scriptDataEndIndex = getScriptDataEndIndex(
+            input,
+            nextIndex,
+            enclosingRawTextTagNameStartIndex,
+            enclosingRawTextTagNameEndIndex,
+            areTagNamesEqual
+          );
+        } else {
+          nextIndex = skipUntilTagOpening(input, nextIndex);
+        }
         continue;
       }
 
@@ -991,19 +1012,20 @@ export function readTokens(
         continue;
       }
 
-      // Doesn't match the current raw text tag
+      // Doesn't match the current raw text tag, the end tag of script data is already checked
       if (
         enclosingRawTextTagHashCode !== 0 &&
-        (enclosingRawTextTagHashCode !== getTagHashCode(input, tagNameStartIndex, nextIndex) ||
-          !areTagNamesEqual(
-            input,
-            enclosingRawTextTagNameStartIndex,
-            enclosingRawTextTagNameEndIndex,
-            tagNameStartIndex,
-            nextIndex
-          ))
+        index !== scriptDataEndIndex &&
+        !isRawTextTagNameAt(
+          input,
+          tagNameStartIndex,
+          enclosingRawTextTagNameStartIndex,
+          enclosingRawTextTagNameEndIndex,
+          areTagNamesEqual
+        )
       ) {
-        nextIndex = skipUntilTagOpening(input, nextIndex);
+        // The name can contain the opening of the end tag, like in "</a</script>"
+        nextIndex = skipUntilTagOpening(input, tagNameStartIndex);
         continue;
       }
 
@@ -1079,6 +1101,7 @@ export function readTokens(
       enclosingRawTextTagHashCode = startTagHashCode;
       enclosingRawTextTagNameStartIndex = tagNameStartIndex;
       enclosingRawTextTagNameEndIndex = nextIndex;
+      isEnclosingRawTextTagScriptData = startTagOptions.isScriptData;
     }
 
     scope = SCOPE_START_TAG;
@@ -1088,6 +1111,115 @@ export function readTokens(
   // The input may end inside a start tag, after an attribute without a value
   if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
     callback(TOKEN_TEXT, textStartIndex, inputLength);
+  }
+}
+
+/**
+ * Returns `true` if the name of a raw text tag starts at index, and is followed by a space, `/` or `>`. Raw text is
+ * ended only by such end tags, so `</script` at the end of the input, or `</scripts>`, is a part of the text.
+ *
+ * @param input The input to read the name from.
+ * @param index The index in the input where the name may start.
+ * @param tagNameStartIndex The index in the input where the name of the raw text tag starts.
+ * @param tagNameEndIndex The index in the input where the name of the raw text tag ends.
+ * @param areTagNamesEqual Compares tag names.
+ */
+function isRawTextTagNameAt(
+  input: string,
+  index: number,
+  tagNameStartIndex: number,
+  tagNameEndIndex: number,
+  areTagNamesEqual: NonNullable<TokenReaderOptions['areTagNamesEqual']>
+): boolean {
+  const endIndex = index + tagNameEndIndex - tagNameStartIndex;
+  const charCode = getCharCodeAt(input, endIndex);
+
+  return (
+    (isSpaceChar(charCode) || charCode === /* / */ 47 || charCode === /* > */ 62) &&
+    areTagNamesEqual(input, tagNameStartIndex, tagNameEndIndex, index, endIndex)
+  );
+}
+
+/**
+ * Returns the index of the end tag that ends script data, or the input length if script data isn't ended.
+ *
+ * After `<!--` script data is escaped, and a start tag with the name of the script data tag makes it double escaped.
+ * End tags don't end double escaped script data, the end tag of the double escaped start tag makes it escaped again,
+ * and `-->` ends escaping.
+ *
+ * @param input The input that contains script data.
+ * @param index The index in the input where script data starts.
+ * @param tagNameStartIndex The index in the input where the name of the script data tag starts.
+ * @param tagNameEndIndex The index in the input where the name of the script data tag ends.
+ * @param areTagNamesEqual Compares tag names.
+ * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
+ */
+function getScriptDataEndIndex(
+  input: string,
+  index: number,
+  tagNameStartIndex: number,
+  tagNameEndIndex: number,
+  areTagNamesEqual: NonNullable<TokenReaderOptions['areTagNamesEqual']>
+): number {
+  // Most "<" in script data aren't followed by the tag name, so the first char is compared before the whole name. It's
+  // compared ignoring case, which is enough to skip a char for case-sensitive names too.
+  const tagNameCharCode = getCaseInsensitiveCharCodeAt(input, tagNameStartIndex);
+
+  let isEscaped = false;
+  let isDoubleEscaped = false;
+
+  // The index of "-->" that ends escaping, it is searched for once per "<!--"
+  let commentClosingIndex = 0;
+
+  while (true) {
+    const tagOpeningIndex = skipUntilTagOpening(input, index);
+
+    // "-->" before the tag opening ends escaping
+    if (isEscaped && commentClosingIndex < tagOpeningIndex) {
+      isEscaped = false;
+      isDoubleEscaped = false;
+    }
+
+    if (tagOpeningIndex === input.length) {
+      return tagOpeningIndex;
+    }
+
+    // Skip "<"
+    index = tagOpeningIndex + 1;
+
+    if (getCharCodeAt(input, index) === /* / */ 47) {
+      if (
+        getCaseInsensitiveCharCodeAt(input, index + 1) === tagNameCharCode &&
+        isRawTextTagNameAt(input, index + 1, tagNameStartIndex, tagNameEndIndex, areTagNamesEqual)
+      ) {
+        if (!isDoubleEscaped) {
+          return tagOpeningIndex;
+        }
+        isDoubleEscaped = false;
+      }
+      continue;
+    }
+
+    if (!isEscaped) {
+      if (
+        getCharCodeAt(input, index) === /* ! */ 33 &&
+        getCharCodeAt(input, index + 1) === /* - */ 45 &&
+        getCharCodeAt(input, index + 2) === /* - */ 45
+      ) {
+        isEscaped = true;
+
+        // Dashes of "<!--" can be a part of "-->", so "<!-->" doesn't escape anything
+        commentClosingIndex = getIndexOfOrLength(input, '-->', index + 1);
+      }
+      continue;
+    }
+
+    if (
+      getCaseInsensitiveCharCodeAt(input, index) === tagNameCharCode &&
+      isRawTextTagNameAt(input, index, tagNameStartIndex, tagNameEndIndex, areTagNamesEqual)
+    ) {
+      isDoubleEscaped = true;
+    }
   }
 }
 

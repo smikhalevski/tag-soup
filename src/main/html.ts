@@ -144,7 +144,7 @@ const htmlParserOptions: ParserOptions = {
     plaintext: { kind: 'raw_text' },
     rp: { implicitlyEndedBy: rtpTagNames },
     rt: { implicitlyEndedBy: rtpTagNames },
-    script: { kind: 'raw_text', implicitlyEndedBy: ['body'] },
+    script: { kind: 'script_data', implicitlyEndedBy: ['body'] },
     select: { implicitlyEndedBy: formTagNames },
     source: { kind: 'void' },
     style: { kind: 'raw_text' },

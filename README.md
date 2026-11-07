@@ -423,8 +423,9 @@ options except `decodeText` and `decodeAttribute`.
 <ul>
 <li><code>'normal'</code>: tags and text, which is the default. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#normal-elements">HTML Normal Elements</a>.</li>
 <li><code>'void'</code>: nothing, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#void-elements">HTML Void Elements</a>.</li>
-<li><code>'raw_text'</code>: text that is read until the matching end tag, like in <code>script</code> and <code>style</code>. This text isn't decoded. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements">HTML Raw Text Elements</a>.</li>
+<li><code>'raw_text'</code>: text that is read until the matching end tag, like in <code>style</code>. This text isn't decoded. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements">HTML Raw Text Elements</a>.</li>
 <li><code>'escapable_raw_text'</code>: same as <code>'raw_text'</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements">HTML Escapable Raw Text Elements</a>.</li>
+<li><code>'script_data'</code>: same as <code>'raw_text'</code>, but after <code>&lt;!--</code> a start tag of the same name hides end tags until its own end tag or <code>--&gt;</code>, like in <code>script</code>. See <a href="https://html.spec.whatwg.org/multipage/scripting.html#restrictions-for-contents-of-script-elements">HTML Restrictions for Contents of Script Elements</a>.</li>
 </ul></dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#implicitlyendedby"><code>implicitlyEndedBy</code></a></dt>
 <dd>Tags that implicitly end this tag when they are started. For example, <code>{ p: { implicitlyEndedBy: ['h1'] } }</code> means that <code>&lt;h1&gt;</code> ends an open <code>&lt;p&gt;</code>. Tags inside foreign tags end outer tags too: with <code>{ svg: { implicitlyEndedBy: ['br'] } }</code>, <code>&lt;svg&gt;&lt;br&gt;</code> becomes <code>&lt;svg&gt;&lt;/svg&gt;&lt;br&gt;</code>, and <code>br</code> is read with tags of the outer options.</dd>
@@ -459,7 +460,7 @@ const htmlOptions: ParserOptions = {
     ol: { isImplicitEndingBoundary: true },
     p: { implicitlyEndedBy: ['h1', 'h2'], isImplicitlyStarted: true },
     param: { kind: 'void' },
-    script: { kind: 'raw_text' },
+    script: { kind: 'script_data' },
     source: { kind: 'void' },
     style: { kind: 'raw_text' },
     table: { isImplicitEndingBoundary: true },

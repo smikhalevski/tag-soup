@@ -546,6 +546,77 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 11, 13);
   });
 
+  test('does not end raw text with an end tag at the end of the input', () => {
+    readTokens('<aaa></aaa', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } } }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(3);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 10);
+  });
+
+  test('ends raw text with an end tag that follows another end tag without a closing', () => {
+    readTokens('<aaa></bbb</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'raw_text' } } }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 12, 15);
+  });
+
+  test('does not end script data with an end tag after an escaped start tag', () => {
+    readTokens(
+      '<aaa><!--<aaa></aaa></aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 22, 25);
+  });
+
+  test('ends escaped script data with an end tag', () => {
+    readTokens('<aaa><!--</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 11, 14);
+  });
+
+  test('ends escaping of script data at -->', () => {
+    readTokens(
+      '<aaa><!--<aaa>--></aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 19, 22);
+  });
+
+  test('does not escape script data with <!-->', () => {
+    readTokens(
+      '<aaa><!--><aaa></aaa>',
+      callbackMock,
+      resolveTokenizerOptions({ tags: { aaa: { kind: 'script_data' } } })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 17, 20);
+  });
+
   test('reads lower-case DOCTYPE', () => {
     readTokens('<!doctype html>', callbackMock);
 
