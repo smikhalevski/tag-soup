@@ -386,7 +386,7 @@ toXMLEncoded(fragment);
 [`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html).
 [`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html) accepts
 [`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html), which are the same
-options except `decodeText`, `decodeAttribute`, `areNewlinesNormalized` and `areNullCharactersReplaced`.
+options except `decodeText` and `decodeAttribute`.
 
 <dl>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tags"><code>tags</code></a></dt>
@@ -395,10 +395,6 @@ options except `decodeText`, `decodeAttribute`, `areNewlinesNormalized` and `are
 <dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenewlinesnormalized"><code>areNewlinesNormalized</code></a></dt>
-<dd>If <code>true</code>, CR LF pairs and CR chars are replaced with LF before the input is parsed, like HTML does.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenullcharactersreplaced"><code>areNullCharactersReplaced</code></a></dt>
-<dd>If <code>true</code>, NUL chars are removed from text outside of raw text tags and foreign tags, and replaced with U+FFFD everywhere else, like HTML does.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
 <dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
@@ -491,8 +487,6 @@ const htmlOptions: ParserOptions = {
   },
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
-  areNewlinesNormalized: true,
-  areNullCharactersReplaced: true,
   areTagNamesCaseInsensitive: true,
   areUnbalancedEndTagsIgnored: true,
   areUnbalancedStartTagsImplicitlyEnded: true,

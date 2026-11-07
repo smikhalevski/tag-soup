@@ -198,8 +198,6 @@ const htmlParserOptions: ParserOptions = {
   areUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
-  areNewlinesNormalized: true,
-  areNullCharactersReplaced: true,
 };
 
 // Inside SVG and MathML, svg and math don't switch options, and title is a tag rather than escapable raw text, since

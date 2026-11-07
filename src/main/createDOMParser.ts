@@ -11,7 +11,7 @@ import {
   Text,
 } from 'flyweight-dom';
 import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
-import { normalizeNewlines, type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
+import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
 
 /**
  * Parses text as a DOM.
@@ -78,23 +78,7 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
  * @internal
  */
 export function parseDOM(input: string, options: ResolvedParserOptions = { context: {} }): Document | DocumentFragment {
-  const {
-    isFragment,
-    decodeText = identity,
-    decodeAttribute = identity,
-    areNewlinesNormalized = false,
-    areNullCharactersReplaced = false,
-  } = options;
-
-  if (areNewlinesNormalized) {
-    input = normalizeNewlines(input);
-  }
-
-  const hasNullCharacters = areNullCharactersReplaced && input.indexOf('\0') !== -1;
-
-  // Strings are read from the input with NUL chars replaced. U+FFFD has the same length as NUL, so tokens point to the
-  // same chars in both inputs.
-  const replacedInput = hasNullCharacters ? input.replace(/\0/g, '\uFFFD') : input;
+  const { isFragment, decodeText = identity, decodeAttribute = identity } = options;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
   const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.context };
@@ -103,25 +87,13 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
 
   let parent = root;
   let isRawText = false;
-  let isEscapableRawText = false;
   let attributeName: string;
   let piTarget: string;
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
       case 'TEXT': {
-        // NUL chars are removed from text outside of raw text and foreign tags, after entities are decoded, so
-        // "&\0amp;" isn't decoded
-        if (hasNullCharacters && !isRawText && !isEscapableRawText && state.context === options.context) {
-          const text = decodeText(input.substring(startIndex, endIndex)).replace(/\0/g, '');
-
-          if (text !== '') {
-            uncheckedAppendChild(parent, new Text(text));
-          }
-          break;
-        }
-
-        const text = replacedInput.substring(startIndex, endIndex);
+        const text = input.substring(startIndex, endIndex);
 
         uncheckedAppendChild(parent, new Text(isRawText ? text : decodeText(text)));
         break;
@@ -131,10 +103,7 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
         // Text inside raw text tags isn't decoded
         isRawText = state.tagOptions !== undefined && state.tagOptions.isRawText;
 
-        // NUL chars aren't removed from text inside escapable raw text tags
-        isEscapableRawText = state.tagOptions !== undefined && state.tagOptions.isEscapableRawText;
-
-        uncheckedAppendChild(parent, (parent = new Element(replacedInput.substring(startIndex, endIndex))));
+        uncheckedAppendChild(parent, (parent = new Element(input.substring(startIndex, endIndex))));
         break;
 
       case 'START_TAG_CLOSING':
@@ -143,39 +112,35 @@ export function parseDOM(input: string, options: ResolvedParserOptions = { conte
       case 'START_TAG_SELF_CLOSING':
       case 'END_TAG_NAME':
         isRawText = false;
-        isEscapableRawText = false;
         parent = parent.parentNode!;
         break;
 
       case 'ATTRIBUTE_NAME':
-        attributeName = replacedInput.substring(startIndex, endIndex);
+        attributeName = input.substring(startIndex, endIndex);
         break;
 
       case 'ATTRIBUTE_VALUE':
-        (parent as Element).setAttribute(attributeName, decodeAttribute(replacedInput.substring(startIndex, endIndex)));
+        (parent as Element).setAttribute(attributeName, decodeAttribute(input.substring(startIndex, endIndex)));
         break;
 
       case 'CDATA_SECTION':
-        uncheckedAppendChild(parent, new CDATASection(replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(parent, new CDATASection(input.substring(startIndex, endIndex)));
         break;
 
       case 'COMMENT':
-        uncheckedAppendChild(parent, new Comment(replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(parent, new Comment(input.substring(startIndex, endIndex)));
         break;
 
       case 'DOCTYPE_NAME':
-        uncheckedAppendChild(parent, new DocumentType(replacedInput.substring(startIndex, endIndex)));
+        uncheckedAppendChild(parent, new DocumentType(input.substring(startIndex, endIndex)));
         break;
 
       case 'PROCESSING_INSTRUCTION_TARGET':
-        piTarget = replacedInput.substring(startIndex, endIndex);
+        piTarget = input.substring(startIndex, endIndex);
         break;
 
       case 'PROCESSING_INSTRUCTION_DATA':
-        uncheckedAppendChild(
-          parent,
-          new ProcessingInstruction(piTarget, replacedInput.substring(startIndex, endIndex))
-        );
+        uncheckedAppendChild(parent, new ProcessingInstruction(piTarget, input.substring(startIndex, endIndex)));
         break;
     }
   };

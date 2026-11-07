@@ -46,42 +46,6 @@ test('decodes attribute values with decodeAttribute', () => {
   );
 });
 
-test('normalizes newlines', () => {
-  expect(parseDOM('<aaa bbb="\r\n">\r\n\r</aaa>', resolveParserOptions({ areNewlinesNormalized: true }))).toEqual(
-    f.doc(f.aaa({ bbb: '\n' }, '\n\n'))
-  );
-});
-
-test('removes NUL chars from decoded text', () => {
-  expect(
-    parseDOM(
-      'aaa\0&\0amp;<bbb>\0</bbb>',
-      resolveParserOptions({ decodeText: decodeXML, areNullCharactersReplaced: true })
-    )
-  ).toEqual(f.doc('aaa&amp;', f.bbb()));
-});
-
-test('replaces NUL chars outside of text', () => {
-  expect(
-    parseDOM(
-      '<!DOCTYPE aaa\0><?bbb\0 \0?><![CDATA[\0]]><ccc\0 ddd\0="\0"><!--\0--><eee>\0</eee>\0<fff>\0</fff>\0<ggg>\0</ggg>\0</ccc\0>',
-      resolveParserOptions({
-        tags: { eee: { kind: 'raw_text' }, fff: { kind: 'escapable_raw_text' }, ggg: { foreignContext: {} } },
-        areCDATASectionsRecognized: true,
-        areProcessingInstructionsRecognized: true,
-        areNullCharactersReplaced: true,
-      })
-    )
-  ).toEqual(
-    f.doc(
-      f.doctype('aaa\uFFFD'),
-      f.pi('bbb\uFFFD', '\uFFFD'),
-      f.cdata('\uFFFD'),
-      f['ccc\uFFFD']({ 'ddd\uFFFD': '\uFFFD' }, f.comment('\uFFFD'), f.eee('\uFFFD'), f.fff('\uFFFD'), f.ggg('\uFFFD'))
-    )
-  );
-});
-
 test('parses comments in elements', () => {
   expect(parseDOM('<aaa><!--xxx--></aaa>')).toEqual(f.doc(f.aaa(f.comment('xxx'))));
 });
