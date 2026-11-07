@@ -183,9 +183,26 @@ export interface TagParsingOptions {
    * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded} and
    * {@link isImplicitEndingBoundary}.
    *
-   * A tag is only implicitly ended by tags that are started in a context with the same
-   * {@link ContextualTokenizerOptions.tags tags} object, so pass the same object to
-   * {@link ContextualTokenizerOptions.foreignTags foreign tags} if their content must end outer tags.
+   * Tags are ended by name in any context. A tag inside a {@link ContextualTokenizerOptions.foreignTags foreign tag}
+   * can end the foreign tag, and then it's read with tags of the outer options. For example, in HTML `svg` is
+   * implicitly ended by `br`:
+   *
+   * ```html
+   * <svg><br>text  →  <svg></svg><br/>text
+   *                        ^^^^^^ svg is implicitly ended by br
+   * ```
+   *
+   * To achieve this behavior, set options to:
+   *
+   * ```ts
+   * {
+   *   tags: {
+   *     svg: { implicitlyEndedBy: ['br'] },
+   *     br: { kind: 'void' },
+   *   },
+   *   foreignTags: { svg: {} },
+   * }
+   * ```
    */
   implicitlyEndedBy?: string[];
 
@@ -345,7 +362,8 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 /**
  * Resolves tags of each context into a map, so {@link tokenizeMarkup} looks up a start tag once. Contexts with the same
  * tags share the map. Tags that can be implicitly ended get sequential IDs that are unique across all maps, so open
- * tags can be counted in a single array. Tags that are foreign in a context are marked as foreign in its map.
+ * tags can be counted in a single array. Tags are ended by name, so a tag that ends other tags has the same ended tag
+ * IDs in every map. Tags that are foreign in a context are marked as foreign in its map.
  *
  * Returns a zero for each ID.
  */
@@ -354,6 +372,9 @@ function resolveTagOptions(
   toHashCode: (str: string) => number
 ): number[] {
   const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagOptions>>();
+
+  // The map from a hash code of a tag to IDs of tags that it ends
+  const endedTagIdsMap = new Map<number, number[]>();
 
   let endableTagCount = 0;
 
@@ -400,9 +421,16 @@ function resolveTagOptions(
         if (resolvedTagOptions.endableTagId === -1) {
           resolvedTagOptions.endableTagId = endableTagCount++;
         }
-        getResolvedTagOptions(tagOptionsMap, toHashCode(endingTagName)).endedTagIds.push(
-          resolvedTagOptions.endableTagId
-        );
+
+        const endingTagHashCode = toHashCode(endingTagName);
+
+        let endedTagIds = endedTagIdsMap.get(endingTagHashCode);
+
+        if (endedTagIds === undefined) {
+          endedTagIds = [];
+          endedTagIdsMap.set(endingTagHashCode, endedTagIds);
+        }
+        endedTagIds.push(resolvedTagOptions.endableTagId);
       }
     }
     return tagOptionsMap;
@@ -411,7 +439,6 @@ function resolveTagOptions(
   for (const [contextualOptions, context] of contextMap) {
     const { tags = {} } = contextualOptions;
 
-    // Contexts with the same tags share resolved options, so a tag started in one of them can end tags of another
     let tagOptionsMap = resolvedTagsMap.get(tags);
 
     if (tagOptionsMap === undefined) {
@@ -426,8 +453,21 @@ function resolveTagOptions(
       }
     }
 
-    // Start tags aren't looked up if options don't mention any tags
-    context.tagOptionsMap = tagOptionsMap.size !== 0 ? tagOptionsMap : undefined;
+    context.tagOptionsMap = tagOptionsMap;
+  }
+
+  // A tag started in any context ends tags of other contexts, like br ends svg in HTML
+  for (const tagOptionsMap of resolvedTagsMap.values()) {
+    for (const [tagHashCode, endedTagIds] of endedTagIdsMap) {
+      getResolvedTagOptions(tagOptionsMap, tagHashCode).endedTagIds = endedTagIds;
+    }
+  }
+
+  // Start tags aren't looked up if options don't mention any tags
+  for (const context of contextMap.values()) {
+    if (context.tagOptionsMap !== undefined && context.tagOptionsMap.size === 0) {
+      context.tagOptionsMap = undefined;
+    }
   }
 
   const initialOpenTagCounts: number[] = [];

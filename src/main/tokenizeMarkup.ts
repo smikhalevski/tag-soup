@@ -113,9 +113,9 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  * Options of a tag consumed by {@link tokenizeMarkup}. All of them are kept in one object, so a start tag is looked up
  * once, rather than once per option.
  *
- * Options are resolved separately for each {@link ContextualTokenizerOptions.tags} object. Tags that only end other
- * tags, and {@link ContextualTokenizerOptions.foreignTags foreign tags} of contexts with this object, have resolved
- * options too.
+ * Options are resolved separately for each {@link ContextualTokenizerOptions.tags} object. Tags that only end tags of
+ * any context, and {@link ContextualTokenizerOptions.foreignTags foreign tags} of contexts with this object, have
+ * resolved options too.
  *
  * @internal
  */
@@ -153,14 +153,14 @@ export interface ResolvedTagOptions {
 
   /**
    * IDs of tags that are implicitly ended when this tag is started. Collected from
-   * {@link TagParsingOptions.implicitlyEndedBy} of those tags.
+   * {@link TagParsingOptions.implicitlyEndedBy} of those tags in all contexts, since tags are ended by name.
    */
   endedTagIds: number[];
 
   /**
    * The ID of this tag if it can be implicitly ended, or -1 otherwise. Tags that can be implicitly ended have IDs, so
    * {@link tokenizeMarkup} can count open tags with each name, and skip searching for tags to end if none of them is
-   * open. IDs are unique across contexts, so a tag is only ended by tags of contexts with the same tags.
+   * open. IDs are unique across contexts, so open tags of all contexts are counted in one array.
    */
   endableTagId: number;
 }
@@ -180,7 +180,8 @@ export interface TokenizerState {
 
   /**
    * Resolved options of the start tag, or `undefined` if options don't mention the tag. Set before a `START_TAG_NAME`
-   * token is passed to a callback, so the callback doesn't have to look the tag up again.
+   * token is passed to a callback, so the callback doesn't have to look the tag up again. {@link tokenizeMarkup} looks
+   * the tag up again if implicit ending switches the context.
    */
   tagOptions: ResolvedTagOptions | undefined;
 
@@ -318,11 +319,15 @@ export function tokenizeMarkup(
       case TOKEN_START_TAG_NAME: {
         // Hashed and looked up by readTokens
         const startTagHashCode = state.tagHashCode;
-        const startTagOptions = state.tagOptions;
+        let startTagOptions = state.tagOptions;
 
         // Usually none of the tags that must be ended is open, so the stack isn't searched
         if (startTagOptions !== undefined && isAnyTagOpen(startTagOptions.endedTagIds)) {
           insertImplicitEndTags(startTagOptions.endedTagIds, startIndex - 1);
+
+          // Ended foreign tags restore outer options, so the start tag is read with tags of the restored context
+          startTagOptions = getTagOptions(state.context, startTagHashCode);
+          state.tagOptions = startTagOptions;
         }
 
         if (isStrict && !isFragment && tagHashCodeStackCursor === -1) {
@@ -422,8 +427,7 @@ export function tokenizeMarkup(
         }
 
         // Like a start tag, an unbalanced end tag has options of the context it's read in
-        const tagOptionsMap = state.context.tagOptionsMap;
-        const endTagOptions = tagOptionsMap !== undefined ? tagOptionsMap.get(endTagHashCode) : undefined;
+        const endTagOptions = getTagOptions(state.context, endTagHashCode);
 
         if (endTagOptions === undefined || !endTagOptions.isImplicitlyStarted) {
           if (!areUnbalancedEndTagsIgnored) {
@@ -469,6 +473,13 @@ export function tokenizeMarkup(
 }
 
 /**
+ * Returns resolved options of a tag in a context, or `undefined` if the tag has no options there.
+ */
+function getTagOptions(context: ContextualTokenReaderOptions, tagHashCode: number): ResolvedTagOptions | undefined {
+  return context.tagOptionsMap !== undefined ? context.tagOptionsMap.get(tagHashCode) : undefined;
+}
+
+/**
  * Returns `true` if a tag limits implicit ending.
  *
  * @see {@link TagParsingOptions.isImplicitEndingBoundary}
@@ -509,8 +520,8 @@ const TOKEN_DOCTYPE_NAME = 'DOCTYPE_NAME';
  */
 export interface ContextualTokenReaderOptions {
   /**
-   * The map from a hash code of a tag to resolved options of the tag in this context. Tags that options don't mention
-   * aren't in the map. Contexts with the same {@link ContextualTokenizerOptions.tags tags} share the map.
+   * The map from a hash code of a tag to resolved options of the tag in this context. Contexts with the same
+   * {@link ContextualTokenizerOptions.tags tags} share the map.
    */
   tagOptionsMap?: Map<number, ResolvedTagOptions>;
 
@@ -588,7 +599,8 @@ export interface TokenReaderOptions {
  * Tokens are returned in the order they appear in text, nothing is inserted, so start and end tags may be unbalanced.
  * Use {@link tokenizeMarkup} to get balanced tokens.
  *
- * Contextual options are read from {@link TokenizerState.context} on every use, so the callback can switch them.
+ * Contextual options are read from {@link TokenizerState.context} on every use, and options of a start tag are read
+ * from {@link TokenizerState.tagOptions} after the `START_TAG_NAME` callback, so the callback can change both.
  *
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
@@ -1053,9 +1065,14 @@ export function readTokens(
 
     const startTagHashCode = getTagHashCode(input, tagNameStartIndex, nextIndex);
 
-    // The start tag is looked up only here, tokenizeMarkup and parsers read the result from the state
-    const tagOptionsMap = state.context.tagOptionsMap;
-    const startTagOptions = tagOptionsMap !== undefined ? tagOptionsMap.get(startTagHashCode) : undefined;
+    // The callback reads options of the start tag from the state, rather than looking the tag up
+    state.tagHashCode = startTagHashCode;
+    state.tagOptions = getTagOptions(state.context, startTagHashCode);
+
+    callback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex);
+
+    // The callback can switch the context, which changes options of the start tag
+    const startTagOptions = state.tagOptions;
 
     if (startTagOptions !== undefined && (startTagOptions.isRawText || startTagOptions.isEscapableRawText)) {
       // Start of the raw text tag
@@ -1063,11 +1080,6 @@ export function readTokens(
       enclosingRawTextTagNameStartIndex = tagNameStartIndex;
       enclosingRawTextTagNameEndIndex = nextIndex;
     }
-
-    state.tagHashCode = startTagHashCode;
-    state.tagOptions = startTagOptions;
-
-    callback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex);
 
     scope = SCOPE_START_TAG;
     textStartIndex = nextIndex = skipSpaces(input, nextIndex);

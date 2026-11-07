@@ -1468,13 +1468,36 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 12, 15);
   });
 
-  test('does not implicitly end a tag that was started in a context with other tags', () => {
+  test('implicitly ends a tag that was started in another context', () => {
     tokenizeMarkup(
       '<bbb><aaa><ccc>',
       callbackMock,
       resolveTokenizerOptions({
         tags: { bbb: { implicitlyEndedBy: ['ccc'] } },
-        foreignTags: { aaa: { tags: { bbb: { implicitlyEndedBy: ['ccc'] } } } },
+        foreignTags: { aaa: {} },
+        areUnbalancedStartTagsImplicitlyEnded: true,
+      })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 15, 15);
+  });
+
+  test('does not implicitly end a tag of another context that is ended by other tags', () => {
+    tokenizeMarkup(
+      '<bbb><aaa><ddd>',
+      callbackMock,
+      resolveTokenizerOptions({
+        tags: { bbb: { implicitlyEndedBy: ['ccc'] } },
+        foreignTags: { aaa: { tags: { eee: { implicitlyEndedBy: ['ddd'] } } } },
         areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
@@ -1491,25 +1514,44 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 15, 15);
   });
 
-  test('implicitly ends a tag that was started in a context with the same tags', () => {
-    const tags = { bbb: { implicitlyEndedBy: ['ccc'] } };
-
+  test('reads a tag that implicitly ends a foreign tag with outer tags', () => {
     tokenizeMarkup(
-      '<bbb><aaa><ccc>',
+      '<aaa><bbb>ccc',
       callbackMock,
-      resolveTokenizerOptions({ tags, foreignTags: { aaa: { tags } }, areUnbalancedStartTagsImplicitlyEnded: true })
+      resolveTokenizerOptions({
+        tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { kind: 'void' } },
+        foreignTags: { aaa: {} },
+      })
     );
 
-    expect(callbackMock).toHaveBeenCalledTimes(9);
+    expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 9, 10);
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 14, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 10, 13);
+  });
+
+  test('reads raw text of a tag that implicitly ends a foreign tag with outer tags', () => {
+    tokenizeMarkup(
+      '<aaa><bbb><ccc></bbb>',
+      callbackMock,
+      resolveTokenizerOptions({
+        tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { kind: 'raw_text' } },
+        foreignTags: { aaa: {} },
+      })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 10, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 17, 20);
   });
 
   test('implicitly starts a tag with tags of a foreign tag', () => {

@@ -69,3 +69,21 @@ test('implicitly ends a paragraph from SVG and MathML content', () => {
     '<p>aaa<svg></svg></p><p>bbb<math></math></p><p>ccc</p>'
   );
 });
+
+test('implicitly ends SVG and MathML with HTML tags', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<svg><br>aaa<math><br>bbb'))).toBe(
+    '<svg></svg><br>aaa<math></math><br>bbb'
+  );
+});
+
+test('does not implicitly end outer tags with tags inside SVG and MathML', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<a><svg><a></a></svg><math><a>'))).toBe(
+    '<a><svg><a></a></svg><math><a></a></math></a>'
+  );
+});
+
+test('does not implicitly end SVG and MathML inside integration points', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<svg><title><p>aaa</svg><math><mi><p>bbb</math>'))).toBe(
+    '<svg><title><p>aaa</p></title></svg><math><mi><p>bbb</p></mi></math>'
+  );
+});
