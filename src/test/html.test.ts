@@ -74,6 +74,12 @@ test('parses title as escapable raw text', () => {
   expect(HTMLDOMParser.parseFragment('<title><b>&amp;</b></title>')).toStrictEqual(f.f(f.title('<b>&</b>')));
 });
 
+test('does not switch options for math inside SVG', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<svg><math><foreignObject><b/>aaa'))).toBe(
+    '<svg><math><foreignObject><b>aaa</b></foreignObject></math></svg>'
+  );
+});
+
 test('parses title inside SVG and MathML as a tag', () => {
   const html = '<svg><title><a>aaa</a></title></svg><math><title><mi>bbb</mi></title></math>';
 

@@ -399,8 +399,6 @@ options except `decodeText`, `decodeAttribute`, `areNewlinesNormalized` and `are
 <dd>If <code>true</code>, CR LF pairs and CR chars are replaced with LF before the input is parsed, like HTML does.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenullcharactersreplaced"><code>areNullCharactersReplaced</code></a></dt>
 <dd>If <code>true</code>, NUL chars are removed from text outside of raw text tags and foreign tags, and replaced with U+FFFD everywhere else, like HTML does.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#foreigntags"><code>foreignTags</code></a></dt>
-<dd>The map from a tag to options that are applied to its attributes and content, like <code>svg</code> and <code>math</code> in HTML. Options are restored when the tag is ended. Foreign tag options can contain <code>tags</code>, <code>foreignTags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>, and don't inherit outer options.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
 <dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
@@ -431,6 +429,8 @@ options except `decodeText`, `decodeAttribute`, `areNewlinesNormalized` and `are
 <li><code>'escapable_raw_text'</code>: same as <code>'raw_text'</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements">HTML Escapable Raw Text Elements</a>.</li>
 <li><code>'script_data'</code>: same as <code>'raw_text'</code>, but after <code>&lt;!--</code> a start tag of the same name hides end tags until its own end tag or <code>--&gt;</code>, like in <code>script</code>. See <a href="https://html.spec.whatwg.org/multipage/scripting.html#restrictions-for-contents-of-script-elements">HTML Restrictions for Contents of Script Elements</a>.</li>
 </ul></dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#foreigncontext"><code>foreignContext</code></a></dt>
+<dd>Options that are applied to attributes and content of the tag, like SVG options for <code>svg</code> in HTML. Outer options are restored when the tag is ended. These options can contain <code>tags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>, and don't inherit outer options.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#implicitlyendedby"><code>implicitlyEndedBy</code></a></dt>
 <dd>Tags that implicitly end this tag when they are started. For example, <code>{ p: { implicitlyEndedBy: ['h1'] } }</code> means that <code>&lt;h1&gt;</code> ends an open <code>&lt;p&gt;</code>. Tags inside foreign tags end outer tags too: with <code>{ svg: { implicitlyEndedBy: ['br'] } }</code>, <code>&lt;svg&gt;&lt;br&gt;</code> becomes <code>&lt;svg&gt;&lt;/svg&gt;&lt;br&gt;</code>, and <code>br</code> is read with tags of the outer options.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitendingboundary"><code>isImplicitEndingBoundary</code></a></dt>
@@ -443,7 +443,20 @@ A parser that mimics browser HTML behavior:
 
 ```ts
 import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
-import { createDOMParser, type ParserOptions } from 'tag-soup';
+import { type ContextualTokenizerOptions, createDOMParser, type ParserOptions } from 'tag-soup';
+
+// SVG and MathML content doesn't inherit HTML tags
+const svgOptions: ContextualTokenizerOptions = {
+  areCDATASectionsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
+};
+
+const mathOptions: ContextualTokenizerOptions = {
+  areCDATASectionsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
+};
 
 const htmlOptions: ParserOptions = {
   tags: {
@@ -460,6 +473,7 @@ const htmlOptions: ParserOptions = {
     input: { kind: 'void' },
     li: { implicitlyEndedBy: ['li'] },
     link: { kind: 'void' },
+    math: { foreignContext: mathOptions },
     meta: { kind: 'void' },
     ol: { isImplicitEndingBoundary: true },
     p: { implicitlyEndedBy: ['h1', 'h2'], isImplicitlyStarted: true },
@@ -467,6 +481,7 @@ const htmlOptions: ParserOptions = {
     script: { kind: 'script_data' },
     source: { kind: 'void' },
     style: { kind: 'raw_text' },
+    svg: { foreignContext: svgOptions },
     table: { isImplicitEndingBoundary: true },
     textarea: { kind: 'escapable_raw_text' },
     title: { kind: 'escapable_raw_text' },
@@ -483,24 +498,8 @@ const htmlOptions: ParserOptions = {
   areUnbalancedStartTagsImplicitlyEnded: true,
 };
 
-htmlOptions.foreignTags = {
-  svg: {
-    // Foreign tags don't inherit outer tags
-    tags: htmlOptions.tags,
-    areCDATASectionsRecognized: true,
-    areProcessingInstructionsRecognized: true,
-    areSelfClosingTagsRecognized: true,
-
-    // Content of foreignObject is parsed as HTML again
-    foreignTags: { foreignObject: htmlOptions },
-  },
-  math: {
-    tags: htmlOptions.tags,
-    areCDATASectionsRecognized: true,
-    areProcessingInstructionsRecognized: true,
-    areSelfClosingTagsRecognized: true,
-  },
-};
+// Content of foreignObject is read as HTML again
+svgOptions.tags = { foreignObject: { foreignContext: htmlOptions } };
 
 const myParser = createDOMParser(htmlOptions);
 ```

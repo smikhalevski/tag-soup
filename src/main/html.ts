@@ -2,7 +2,7 @@ import { decodeHTML, decodeHTMLAttribute, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer, type SerializerOptions } from './createSerializer.ts';
-import { createTokenizer } from './createTokenizer.ts';
+import { type ContextualTokenizerOptions, createTokenizer } from './createTokenizer.ts';
 import type { ParserOptions } from './types.ts';
 
 // Tags that implicitly end form controls
@@ -61,6 +61,19 @@ const breakoutTagNames = [
   'var',
 ];
 
+// Options of SVG and MathML content, their tags are assigned after HTML options
+const svgOptions: ContextualTokenizerOptions = {
+  areCDATASectionsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
+};
+
+const mathOptions: ContextualTokenizerOptions = {
+  areCDATASectionsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
+};
+
 const htmlParserOptions: ParserOptions = {
   // Implicit ending boundaries follow https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
   tags: {
@@ -101,7 +114,7 @@ const htmlParserOptions: ParserOptions = {
     li: { implicitlyEndedBy: ['li'] },
     link: { kind: 'void', implicitlyEndedBy: ['body'] },
     marquee: { isImplicitEndingBoundary: true },
-    math: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true },
+    math: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true, foreignContext: mathOptions },
     meta: { kind: 'void' },
     mi: { isImplicitEndingBoundary: true },
     mn: { isImplicitEndingBoundary: true },
@@ -165,7 +178,7 @@ const htmlParserOptions: ParserOptions = {
     select: { implicitlyEndedBy: formTagNames },
     source: { kind: 'void' },
     style: { kind: 'raw_text' },
-    svg: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true },
+    svg: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true, foreignContext: svgOptions },
     table: { isImplicitEndingBoundary: true },
     tbody: { implicitlyEndedBy: tableSectionTagNames },
     td: { implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames], isImplicitEndingBoundary: true },
@@ -189,25 +202,22 @@ const htmlParserOptions: ParserOptions = {
   areNullCharactersReplaced: true,
 };
 
-// SVG and MathML title is a tag rather than escapable raw text, and SVG title is an integration point
-const foreignContentTags = { ...htmlParserOptions.tags, title: { isImplicitEndingBoundary: true } };
+// Inside SVG and MathML, svg and math don't switch options, and title is a tag rather than escapable raw text, since
+// SVG title is an integration point
+const foreignContentTags = {
+  ...htmlParserOptions.tags,
+  math: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true },
+  svg: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true },
+  title: { isImplicitEndingBoundary: true },
+};
 
-htmlParserOptions.foreignTags = {
-  svg: {
-    tags: foreignContentTags,
-    areCDATASectionsRecognized: true,
-    areProcessingInstructionsRecognized: true,
-    areSelfClosingTagsRecognized: true,
-    foreignTags: {
-      foreignObject: htmlParserOptions,
-    },
-  },
-  math: {
-    tags: foreignContentTags,
-    areCDATASectionsRecognized: true,
-    areProcessingInstructionsRecognized: true,
-    areSelfClosingTagsRecognized: true,
-  },
+mathOptions.tags = foreignContentTags;
+
+svgOptions.tags = {
+  ...foreignContentTags,
+
+  // Content of foreignObject is read as HTML
+  foreignObject: { isImplicitEndingBoundary: true, foreignContext: htmlParserOptions },
 };
 
 const htmlSerializerOptions: SerializerOptions = {

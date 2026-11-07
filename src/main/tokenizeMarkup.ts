@@ -114,8 +114,7 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  * once, rather than once per option.
  *
  * Options are resolved separately for each {@link ContextualTokenizerOptions.tags} object. Tags that only end tags of
- * any context, and {@link ContextualTokenizerOptions.foreignTags foreign tags} of contexts with this object, have
- * resolved options too.
+ * any context have resolved options too.
  *
  * @internal
  */
@@ -141,10 +140,9 @@ export interface ResolvedTagOptions {
   isScriptData: boolean;
 
   /**
-   * `true` if the tag is one of {@link ContextualTokenizerOptions.foreignTags} in any context with the same tags. Other
-   * tags aren't looked up in {@link ContextualTokenReaderOptions.foreignTagMap}.
+   * Resolved {@link TagParsingOptions.foreignContext}, or `undefined` if the tag isn't foreign.
    */
-  isForeign: boolean;
+  foreignContext: ContextualTokenReaderOptions | undefined;
 
   /**
    * @see {@link TagParsingOptions.isImplicitEndingBoundary}
@@ -166,7 +164,7 @@ export interface ResolvedTagOptions {
    * The ID of this tag if it can be implicitly ended, or -1 otherwise. Tags that can be implicitly ended have IDs, so
    * {@link tokenizeMarkup} can count open tags with each name, and skip searching for tags to end if none of them is
    * open. IDs are unique across contexts, so open tags of all contexts are counted in one array. Tags with the same
-   * {@link TagParsingOptions options object} share the ID, since they are ended by the same tags.
+   * {@link TagParsingOptions.implicitlyEndedBy} array share the ID, since they are ended by the same tags.
    */
   endableTagId: number;
 }
@@ -345,14 +343,8 @@ export function tokenizeMarkup(
 
         callback(TOKEN_START_TAG_NAME, startIndex, endIndex);
 
-        // Most tags aren't foreign in any context, so they aren't looked up in the current one
-        const foreignContext =
-          startTagOptions !== undefined && startTagOptions.isForeign && state.context.foreignTagMap !== undefined
-            ? state.context.foreignTagMap.get(startTagHashCode)
-            : undefined;
-
-        if (foreignContext !== undefined) {
-          state.context = foreignContext;
+        if (startTagOptions !== undefined && startTagOptions.foreignContext !== undefined) {
+          state.context = startTagOptions.foreignContext;
         }
 
         tagHashCodeStack[++tagHashCodeStackCursor] = startTagHashCode;
@@ -530,12 +522,6 @@ export interface ContextualTokenReaderOptions {
    * {@link ContextualTokenizerOptions.tags tags} share the map.
    */
   tagOptionsMap?: Map<number, ResolvedTagOptions>;
-
-  /**
-   * The map from a hash code of a foreign tag to options applied to its content. Foreign tags are tracked by
-   * {@link tokenizeMarkup}, {@link readTokens} ignores them.
-   */
-  foreignTagMap?: Map<number, ContextualTokenReaderOptions>;
 
   /**
    * @see {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized}

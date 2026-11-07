@@ -315,8 +315,7 @@ test('replaces NUL chars outside of text', () => {
     '<!DOCTYPE aaa\0><?bbb\0 \0?><![CDATA[\0]]><ccc\0 ddd\0="\0"><!--\0--><eee>\0</eee>\0<fff>\0</fff>\0<ggg>\0</ggg>\0</ccc\0>',
     mockHandler,
     resolveParserOptions({
-      tags: { eee: { kind: 'raw_text' }, fff: { kind: 'escapable_raw_text' } },
-      foreignTags: { ggg: {} },
+      tags: { eee: { kind: 'raw_text' }, fff: { kind: 'escapable_raw_text' }, ggg: { foreignContext: {} } },
       areCDATASectionsRecognized: true,
       areProcessingInstructionsRecognized: true,
       areNullCharactersReplaced: true,

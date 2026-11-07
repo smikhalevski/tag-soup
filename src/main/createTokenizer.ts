@@ -11,14 +11,14 @@ import {
 } from './tokenizeMarkup.ts';
 
 /**
- * Options of {@link createTokenizer} that can be changed by {@link foreignTags foreign tags}.
+ * Options of {@link createTokenizer} that can be changed by {@link TagParsingOptions.foreignContext foreign tags}.
  *
  * @group Tokenizer
  */
 export interface ContextualTokenizerOptions {
   /**
    * The map from a tag name to options of the tag. These tags aren't applied to content of
-   * {@link foreignTags foreign tags}, which is read with tags of their own options.
+   * {@link TagParsingOptions.foreignContext foreign tags}, which is read with tags of their own options.
    *
    * @example
    * {
@@ -28,27 +28,6 @@ export interface ContextualTokenizerOptions {
    * }
    */
   tags?: Record<string, TagParsingOptions>;
-
-  /**
-   * The map from a foreign tag name to options that are applied to its attributes and content. Options are restored
-   * when the foreign tag is ended. Foreign tag options don't inherit outer options, but they can reference each other,
-   * so foreign content may contain tags that switch back to the outer options.
-   *
-   * For example, in HTML `svg` content is parsed with XML rules, while `foreignObject` inside `svg` switches back to
-   * HTML rules:
-   *
-   * ```ts
-   * const htmlOptions: TokenizerOptions = { tags: { br: { kind: 'void' } } };
-   *
-   * htmlOptions.foreignTags = {
-   *   svg: {
-   *     areSelfClosingTagsRecognized: true,
-   *     foreignTags: { foreignObject: htmlOptions },
-   *   },
-   * };
-   * ```
-   */
-  foreignTags?: Record<string, ContextualTokenizerOptions>;
 
   /**
    * If `true` then self-closing tags (`<br/>`) are recognized, otherwise they are treated as start tags.
@@ -178,6 +157,29 @@ export interface TagParsingOptions {
   kind?: TagKind;
 
   /**
+   * Options that are applied to attributes and content of the tag, which makes it a foreign tag. Outer options are
+   * restored when the tag is ended. Foreign options don't inherit outer options, but options can reference each
+   * other, so foreign content may contain tags that switch back to outer options.
+   *
+   * For example, in HTML `svg` content is read with XML rules, while `foreignObject` inside `svg` switches back to HTML
+   * rules:
+   *
+   * ```ts
+   * const svgOptions: ContextualTokenizerOptions = { areSelfClosingTagsRecognized: true };
+   *
+   * const htmlOptions: TokenizerOptions = {
+   *   tags: {
+   *     br: { kind: 'void' },
+   *     svg: { foreignContext: svgOptions },
+   *   },
+   * };
+   *
+   * svgOptions.tags = { foreignObject: { foreignContext: htmlOptions } };
+   * ```
+   */
+  foreignContext?: ContextualTokenizerOptions;
+
+  /**
    * The list of tags that implicitly end this tag when they are started.
    *
    * For example, in HTML `p` is implicitly ended by `h1`:
@@ -196,24 +198,20 @@ export interface TagParsingOptions {
    * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded} and
    * {@link isImplicitEndingBoundary}.
    *
-   * Tags are ended by name in any context. A tag inside a {@link ContextualTokenizerOptions.foreignTags foreign tag}
-   * can end the foreign tag, and then it's read with tags of the outer options. For example, in HTML `svg` is
-   * implicitly ended by `br`:
+   * Tags are ended by name in any context. A tag inside a {@link foreignContext foreign tag} can end the foreign tag,
+   * and then it's read with tags of the outer options. For example, in HTML `svg` is implicitly ended by `br`:
    *
    * ```html
    * <svg><br>text  →  <svg></svg><br/>text
    *                        ^^^^^^ svg is implicitly ended by br
    * ```
    *
-   * To achieve this behavior, set options to:
+   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
    *
    * ```ts
    * {
-   *   tags: {
-   *     svg: { implicitlyEndedBy: ['br'] },
-   *     br: { kind: 'void' },
-   *   },
-   *   foreignTags: { svg: {} },
+   *   svg: { implicitlyEndedBy: ['br'], foreignContext: {} },
+   *   br: { kind: 'void' },
    * }
    * ```
    */
@@ -353,10 +351,10 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   const toHashCode = (str: string) => getTagHashCode(str, 0, str.length);
 
-  // Foreign tag options can reference each other, so each of them is resolved once
+  // Contextual options can reference each other, so each of them is resolved once
   const contextMap = new Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>();
 
-  const context = resolveContextualTokenReaderOptions(options, toHashCode, contextMap);
+  const context = resolveContextualTokenReaderOptions(options, contextMap);
 
   const initialOpenTagCounts = resolveTagOptions(contextMap, toHashCode);
 
@@ -374,9 +372,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
 /**
  * Resolves tags of each context into a map, so {@link tokenizeMarkup} looks up a start tag once. Contexts with the same
- * tags share the map. Tags that can be implicitly ended get sequential IDs that are unique across all maps, unless tags
- * share options, so open tags can be counted in a single array. Tags are ended by name, so a tag that ends other tags
- * has the same ended tag IDs in every map. Tags that are foreign in a context are marked as foreign in its map.
+ * tags share the map. Foreign contexts of tags are added to the context map and resolved too. Tags that can be
+ * implicitly ended get sequential IDs, so open tags can be counted in a single array, and tags that are ended by the
+ * same tags share an ID. Tags are ended by name, so a tag that ends other tags has the same ended tag IDs in every map.
  *
  * Returns a zero for each ID.
  */
@@ -389,9 +387,9 @@ function resolveTagOptions(
   // The map from a hash code of a tag to IDs of tags that it ends
   const endedTagIdsMap = new Map<number, number[]>();
 
-  // The map from tag options to the ID of tags with these options, so tags whose options are spread into tags of
-  // another context have one ID, and tags that end them check it once
-  const endableTagIdMap = new Map<TagParsingOptions, number>();
+  // The map from a list of tags that implicitly end a tag to the ID of tags with this list, so tags that end them check
+  // one ID, like br that ends both svg and math in HTML
+  const endableTagIdMap = new Map<string[], number>();
 
   let endableTagCount = 0;
 
@@ -404,7 +402,7 @@ function resolveTagOptions(
         isRawText: false,
         isEscapableRawText: false,
         isScriptData: false,
-        isForeign: false,
+        foreignContext: undefined,
         isImplicitEndingBoundary: false,
         isImplicitlyStarted: false,
         endedTagIds: [],
@@ -421,7 +419,8 @@ function resolveTagOptions(
     for (const [tagName, tagOptions] of Object.entries(tags)) {
       const {
         kind = 'normal',
-        implicitlyEndedBy = [],
+        foreignContext,
+        implicitlyEndedBy,
         isImplicitEndingBoundary = false,
         isImplicitlyStarted = false,
       } = tagOptions;
@@ -435,35 +434,40 @@ function resolveTagOptions(
       resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
       resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
 
-      const endableTagId = endableTagIdMap.get(tagOptions);
+      if (foreignContext !== undefined) {
+        resolvedTagOptions.foreignContext = resolveContextualTokenReaderOptions(foreignContext, contextMap);
+      }
 
-      // Tags that end this tag already keep its ID
-      if (endableTagId !== undefined) {
-        resolvedTagOptions.endableTagId = endableTagId;
+      if (implicitlyEndedBy === undefined || implicitlyEndedBy.length === 0) {
         continue;
       }
 
-      // Tags that end this tag keep its ID, so they know which tags to end when they are started
-      for (const endingTagName of implicitlyEndedBy) {
-        if (resolvedTagOptions.endableTagId === -1) {
-          resolvedTagOptions.endableTagId = endableTagCount++;
-          endableTagIdMap.set(tagOptions, resolvedTagOptions.endableTagId);
+      let endableTagId = endableTagIdMap.get(implicitlyEndedBy);
+
+      if (endableTagId === undefined) {
+        endableTagId = endableTagCount++;
+        endableTagIdMap.set(implicitlyEndedBy, endableTagId);
+
+        // Tags that end this tag keep its ID, so they know which tags to end when they are started
+        for (const endingTagName of implicitlyEndedBy) {
+          const endingTagHashCode = toHashCode(endingTagName);
+
+          let endedTagIds = endedTagIdsMap.get(endingTagHashCode);
+
+          if (endedTagIds === undefined) {
+            endedTagIds = [];
+            endedTagIdsMap.set(endingTagHashCode, endedTagIds);
+          }
+          endedTagIds.push(endableTagId);
         }
-
-        const endingTagHashCode = toHashCode(endingTagName);
-
-        let endedTagIds = endedTagIdsMap.get(endingTagHashCode);
-
-        if (endedTagIds === undefined) {
-          endedTagIds = [];
-          endedTagIdsMap.set(endingTagHashCode, endedTagIds);
-        }
-        endedTagIds.push(resolvedTagOptions.endableTagId);
       }
+
+      resolvedTagOptions.endableTagId = endableTagId;
     }
     return tagOptionsMap;
   }
 
+  // Contexts that are added to the map while tags are resolved are visited too
   for (const [contextualOptions, context] of contextMap) {
     const { tags = {} } = contextualOptions;
 
@@ -472,13 +476,6 @@ function resolveTagOptions(
     if (tagOptionsMap === undefined) {
       tagOptionsMap = resolveTags(tags);
       resolvedTagsMap.set(tags, tagOptionsMap);
-    }
-
-    // Only tags that are marked as foreign are looked up in the foreign tag map of the context
-    if (context.foreignTagMap !== undefined) {
-      for (const tagHashCode of context.foreignTagMap.keys()) {
-        getResolvedTagOptions(tagOptionsMap, tagHashCode).isForeign = true;
-      }
     }
 
     context.tagOptionsMap = tagOptionsMap;
@@ -507,44 +504,33 @@ function resolveTagOptions(
   return initialOpenTagCounts;
 }
 
+/**
+ * Resolves contextual options once for each object, their tags are resolved by {@link resolveTagOptions}.
+ */
 function resolveContextualTokenReaderOptions(
   options: ContextualTokenizerOptions,
-  toHashCode: (str: string) => number,
   resolvedOptionsMap: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>
 ): ContextualTokenReaderOptions {
-  const alreadyResolvedOptions = resolvedOptionsMap.get(options);
+  let resolvedOptions = resolvedOptionsMap.get(options);
 
-  if (alreadyResolvedOptions !== undefined) {
-    return alreadyResolvedOptions;
+  if (resolvedOptions !== undefined) {
+    return resolvedOptions;
   }
 
   const {
-    foreignTags,
     areSelfClosingTagsRecognized = false,
     areCDATASectionsRecognized = false,
     areProcessingInstructionsRecognized = false,
   } = options;
 
-  const resolvedOptions: ContextualTokenReaderOptions = {
+  resolvedOptions = {
     tagOptionsMap: undefined,
-    foreignTagMap: undefined,
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,
     areProcessingInstructionsRecognized,
   };
 
   resolvedOptionsMap.set(options, resolvedOptions);
-
-  if (foreignTags === undefined) {
-    return resolvedOptions;
-  }
-
-  resolvedOptions.foreignTagMap = new Map(
-    Object.entries(foreignTags).map(entry => [
-      toHashCode(entry[0]),
-      resolveContextualTokenReaderOptions(entry[1], toHashCode, resolvedOptionsMap),
-    ])
-  );
 
   return resolvedOptions;
 }

@@ -50,7 +50,7 @@ export interface ParserOptions extends TokenizerOptions {
 
   /**
    * If `true`, NUL chars are removed from text outside of {@link TagParsingOptions.kind raw text tags} and
-   * {@link foreignTags foreign tags}, and replaced with U+FFFD everywhere else, like HTML does.
+   * {@link TagParsingOptions.foreignContext foreign tags}, and replaced with U+FFFD everywhere else, like HTML does.
    *
    * @default false
    */

@@ -1499,7 +1499,7 @@ describe('tokenizeMarkup', () => {
       '<aaa><bbb/><ccc><ddd/></ccc></aaa>',
       callbackMock,
       resolveTokenizerOptions({
-        foreignTags: { ccc: { areSelfClosingTagsRecognized: true } },
+        tags: { ccc: { foreignContext: { areSelfClosingTagsRecognized: true } } },
         areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
@@ -1522,7 +1522,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa><ccc>ddd</ccc><ccc>fff</ccc></aaa>',
       callbackMock,
-      resolveTokenizerOptions({ foreignTags: { ccc: { areSelfClosingTagsRecognized: true } } })
+      resolveTokenizerOptions({ tags: { ccc: { foreignContext: { areSelfClosingTagsRecognized: true } } } })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
@@ -1544,11 +1544,13 @@ describe('tokenizeMarkup', () => {
       '<aaa><bbb><ccc><ddd/>xxx</ccc><eee/>',
       callbackMock,
       resolveTokenizerOptions({
-        foreignTags: {
+        tags: {
           bbb: {
-            areSelfClosingTagsRecognized: true,
-            foreignTags: {
-              ccc: { areSelfClosingTagsRecognized: false },
+            foreignContext: {
+              areSelfClosingTagsRecognized: true,
+              tags: {
+                ccc: { foreignContext: { areSelfClosingTagsRecognized: false } },
+              },
             },
           },
         },
@@ -1578,7 +1580,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa/><bbb/></bbb>',
       callbackMock,
-      resolveTokenizerOptions({ foreignTags: { aaa: { areSelfClosingTagsRecognized: true } } })
+      resolveTokenizerOptions({ tags: { aaa: { foreignContext: { areSelfClosingTagsRecognized: true } } } })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
@@ -1594,7 +1596,7 @@ describe('tokenizeMarkup', () => {
       '<aaa><bbb></aaa><ccc/></ccc>',
       callbackMock,
       resolveTokenizerOptions({
-        foreignTags: { bbb: { areSelfClosingTagsRecognized: true } },
+        tags: { bbb: { foreignContext: { areSelfClosingTagsRecognized: true } } },
         areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
@@ -1614,8 +1616,8 @@ describe('tokenizeMarkup', () => {
   test('restores options after a foreign tag that shares options with the root', () => {
     const options: TokenizerOptions = {};
 
-    options.foreignTags = {
-      aaa: { areSelfClosingTagsRecognized: true, foreignTags: { bbb: options } },
+    options.tags = {
+      aaa: { foreignContext: { areSelfClosingTagsRecognized: true, tags: { bbb: { foreignContext: options } } } },
     };
 
     tokenizeMarkup('<aaa><bbb></bbb></aaa><ccc/></ccc>', callbackMock, resolveTokenizerOptions(options));
@@ -1636,7 +1638,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa><bbb></bbb></aaa>',
       callbackMock,
-      resolveTokenizerOptions({ tags: { bbb: { kind: 'void' } }, foreignTags: { aaa: {} } })
+      resolveTokenizerOptions({ tags: { aaa: { foreignContext: {} }, bbb: { kind: 'void' } } })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
@@ -1652,7 +1654,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa><bbb></aaa>',
       callbackMock,
-      resolveTokenizerOptions({ foreignTags: { aaa: { tags: { bbb: { kind: 'void' } } } } })
+      resolveTokenizerOptions({ tags: { aaa: { foreignContext: { tags: { bbb: { kind: 'void' } } } } } })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
@@ -1669,8 +1671,7 @@ describe('tokenizeMarkup', () => {
       '<bbb><aaa><ccc>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { bbb: { implicitlyEndedBy: ['ccc'] } },
-        foreignTags: { aaa: {} },
+        tags: { aaa: { foreignContext: {} }, bbb: { implicitlyEndedBy: ['ccc'] } },
         areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
@@ -1692,8 +1693,10 @@ describe('tokenizeMarkup', () => {
       '<bbb><aaa><ddd>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { bbb: { implicitlyEndedBy: ['ccc'] } },
-        foreignTags: { aaa: { tags: { eee: { implicitlyEndedBy: ['ddd'] } } } },
+        tags: {
+          aaa: { foreignContext: { tags: { eee: { implicitlyEndedBy: ['ddd'] } } } },
+          bbb: { implicitlyEndedBy: ['ccc'] },
+        },
         areUnbalancedStartTagsImplicitlyEnded: true,
       })
     );
@@ -1715,8 +1718,7 @@ describe('tokenizeMarkup', () => {
       '<aaa><bbb>ccc',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { kind: 'void' } },
-        foreignTags: { aaa: {} },
+        tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'void' } },
       })
     );
 
@@ -1735,8 +1737,7 @@ describe('tokenizeMarkup', () => {
       '<aaa><bbb><ccc></bbb>',
       callbackMock,
       resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { kind: 'raw_text' } },
-        foreignTags: { aaa: {} },
+        tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'raw_text' } },
       })
     );
 
@@ -1754,7 +1755,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '<aaa></bbb></aaa>',
       callbackMock,
-      resolveTokenizerOptions({ foreignTags: { aaa: { tags: { bbb: { isImplicitlyStarted: true } } } } })
+      resolveTokenizerOptions({ tags: { aaa: { foreignContext: { tags: { bbb: { isImplicitlyStarted: true } } } } } })
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
