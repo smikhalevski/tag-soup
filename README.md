@@ -272,29 +272,29 @@ string literals. `startIndex` and `endIndex` point to the token's value in the i
 `endIndex` is exclusive.
 
 <dl>
-<dt><code>"TEXT"</code></dt>
+<dt><code>"text"</code></dt>
 <dd>Text between tags.</dd>
-<dt><code>"START_TAG_NAME"</code></dt>
+<dt><code>"start_tag_name"</code></dt>
 <dd>The tag name in a start tag, <code>p</code> in <code>&lt;p&gt;</code>.</dd>
-<dt><code>"START_TAG_CLOSING"</code></dt>
+<dt><code>"start_tag_closing"</code></dt>
 <dd>The <code>&gt;</code> that closes a start tag.</dd>
-<dt><code>"START_TAG_SELF_CLOSING"</code></dt>
+<dt><code>"start_tag_self_closing"</code></dt>
 <dd>The <code>/&gt;</code> that closes a self-closing tag.</dd>
-<dt><code>"END_TAG_NAME"</code></dt>
+<dt><code>"end_tag_name"</code></dt>
 <dd>The tag name in an end tag, <code>p</code> in <code>&lt;/p&gt;</code>.</dd>
-<dt><code>"ATTRIBUTE_NAME"</code></dt>
+<dt><code>"attribute_name"</code></dt>
 <dd>An attribute name.</dd>
-<dt><code>"ATTRIBUTE_VALUE"</code></dt>
+<dt><code>"attribute_value"</code></dt>
 <dd>An attribute value without quotes. Tokenizers don't decode entities.</dd>
-<dt><code>"COMMENT"</code></dt>
+<dt><code>"comment"</code></dt>
 <dd>Comment content between <code>&lt;!--</code> and <code>--&gt;</code>.</dd>
-<dt><code>"PROCESSING_INSTRUCTION_TARGET"</code></dt>
+<dt><code>"processing_instruction_target"</code></dt>
 <dd>The target of a processing instruction, <code>xml</code> in <code>&lt;?xml version="1.0"?&gt;</code>.</dd>
-<dt><code>"PROCESSING_INSTRUCTION_DATA"</code></dt>
+<dt><code>"processing_instruction_data"</code></dt>
 <dd>The data of a processing instruction, <code>version="1.0"</code> in <code>&lt;?xml version="1.0"?&gt;</code>.</dd>
-<dt><code>"CDATA_SECTION"</code></dt>
+<dt><code>"cdata_section"</code></dt>
 <dd>CDATA section content between <code>&lt;![CDATA[</code> and <code>]]&gt;</code>.</dd>
-<dt><code>"DOCTYPE_NAME"</code></dt>
+<dt><code>"doctype_name"</code></dt>
 <dd>The name in a DOCTYPE declaration, <code>html</code> in <code>&lt;!DOCTYPE html&gt;</code>.</dd>
 </dl>
 
@@ -309,7 +309,7 @@ import { HTMLTokenizer } from 'tag-soup';
 const input = '<p class="x">hello</p>';
 
 HTMLTokenizer.tokenizeFragment(input, (token, startIndex, endIndex) => {
-  if (token === 'ATTRIBUTE_VALUE') {
+  if (token === 'attribute_value') {
     input.substring(startIndex, endIndex);
     // ⮕ 'x'
   }

@@ -182,7 +182,7 @@ export function parseSAX(
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
-      case 'TEXT':
+      case 'text':
         if (handler.onText !== undefined) {
           const text = input.substring(startIndex, endIndex);
 
@@ -190,7 +190,7 @@ export function parseSAX(
         }
         break;
 
-      case 'START_TAG_NAME': {
+      case 'start_tag_name': {
         const tagOptions = state.tagOptions;
 
         let tagName;
@@ -214,7 +214,7 @@ export function parseSAX(
         break;
       }
 
-      case 'START_TAG_CLOSING':
+      case 'start_tag_closing':
         if (handler.onStartTagClosing !== undefined) {
           handler.onStartTagClosing();
         }
@@ -225,7 +225,7 @@ export function parseSAX(
         }
         break;
 
-      case 'START_TAG_SELF_CLOSING':
+      case 'start_tag_self_closing':
         isRawText = false;
 
         if (handler.onStartTagSelfClosing !== undefined) {
@@ -240,7 +240,7 @@ export function parseSAX(
         --tagNameStackCursor;
         break;
 
-      case 'END_TAG_NAME':
+      case 'end_tag_name':
         isRawText = false;
 
         if (handler.onEndTag !== undefined) {
@@ -250,12 +250,12 @@ export function parseSAX(
         --tagNameStackCursor;
         break;
 
-      case 'ATTRIBUTE_NAME':
+      case 'attribute_name':
         attributeNameStartIndex = startIndex;
         attributeNameEndIndex = endIndex;
         break;
 
-      case 'ATTRIBUTE_VALUE': {
+      case 'attribute_value': {
         if (attributes === undefined && handler.onAttribute === undefined) {
           break;
         }
@@ -273,30 +273,30 @@ export function parseSAX(
         break;
       }
 
-      case 'CDATA_SECTION':
+      case 'cdata_section':
         if (handler.onCDATASection !== undefined) {
           handler.onCDATASection(input.substring(startIndex, endIndex));
         }
         break;
 
-      case 'COMMENT':
+      case 'comment':
         if (handler.onComment !== undefined) {
           handler.onComment(input.substring(startIndex, endIndex));
         }
         break;
 
-      case 'DOCTYPE_NAME':
+      case 'doctype_name':
         if (handler.onDoctype !== undefined) {
           handler.onDoctype(input.substring(startIndex, endIndex));
         }
         break;
 
-      case 'PROCESSING_INSTRUCTION_TARGET':
+      case 'processing_instruction_target':
         piTargetStartIndex = startIndex;
         piTargetEndIndex = endIndex;
         break;
 
-      case 'PROCESSING_INSTRUCTION_DATA':
+      case 'processing_instruction_data':
         if (handler.onProcessingInstruction !== undefined) {
           handler.onProcessingInstruction(
             input.substring(piTargetStartIndex, piTargetEndIndex),

@@ -43,18 +43,18 @@ ParserError.prototype.name = 'ParserError';
 /**
  * A token that can be read from text. Indices passed to {@link TokenCallback} along with a token point to:
  *
- * - `TEXT`: text between tags.
- * - `START_TAG_NAME`: the tag name in a start tag, `p` in `<p>`.
- * - `START_TAG_CLOSING`: the `>` that closes a start tag.
- * - `START_TAG_SELF_CLOSING`: the `/>` that closes a self-closing tag.
- * - `END_TAG_NAME`: the tag name in an end tag, `p` in `</p>`.
- * - `ATTRIBUTE_NAME`: an attribute name.
- * - `ATTRIBUTE_VALUE`: an attribute value without quotes. Entities aren't decoded.
- * - `COMMENT`: comment content between `<!--` and `-->`.
- * - `PROCESSING_INSTRUCTION_TARGET`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
- * - `PROCESSING_INSTRUCTION_DATA`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
- * - `CDATA_SECTION`: CDATA section content between `<![CDATA[` and `]]>`.
- * - `DOCTYPE_NAME`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
+ * - `text`: text between tags.
+ * - `start_tag_name`: the tag name in a start tag, `p` in `<p>`.
+ * - `start_tag_closing`: the `>` that closes a start tag.
+ * - `start_tag_self_closing`: the `/>` that closes a self-closing tag.
+ * - `end_tag_name`: the tag name in an end tag, `p` in `</p>`.
+ * - `attribute_name`: an attribute name.
+ * - `attribute_value`: an attribute value without quotes. Entities aren't decoded.
+ * - `comment`: comment content between `<!--` and `-->`.
+ * - `processing_instruction_target`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
+ * - `processing_instruction_data`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
+ * - `cdata_section`: CDATA section content between `<![CDATA[` and `]]>`.
+ * - `doctype_name`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
  *
  * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
  * indices.
@@ -62,18 +62,18 @@ ParserError.prototype.name = 'ParserError';
  * @group Tokenizer
  */
 export type Token =
-  | 'TEXT'
-  | 'START_TAG_NAME'
-  | 'START_TAG_CLOSING'
-  | 'START_TAG_SELF_CLOSING'
-  | 'END_TAG_NAME'
-  | 'ATTRIBUTE_NAME'
-  | 'ATTRIBUTE_VALUE'
-  | 'COMMENT'
-  | 'PROCESSING_INSTRUCTION_TARGET'
-  | 'PROCESSING_INSTRUCTION_DATA'
-  | 'CDATA_SECTION'
-  | 'DOCTYPE_NAME';
+  | 'text'
+  | 'start_tag_name'
+  | 'start_tag_closing'
+  | 'start_tag_self_closing'
+  | 'end_tag_name'
+  | 'attribute_name'
+  | 'attribute_value'
+  | 'comment'
+  | 'processing_instruction_target'
+  | 'processing_instruction_data'
+  | 'cdata_section'
+  | 'doctype_name';
 
 /**
  * A callback that is invoked when a token is read from text.
@@ -187,13 +187,13 @@ export interface ResolvedTagOptions {
  */
 export interface TokenizerState {
   /**
-   * The hash code of the start tag name, set before a `START_TAG_NAME` token is passed to a callback, so the callback
+   * The hash code of the start tag name, set before a `start_tag_name` token is passed to a callback, so the callback
    * doesn't have to hash the name again.
    */
   tagHashCode: number;
 
   /**
-   * Resolved options of the start tag, or `undefined` if options don't mention the tag. Set before a `START_TAG_NAME`
+   * Resolved options of the start tag, or `undefined` if options don't mention the tag. Set before a `start_tag_name`
    * token is passed to a callback, so the callback doesn't have to look the tag up again. {@link tokenizeMarkup} looks
    * the tag up again if implicit ending switches the context.
    */
@@ -518,18 +518,18 @@ const SCOPE_PROLOGUE = 0;
 const SCOPE_TEXT = 1;
 const SCOPE_START_TAG = 2;
 
-const TOKEN_TEXT = 'TEXT';
-const TOKEN_START_TAG_NAME = 'START_TAG_NAME';
-const TOKEN_START_TAG_CLOSING = 'START_TAG_CLOSING';
-const TOKEN_START_TAG_SELF_CLOSING = 'START_TAG_SELF_CLOSING';
-const TOKEN_END_TAG_NAME = 'END_TAG_NAME';
-const TOKEN_ATTRIBUTE_NAME = 'ATTRIBUTE_NAME';
-const TOKEN_ATTRIBUTE_VALUE = 'ATTRIBUTE_VALUE';
-const TOKEN_COMMENT = 'COMMENT';
-const TOKEN_PROCESSING_INSTRUCTION_TARGET = 'PROCESSING_INSTRUCTION_TARGET';
-const TOKEN_PROCESSING_INSTRUCTION_DATA = 'PROCESSING_INSTRUCTION_DATA';
-const TOKEN_CDATA_SECTION = 'CDATA_SECTION';
-const TOKEN_DOCTYPE_NAME = 'DOCTYPE_NAME';
+const TOKEN_TEXT = 'text';
+const TOKEN_START_TAG_NAME = 'start_tag_name';
+const TOKEN_START_TAG_CLOSING = 'start_tag_closing';
+const TOKEN_START_TAG_SELF_CLOSING = 'start_tag_self_closing';
+const TOKEN_END_TAG_NAME = 'end_tag_name';
+const TOKEN_ATTRIBUTE_NAME = 'attribute_name';
+const TOKEN_ATTRIBUTE_VALUE = 'attribute_value';
+const TOKEN_COMMENT = 'comment';
+const TOKEN_PROCESSING_INSTRUCTION_TARGET = 'processing_instruction_target';
+const TOKEN_PROCESSING_INSTRUCTION_DATA = 'processing_instruction_data';
+const TOKEN_CDATA_SECTION = 'cdata_section';
+const TOKEN_DOCTYPE_NAME = 'doctype_name';
 
 /**
  * Options that are applied depending on the enclosing foreign tag.
@@ -615,7 +615,7 @@ export interface TokenReaderOptions {
  * Use {@link tokenizeMarkup} to get balanced tokens.
  *
  * Contextual options are read from {@link TokenizerState.context} on every use, and options of a start tag are read
- * from {@link TokenizerState.tagOptions} after the `START_TAG_NAME` callback, so the callback can change both.
+ * from {@link TokenizerState.tagOptions} after the `start_tag_name` callback, so the callback can change both.
  *
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.

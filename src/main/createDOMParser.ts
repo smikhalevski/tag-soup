@@ -93,14 +93,14 @@ export function parseDOM(
 
   const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
     switch (token) {
-      case 'TEXT': {
+      case 'text': {
         const text = input.substring(startIndex, endIndex);
 
         parent.appendChild(new Text(isRawText ? text : decodeText(text)));
         break;
       }
 
-      case 'START_TAG_NAME': {
+      case 'start_tag_name': {
         const tagOptions = state.tagOptions;
 
         // Text inside raw text tags isn't decoded
@@ -110,40 +110,40 @@ export function parseDOM(
         break;
       }
 
-      case 'START_TAG_CLOSING':
+      case 'start_tag_closing':
         break;
 
-      case 'START_TAG_SELF_CLOSING':
-      case 'END_TAG_NAME':
+      case 'start_tag_self_closing':
+      case 'end_tag_name':
         isRawText = false;
         parent = parent.parentNode!;
         break;
 
-      case 'ATTRIBUTE_NAME':
+      case 'attribute_name':
         attributeName = input.substring(startIndex, endIndex);
         break;
 
-      case 'ATTRIBUTE_VALUE':
+      case 'attribute_value':
         (parent as Element).setAttribute(attributeName, decodeAttribute(input.substring(startIndex, endIndex)));
         break;
 
-      case 'CDATA_SECTION':
+      case 'cdata_section':
         parent.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
         break;
 
-      case 'COMMENT':
+      case 'comment':
         parent.appendChild(new Comment(input.substring(startIndex, endIndex)));
         break;
 
-      case 'DOCTYPE_NAME':
+      case 'doctype_name':
         parent.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
         break;
 
-      case 'PROCESSING_INSTRUCTION_TARGET':
+      case 'processing_instruction_target':
         piTarget = input.substring(startIndex, endIndex);
         break;
 
-      case 'PROCESSING_INSTRUCTION_DATA':
+      case 'processing_instruction_data':
         parent.appendChild(new ProcessingInstruction(piTarget, input.substring(startIndex, endIndex)));
         break;
     }

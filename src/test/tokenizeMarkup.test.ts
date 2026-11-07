@@ -31,439 +31,439 @@ describe('readTokens', () => {
     readTokens('aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
   });
 
   test('reads the leading lt as text', () => {
     readTokens('>aaa>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 5);
   });
 
   test('treats gt followed by non tag name character as text', () => {
     readTokens('aaa<+ccc', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 8);
   });
 
   test('reads the start tag as a text if name begins with a non-valid char', () => {
     readTokens('<@#$%*>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 7);
   });
 
   test('reads the start tag if name begins with a valid char followed by invalid chars', () => {
     readTokens('<xxx@#$%*>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 9, 10);
   });
 
   test('ignores bullshit in end tags', () => {
     readTokens('</xxx @#$%*/>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'END_TAG_NAME', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'end_tag_name', 2, 5);
   });
 
   test('reads the start tag in double brackets', () => {
     readTokens('<<xxx>>aaa</xxx>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 1);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 2, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 5, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 6, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 1);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 6, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 12, 15);
   });
 
   test('reads empty start tag names as text and empty end tag names as comments', () => {
     readTokens('< ></ >', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 5, 6);
   });
 
   test('reads non-alpha start tag names as text and non-alpha end tag names as comments', () => {
     readTokens('<111></111>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 7, 10);
   });
 
   test('reads the malformed end tag as a comment', () => {
     readTokens('</ xxx>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 2, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 2, 6);
   });
 
   test('ignores end tags without a name and content', () => {
     readTokens('aaa</>bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 6, 9);
   });
 
   test('reads </ at the end of the input as text', () => {
     readTokens('aaa</', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 5);
   });
 
   test('reads unterminated start tags', () => {
     readTokens('<aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
   });
 
   test('reads unterminated attributes', () => {
     readTokens('<aaa xxx="zzz', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 13);
   });
 
   test('reads unterminated end tags', () => {
     readTokens('</aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'END_TAG_NAME', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'end_tag_name', 2, 5);
   });
 
   test('reads start and end tags', () => {
     readTokens('aaa<xxx>bbb</xxx>ccc', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 13, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 17, 20);
   });
 
   test('parses comments', () => {
     readTokens('aaa<xxx>bbb<!--</xxx>ccc--></xxx>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 15, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 29, 32);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'comment', 15, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 29, 32);
   });
 
   test('parses empty comments', () => {
     readTokens('aaa<!---->bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 7, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 7, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 10, 13);
   });
 
   test('reads <!--> as an empty comment', () => {
     readTokens('<!-->aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 5, 8);
   });
 
   test('reads <!---> as an empty comment', () => {
     readTokens('<!--->aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 6, 9);
   });
 
   test('reads comments closed with --!>', () => {
     readTokens('<!--aaa--!>bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 11, 14);
   });
 
   test('reads dashes before the comment closing as a part of the comment', () => {
     readTokens('<!--aaa--->', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 8);
   });
 
   test('reads an unclosed comment without -- at the end of the input', () => {
     readTokens('<!--aaa--', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
   });
 
   test('reads an unclosed comment without --! at the end of the input', () => {
     readTokens('<!--aaa--!', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
   });
 
   test('reads an unclosed comment without - at the end of the input', () => {
     readTokens('<!--aaa-', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
   });
 
   test('reads an unclosed empty comment', () => {
     readTokens('<!--', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 4);
   });
 
   test('parses body DTD as comment', () => {
     readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 13, 18);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 19, 25);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 27, 30);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'comment', 13, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 19, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 27, 30);
   });
 
   test('parse empty DTD as comment', () => {
     readTokens('aaa<!>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 6, 9);
   });
 
   test('parses processing instructions as comments', () => {
     readTokens('aaa<?xml version="1.0"?>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 4, 23);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 4, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 24, 27);
   });
 
   test('parses empty processing instructions as comments', () => {
     readTokens('aaa<?>bbb', callbackMock, { isFragment: true });
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 6, 9);
   });
 
   test('does not reads emojis as tag names', () => {
     readTokens('aaa<❤️>bbb</👨‍❤️‍💋‍👨>ccc', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 12, 23);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 12, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 24, 27);
   });
 
   test('reads lt as an attribute name', () => {
     readTokens('<aaa <></aaa>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 6, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 6, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 6, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 6, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 9, 12);
   });
 
   test('ignores redundant spaces before start tag closing', () => {
     readTokens('aaa<xxx   >bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 10, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 10, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 11, 14);
   });
 
   test('ignores redundant spaces before end tag closing', () => {
     readTokens('aaa</xxx   >bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'END_TAG_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'end_tag_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 12, 15);
   });
 
   test('reads nested tags', () => {
     readTokens('aaa<yyy>bbb<xxx>ccc</xxx>ddd</yyy>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(10);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 15, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 16, 19);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 21, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'TEXT', 25, 28);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 30, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 15, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'text', 25, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'end_tag_name', 30, 33);
   });
 
   test('reads single-quoted attributes', () => {
     readTokens("<xxx yyy='aaa\"bbb' zzz='aaa\"bbb'>", callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 17);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 19, 22);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 24, 31);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 32, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 19, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 24, 31);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 32, 33);
   });
 
   test('reads double-quoted attributes', () => {
     readTokens('<xxx yyy="aaa\'bbb" zzz="aaa\'bbb">', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 17);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 19, 22);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 24, 31);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 32, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 19, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 24, 31);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 32, 33);
   });
 
   test('reads unquoted attributes', () => {
     readTokens('<xxx yyy=aaa"bbb\'ccc>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 20, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 20, 21);
   });
 
   test('reads valueless attributes', () => {
     readTokens('<xxx aaa bbb>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 9, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 12, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 12, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 12, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 12, 13);
   });
 
   test('reads valueless attribute at the end of the input', () => {
     readTokens('<xxx aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 8, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 8, 8);
   });
 
   test('reads equals sign in unquoted attribute value', () => {
     readTokens('<xxx aaa= bbb=>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 14, 15);
   });
 
   test('reads slashes in unquoted attribute value', () => {
     readTokens('<xxx aaa=bbb/ccc>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 16, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 16, 17);
   });
 
   test('reads entities in attributes', () => {
     readTokens('<xxx aaa=&amp; bbb="&amp;" ccc=\'&amp;\' ddd=>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(10);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 15, 18);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 20, 25);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'ATTRIBUTE_NAME', 27, 30);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'ATTRIBUTE_VALUE', 32, 37);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'ATTRIBUTE_NAME', 39, 42);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'ATTRIBUTE_VALUE', 43, 43);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'START_TAG_CLOSING', 43, 44);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 15, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 20, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'attribute_name', 27, 30);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'attribute_value', 32, 37);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'attribute_name', 39, 42);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'attribute_value', 43, 43);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'start_tag_closing', 43, 44);
   });
 
   test('ignores leading slash in an attribute name', () => {
     readTokens('<aaa /xxx></xxx aaa>bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 20, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 20, 23);
   });
 
   test('reads bullshit attribute names', () => {
     readTokens("<xxx < = '' fff>vvv</xxx>", callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 15, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 15, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 16, 19);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 15, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 21, 24);
   });
 
   test('reads attributes with unbalanced end quotes', () => {
     readTokens('<xxx yyy="aaa"bbb">', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 14, 18);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 18, 18);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 18, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 14, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 18, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 18, 19);
   });
 
   test('does not read self-closing tags by default', () => {
     readTokens('<xxx/>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 5, 6);
   });
 
   test('reads self-closing tag', () => {
@@ -472,8 +472,8 @@ describe('readTokens', () => {
     readTokens('<xxx/>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_SELF_CLOSING', 4, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_self_closing', 4, 6);
   });
 
   test('does not read self-closing tag with the unquoted attribute that ends with a slash', () => {
@@ -482,55 +482,55 @@ describe('readTokens', () => {
     readTokens('<xxx aaa=bbb//>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 14, 15);
   });
 
   test('ignores redundant spaces in attributes', () => {
     readTokens('aaa<yyy xxx   =   "zzz">bbb', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_NAME', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_VALUE', 19, 22);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 23, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_name', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_value', 19, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 23, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 24, 27);
   });
 
   test('does not read tags in double-quoted attribute', () => {
     readTokens('<aaa xxx="bbb<zzz>ccc</zzz>">', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 27);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 28, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 28, 29);
   });
 
   test('does not read tags in single-quoted attribute', () => {
     readTokens("<aaa xxx='bbb<zzz>ccc</zzz>'>", callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 27);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 28, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 28, 29);
   });
 
   test('does not read tags in unquoted attribute', () => {
     readTokens('<aaa xxx=bbb<zzz>ccc</zzz>>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 9, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 16, 17);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 17, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 22, 25);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 26, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 9, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 16, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 22, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 26, 27);
   });
 
   test('ignores tags in raw text tags', () => {
@@ -539,10 +539,10 @@ describe('readTokens', () => {
     readTokens('<script><aaa>bbb</aaa></script>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 8, 22);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 24, 30);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 8, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 24, 30);
   });
 
   test('reads attributes of a raw text tag', () => {
@@ -551,14 +551,14 @@ describe('readTokens', () => {
     readTokens('<script aaa="xxx" ccc="yyy">zzz</script>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 13, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'ATTRIBUTE_NAME', 18, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'ATTRIBUTE_VALUE', 23, 26);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 27, 28);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 28, 31);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 33, 39);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'attribute_name', 18, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'attribute_value', 23, 26);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 27, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 28, 31);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 33, 39);
   });
 
   test('reads tags after a self-closing raw text tag', () => {
@@ -570,11 +570,11 @@ describe('readTokens', () => {
     readTokens('<aaa/><bbb></bbb>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_SELF_CLOSING', 4, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 10, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_self_closing', 4, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 10, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 13, 16);
   });
 
   test('ignores tags in escapable raw text tags', () => {
@@ -583,10 +583,10 @@ describe('readTokens', () => {
     readTokens('<aaa><bbb></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 12, 15);
   });
 
   test('ignores comments in raw text tags', () => {
@@ -595,10 +595,10 @@ describe('readTokens', () => {
     readTokens('<script><!-->bbb</--></script>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 8, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 23, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 8, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 23, 29);
   });
 
   test('matches case-insensitive end raw text tags', () => {
@@ -610,10 +610,10 @@ describe('readTokens', () => {
     readTokens('<script><!-->bbb</--></SCRIPT>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 8, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 23, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 8, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 23, 29);
   });
 
   test('does not end a raw text tag with an end tag that has the same hash code but a different name', () => {
@@ -623,10 +623,10 @@ describe('readTokens', () => {
     readTokens('<aQ></b0></aQ>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 3, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 4, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 11, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 3, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 4, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 11, 13);
   });
 
   test('does not end raw text with an end tag at the end of the input', () => {
@@ -635,9 +635,9 @@ describe('readTokens', () => {
     readTokens('<aaa></aaa', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 10);
   });
 
   test('ends raw text with an end tag that follows another end tag without a closing', () => {
@@ -646,10 +646,10 @@ describe('readTokens', () => {
     readTokens('<aaa></bbb</aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 12, 15);
   });
 
   test('does not end script data with an end tag after an escaped start tag', () => {
@@ -658,10 +658,10 @@ describe('readTokens', () => {
     readTokens('<aaa><!--<aaa></aaa></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 22, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 22, 25);
   });
 
   test('ends escaped script data with an end tag', () => {
@@ -670,10 +670,10 @@ describe('readTokens', () => {
     readTokens('<aaa><!--</aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 11, 14);
   });
 
   test('ends escaping of script data at -->', () => {
@@ -682,10 +682,10 @@ describe('readTokens', () => {
     readTokens('<aaa><!--<aaa>--></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 17);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 19, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 19, 22);
   });
 
   test('does not escape script data with <!-->', () => {
@@ -694,53 +694,53 @@ describe('readTokens', () => {
     readTokens('<aaa><!--><aaa></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 17, 20);
   });
 
   test('reads lower-case DOCTYPE', () => {
     readTokens('<!doctype html>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 10, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 10, 14);
   });
 
   test('reads empty DOCTYPE', () => {
     readTokens('<!doctype>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 9, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 9, 9);
   });
 
   test('reads DOCTYPE name without separating spaces', () => {
     readTokens('<!doctypehtml   >', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 9, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 9, 13);
   });
 
   test('ignores spaces surrounding DOCTYPE', () => {
     readTokens('   <!DOCTYPE>   ', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 12, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 12, 12);
   });
 
   test('reads non-empty DOCTYPE', () => {
     readTokens('<!DOCTYPE html>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 10, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 10, 14);
   });
 
   test('reads DOCTYPE after comment', () => {
     readTokens('<!--xxx-->   \n\n   <!DOCTYPE html>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'DOCTYPE_NAME', 28, 32);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'doctype_name', 28, 32);
   });
 
   test('reads DOCTYPE and processing instruction after comment', () => {
@@ -754,11 +754,11 @@ describe('readTokens', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'DOCTYPE_NAME', 28, 32);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'COMMENT', 37, 40);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'PROCESSING_INSTRUCTION_TARGET', 53, 56);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'PROCESSING_INSTRUCTION_DATA', 57, 60);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'doctype_name', 28, 32);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'comment', 37, 40);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'processing_instruction_target', 53, 56);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'processing_instruction_data', 57, 60);
   });
 
   test('reads processing instruction and DOCTYPE separated with spaces', () => {
@@ -767,38 +767,38 @@ describe('readTokens', () => {
     readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 9, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'DOCTYPE_NAME', 27, 31);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'processing_instruction_target', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'processing_instruction_data', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'doctype_name', 27, 31);
   });
 
   test('reads quirky comment before DOCTYPE', () => {
     readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'DOCTYPE_NAME', 27, 31);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'doctype_name', 27, 31);
   });
 
   test('skips spaces after the malformed end tag in prolog', () => {
     readTokens('   </#>   aaa', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 5, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 10, 13);
   });
 
   test('reads quirky comment in a container', () => {
     readTokens('   <aaa>   <?xml bbb?>   </aaa>   ', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 12, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 22, 25);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 27, 30);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 31, 34);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'comment', 12, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 22, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 27, 30);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 31, 34);
   });
 
   test('closes prolog with DOCTYPE after text', () => {
@@ -807,10 +807,10 @@ describe('readTokens', () => {
     readTokens('<!DOCTYPE html>aaa<?xml aaa?>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'DOCTYPE_NAME', 10, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'TEXT', 15, 18);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'PROCESSING_INSTRUCTION_TARGET', 20, 23);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'PROCESSING_INSTRUCTION_DATA', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 10, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 15, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'processing_instruction_target', 20, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'processing_instruction_data', 24, 27);
   });
 
   test('closes prolog with processing instruction after text', () => {
@@ -819,10 +819,10 @@ describe('readTokens', () => {
     readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 16, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'processing_instruction_target', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'processing_instruction_data', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'comment', 16, 28);
   });
 
   test('closes multiple processing instruction in prolog', () => {
@@ -831,12 +831,12 @@ describe('readTokens', () => {
     readTokens('   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 9, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'PROCESSING_INSTRUCTION_TARGET', 18, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'PROCESSING_INSTRUCTION_DATA', 22, 25);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'PROCESSING_INSTRUCTION_TARGET', 31, 34);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'PROCESSING_INSTRUCTION_DATA', 35, 38);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'processing_instruction_target', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'processing_instruction_data', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'processing_instruction_target', 18, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'processing_instruction_data', 22, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'processing_instruction_target', 31, 34);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'processing_instruction_data', 35, 38);
   });
 
   test('reads text after processing instruction', () => {
@@ -845,12 +845,12 @@ describe('readTokens', () => {
     readTokens('<aaa><?xxx bbb?>ccc</aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'PROCESSING_INSTRUCTION_TARGET', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'PROCESSING_INSTRUCTION_DATA', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 16, 19);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'processing_instruction_target', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'processing_instruction_data', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 21, 24);
   });
 
   test('closes prolog after tag', () => {
@@ -859,27 +859,27 @@ describe('readTokens', () => {
     readTokens('<?xml aaa?><aaa><!DOCTYPE html>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 15, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'COMMENT', 18, 30);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'processing_instruction_target', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'processing_instruction_data', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 15, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'comment', 18, 30);
   });
 
   test('closes prolog after end tag', () => {
     readTokens('</aaa><!DOCTYPE html>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'END_TAG_NAME', 2, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 8, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'end_tag_name', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 8, 20);
   });
 
   test('closes prolog after start tag without a name', () => {
     readTokens('< ><!DOCTYPE html>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'COMMENT', 5, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'comment', 5, 17);
   });
 
   test('closes prolog after text', () => {
@@ -888,17 +888,17 @@ describe('readTokens', () => {
     readTokens('<?xml aaa?>aaa<!DOCTYPE html>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'PROCESSING_INSTRUCTION_TARGET', 2, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'PROCESSING_INSTRUCTION_DATA', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'COMMENT', 16, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'processing_instruction_target', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'processing_instruction_data', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'comment', 16, 28);
   });
 
   test('reads CDATA as comment', () => {
     readTokens('<![CDATA[]]>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 2, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 2, 11);
   });
 
   test('reads empty CDATA', () => {
@@ -907,7 +907,7 @@ describe('readTokens', () => {
     readTokens('<![CDATA[]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'cdata_section', 9, 9);
   });
 
   test('reads non-empty CDATA', () => {
@@ -916,7 +916,7 @@ describe('readTokens', () => {
     readTokens('<![CDATA[aaa]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'cdata_section', 9, 12);
   });
 
   test('ignores CDATA in raw tag', () => {
@@ -925,10 +925,10 @@ describe('readTokens', () => {
     readTokens('<aaa><![CDATA[aaa]]></aaa>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 22, 25);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 22, 25);
   });
 
   test('does not read CDATA without an exclamation mark', () => {
@@ -937,8 +937,8 @@ describe('readTokens', () => {
     readTokens('<a[CDATA[]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 11, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 11, 12);
   });
 
   test('does not read tags inside CDATA', () => {
@@ -947,7 +947,7 @@ describe('readTokens', () => {
     readTokens('<![CDATA[<aaa>bbb</aaa>]]>', callbackMock, options, makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'CDATA_SECTION', 9, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'cdata_section', 9, 23);
   });
 
   test('strict throws if invalid char in start tag', () => {
@@ -991,10 +991,10 @@ describe('readTokens', () => {
     readTokens("<aaa bbb='ccc'>", callbackMock, resolveTokenizerOptions({ isStrict: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'ATTRIBUTE_NAME', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'ATTRIBUTE_VALUE', 10, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'attribute_name', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'attribute_value', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 14, 15);
   });
 
   test('strict throws if attribute value is not terminated', () => {
@@ -1043,7 +1043,7 @@ describe('readTokens', () => {
     readTokens('<!-->aaa-->', callbackMock, resolveTokenizerOptions({ isStrict: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'COMMENT', 4, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 8);
   });
 
   test('strict throws if CDATA section is not terminated', () => {
@@ -1110,7 +1110,7 @@ describe('readTokens', () => {
     readTokens(
       '<aaa><bbb>',
       token => {
-        if (token === 'START_TAG_NAME') {
+        if (token === 'start_tag_name') {
           states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
         }
       },
@@ -1130,10 +1130,10 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup('<aaa>bbb</aaa>', callbackMock);
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 10, 13);
   });
 
   test('reads the unbalanced start tag', () => {
@@ -1144,13 +1144,13 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 10, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 13, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 13, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 13, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 13, 13);
   });
 
   test('implicitly ends the immediate parent', () => {
@@ -1164,14 +1164,14 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'END_TAG_NAME', 8, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 9, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 12, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 13, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 16, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'end_tag_name', 8, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_name', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 12, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 16, 16);
   });
 
   test('implicitly ends the ancestor', () => {
@@ -1185,17 +1185,17 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 9, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 12, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 13, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 16, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 16, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'START_TAG_NAME', 17, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'START_TAG_CLOSING', 20, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 21, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 12, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 16, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 16, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'start_tag_name', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'start_tag_closing', 20, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 21, 21);
   });
 
   test('implicitly ends the topmost ancestor', () => {
@@ -1209,31 +1209,31 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(15);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'TEXT', 5, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 9, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 12, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 13, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 17, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 20, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'TEXT', 21, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 24, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 24, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(12, 'END_TAG_NAME', 24, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(13, 'START_TAG_NAME', 25, 28);
-    expect(callbackMock).toHaveBeenNthCalledWith(14, 'START_TAG_CLOSING', 28, 29);
-    expect(callbackMock).toHaveBeenNthCalledWith(15, 'END_TAG_NAME', 29, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 9, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 12, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 20, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'text', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'end_tag_name', 24, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 24, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(12, 'end_tag_name', 24, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(13, 'start_tag_name', 25, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(14, 'start_tag_closing', 28, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(15, 'end_tag_name', 29, 29);
   });
 
   test('reads the void tag', () => {
     tokenizeMarkup('<aaa>bbb', callbackMock, resolveTokenizerOptions({ tags: { aaa: { kind: 'void' } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 5, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 5, 8);
   });
 
   test('reads consequent void tags', () => {
@@ -1244,24 +1244,24 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
   });
 
   test('reads the void tag in the container', () => {
     tokenizeMarkup('<aaa><bbb></aaa>', callbackMock, resolveTokenizerOptions({ tags: { bbb: { kind: 'void' } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 12, 15);
   });
 
   test('implicitly ends a tag', () => {
@@ -1272,12 +1272,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 12, 15);
   });
 
   test('ignores an unbalanced end tag', () => {
@@ -1290,18 +1290,18 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup('<aaa></bbb></aaa>', callbackMock, resolveTokenizerOptions({ areUnbalancedEndTagsIgnored: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 13, 16);
   });
 
   test('inserts start tags for unbalanced end tags', () => {
     tokenizeMarkup('</aaa>', callbackMock, resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 2, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 5, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 2, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 2, 5);
   });
 
   test('implicitly ends a tag', () => {
@@ -1315,12 +1315,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
   });
 
   test('inserts start tag that forcefully ends preceding tag', () => {
@@ -1333,12 +1333,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 10, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 10, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 7, 10);
   });
 
   test('inserts start tags and end tags during nesting of the same tag', () => {
@@ -1351,20 +1351,20 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(14);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'TEXT', 0, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_NAME', 4, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'TEXT', 8, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 11, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_CLOSING', 15, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'TEXT', 16, 19);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 21, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'TEXT', 25, 28);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'START_TAG_NAME', 30, 33);
-    expect(callbackMock).toHaveBeenNthCalledWith(12, 'START_TAG_CLOSING', 33, 34);
-    expect(callbackMock).toHaveBeenNthCalledWith(13, 'END_TAG_NAME', 30, 33);
-    expect(callbackMock).toHaveBeenNthCalledWith(14, 'TEXT', 34, 37);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_name', 4, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 8, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 11, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_closing', 15, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'text', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'text', 25, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'start_tag_name', 30, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(12, 'start_tag_closing', 33, 34);
+    expect(callbackMock).toHaveBeenNthCalledWith(13, 'end_tag_name', 30, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(14, 'text', 34, 37);
   });
 
   test('reads case-sensitive end tags by default', () => {
@@ -1375,18 +1375,18 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 11, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 11, 11);
   });
 
   test('reads case-insensitive end tags', () => {
     tokenizeMarkup('<aaa></AAA>', callbackMock, resolveTokenizerOptions({ areTagNamesCaseInsensitive: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 7, 10);
   });
 
   test('read non ASCII alpha-chars as case-sensitive in case-insensitive tag matching mode', () => {
@@ -1401,9 +1401,9 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 7);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 7, 8);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 17, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 17, 17);
   });
 
   test('ends unbalanced tags', () => {
@@ -1417,12 +1417,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 2);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 2, 3);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 5, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 6, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 8, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 2);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 2, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 5, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 6, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 8, 9);
   });
 
   test('implicitly ends tags inside the nearest boundary', () => {
@@ -1436,18 +1436,18 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(12);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 14, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 16, 19);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 19, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 20, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 20, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 20, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(12, 'END_TAG_NAME', 20, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_name', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 19, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 20, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'end_tag_name', 20, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 20, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(12, 'end_tag_name', 20, 20);
   });
 
   test('implicitly ends the boundary tag that must be ended', () => {
@@ -1461,15 +1461,15 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 14, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 15, 15);
   });
 
   test('reads self-closing foreign tag', () => {
@@ -1483,17 +1483,17 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 10, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 15, 16);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 17, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_SELF_CLOSING', 20, 22);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 24, 27);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 28, 28);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 30, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 10, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 15, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_self_closing', 20, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'end_tag_name', 28, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 30, 33);
   });
 
   test('reads sibling foreign tags', () => {
@@ -1504,17 +1504,17 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'TEXT', 10, 13);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 15, 18);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 20, 23);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 23, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'TEXT', 24, 27);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 29, 32);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 35, 38);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 15, 18);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 20, 23);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 23, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'text', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'end_tag_name', 29, 32);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 35, 38);
   });
 
   test('reads deeply nested foreign tags', () => {
@@ -1537,21 +1537,21 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(15);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 14, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 16, 19);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 20, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'TEXT', 21, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(10, 'END_TAG_NAME', 24, 24);
-    expect(callbackMock).toHaveBeenNthCalledWith(11, 'END_TAG_NAME', 26, 29);
-    expect(callbackMock).toHaveBeenNthCalledWith(12, 'START_TAG_NAME', 31, 34);
-    expect(callbackMock).toHaveBeenNthCalledWith(13, 'START_TAG_SELF_CLOSING', 34, 36);
-    expect(callbackMock).toHaveBeenNthCalledWith(14, 'END_TAG_NAME', 36, 36);
-    expect(callbackMock).toHaveBeenNthCalledWith(15, 'END_TAG_NAME', 36, 36);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_name', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 16, 19);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 20, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'text', 21, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(10, 'end_tag_name', 24, 24);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 26, 29);
+    expect(callbackMock).toHaveBeenNthCalledWith(12, 'start_tag_name', 31, 34);
+    expect(callbackMock).toHaveBeenNthCalledWith(13, 'start_tag_self_closing', 34, 36);
+    expect(callbackMock).toHaveBeenNthCalledWith(14, 'end_tag_name', 36, 36);
+    expect(callbackMock).toHaveBeenNthCalledWith(15, 'end_tag_name', 36, 36);
   });
 
   test('restores options after a self-closing foreign tag', () => {
@@ -1562,11 +1562,11 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_SELF_CLOSING', 4, 6);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 11, 12);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 14, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_self_closing', 4, 6);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 11, 12);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 14, 17);
   });
 
   test('restores the initial context of the state after a foreign tag', () => {
@@ -1578,11 +1578,11 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup('<aaa></aaa><bbb/>', callbackMock, resolveTokenizerOptions({}), makeTestState(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_SELF_CLOSING', 15, 17);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_self_closing', 15, 17);
   });
 
   test('restores options after an implicitly ended foreign tag', () => {
@@ -1596,15 +1596,15 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 17, 20);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 21, 22);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 24, 27);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 21, 22);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 24, 27);
   });
 
   test('restores options after a foreign tag that shares options with the root', () => {
@@ -1617,15 +1617,15 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup('<aaa><bbb></bbb></aaa><ccc/></ccc>', callbackMock, resolveTokenizerOptions(options));
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 18, 21);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 23, 26);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 27, 28);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 30, 33);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 18, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 23, 26);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 27, 28);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 30, 33);
   });
 
   test('does not apply outer tags to content of a foreign tag', () => {
@@ -1636,12 +1636,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 12, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 18, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 18, 21);
   });
 
   test('applies tags of a foreign tag to its content', () => {
@@ -1652,12 +1652,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 12, 15);
   });
 
   test('implicitly ends a tag that was started in another context', () => {
@@ -1671,15 +1671,15 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'START_TAG_NAME', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'START_TAG_CLOSING', 14, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'start_tag_name', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'start_tag_closing', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 15, 15);
   });
 
   test('does not implicitly end a tag of another context that is ended by other tags', () => {
@@ -1696,15 +1696,15 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_NAME', 11, 14);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'START_TAG_CLOSING', 14, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 15, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(8, 'END_TAG_NAME', 15, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(9, 'END_TAG_NAME', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_name', 11, 14);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'start_tag_closing', 14, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 15, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 15, 15);
   });
 
   test('reads a tag that implicitly ends a foreign tag with outer tags', () => {
@@ -1717,13 +1717,13 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 10, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'TEXT', 10, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 10, 13);
   });
 
   test('reads raw text of a tag that implicitly ends a foreign tag with outer tags', () => {
@@ -1736,13 +1736,13 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 5, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_NAME', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'START_TAG_CLOSING', 9, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'TEXT', 10, 15);
-    expect(callbackMock).toHaveBeenNthCalledWith(7, 'END_TAG_NAME', 17, 20);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 10, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 17, 20);
   });
 
   test('implicitly starts a tag with tags of a foreign tag', () => {
@@ -1753,12 +1753,12 @@ describe('tokenizeMarkup', () => {
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'START_TAG_NAME', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'START_TAG_CLOSING', 10, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'END_TAG_NAME', 7, 10);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'END_TAG_NAME', 13, 16);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 10, 11);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 7, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 13, 16);
   });
 
   test('does not end a tag with an end tag that has the same hash code but a different name', () => {
@@ -1776,7 +1776,7 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup(
       '</aaa>',
       token => {
-        if (token === 'START_TAG_NAME') {
+        if (token === 'start_tag_name') {
           states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
         }
       },
@@ -1796,9 +1796,9 @@ describe('tokenizeMarkup', () => {
     tokenizeMarkup('<aaa', callbackMock, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true }));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'START_TAG_NAME', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'START_TAG_CLOSING', 4, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'END_TAG_NAME', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 4, 4);
   });
 
   test('strict throws if document has multiple root elements', () => {
