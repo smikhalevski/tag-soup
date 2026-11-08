@@ -2,6 +2,7 @@ import {
   areCaseInsensitiveSubstringsEqual,
   areCaseSensitiveSubstringsEqual,
   type ContextualTokenReaderOptions,
+  createTokenizerWriter,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
   type ResolvedTagOptions,
@@ -9,6 +10,7 @@ import {
   type TagKind,
   type TokenCallback,
   tokenizeMarkup,
+  type TokenizerWriter,
 } from './tokenizeMarkup.ts';
 
 /**
@@ -279,6 +281,33 @@ export interface Tokenizer {
    * @throws {@link ParserError} If text is malformed and tokenizer options don't allow to recover.
    */
   tokenizeFragment(text: string, callback: TokenCallback): void;
+
+  /**
+   * Creates a writer that reads tokens from a document written in chunks. Leading spaces are skipped, and DOCTYPE is
+   * recognized before the first tag or text.
+   *
+   * @example
+   * const writer = HTMLTokenizer.createDocumentWriter((token, startIndex, endIndex, input) => {
+   *   input.substring(startIndex, endIndex);
+   *   // ⮕ The token text
+   * });
+   *
+   * writer.write('<p>Hello, ');
+   * writer.write('Bob!');
+   * writer.end();
+   *
+   * @param callback The callback that is invoked when a token is read.
+   * @returns The new writer.
+   */
+  createDocumentWriter(callback: TokenCallback): TokenizerWriter;
+
+  /**
+   * Creates a writer that reads tokens from a document fragment written in chunks. DOCTYPE isn't recognized.
+   *
+   * @param callback The callback that is invoked when a token is read.
+   * @returns The new writer.
+   */
+  createFragmentWriter(callback: TokenCallback): TokenizerWriter;
 }
 
 /**
@@ -315,6 +344,14 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
 
     tokenizeFragment(text, callback) {
       return tokenizeMarkup(text, callback, fragmentOptions);
+    },
+
+    createDocumentWriter(callback) {
+      return createTokenizerWriter(callback, documentOptions);
+    },
+
+    createFragmentWriter(callback) {
+      return createTokenizerWriter(callback, fragmentOptions);
     },
   };
 }

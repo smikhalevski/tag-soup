@@ -6,6 +6,15 @@ test('parses HTML DOM', () => {
   expect(HTMLDOMParser.parseFragment('<p>aaa<p>bbb</br>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
 });
 
+test('parses HTML DOM from chunks', () => {
+  const writer = HTMLDOMParser.createFragmentWriter();
+
+  writer.write('<p>aaa<p>b');
+  writer.write('bb</b');
+
+  expect(writer.end('r>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
+});
+
 test('serializes HTML', () => {
   expect(toHTML(HTMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<p>bbb</BR>'))).toBe(
     '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<BR></p>'

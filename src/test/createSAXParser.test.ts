@@ -1,6 +1,6 @@
 import { decodeXML } from 'speedy-entities';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { parseSAX } from '../main/createSAXParser.ts';
+import { createSAXParserWriter, parseSAX } from '../main/createSAXParser.ts';
 import type { SAXHandler } from '../main/index.ts';
 import { resolveParserOptions } from '../main/types.ts';
 
@@ -330,4 +330,18 @@ test('calls onEndTag if it is a single handler', () => {
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'aaa');
+});
+
+test('parses chunks', () => {
+  const writer = createSAXParserWriter(mockHandler);
+
+  writer.write('<aaa bbb="cc');
+  writer.write('c">ddd</aaa>');
+  writer.end();
+
+  expect(mockHandler.onAttribute).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'bbb', 'ccc');
+
+  expect(mockHandler.onText).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'ddd');
 });

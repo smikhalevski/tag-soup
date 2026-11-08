@@ -8,7 +8,14 @@ export {
   type Tokenizer,
   type TokenizerOptions,
 } from './createTokenizer.ts';
-export { ParserError, type TagKind, type Token, type TokenCallback } from './tokenizeMarkup.ts';
+export {
+  ParserError,
+  type ParserWriter,
+  type TagKind,
+  type Token,
+  type TokenCallback,
+  type TokenizerWriter,
+} from './tokenizeMarkup.ts';
 export { HTMLTokenizer, HTMLDOMParser, HTMLSAXParser, toHTML } from './html.ts';
 export { XMLTokenizer, XMLDOMParser, XMLSAXParser, toXML } from './xml.ts';
 export type { ParserOptions } from './types.ts';

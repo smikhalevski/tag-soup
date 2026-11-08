@@ -1,7 +1,7 @@
 import { f } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
 import { expect, test } from 'vitest';
-import { parseDOM } from '../main/createDOMParser.ts';
+import { createDOMParserWriter, parseDOM } from '../main/createDOMParser.ts';
 import { resolveParserOptions } from '../main/types.ts';
 
 test('parses text', () => {
@@ -75,4 +75,13 @@ test('parses quirky comment, DOCTYPE and text', () => {
   expect(parseDOM('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ')).toEqual(
     f.doc(f.comment('?xxx yyy?'), f.doctype('html'), 'vvv   ')
   );
+});
+
+test('parses chunks', () => {
+  const writer = createDOMParserWriter();
+
+  writer.write('<aaa>bb');
+  writer.write('b</a');
+
+  expect(writer.end('aa>')).toEqual(f.doc(f.aaa('bbb')));
 });

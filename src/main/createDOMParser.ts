@@ -8,7 +8,12 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
+import {
+  createTokenizerState,
+  createTokenizerWriter,
+  type ParserWriter,
+  type TokenCallback,
+} from './tokenizeMarkup.ts';
 import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
 
 /**
@@ -35,6 +40,30 @@ export interface DOMParser {
    * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string): DocumentFragment;
+
+  /**
+   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and DOCTYPE is recognized
+   * before the first tag or text.
+   *
+   * @example
+   * const writer = HTMLDOMParser.createDocumentWriter();
+   *
+   * writer.write('<p>Hello, ');
+   * writer.write('Bob!');
+   *
+   * writer.end();
+   * // ⮕ Document
+   *
+   * @returns The new writer.
+   */
+  createDocumentWriter(): ParserWriter<Document>;
+
+  /**
+   * Creates a writer that parses a document fragment written in chunks. DOCTYPE isn't recognized.
+   *
+   * @returns The new writer.
+   */
+  createFragmentWriter(): ParserWriter<DocumentFragment>;
 }
 
 /**
@@ -63,6 +92,14 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
     parseFragment(input) {
       return parseDOM(input, fragmentOptions) as DocumentFragment;
     },
+
+    createDocumentWriter() {
+      return createDOMParserWriter(documentOptions) as ParserWriter<Document>;
+    },
+
+    createFragmentWriter() {
+      return createDOMParserWriter(fragmentOptions) as ParserWriter<DocumentFragment>;
+    },
   };
 }
 
@@ -79,10 +116,24 @@ export function parseDOM(
   input: string,
   options: ResolvedParserOptions = { initialContext: {} }
 ): Document | DocumentFragment {
+  return createDOMParserWriter(options).end(input);
+}
+
+/**
+ * Creates a writer that parses chunks of text as a DOM.
+ *
+ * @param options Parser options.
+ * @returns The writer that returns the document node, or the document fragment node if
+ *   {@link ResolvedParserOptions.isFragment} is `true`.
+ * @internal
+ */
+export function createDOMParserWriter(
+  options: ResolvedParserOptions = { initialContext: {} }
+): ParserWriter<Document | DocumentFragment> {
   const { isFragment, decodeText = identity, decodeAttribute = identity } = options;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
-  const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.initialContext };
+  const state = createTokenizerState(options.initialContext);
 
   const root = isFragment ? new DocumentFragment() : new Document();
 
@@ -91,7 +142,7 @@ export function parseDOM(
   let attributeName: string;
   let piTarget: string;
 
-  const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
+  const tokenCallback: TokenCallback = (token, startIndex, endIndex, input) => {
     switch (token) {
       case 'text': {
         const text = input.substring(startIndex, endIndex);
@@ -149,9 +200,18 @@ export function parseDOM(
     }
   };
 
-  tokenizeMarkup(input, tokenCallback, options, state);
+  const tokenizerWriter = createTokenizerWriter(tokenCallback, options, state);
 
-  return root;
+  return {
+    write(chunk) {
+      tokenizerWriter.write(chunk);
+    },
+
+    end(chunk) {
+      tokenizerWriter.end(chunk);
+      return root;
+    },
+  };
 }
 
 function identity(value: string): string {

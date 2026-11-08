@@ -1,4 +1,9 @@
-import { type TokenCallback, tokenizeMarkup, type TokenizerState } from './tokenizeMarkup.ts';
+import {
+  createTokenizerState,
+  createTokenizerWriter,
+  type ParserWriter,
+  type TokenCallback,
+} from './tokenizeMarkup.ts';
 import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
 
 /**
@@ -115,6 +120,34 @@ export interface SAXParser {
    * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string, handler: SAXHandler): void;
+
+  /**
+   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and DOCTYPE is recognized
+   * before the first tag or text.
+   *
+   * @example
+   * const writer = HTMLSAXParser.createDocumentWriter({
+   *   onText(text) {
+   *     // Handle text here
+   *   },
+   * });
+   *
+   * writer.write('<p>Hello, ');
+   * writer.write('Bob!');
+   * writer.end();
+   *
+   * @param handler The token handler.
+   * @returns The new writer.
+   */
+  createDocumentWriter(handler: SAXHandler): ParserWriter;
+
+  /**
+   * Creates a writer that parses a document fragment written in chunks. DOCTYPE isn't recognized.
+   *
+   * @param handler The token handler.
+   * @returns The new writer.
+   */
+  createFragmentWriter(handler: SAXHandler): ParserWriter;
 }
 
 /**
@@ -146,6 +179,14 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
     parseFragment(input, handler) {
       return parseSAX(input, handler, fragmentOptions);
     },
+
+    createDocumentWriter(handler) {
+      return createSAXParserWriter(handler, documentOptions);
+    },
+
+    createFragmentWriter(handler) {
+      return createSAXParserWriter(handler, fragmentOptions);
+    },
   };
 }
 
@@ -163,12 +204,26 @@ export function parseSAX(
   handler: SAXHandler,
   options: ResolvedParserOptions = { initialContext: {} }
 ): void {
+  createSAXParserWriter(handler, options).end(input);
+}
+
+/**
+ * Creates a writer that parses chunks of text and calls {@link SAXHandler} methods when tokens are read.
+ *
+ * @param handler The token handler.
+ * @param options Parser options.
+ * @internal
+ */
+export function createSAXParserWriter(
+  handler: SAXHandler,
+  options: ResolvedParserOptions = { initialContext: {} }
+): ParserWriter {
   const { decodeText = identity, decodeAttribute = identity } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
-  const state: TokenizerState = { tagHashCode: 0, tagOptions: undefined, context: options.initialContext };
+  const state = createTokenizerState(options.initialContext);
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -180,7 +235,9 @@ export function parseSAX(
   let piTargetEndIndex = 0;
   let attributes: Record<string, string> | undefined;
 
-  const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
+  // Attribute values and processing instruction data are read with the preceding name and target, so indices of the
+  // name and the target point to the same input
+  const tokenCallback: TokenCallback = (token, startIndex, endIndex, input) => {
     switch (token) {
       case 'text':
         if (handler.onText !== undefined) {
@@ -307,7 +364,7 @@ export function parseSAX(
     }
   };
 
-  tokenizeMarkup(input, tokenCallback, options, state);
+  return createTokenizerWriter(tokenCallback, options, state);
 }
 
 function identity(value: string): string {
