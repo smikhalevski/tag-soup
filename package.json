@@ -61,6 +61,6 @@
   },
   "dependencies": {
     "flyweight-dom": "^3.0.0",
-    "speedy-entities": "^4.0.0"
+    "speedy-entities": "^4.0.1"
   }
 }

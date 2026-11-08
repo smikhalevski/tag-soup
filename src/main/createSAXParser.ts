@@ -251,7 +251,7 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
         let tagName;
 
         // Text inside raw text tags isn't decoded
-        isRawText = tagOptions !== undefined && (tagOptions.kind === 'raw_text' || tagOptions.kind === 'script_data');
+        isRawText = tagOptions !== undefined && tagOptions.isRawText;
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);

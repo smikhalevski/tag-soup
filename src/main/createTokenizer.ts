@@ -4,6 +4,7 @@ import {
   createTokenizerWriter,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
+  getTagGroupIdBitIndex,
   type ResolvedTagOptions,
   type ResolvedTokenizerOptions,
   type TagKind,
@@ -390,10 +391,11 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 /**
  * Resolves tags of each context into a map, so {@link tokenizeMarkup} looks up a start tag once. Contexts with the same
  * tags share the map. Foreign contexts of tags are added to the context map and resolved too. Tags that can be
- * implicitly ended get sequential IDs, so open tags can be counted in a single array, and tags that are ended by the
- * same tags share an ID. Tags are ended by name, so a tag that ends other tags has the same ended tag IDs in every map.
+ * implicitly ended are grouped by tags that end them, and groups get sequential IDs, so open tags can be counted in a
+ * single array. Tags are ended by name, so a tag that ends other tags has the same implicitly ended tag group IDs in
+ * every map.
  *
- * Returns a zero for each ID.
+ * Returns a zero for each bit of group IDs, see {@link getTagGroupIdBitIndex}.
  */
 function resolveTagOptions(
   contextMap: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>,
@@ -401,14 +403,14 @@ function resolveTagOptions(
 ): number[] {
   const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagOptions>>();
 
-  // The map from a hash code of a tag to IDs of tags that it ends
-  const endedTagIdsMap = new Map<number, number[]>();
+  // The map from a hash code of a tag to IDs of groups of tags that it ends
+  const implicitlyEndedTagGroupIdsMap = new Map<number, number[]>();
 
-  // The map from a list of tags that implicitly end a tag to the ID of tags with this list, so tags that end them check
-  // one ID, like br that ends both svg and math in HTML
-  const endableTagIdMap = new Map<string[], number>();
+  // The map from a list of tags that implicitly end a tag to the ID of the group of tags with this list, so tags that
+  // end them check one ID, like br that ends both svg and math in HTML
+  const tagGroupIdMap = new Map<string[], number>();
 
-  let endableTagCount = 0;
+  let tagGroupCount = 0;
 
   function getResolvedTagOptions(tagOptionsMap: Map<number, ResolvedTagOptions>, tagHashCode: number) {
     let resolvedTagOptions = tagOptionsMap.get(tagHashCode);
@@ -419,8 +421,11 @@ function resolveTagOptions(
         foreignContext: undefined,
         isImplicitEndingBoundary: false,
         isImplicitlyStarted: false,
-        endedTagIds: [],
-        endableTagId: -1,
+        implicitlyEndedTagGroupIds: [],
+        implicitlyEndedTagGroupIdMask: 0,
+        tagGroupId: -1,
+        tagGroupIdBitIndex: -1,
+        isRawText: false,
       };
       tagOptionsMap.set(tagHashCode, resolvedTagOptions);
     }
@@ -442,6 +447,7 @@ function resolveTagOptions(
       const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, toHashCode(tagName));
 
       resolvedTagOptions.kind = kind;
+      resolvedTagOptions.isRawText = kind === 'raw_text' || kind === 'script_data';
       resolvedTagOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
       resolvedTagOptions.isImplicitlyStarted = isImplicitlyStarted;
 
@@ -453,27 +459,28 @@ function resolveTagOptions(
         continue;
       }
 
-      let endableTagId = endableTagIdMap.get(implicitlyEndedBy);
+      let tagGroupId = tagGroupIdMap.get(implicitlyEndedBy);
 
-      if (endableTagId === undefined) {
-        endableTagId = endableTagCount++;
-        endableTagIdMap.set(implicitlyEndedBy, endableTagId);
+      if (tagGroupId === undefined) {
+        tagGroupId = tagGroupCount++;
+        tagGroupIdMap.set(implicitlyEndedBy, tagGroupId);
 
-        // Tags that end this tag keep its ID, so they know which tags to end when they are started
+        // Tags that end this group keep its ID, so they know which tags to end when they are started
         for (const endingTagName of implicitlyEndedBy) {
           const endingTagHashCode = toHashCode(endingTagName);
 
-          let endedTagIds = endedTagIdsMap.get(endingTagHashCode);
+          let implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIdsMap.get(endingTagHashCode);
 
-          if (endedTagIds === undefined) {
-            endedTagIds = [];
-            endedTagIdsMap.set(endingTagHashCode, endedTagIds);
+          if (implicitlyEndedTagGroupIds === undefined) {
+            implicitlyEndedTagGroupIds = [];
+            implicitlyEndedTagGroupIdsMap.set(endingTagHashCode, implicitlyEndedTagGroupIds);
           }
-          endedTagIds.push(endableTagId);
+          implicitlyEndedTagGroupIds.push(tagGroupId);
         }
       }
 
-      resolvedTagOptions.endableTagId = endableTagId;
+      resolvedTagOptions.tagGroupId = tagGroupId;
+      resolvedTagOptions.tagGroupIdBitIndex = getTagGroupIdBitIndex(tagGroupId);
     }
     return tagOptionsMap;
   }
@@ -494,8 +501,14 @@ function resolveTagOptions(
 
   // A tag started in any context ends tags of other contexts, like br ends svg in HTML
   for (const tagOptionsMap of resolvedTagsMap.values()) {
-    for (const [tagHashCode, endedTagIds] of endedTagIdsMap) {
-      getResolvedTagOptions(tagOptionsMap, tagHashCode).endedTagIds = endedTagIds;
+    for (const [tagHashCode, implicitlyEndedTagGroupIds] of implicitlyEndedTagGroupIdsMap) {
+      const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, tagHashCode);
+
+      resolvedTagOptions.implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIds;
+
+      for (const implicitlyEndedTagGroupId of implicitlyEndedTagGroupIds) {
+        resolvedTagOptions.implicitlyEndedTagGroupIdMask |= 1 << getTagGroupIdBitIndex(implicitlyEndedTagGroupId);
+      }
     }
   }
 
@@ -508,8 +521,9 @@ function resolveTagOptions(
 
   const initialOpenTagCounts: number[] = [];
 
-  for (let i = 0; i < endableTagCount; ++i) {
-    initialOpenTagCounts.push(0);
+  // Groups that share a bit share a count
+  for (let i = 0; i < tagGroupCount; ++i) {
+    initialOpenTagCounts[getTagGroupIdBitIndex(i)] = 0;
   }
 
   return initialOpenTagCounts;

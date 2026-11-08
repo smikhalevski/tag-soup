@@ -124,8 +124,9 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
   initialContext: ContextualTokenReaderOptions;
 
   /**
-   * A zero for each {@link ResolvedTagOptions.endableTagId endable tag ID}. {@link tokenizeMarkup} copies this array
-   * to count open tags, which is faster than creating an array of zeros on every call.
+   * A zero for each {@link ResolvedTagOptions.tagGroupIdBitIndex bit of tag group IDs}. {@link tokenizeMarkup} copies
+   * this array to count open tags by the bit of their group ID, which is faster than creating an array of zeros on
+   * every call.
    */
   initialOpenTagCounts?: number[];
 
@@ -171,18 +172,48 @@ export interface ResolvedTagOptions {
   isImplicitlyStarted: boolean;
 
   /**
-   * IDs of tags that are implicitly ended when this tag is started. Collected from
+   * IDs of groups of tags that are implicitly ended when this tag is started. Collected from
    * {@link TagParsingOptions.implicitlyEndedBy} of those tags in all contexts, since tags are ended by name.
    */
-  endedTagIds: number[];
+  implicitlyEndedTagGroupIds: number[];
 
   /**
-   * The ID of this tag if it can be implicitly ended, or -1 otherwise. Tags that can be implicitly ended have IDs, so
-   * {@link tokenizeMarkup} can count open tags with each name, and skip searching for tags to end if none of them is
-   * open. IDs are unique across contexts, so open tags of all contexts are counted in one array. Tags with the same
-   * {@link TagParsingOptions.implicitlyEndedBy} array share the ID, since they are ended by the same tags.
+   * Bits that represent {@link implicitlyEndedTagGroupIds}, see {@link tagGroupIdBitIndex}. {@link tokenizeMarkup}
+   * keeps the same bits for open tags, so it checks if any of tags that this tag ends is open with a single bitwise
+   * AND.
    */
-  endableTagId: number;
+  implicitlyEndedTagGroupIdMask: number;
+
+  /**
+   * The ID of the group of this tag if it can be implicitly ended, or -1 otherwise. Tags with the same
+   * {@link TagParsingOptions.implicitlyEndedBy} array are in one group, since they are ended by the same tags. Groups
+   * have IDs, so {@link tokenizeMarkup} can find open tags that a tag ends, and skip the search if none of them is
+   * open, see {@link implicitlyEndedTagGroupIdMask}. IDs are unique across contexts, so open tags of all contexts are
+   * counted together.
+   */
+  tagGroupId: number;
+
+  /**
+   * The index of the bit that represents {@link tagGroupId} in bitmasks, see {@link getTagGroupIdBitIndex}, or -1 if
+   * the tag can't be implicitly ended.
+   */
+  tagGroupIdBitIndex: number;
+
+  /**
+   * `true` if the tag is `raw_text` or `script_data`, so parsers don't decode its text.
+   */
+  isRawText: boolean;
+}
+
+/**
+ * Returns the index of the bit that represents a tag group ID in bitmasks. IDs that don't fit into 30 bits share the
+ * last bit, so bitmasks are small integers, which V8 doesn't allocate. Tags with a shared bit can be considered open
+ * while they aren't, which costs a search for tags to end, but doesn't change the result.
+ *
+ * @internal
+ */
+export function getTagGroupIdBitIndex(tagGroupId: number): number {
+  return tagGroupId < 29 ? tagGroupId : 29;
 }
 
 /**
@@ -417,8 +448,11 @@ export function createTokenizerWriter(
   // Resolved options of open tags, or undefined for tags that options don't mention
   const tagOptionsStack: Array<ResolvedTagOptions | undefined> = [];
 
-  // The number of open tags by endable tag ID
+  // The number of open tags by the bit of their group ID
   const openTagCounts = initialOpenTagCounts !== undefined ? initialOpenTagCounts.slice() : [];
+
+  // Bits of group IDs of open tags, see ResolvedTagOptions.implicitlyEndedTagGroupIdMask
+  let openTagGroupIdMask = 0;
 
   // Contextual options that were current when each open foreign tag was started, so they're restored when it ends
   const outerContextStack: ContextualTokenReaderOptions[] = [];
@@ -444,8 +478,10 @@ export function createTokenizerWriter(
     const tagOptions = tagOptionsStack[tagStackCursor--];
 
     if (tagOptions !== undefined) {
-      if (tagOptions.endableTagId !== -1) {
-        --openTagCounts[tagOptions.endableTagId];
+      const bitIndex = tagOptions.tagGroupIdBitIndex;
+
+      if (bitIndex !== -1 && --openTagCounts[bitIndex] === 0) {
+        openTagGroupIdMask &= ~(1 << bitIndex);
       }
       if (tagOptions.foreignContext !== undefined) {
         state.context = outerContextStack.pop()!;
@@ -485,13 +521,14 @@ export function createTokenizerWriter(
     return -1;
   }
 
-  function insertImplicitEndTags(endedTagIds: number[], insertionIndex: number, input: string): void {
+  function insertImplicitEndTags(implicitlyEndedTagGroupIds: number[], insertionIndex: number, input: string): void {
     // Tags outside the nearest boundary aren't ended, unless the boundary itself must be ended
     let index = tagStackCursor;
 
     while (
       index !== -1 &&
-      (!isImplicitEndingBoundary(tagOptionsStack[index]) || isImplicitlyEnded(tagOptionsStack[index], endedTagIds))
+      (!isImplicitEndingBoundary(tagOptionsStack[index]) ||
+        isImplicitlyEnded(tagOptionsStack[index], implicitlyEndedTagGroupIds))
     ) {
       --index;
     }
@@ -499,7 +536,7 @@ export function createTokenizerWriter(
     // Find the outermost tag that must be ended
     ++index;
 
-    while (index <= tagStackCursor && !isImplicitlyEnded(tagOptionsStack[index], endedTagIds)) {
+    while (index <= tagStackCursor && !isImplicitlyEnded(tagOptionsStack[index], implicitlyEndedTagGroupIds)) {
       ++index;
     }
 
@@ -518,8 +555,11 @@ export function createTokenizerWriter(
         let startTagOptions = state.tagOptions;
 
         // Usually none of the tags that must be ended is open, so the stack isn't searched
-        if (startTagOptions !== undefined && isAnyTagOpen(openTagCounts, startTagOptions.endedTagIds)) {
-          insertImplicitEndTags(startTagOptions.endedTagIds, startIndex - 1, input);
+        if (
+          startTagOptions !== undefined &&
+          (openTagGroupIdMask & startTagOptions.implicitlyEndedTagGroupIdMask) !== 0
+        ) {
+          insertImplicitEndTags(startTagOptions.implicitlyEndedTagGroupIds, startIndex - 1, input);
 
           // Ended foreign tags restore outer options, so the start tag is read with tags of the restored context
           startTagOptions = getTagOptions(state.context, state.tagHashCode);
@@ -544,8 +584,11 @@ export function createTokenizerWriter(
             outerContextStack.push(state.context);
             state.context = startTagOptions.foreignContext;
           }
-          if (startTagOptions.endableTagId !== -1) {
-            ++openTagCounts[startTagOptions.endableTagId];
+
+          const bitIndex = startTagOptions.tagGroupIdBitIndex;
+
+          if (bitIndex !== -1 && ++openTagCounts[bitIndex] === 1) {
+            openTagGroupIdMask |= 1 << bitIndex;
           }
         }
         break;
@@ -570,8 +613,10 @@ export function createTokenizerWriter(
           const tagOptions = tagOptionsStack[tagStackCursor--];
 
           if (tagOptions !== undefined) {
-            if (tagOptions.endableTagId !== -1) {
-              --openTagCounts[tagOptions.endableTagId];
+            const bitIndex = tagOptions.tagGroupIdBitIndex;
+
+            if (bitIndex !== -1 && --openTagCounts[bitIndex] === 0) {
+              openTagGroupIdMask &= ~(1 << bitIndex);
             }
             if (tagOptions.foreignContext !== undefined) {
               state.context = outerContextStack.pop()!;
@@ -614,8 +659,8 @@ export function createTokenizerWriter(
           break;
         }
 
-        if (isAnyTagOpen(openTagCounts, endTagOptions.endedTagIds)) {
-          insertImplicitEndTags(endTagOptions.endedTagIds, endTagStartIndex, input);
+        if ((openTagGroupIdMask & endTagOptions.implicitlyEndedTagGroupIdMask) !== 0) {
+          insertImplicitEndTags(endTagOptions.implicitlyEndedTagGroupIds, endTagStartIndex, input);
         }
 
         state.tagHashCode = endTagHashCode;
@@ -744,23 +789,10 @@ function isImplicitEndingBoundary(tagOptions: ResolvedTagOptions | undefined): b
 }
 
 /**
- * Returns `true` if a tag with any of endable tag IDs is open, given the number of open tags by endable tag ID.
- */
-function isAnyTagOpen(openTagCounts: number[], endableTagIds: number[]): boolean {
-  // An indexed loop, since V8 compiles for…of into slower code here
-  for (let i = 0; i < endableTagIds.length; ++i) {
-    if (openTagCounts[endableTagIds[i]] !== 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Returns `true` if a tag must be implicitly ended.
  */
-function isImplicitlyEnded(tagOptions: ResolvedTagOptions | undefined, endedTagIds: number[]): boolean {
-  return tagOptions !== undefined && endedTagIds.includes(tagOptions.endableTagId);
+function isImplicitlyEnded(tagOptions: ResolvedTagOptions | undefined, implicitlyEndedTagGroupIds: number[]): boolean {
+  return tagOptions !== undefined && implicitlyEndedTagGroupIds.includes(tagOptions.tagGroupId);
 }
 
 const TAG_KIND_NORMAL = 'normal';
@@ -1216,7 +1248,14 @@ export function readTokens(
     // DOCTYPE
     // ----------------------------------------------------------
 
-    if (scope === SCOPE_PROLOGUE && enclosingRawTextTagHashCode === 0 && isDoctypeSectionOpening(input, nextIndex)) {
+    // The char code is compared before the call, since otherwise the call is made at the first tag of every document,
+    // and V8 inlines it in place of hotter calls if documents are short
+    if (
+      charCode === /* ! */ 33 &&
+      scope === SCOPE_PROLOGUE &&
+      enclosingRawTextTagHashCode === 0 &&
+      isDoctypeSectionOpening(input, nextIndex)
+    ) {
       // Skip "!DOCTYPE"
       const doctypeNameStartIndex = skipSpaces(input, nextIndex + 8);
       const doctypeNameEndIndex = skipName(input, doctypeNameStartIndex);

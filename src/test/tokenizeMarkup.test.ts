@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { resolveTokenizerOptions, type TokenizerOptions } from '../main/createTokenizer.ts';
+import { resolveTokenizerOptions, type TagParsingOptions, type TokenizerOptions } from '../main/createTokenizer.ts';
 import {
   createTokenizerState,
   createTokenizerWriter,
@@ -1233,6 +1233,27 @@ describe('tokenizeMarkup', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 10, 13);
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 13, 13);
     expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 13, 13);
+  });
+
+  test('implicitly ends a tag whose group ID shares a bit with group IDs of other open tags', () => {
+    const tags: Record<string, TagParsingOptions> = {};
+
+    // Each tag is in its own group, groups get sequential IDs, and IDs above 28 share a bit
+    for (let i = 0; i < 32; ++i) {
+      tags['a' + i] = { implicitlyEndedBy: ['b' + i] };
+    }
+
+    // a31 is ended twice: when it's the last open tag, and when bbb is open after it
+    tokenizeMarkup(
+      '<a30><a31></a31><a31><bbb></a31><b30>',
+      callback,
+      resolveTokenizerOptions({ tags, areUnbalancedStartTagsImplicitlyEnded: true })
+    );
+
+    expect(callbackMock).toHaveBeenCalledTimes(15);
+    expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 28, 31);
+    expect(callbackMock).toHaveBeenNthCalledWith(12, 'end_tag_name', 32, 32);
+    expect(callbackMock).toHaveBeenNthCalledWith(13, 'start_tag_name', 33, 36);
   });
 
   test('implicitly ends the immediate parent', () => {

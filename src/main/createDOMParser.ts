@@ -154,7 +154,7 @@ export function createDOMParserWriter(options: ResolvedParserOptions): ParserWri
         const tagOptions = state.tagOptions;
 
         // Text inside raw text tags isn't decoded
-        isRawText = tagOptions !== undefined && (tagOptions.kind === 'raw_text' || tagOptions.kind === 'script_data');
+        isRawText = tagOptions !== undefined && tagOptions.isRawText;
 
         parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));
         break;
