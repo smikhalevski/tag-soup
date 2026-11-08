@@ -81,9 +81,9 @@ export interface SAXHandler {
   onComment?(data: string): void;
 
   /**
-   * Called when a DOCTYPE is read.
+   * Called when a `DOCTYPE` is read.
    *
-   * @param name The DOCTYPE name.
+   * @param name The `DOCTYPE` name.
    */
   onDoctype?(name: string): void;
 
@@ -104,7 +104,7 @@ export interface SAXHandler {
  */
 export interface SAXParser {
   /**
-   * Parses text as a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Parses text as a document. Leading spaces are skipped, and `DOCTYPE` is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @param handler The token handler.
@@ -113,7 +113,7 @@ export interface SAXParser {
   parseDocument(input: string, handler: SAXHandler): void;
 
   /**
-   * Parses text as a document fragment. DOCTYPE isn't recognized.
+   * Parses text as a document fragment. `DOCTYPE` isn't recognized.
    *
    * @param input The text to parse.
    * @param handler The token handler.
@@ -122,7 +122,7 @@ export interface SAXParser {
   parseFragment(input: string, handler: SAXHandler): void;
 
   /**
-   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and DOCTYPE is recognized
+   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and `DOCTYPE` is recognized
    * before the first tag or text.
    *
    * @example
@@ -142,7 +142,7 @@ export interface SAXParser {
   createDocumentWriter(handler: SAXHandler): ParserWriter;
 
   /**
-   * Creates a writer that parses a document fragment written in chunks. DOCTYPE isn't recognized.
+   * Creates a writer that parses a document fragment written in chunks. `DOCTYPE` isn't recognized.
    *
    * @param handler The token handler.
    * @returns The new writer.

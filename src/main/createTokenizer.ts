@@ -251,7 +251,7 @@ export interface TagParsingOptions {
  */
 export interface Tokenizer {
   /**
-   * Reads tokens from a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Reads tokens from a document. Leading spaces are skipped, and `DOCTYPE` is recognized before the first tag or text.
    *
    * @param text The text to read tokens from.
    * @param callback The callback that is invoked when a token is read.
@@ -260,7 +260,7 @@ export interface Tokenizer {
   tokenizeDocument(text: string, callback: TokenCallback): void;
 
   /**
-   * Reads tokens from a document fragment. DOCTYPE isn't recognized.
+   * Reads tokens from a document fragment. `DOCTYPE` isn't recognized.
    *
    * @param text The text to read tokens from.
    * @param callback The callback that is invoked when a token is read.
@@ -269,7 +269,7 @@ export interface Tokenizer {
   tokenizeFragment(text: string, callback: TokenCallback): void;
 
   /**
-   * Creates a writer that reads tokens from a document written in chunks. Leading spaces are skipped, and DOCTYPE is
+   * Creates a writer that reads tokens from a document written in chunks. Leading spaces are skipped, and `DOCTYPE` is
    * recognized before the first tag or text.
    *
    * @example
@@ -288,7 +288,7 @@ export interface Tokenizer {
   createDocumentWriter(callback: TokenCallback): TokenizerWriter;
 
   /**
-   * Creates a writer that reads tokens from a document fragment written in chunks. DOCTYPE isn't recognized.
+   * Creates a writer that reads tokens from a document fragment written in chunks. `DOCTYPE` isn't recognized.
    *
    * @param callback The callback that is invoked when a token is read.
    * @returns The new writer.

@@ -24,7 +24,7 @@ import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } 
  */
 export interface DOMParser {
   /**
-   * Parses text as a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Parses text as a document. Leading spaces are skipped, and `DOCTYPE` is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @returns The document node.
@@ -33,7 +33,7 @@ export interface DOMParser {
   parseDocument(input: string): Document;
 
   /**
-   * Parses text as a document fragment. DOCTYPE isn't recognized.
+   * Parses text as a document fragment. `DOCTYPE` isn't recognized.
    *
    * @param input The text to parse.
    * @returns The document fragment node.
@@ -42,7 +42,7 @@ export interface DOMParser {
   parseFragment(input: string): DocumentFragment;
 
   /**
-   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and DOCTYPE is recognized
+   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and `DOCTYPE` is recognized
    * before the first tag or text.
    *
    * @example
@@ -59,7 +59,7 @@ export interface DOMParser {
   createDocumentWriter(): ParserWriter<Document>;
 
   /**
-   * Creates a writer that parses a document fragment written in chunks. DOCTYPE isn't recognized.
+   * Creates a writer that parses a document fragment written in chunks. `DOCTYPE` isn't recognized.
    *
    * @returns The new writer.
    */

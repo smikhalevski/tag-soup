@@ -58,7 +58,7 @@ ParserError.prototype.name = 'ParserError';
  * - `processing_instruction_target`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
  * - `processing_instruction_data`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
  * - `cdata_section`: CDATA section content between `<![CDATA[` and `]]>`.
- * - `doctype_name`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
+ * - `doctype_name`: the name in a `DOCTYPE` declaration, `html` in `<!DOCTYPE html>`.
  *
  * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
  * indices.
@@ -898,7 +898,7 @@ export interface TokenReaderOptions {
 
   /**
    * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
-   * DOCTYPE isn't recognized.
+   * `DOCTYPE` isn't recognized.
    *
    * @default false
    */
@@ -1954,7 +1954,7 @@ function getUncheckedCaseInsensitiveCharCodeAt(input: string, index: number): nu
 }
 
 /**
- * Returns `true` if case-insensitive "!DOCTYPE" starts at index.
+ * Returns `true` if case-insensitive `!DOCTYPE` starts at index.
  */
 function isDoctypeSectionOpening(input: string, index: number): boolean {
   return (
