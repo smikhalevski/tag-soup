@@ -1,22 +1,23 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { resolveTokenizerOptions, type TagParsingOptions, type TokenizerOptions } from '../main/createTokenizer.ts';
+import type { TagParsingOptions, TokenCallback, TokenizerOptions } from '../main/index.ts';
+import { type ResolvedTokenizerOptions, resolveTokenizerOptions } from '../main/resolveTokenizerOptions.ts';
 import {
   createTokenizerState,
   createTokenizerWriter,
-  getCaseInsensitiveHashCode,
-  getCaseSensitiveHashCode,
   ParserError,
   readTokens,
-  type ResolvedTokenizerOptions,
-  type TokenCallback,
-  tokenizeMarkup,
   type TokenizerState,
 } from '../main/tokenizeMarkup.ts';
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from '../main/utils.ts';
 
 const callbackMock = vi.fn();
 
 // Tokens are checked by indices, so the input isn't passed to the mock
 const callback: TokenCallback = (token, startIndex, endIndex) => callbackMock(token, startIndex, endIndex);
+
+const defaultOptions = resolveTokenizerOptions({});
+const strictOptions = resolveTokenizerOptions({ isStrict: true });
+const fragmentOptions = { ...defaultOptions, isFragment: true };
 
 function makeTestState(options: ResolvedTokenizerOptions): TokenizerState {
   return createTokenizerState(options.initialContext);
@@ -64,41 +65,41 @@ beforeEach(() => {
 
 describe('readTokens', () => {
   test('reads empty string', () => {
-    readTokens('', callback);
+    readTokens('', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(0);
   });
 
   test('reads text', () => {
-    readTokens('aaa', callback);
+    readTokens('aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
   });
 
   test('reads the leading lt as text', () => {
-    readTokens('>aaa>', callback);
+    readTokens('>aaa>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 5);
   });
 
   test('treats gt followed by non tag name character as text', () => {
-    readTokens('aaa<+ccc', callback);
+    readTokens('aaa<+ccc', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 8);
   });
 
   test('reads the start tag as a text if name begins with a non-valid char', () => {
-    readTokens('<@#$%*>', callback);
+    readTokens('<@#$%*>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 7);
   });
 
   test('reads the start tag if name begins with a valid char followed by invalid chars', () => {
-    readTokens('<xxx@#$%*>', callback);
+    readTokens('<xxx@#$%*>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 9);
@@ -106,7 +107,7 @@ describe('readTokens', () => {
   });
 
   test('reads XML names with non-ASCII chars', () => {
-    readTokens('<äää·>', callback, resolveTokenizerOptions({ isStrict: true }));
+    readTokens('<äää·>', callback, strictOptions, makeTestState(strictOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 5);
@@ -114,14 +115,14 @@ describe('readTokens', () => {
   });
 
   test('ignores bullshit in end tags', () => {
-    readTokens('</xxx @#$%*/>', callback);
+    readTokens('</xxx @#$%*/>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'end_tag_name', 2, 5);
   });
 
   test('reads the start tag in double brackets', () => {
-    readTokens('<<xxx>>aaa</xxx>', callback);
+    readTokens('<<xxx>>aaa</xxx>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 1);
@@ -132,7 +133,7 @@ describe('readTokens', () => {
   });
 
   test('reads empty start tag names as text and empty end tag names as comments', () => {
-    readTokens('< ></ >', callback);
+    readTokens('< ></ >', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -140,7 +141,7 @@ describe('readTokens', () => {
   });
 
   test('reads non-alpha start tag names as text and non-alpha end tag names as comments', () => {
-    readTokens('<111></111>', callback);
+    readTokens('<111></111>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 5);
@@ -148,14 +149,14 @@ describe('readTokens', () => {
   });
 
   test('reads the malformed end tag as a comment', () => {
-    readTokens('</ xxx>', callback);
+    readTokens('</ xxx>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 2, 6);
   });
 
   test('ignores end tags without a name and content', () => {
-    readTokens('aaa</>bbb', callback);
+    readTokens('aaa</>bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -163,21 +164,21 @@ describe('readTokens', () => {
   });
 
   test('reads </ at the end of the input as text', () => {
-    readTokens('aaa</', callback);
+    readTokens('aaa</', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 5);
   });
 
   test('reads unterminated start tags', () => {
-    readTokens('<aaa', callback);
+    readTokens('<aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
   });
 
   test('reads unterminated attributes', () => {
-    readTokens('<aaa xxx="zzz', callback);
+    readTokens('<aaa xxx="zzz', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -186,14 +187,14 @@ describe('readTokens', () => {
   });
 
   test('reads unterminated end tags', () => {
-    readTokens('</aaa', callback);
+    readTokens('</aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'end_tag_name', 2, 5);
   });
 
   test('reads start and end tags', () => {
-    readTokens('aaa<xxx>bbb</xxx>ccc', callback);
+    readTokens('aaa<xxx>bbb</xxx>ccc', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -205,7 +206,7 @@ describe('readTokens', () => {
   });
 
   test('parses comments', () => {
-    readTokens('aaa<xxx>bbb<!--</xxx>ccc--></xxx>', callback);
+    readTokens('aaa<xxx>bbb<!--</xxx>ccc--></xxx>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -217,7 +218,7 @@ describe('readTokens', () => {
   });
 
   test('parses empty comments', () => {
-    readTokens('aaa<!---->bbb', callback);
+    readTokens('aaa<!---->bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -226,7 +227,7 @@ describe('readTokens', () => {
   });
 
   test('reads <!--> as an empty comment', () => {
-    readTokens('<!-->aaa', callback);
+    readTokens('<!-->aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 4);
@@ -234,7 +235,7 @@ describe('readTokens', () => {
   });
 
   test('reads <!---> as an empty comment', () => {
-    readTokens('<!--->aaa', callback);
+    readTokens('<!--->aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 4);
@@ -242,7 +243,7 @@ describe('readTokens', () => {
   });
 
   test('reads comments closed with --!>', () => {
-    readTokens('<!--aaa--!>bbb', callback);
+    readTokens('<!--aaa--!>bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
@@ -250,42 +251,42 @@ describe('readTokens', () => {
   });
 
   test('reads dashes before the comment closing as a part of the comment', () => {
-    readTokens('<!--aaa--->', callback);
+    readTokens('<!--aaa--->', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 8);
   });
 
   test('reads an unclosed comment without -- at the end of the input', () => {
-    readTokens('<!--aaa--', callback);
+    readTokens('<!--aaa--', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
   });
 
   test('reads an unclosed comment without --! at the end of the input', () => {
-    readTokens('<!--aaa--!', callback);
+    readTokens('<!--aaa--!', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
   });
 
   test('reads an unclosed comment without - at the end of the input', () => {
-    readTokens('<!--aaa-', callback);
+    readTokens('<!--aaa-', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
   });
 
   test('reads an unclosed empty comment', () => {
-    readTokens('<!--', callback);
+    readTokens('<!--', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 4);
   });
 
   test('parses body DTD as comment', () => {
-    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callback, { isFragment: true });
+    readTokens('aaa<xxx>bbb<!</xxx>ccc--></xxx>', callback, fragmentOptions, makeTestState(fragmentOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -298,7 +299,7 @@ describe('readTokens', () => {
   });
 
   test('parse empty DTD as comment', () => {
-    readTokens('aaa<!>bbb', callback, { isFragment: true });
+    readTokens('aaa<!>bbb', callback, fragmentOptions, makeTestState(fragmentOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -307,7 +308,7 @@ describe('readTokens', () => {
   });
 
   test('parses processing instructions as comments', () => {
-    readTokens('aaa<?xml version="1.0"?>bbb', callback, { isFragment: true });
+    readTokens('aaa<?xml version="1.0"?>bbb', callback, fragmentOptions, makeTestState(fragmentOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -316,7 +317,7 @@ describe('readTokens', () => {
   });
 
   test('parses empty processing instructions as comments', () => {
-    readTokens('aaa<?>bbb', callback, { isFragment: true });
+    readTokens('aaa<?>bbb', callback, fragmentOptions, makeTestState(fragmentOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -325,7 +326,7 @@ describe('readTokens', () => {
   });
 
   test('does not reads emojis as tag names', () => {
-    readTokens('aaa<❤️>bbb</👨‍❤️‍💋‍👨>ccc', callback);
+    readTokens('aaa<❤️>bbb</👨‍❤️‍💋‍👨>ccc', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 10);
@@ -334,7 +335,7 @@ describe('readTokens', () => {
   });
 
   test('reads lt as an attribute name', () => {
-    readTokens('<aaa <></aaa>', callback);
+    readTokens('<aaa <></aaa>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -345,7 +346,7 @@ describe('readTokens', () => {
   });
 
   test('ignores redundant spaces before start tag closing', () => {
-    readTokens('aaa<xxx   >bbb', callback);
+    readTokens('aaa<xxx   >bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -355,7 +356,7 @@ describe('readTokens', () => {
   });
 
   test('ignores redundant spaces before end tag closing', () => {
-    readTokens('aaa</xxx   >bbb', callback);
+    readTokens('aaa</xxx   >bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -364,7 +365,7 @@ describe('readTokens', () => {
   });
 
   test('reads nested tags', () => {
-    readTokens('aaa<yyy>bbb<xxx>ccc</xxx>ddd</yyy>', callback);
+    readTokens('aaa<yyy>bbb<xxx>ccc</xxx>ddd</yyy>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(10);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -380,7 +381,7 @@ describe('readTokens', () => {
   });
 
   test('reads single-quoted attributes', () => {
-    readTokens("<xxx yyy='aaa\"bbb' zzz='aaa\"bbb'>", callback);
+    readTokens("<xxx yyy='aaa\"bbb' zzz='aaa\"bbb'>", callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -392,7 +393,7 @@ describe('readTokens', () => {
   });
 
   test('reads double-quoted attributes', () => {
-    readTokens('<xxx yyy="aaa\'bbb" zzz="aaa\'bbb">', callback);
+    readTokens('<xxx yyy="aaa\'bbb" zzz="aaa\'bbb">', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -404,7 +405,7 @@ describe('readTokens', () => {
   });
 
   test('reads unquoted attributes', () => {
-    readTokens('<xxx yyy=aaa"bbb\'ccc>', callback);
+    readTokens('<xxx yyy=aaa"bbb\'ccc>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -414,7 +415,7 @@ describe('readTokens', () => {
   });
 
   test('reads valueless attributes', () => {
-    readTokens('<xxx aaa bbb>', callback);
+    readTokens('<xxx aaa bbb>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -426,7 +427,7 @@ describe('readTokens', () => {
   });
 
   test('reads valueless attribute at the end of the input', () => {
-    readTokens('<xxx aaa', callback);
+    readTokens('<xxx aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -435,7 +436,7 @@ describe('readTokens', () => {
   });
 
   test('reads equals sign in unquoted attribute value', () => {
-    readTokens('<xxx aaa= bbb=>', callback);
+    readTokens('<xxx aaa= bbb=>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -445,7 +446,7 @@ describe('readTokens', () => {
   });
 
   test('reads slashes in unquoted attribute value', () => {
-    readTokens('<xxx aaa=bbb/ccc>', callback);
+    readTokens('<xxx aaa=bbb/ccc>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -455,7 +456,12 @@ describe('readTokens', () => {
   });
 
   test('reads entities in attributes', () => {
-    readTokens('<xxx aaa=&amp; bbb="&amp;" ccc=\'&amp;\' ddd=>', callback);
+    readTokens(
+      '<xxx aaa=&amp; bbb="&amp;" ccc=\'&amp;\' ddd=>',
+      callback,
+      defaultOptions,
+      makeTestState(defaultOptions)
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(10);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -471,7 +477,7 @@ describe('readTokens', () => {
   });
 
   test('ignores leading slash in an attribute name', () => {
-    readTokens('<aaa /xxx></xxx aaa>bbb', callback);
+    readTokens('<aaa /xxx></xxx aaa>bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -483,7 +489,7 @@ describe('readTokens', () => {
   });
 
   test('reads bullshit attribute names', () => {
-    readTokens("<xxx < = '' fff>vvv</xxx>", callback);
+    readTokens("<xxx < = '' fff>vvv</xxx>", callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -497,7 +503,7 @@ describe('readTokens', () => {
   });
 
   test('reads attributes with unbalanced end quotes', () => {
-    readTokens('<xxx yyy="aaa"bbb">', callback);
+    readTokens('<xxx yyy="aaa"bbb">', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -509,7 +515,7 @@ describe('readTokens', () => {
   });
 
   test('does not read self-closing tags by default', () => {
-    readTokens('<xxx/>', callback);
+    readTokens('<xxx/>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -539,7 +545,7 @@ describe('readTokens', () => {
   });
 
   test('ignores redundant spaces in attributes', () => {
-    readTokens('aaa<yyy xxx   =   "zzz">bbb', callback);
+    readTokens('aaa<yyy xxx   =   "zzz">bbb', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -551,7 +557,7 @@ describe('readTokens', () => {
   });
 
   test('does not read tags in double-quoted attribute', () => {
-    readTokens('<aaa xxx="bbb<zzz>ccc</zzz>">', callback);
+    readTokens('<aaa xxx="bbb<zzz>ccc</zzz>">', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -561,7 +567,7 @@ describe('readTokens', () => {
   });
 
   test('does not read tags in single-quoted attribute', () => {
-    readTokens("<aaa xxx='bbb<zzz>ccc</zzz>'>", callback);
+    readTokens("<aaa xxx='bbb<zzz>ccc</zzz>'>", callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -571,7 +577,7 @@ describe('readTokens', () => {
   });
 
   test('does not read tags in unquoted attribute', () => {
-    readTokens('<aaa xxx=bbb<zzz>ccc</zzz>>', callback);
+    readTokens('<aaa xxx=bbb<zzz>ccc</zzz>>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -751,42 +757,42 @@ describe('readTokens', () => {
   });
 
   test('reads lower-case DOCTYPE', () => {
-    readTokens('<!doctype html>', callback);
+    readTokens('<!doctype html>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 10, 14);
   });
 
   test('reads empty DOCTYPE', () => {
-    readTokens('<!doctype>', callback);
+    readTokens('<!doctype>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 9, 9);
   });
 
   test('reads DOCTYPE name without separating spaces', () => {
-    readTokens('<!doctypehtml   >', callback);
+    readTokens('<!doctypehtml   >', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 9, 13);
   });
 
   test('ignores spaces surrounding DOCTYPE', () => {
-    readTokens('   <!DOCTYPE>   ', callback);
+    readTokens('   <!DOCTYPE>   ', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 12, 12);
   });
 
   test('reads non-empty DOCTYPE', () => {
-    readTokens('<!DOCTYPE html>', callback);
+    readTokens('<!DOCTYPE html>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 10, 14);
   });
 
   test('reads DOCTYPE after comment', () => {
-    readTokens('<!--xxx-->   \n\n   <!DOCTYPE html>', callback);
+    readTokens('<!--xxx-->   \n\n   <!DOCTYPE html>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 7);
@@ -823,7 +829,7 @@ describe('readTokens', () => {
   });
 
   test('reads quirky comment before DOCTYPE', () => {
-    readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callback);
+    readTokens('   <?xml aaa?>   <!DOCTYPE html>   ', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 13);
@@ -831,7 +837,7 @@ describe('readTokens', () => {
   });
 
   test('skips spaces after the malformed end tag in prolog', () => {
-    readTokens('   </#>   aaa', callback);
+    readTokens('   </#>   aaa', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 5, 6);
@@ -839,7 +845,7 @@ describe('readTokens', () => {
   });
 
   test('reads quirky comment in a container', () => {
-    readTokens('   <aaa>   <?xml bbb?>   </aaa>   ', callback);
+    readTokens('   <aaa>   <?xml bbb?>   </aaa>   ', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 4, 7);
@@ -917,7 +923,7 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after end tag', () => {
-    readTokens('</aaa><!DOCTYPE html>', callback);
+    readTokens('</aaa><!DOCTYPE html>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'end_tag_name', 2, 5);
@@ -925,7 +931,7 @@ describe('readTokens', () => {
   });
 
   test('closes prolog after start tag without a name', () => {
-    readTokens('< ><!DOCTYPE html>', callback);
+    readTokens('< ><!DOCTYPE html>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -945,7 +951,7 @@ describe('readTokens', () => {
   });
 
   test('reads CDATA as comment', () => {
-    readTokens('<![CDATA[]]>', callback);
+    readTokens('<![CDATA[]]>', callback, defaultOptions, makeTestState(defaultOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 2, 11);
@@ -1001,7 +1007,7 @@ describe('readTokens', () => {
   });
 
   test('strict throws if invalid char in start tag', () => {
-    expect(() => readTokens('<aaa ///', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<aaa ///', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected an attribute name or a start tag closing ('>').", '<aaa ///', 5, 6)
     );
   });
@@ -1020,25 +1026,25 @@ describe('readTokens', () => {
   });
 
   test('strict throws if attribute is not followed by equals sign', () => {
-    expect(() => readTokens('<aaa bbb', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<aaa bbb', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected an attribute value separated by an equals sign ('=').", '<aaa bbb', 8, 9)
     );
   });
 
   test('strict throws if attribute is not followed by equals sign', () => {
-    expect(() => readTokens('<aaa bbb', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<aaa bbb', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected an attribute value separated by an equals sign ('=').", '<aaa bbb', 8, 9)
     );
   });
 
   test('strict throws if attribute has no value', () => {
-    expect(() => readTokens('<aaa bbb=', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<aaa bbb=', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError('Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.', '<aaa bbb=', 9, 10)
     );
   });
 
   test('strict reads single-quoted attribute value', () => {
-    readTokens("<aaa bbb='ccc'>", callback, resolveTokenizerOptions({ isStrict: true }));
+    readTokens("<aaa bbb='ccc'>", callback, strictOptions, makeTestState(strictOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1048,13 +1054,13 @@ describe('readTokens', () => {
   });
 
   test('strict throws if attribute value is not terminated', () => {
-    expect(() => readTokens('<aaa bbb="ccc', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<aaa bbb="ccc', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected the attribute value to be closed with a double-quote ('\"').", '<aaa bbb="ccc', 10, 13)
     );
   });
 
   test('strict throws if single-quoted attribute value is not terminated', () => {
-    expect(() => readTokens("<aaa bbb='ccc", callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens("<aaa bbb='ccc", callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError('Expected the attribute value to be closed with a single-quote ("\'").', "<aaa bbb='ccc", 10, 13)
     );
   });
@@ -1072,25 +1078,25 @@ describe('readTokens', () => {
   });
 
   test('strict throws if start tag has no name', () => {
-    expect(() => readTokens('< >', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('< >', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError('Expected a name for the start tag.', '< >', 1, 2)
     );
   });
 
   test('strict throws if end tag has no name', () => {
-    expect(() => readTokens('</ >', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('</ >', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError('Expected a name for the end tag.', '</ >', 2, 3)
     );
   });
 
   test('strict throws if comment is not terminated', () => {
-    expect(() => readTokens('<!--aaa', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<!--aaa', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected the comment to be closed with '-->'.", '<!--aaa', 0, 7)
     );
   });
 
   test('strict does not read <!--> as an empty comment', () => {
-    readTokens('<!-->aaa-->', callback, resolveTokenizerOptions({ isStrict: true }));
+    readTokens('<!-->aaa-->', callback, strictOptions, makeTestState(strictOptions));
 
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'comment', 4, 8);
@@ -1126,17 +1132,17 @@ describe('readTokens', () => {
   });
 
   test('strict throws if processing instruction is not supported', () => {
-    expect(() => readTokens('<?xml?>', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<?xml?>', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError('Processing instructions are forbidden.', '<?xml?>', 0, 2)
     );
   });
 
   test('strict throws if CDATA is not supported', () => {
-    expect(() => readTokens('<![CDATA[]]>', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('<![CDATA[]]>', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE').", '<![CDATA[]]>', 0, 2)
     );
 
-    expect(() => readTokens('aaa<![CDATA[]]>', callback, resolveTokenizerOptions({ isStrict: true }))).toThrow(
+    expect(() => readTokens('aaa<![CDATA[]]>', callback, strictOptions, makeTestState(strictOptions))).toThrow(
       new ParserError("Expected a comment ('<!--').", 'aaa<![CDATA[]]>', 3, 5)
     );
 
@@ -1195,15 +1201,15 @@ describe('readTokens', () => {
   });
 
   test('returns the input length', () => {
-    expect(readTokens('<aaa bbb', callback)).toBe(8);
+    expect(readTokens('<aaa bbb', callback, defaultOptions, makeTestState(defaultOptions))).toBe(8);
   });
 
   test('returns the index of the text before the token that reaches the end of the input', () => {
-    const state = createTokenizerState({});
+    const state = makeTestState(defaultOptions);
 
     state.isInputEnded = false;
 
-    expect(readTokens('<aaa>bbb<ccc', callback, {}, state)).toBe(5);
+    expect(readTokens('<aaa>bbb<ccc', callback, defaultOptions, state)).toBe(5);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1211,9 +1217,9 @@ describe('readTokens', () => {
   });
 });
 
-describe('tokenizeMarkup', () => {
+describe('createTokenizerWriter', () => {
   test('reads the balanced start tag', () => {
-    tokenizeMarkup('<aaa>bbb</aaa>', callback);
+    createTokenizerWriter(callback, defaultOptions, makeTestState(defaultOptions)).end('<aaa>bbb</aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1223,7 +1229,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads the unbalanced start tag', () => {
-    tokenizeMarkup('<aaa><bbb>ccc', callback, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true }));
+    const options = resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb>ccc');
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1243,12 +1251,10 @@ describe('tokenizeMarkup', () => {
       tags['a' + i] = { implicitlyEndedBy: ['b' + i] };
     }
 
+    const options = resolveTokenizerOptions({ tags, areUnbalancedStartTagsImplicitlyEnded: true });
+
     // a31 is ended twice: when it's the last open tag, and when bbb is open after it
-    tokenizeMarkup(
-      '<a30><a31></a31><a31><bbb></a31><b30>',
-      callback,
-      resolveTokenizerOptions({ tags, areUnbalancedStartTagsImplicitlyEnded: true })
-    );
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<a30><a31></a31><a31><bbb></a31><b30>');
 
     expect(callbackMock).toHaveBeenCalledTimes(15);
     expect(callbackMock).toHaveBeenNthCalledWith(11, 'end_tag_name', 28, 31);
@@ -1257,14 +1263,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends the immediate parent', () => {
-    tokenizeMarkup(
-      '<aaa>bbb<ccc>ddd',
-      callback,
-      resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyEnded: true,
-        tags: { aaa: { implicitlyEndedBy: ['ccc'] } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      areUnbalancedStartTagsImplicitlyEnded: true,
+      tags: { aaa: { implicitlyEndedBy: ['ccc'] } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa>bbb<ccc>ddd');
 
     expect(callbackMock).toHaveBeenCalledTimes(8);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1278,14 +1282,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends the ancestor', () => {
-    tokenizeMarkup(
-      '<aaa>bbb<ccc>ddd<eee>',
-      callback,
-      resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyEnded: true,
-        tags: { aaa: { implicitlyEndedBy: ['eee'] } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      areUnbalancedStartTagsImplicitlyEnded: true,
+      tags: { aaa: { implicitlyEndedBy: ['eee'] } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa>bbb<ccc>ddd<eee>');
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1302,14 +1304,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends the topmost ancestor', () => {
-    tokenizeMarkup(
-      '<aaa>bbb<ccc>ddd<eee>fff<ggg>',
-      callback,
-      resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyEnded: true,
-        tags: { aaa: { implicitlyEndedBy: ['ggg'] }, eee: { implicitlyEndedBy: ['ggg'] } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      areUnbalancedStartTagsImplicitlyEnded: true,
+      tags: { aaa: { implicitlyEndedBy: ['ggg'] }, eee: { implicitlyEndedBy: ['ggg'] } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa>bbb<ccc>ddd<eee>fff<ggg>');
 
     expect(callbackMock).toHaveBeenCalledTimes(15);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1330,7 +1330,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads the void tag', () => {
-    tokenizeMarkup('<aaa>bbb', callback, resolveTokenizerOptions({ tags: { aaa: { kind: 'void' } } }));
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'void' } } });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa>bbb');
 
     expect(callbackMock).toHaveBeenCalledTimes(4);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1340,11 +1342,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads consequent void tags', () => {
-    tokenizeMarkup(
-      '<aaa><bbb>',
-      callback,
-      resolveTokenizerOptions({ tags: { aaa: { kind: 'void' }, bbb: { kind: 'void' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { kind: 'void' }, bbb: { kind: 'void' } } });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1356,7 +1356,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads the void tag in the container', () => {
-    tokenizeMarkup('<aaa><bbb></aaa>', callback, resolveTokenizerOptions({ tags: { bbb: { kind: 'void' } } }));
+    const options = resolveTokenizerOptions({ tags: { bbb: { kind: 'void' } } });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1368,11 +1370,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends a tag', () => {
-    tokenizeMarkup(
-      '<aaa><bbb></aaa>',
-      callback,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true })
-    );
+    const options = resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1384,13 +1384,17 @@ describe('tokenizeMarkup', () => {
   });
 
   test('ignores an unbalanced end tag', () => {
-    tokenizeMarkup('</aaa>', callback, resolveTokenizerOptions({ areUnbalancedEndTagsIgnored: true }));
+    const options = resolveTokenizerOptions({ areUnbalancedEndTagsIgnored: true });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('</aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(0);
   });
 
   test('ignores an unbalanced end tag in a container', () => {
-    tokenizeMarkup('<aaa></bbb></aaa>', callback, resolveTokenizerOptions({ areUnbalancedEndTagsIgnored: true }));
+    const options = resolveTokenizerOptions({ areUnbalancedEndTagsIgnored: true });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa></bbb></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1399,7 +1403,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('inserts start tags for unbalanced end tags', () => {
-    tokenizeMarkup('</aaa>', callback, resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } }));
+    const options = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('</aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 2, 5);
@@ -1408,14 +1414,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends a tag', () => {
-    tokenizeMarkup(
-      '<aaa><bbb>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['bbb'] } },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { implicitlyEndedBy: ['bbb'] } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1427,13 +1431,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('inserts start tag that forcefully ends preceding tag', () => {
-    tokenizeMarkup(
-      '<aaa></bbb>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { isImplicitlyStarted: true } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { isImplicitlyStarted: true } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa></bbb>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1445,13 +1447,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('inserts start tags and end tags during nesting of the same tag', () => {
-    tokenizeMarkup(
-      'aaa<xxx>bbb<xxx>ccc</xxx>ddd</xxx>eee',
-      callback,
-      resolveTokenizerOptions({
-        tags: { xxx: { implicitlyEndedBy: ['xxx'], isImplicitlyStarted: true } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { xxx: { implicitlyEndedBy: ['xxx'], isImplicitlyStarted: true } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('aaa<xxx>bbb<xxx>ccc</xxx>ddd</xxx>eee');
 
     expect(callbackMock).toHaveBeenCalledTimes(14);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
@@ -1471,11 +1471,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads case-sensitive end tags by default', () => {
-    tokenizeMarkup(
-      '<aaa></AAA>',
-      callback,
-      resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true, areUnbalancedEndTagsIgnored: true })
-    );
+    const options = resolveTokenizerOptions({
+      areUnbalancedStartTagsImplicitlyEnded: true,
+      areUnbalancedEndTagsIgnored: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa></AAA>');
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1484,7 +1485,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads case-insensitive end tags', () => {
-    tokenizeMarkup('<aaa></AAA>', callback, resolveTokenizerOptions({ areTagNamesCaseInsensitive: true }));
+    const options = resolveTokenizerOptions({ areTagNamesCaseInsensitive: true });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa></AAA>');
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1493,15 +1496,13 @@ describe('tokenizeMarkup', () => {
   });
 
   test('read non ASCII alpha-chars as case-sensitive in case-insensitive tag matching mode', () => {
-    tokenizeMarkup(
-      '<aaaффф></AAAФФФ>',
-      callback,
-      resolveTokenizerOptions({
-        areTagNamesCaseInsensitive: true,
-        areUnbalancedStartTagsImplicitlyEnded: true,
-        areUnbalancedEndTagsIgnored: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      areTagNamesCaseInsensitive: true,
+      areUnbalancedStartTagsImplicitlyEnded: true,
+      areUnbalancedEndTagsIgnored: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaaффф></AAAФФФ>');
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 7);
@@ -1510,14 +1511,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('ends unbalanced tags', () => {
-    tokenizeMarkup(
-      '<a><b></a></b>',
-      callback,
-      resolveTokenizerOptions({
-        areUnbalancedStartTagsImplicitlyEnded: true,
-        areUnbalancedEndTagsIgnored: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      areUnbalancedStartTagsImplicitlyEnded: true,
+      areUnbalancedEndTagsIgnored: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<a><b></a></b>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 2);
@@ -1529,14 +1528,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends tags inside the nearest boundary', () => {
-    tokenizeMarkup(
-      '<aaa><bbb><aaa><bbb>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { isImplicitEndingBoundary: true }, bbb: { implicitlyEndedBy: ['bbb'] } },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { isImplicitEndingBoundary: true }, bbb: { implicitlyEndedBy: ['bbb'] } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb><aaa><bbb>');
 
     expect(callbackMock).toHaveBeenCalledTimes(12);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1554,14 +1551,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends the boundary tag that must be ended', () => {
-    tokenizeMarkup(
-      '<aaa><bbb><aaa>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['aaa'], isImplicitEndingBoundary: true } },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { implicitlyEndedBy: ['aaa'], isImplicitEndingBoundary: true } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb><aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1576,14 +1571,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads self-closing foreign tag', () => {
-    tokenizeMarkup(
-      '<aaa><bbb/><ccc><ddd/></ccc></aaa>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { ccc: { foreignContext: { areSelfClosingTagsRecognized: true } } },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { ccc: { foreignContext: { areSelfClosingTagsRecognized: true } } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb/><ccc><ddd/></ccc></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1600,11 +1593,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads sibling foreign tags', () => {
-    tokenizeMarkup(
-      '<aaa><ccc>ddd</ccc><ccc>fff</ccc></aaa>',
-      callback,
-      resolveTokenizerOptions({ tags: { ccc: { foreignContext: { areSelfClosingTagsRecognized: true } } } })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { ccc: { foreignContext: { areSelfClosingTagsRecognized: true } } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><ccc>ddd</ccc><ccc>fff</ccc></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(11);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1621,23 +1614,21 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads deeply nested foreign tags', () => {
-    tokenizeMarkup(
-      '<aaa><bbb><ccc><ddd/>xxx</ccc><eee/>',
-      callback,
-      resolveTokenizerOptions({
-        tags: {
-          bbb: {
-            foreignContext: {
-              areSelfClosingTagsRecognized: true,
-              tags: {
-                ccc: { foreignContext: { areSelfClosingTagsRecognized: false } },
-              },
+    const options = resolveTokenizerOptions({
+      tags: {
+        bbb: {
+          foreignContext: {
+            areSelfClosingTagsRecognized: true,
+            tags: {
+              ccc: { foreignContext: { areSelfClosingTagsRecognized: false } },
             },
           },
         },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+      },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb><ccc><ddd/>xxx</ccc><eee/>');
 
     expect(callbackMock).toHaveBeenCalledTimes(15);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1658,11 +1649,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('restores options after a self-closing foreign tag', () => {
-    tokenizeMarkup(
-      '<aaa/><bbb/></bbb>',
-      callback,
-      resolveTokenizerOptions({ tags: { aaa: { foreignContext: { areSelfClosingTagsRecognized: true } } } })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { foreignContext: { areSelfClosingTagsRecognized: true } } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa/><bbb/></bbb>');
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1678,7 +1669,7 @@ describe('tokenizeMarkup', () => {
       areSelfClosingTagsRecognized: true,
     });
 
-    tokenizeMarkup('<aaa></aaa><bbb/>', callback, resolveTokenizerOptions({}), makeTestState(options));
+    createTokenizerWriter(callback, defaultOptions, makeTestState(options)).end('<aaa></aaa><bbb/>');
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1689,14 +1680,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('restores options after an implicitly ended foreign tag', () => {
-    tokenizeMarkup(
-      '<aaa><bbb></aaa><ccc/></ccc>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { bbb: { foreignContext: { areSelfClosingTagsRecognized: true } } },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { bbb: { foreignContext: { areSelfClosingTagsRecognized: true } } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb></aaa><ccc/></ccc>');
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1717,7 +1706,11 @@ describe('tokenizeMarkup', () => {
       aaa: { foreignContext: { areSelfClosingTagsRecognized: true, tags: { bbb: { foreignContext: options } } } },
     };
 
-    tokenizeMarkup('<aaa><bbb></bbb></aaa><ccc/></ccc>', callback, resolveTokenizerOptions(options));
+    const resolvedOptions = resolveTokenizerOptions(options);
+
+    createTokenizerWriter(callback, resolvedOptions, makeTestState(resolvedOptions)).end(
+      '<aaa><bbb></bbb></aaa><ccc/></ccc>'
+    );
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1732,11 +1725,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('does not apply outer tags to content of a foreign tag', () => {
-    tokenizeMarkup(
-      '<aaa><bbb></bbb></aaa>',
-      callback,
-      resolveTokenizerOptions({ tags: { aaa: { foreignContext: {} }, bbb: { kind: 'void' } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { foreignContext: {} }, bbb: { kind: 'void' } } });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb></bbb></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1748,11 +1739,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('applies tags of a foreign tag to its content', () => {
-    tokenizeMarkup(
-      '<aaa><bbb></aaa>',
-      callback,
-      resolveTokenizerOptions({ tags: { aaa: { foreignContext: { tags: { bbb: { kind: 'void' } } } } } })
-    );
+    const options = resolveTokenizerOptions({ tags: { aaa: { foreignContext: { tags: { bbb: { kind: 'void' } } } } } });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1764,14 +1753,12 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly ends a tag that was started in another context', () => {
-    tokenizeMarkup(
-      '<bbb><aaa><ccc>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { foreignContext: {} }, bbb: { implicitlyEndedBy: ['ccc'] } },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { foreignContext: {} }, bbb: { implicitlyEndedBy: ['ccc'] } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<bbb><aaa><ccc>');
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1786,17 +1773,15 @@ describe('tokenizeMarkup', () => {
   });
 
   test('does not implicitly end a tag of another context that is ended by other tags', () => {
-    tokenizeMarkup(
-      '<bbb><aaa><ddd>',
-      callback,
-      resolveTokenizerOptions({
-        tags: {
-          aaa: { foreignContext: { tags: { eee: { implicitlyEndedBy: ['ddd'] } } } },
-          bbb: { implicitlyEndedBy: ['ccc'] },
-        },
-        areUnbalancedStartTagsImplicitlyEnded: true,
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: {
+        aaa: { foreignContext: { tags: { eee: { implicitlyEndedBy: ['ddd'] } } } },
+        bbb: { implicitlyEndedBy: ['ccc'] },
+      },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<bbb><aaa><ddd>');
 
     expect(callbackMock).toHaveBeenCalledTimes(9);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1811,13 +1796,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads a tag that implicitly ends a foreign tag with outer tags', () => {
-    tokenizeMarkup(
-      '<aaa><bbb>ccc',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'void' } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'void' } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb>ccc');
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1830,13 +1813,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('reads raw text of a tag that implicitly ends a foreign tag with outer tags', () => {
-    tokenizeMarkup(
-      '<aaa><bbb><ccc></bbb>',
-      callback,
-      resolveTokenizerOptions({
-        tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'raw_text' } },
-      })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'raw_text' } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa><bbb><ccc></bbb>');
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1849,11 +1830,11 @@ describe('tokenizeMarkup', () => {
   });
 
   test('implicitly starts a tag with tags of a foreign tag', () => {
-    tokenizeMarkup(
-      '<aaa></bbb></aaa>',
-      callback,
-      resolveTokenizerOptions({ tags: { aaa: { foreignContext: { tags: { bbb: { isImplicitlyStarted: true } } } } } })
-    );
+    const options = resolveTokenizerOptions({
+      tags: { aaa: { foreignContext: { tags: { bbb: { isImplicitlyStarted: true } } } } },
+    });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa></bbb></aaa>');
 
     expect(callbackMock).toHaveBeenCalledTimes(6);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1866,9 +1847,9 @@ describe('tokenizeMarkup', () => {
 
   test('does not end a tag with an end tag that has the same hash code but a different name', () => {
     // "aQ" and "b0" have the same hash code
-    expect(() => tokenizeMarkup('<aQ></b0>', callback)).toThrow(
-      new ParserError('Unexpected end tag.', '<aQ></b0>', 6, 8)
-    );
+    expect(() =>
+      createTokenizerWriter(callback, defaultOptions, makeTestState(defaultOptions)).end('<aQ></b0>')
+    ).toThrow(new ParserError('Unexpected end tag.', '<aQ></b0>', 6, 8));
   });
 
   test('sets the tag hash code and the tag options before an implicitly started start tag name is passed to the callback', () => {
@@ -1876,8 +1857,7 @@ describe('tokenizeMarkup', () => {
     const state = makeTestState(options);
     const states: Partial<TokenizerState>[] = [];
 
-    tokenizeMarkup(
-      '</aaa>',
+    createTokenizerWriter(
       token => {
         if (token === 'start_tag_name') {
           states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
@@ -1885,7 +1865,7 @@ describe('tokenizeMarkup', () => {
       },
       options,
       state
-    );
+    ).end('</aaa>');
 
     expect(states).toEqual([
       {
@@ -1896,7 +1876,9 @@ describe('tokenizeMarkup', () => {
   });
 
   test('closes the start tag at the end of the input', () => {
-    tokenizeMarkup('<aaa', callback, resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true }));
+    const options = resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true });
+
+    createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa');
 
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
@@ -1905,23 +1887,19 @@ describe('tokenizeMarkup', () => {
   });
 
   test('strict throws if document has multiple root elements', () => {
-    expect(() =>
-      tokenizeMarkup(
-        '<aaa/><bbb/>',
-        callback,
-        resolveTokenizerOptions({ isStrict: true, areSelfClosingTagsRecognized: true })
-      )
-    ).toThrow(new ParserError('Expected a single root element.', '<aaa/><bbb/>', 6, 10));
+    const options = resolveTokenizerOptions({ isStrict: true, areSelfClosingTagsRecognized: true });
+
+    expect(() => createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa/><bbb/>')).toThrow(
+      new ParserError('Expected a single root element.', '<aaa/><bbb/>', 6, 10)
+    );
   });
 
   test('throws if start tag is not closed before EOF', () => {
-    expect(() => tokenizeMarkup('<aaa xxx="bbb"', callback)).toThrow(
-      new ParserError('Unexpected end of the document.', '<aaa xxx="bbb"', 14)
-    );
+    expect(() =>
+      createTokenizerWriter(callback, defaultOptions, makeTestState(defaultOptions)).end('<aaa xxx="bbb"')
+    ).toThrow(new ParserError('Unexpected end of the document.', '<aaa xxx="bbb"', 14));
   });
-});
 
-describe('createTokenizerWriter', () => {
   test('reads tokens from chunks', () => {
     const options = resolveTokenizerOptions({});
     const writer = createTokenizerWriter(callback, options, makeTestState(options));

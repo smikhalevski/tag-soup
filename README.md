@@ -355,7 +355,9 @@ properties:
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#tags"><code>tags</code></a></dt>
 <dd>The map from a tag name to <a href="https://smikhalevski.github.io/tag-soup/interfaces/TagSerializationOptions.html"><code>TagSerializationOptions</code></a>: void tags, like <code>br</code> and <code>img</code>, are written without an end tag, and text content of raw text tags, like <code>script</code> and <code>style</code>, is written without <code>encodeText</code>. <a href="#tag-options">Tag options</a> of a parser can be passed here too, so parsers and serializers can share them.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodetext"><code>encodeText</code></a></dt>
-<dd>Encodes text content and attribute values, for example <code>escapeXML</code> from <code>speedy-entities</code>. Comments, CDATA sections and processing instructions are written as is.</dd>
+<dd>Encodes text content, for example <code>escapeXML</code> from <code>speedy-entities</code>. Text of raw text tags, comments, CDATA sections and processing instructions are written as is.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodeattribute"><code>encodeAttribute</code></a></dt>
+<dd>Encodes attribute values, for example <code>escapeXML</code> from <code>speedy-entities</code>. Values are written in double quotes, so <code>"</code> must be encoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#areselfclosingtagssupported"><code>areSelfClosingTagsSupported</code></a></dt>
 <dd>If <code>true</code>, elements without children are written as <code>&lt;a/&gt;</code>, otherwise as <code>&lt;a&gt;&lt;/a&gt;</code>. Void tags are always written without an end tag.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
@@ -371,6 +373,7 @@ import { XMLDOMParser, createSerializer } from 'tag-soup';
 const toXMLEncoded = createSerializer({
   areSelfClosingTagsSupported: true,
   encodeText: encodeXML,
+  encodeAttribute: encodeXML,
 });
 
 const fragment = XMLDOMParser.parseFragment('<note><text>AT&amp;T</text></note>');

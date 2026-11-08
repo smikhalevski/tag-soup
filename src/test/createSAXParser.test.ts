@@ -2,7 +2,7 @@ import { decodeXML } from 'speedy-entities';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { createSAXParser, createSAXParserWriter } from '../main/createSAXParser.ts';
 import type { SAXHandler } from '../main/index.ts';
-import { resolveParserOptions } from '../main/types.ts';
+import { resolveParserOptions } from '../main/resolveParserOptions.ts';
 
 const mockHandler = {
   onText: vi.fn(),

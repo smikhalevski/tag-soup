@@ -1,3 +1,18 @@
+import type {
+  ResolvedContextualTokenizerOptions,
+  ResolvedTagParsingOptions,
+  ResolvedTokenizerOptions,
+  TokenReaderOptions,
+} from './resolveTokenizerOptions.ts';
+import type { TokenCallback, TokenizerWriter } from './types.ts';
+import {
+  areCaseInsensitiveSubstringsEqual,
+  areCaseSensitiveSubstringsEqual,
+  getCaseInsensitiveHashCode,
+  getCaseSensitiveHashCode,
+  toLowerCaseCharCode,
+} from './utils.ts';
+
 /**
  * The error thrown by a tokenizer or a parser if an {@link ParserError.input input} is malformed.
  *
@@ -45,191 +60,6 @@ export class ParserError extends SyntaxError {
 ParserError.prototype.name = 'ParserError';
 
 /**
- * A token that can be read from text. Indices passed to {@link TokenCallback} along with a token point to:
- *
- * - `text`: text between tags.
- * - `start_tag_name`: the tag name in a start tag, `p` in `<p>`.
- * - `start_tag_closing`: the `>` that closes a start tag.
- * - `start_tag_self_closing`: the `/>` that closes a self-closing tag.
- * - `end_tag_name`: the tag name in an end tag, `p` in `</p>`.
- * - `attribute_name`: an attribute name.
- * - `attribute_value`: an attribute value without quotes. Entities aren't decoded.
- * - `comment`: comment content between `<!--` and `-->`.
- * - `processing_instruction_target`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
- * - `processing_instruction_data`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
- * - `cdata_section`: CDATA section content between `<![CDATA[` and `]]>`.
- * - `doctype_name`: the name in a `DOCTYPE` declaration, `html` in `<!DOCTYPE html>`.
- *
- * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
- * indices.
- *
- * @group Tokenizer
- */
-export type Token =
-  | 'text'
-  | 'start_tag_name'
-  | 'start_tag_closing'
-  | 'start_tag_self_closing'
-  | 'end_tag_name'
-  | 'attribute_name'
-  | 'attribute_value'
-  | 'comment'
-  | 'processing_instruction_target'
-  | 'processing_instruction_data'
-  | 'cdata_section'
-  | 'doctype_name';
-
-/**
- * A callback that is invoked when a token is read from text.
- *
- * @param token The token that was read.
- * @param startIndex The start index of the first meaningful token char in the input, inclusive.
- * @param endIndex The end index of the last meaningful token char in the input, exclusive.
- * @param input The text that indices point to. A writer passes the part of the stream that it didn't read before,
- * followed by the last written chunk, and this text starts at {@link TokenizerWriter.inputOffset} in the stream.
- * @group Tokenizer
- */
-export type TokenCallback = (token: Token, startIndex: number, endIndex: number, input: string) => void;
-
-/**
- * The kind of a tag, which defines what the tag can contain, and how parsers read it and serializers write it:
- *
- * - `'normal'`: tags and text. Serializers encode the text with {@link SerializerOptions.encodeText}.
- * - `'void'`: nothing. Parsers insert an end tag right after the start tag, and serializers write the tag without an
- *   end tag and ignore its children.
- * - `'raw_text'`: text up to the matching end tag. Parsers don't decode this text with
- *   {@link ParserOptions.decodeText}, and serializers write it as is.
- * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text, and serializers encode it.
- * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
- *   end tag or `-->`. Browsers read `script` this way for compatibility with old scripts wrapped in comments:
- *
- * ```html
- * <script><!--<script></script></script>
- *                              ^^^^^^^^^ ends the script
- * ```
- *
- * In raw text of any kind, an end tag must be followed by a space, `/` or `>`, so `</script` at the end of the input is
- * text.
- *
- * @see [HTML Normal Elements](https://html.spec.whatwg.org/multipage/syntax.html#normal-elements)
- * @see [HTML Void Elements](https://html.spec.whatwg.org/multipage/syntax.html#void-elements)
- * @see [HTML Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements)
- * @see [HTML Escapable Raw Text Elements](https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements)
- * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
- * @group Tokenizer
- */
-export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 'script_data';
-
-/**
- * Options of {@link tokenizeMarkup} produced by {@link resolveTokenizerOptions}. Tags are represented by hash codes.
- *
- * @see {@link TokenReaderOptions.areTagNamesCaseInsensitive}
- * @internal
- */
-export interface ResolvedTokenizerOptions extends TokenReaderOptions {
-  /**
-   * Contextual options that are applied outside of foreign tags. Parsers and tokenizers start
-   * {@link TokenizerState.context} with these options.
-   */
-  initialContext: ContextualTokenReaderOptions;
-
-  /**
-   * A zero for each {@link ResolvedTagParsingOptions.tagGroupIdBitIndex bit of tag group IDs}. {@link tokenizeMarkup}
-   * copies this array to count open tags by the bit of their group ID, which is faster than creating an array of zeros
-   * on every call.
-   */
-  initialOpenTagCounts?: number[];
-
-  /**
-   * @see {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded}
-   */
-  areUnbalancedStartTagsImplicitlyEnded?: boolean;
-
-  /**
-   * @see {@link TokenizerOptions.areUnbalancedEndTagsIgnored}
-   */
-  areUnbalancedEndTagsIgnored?: boolean;
-}
-
-/**
- * Options of a tag consumed by {@link tokenizeMarkup}. All of them are kept in one object, so a start tag is looked up
- * once, rather than once per option.
- *
- * Options are resolved separately for each {@link ContextualTokenizerOptions.tags} object. Tags that only end tags of
- * any context have resolved options too.
- *
- * @internal
- */
-export interface ResolvedTagParsingOptions {
-  /**
-   * @see {@link TagParsingOptions.kind}
-   */
-  kind: TagKind;
-
-  /**
-   * Resolved {@link TagParsingOptions.foreignContext}, or `undefined` if the tag isn't foreign.
-   */
-  foreignContext: ContextualTokenReaderOptions | undefined;
-
-  /**
-   * @see {@link TagParsingOptions.isImplicitEndingBoundary}
-   */
-  isImplicitEndingBoundary: boolean;
-
-  /**
-   * @see {@link TagParsingOptions.isImplicitlyStarted}
-   */
-  isImplicitlyStarted: boolean;
-
-  /**
-   * IDs of groups of tags that are implicitly ended when this tag is started. Collected from
-   * {@link TagParsingOptions.implicitlyEndedBy} of those tags in all contexts, since tags are ended by name.
-   */
-  implicitlyEndedTagGroupIds: number[];
-
-  /**
-   * Bits that represent {@link implicitlyEndedTagGroupIds}. {@link tokenizeMarkup} keeps the same bits for open tags,
-   * so it checks if any of tags that this tag ends is open with a single bitwise AND.
-   *
-   * @see {@link tagGroupIdBitIndex}
-   */
-  implicitlyEndedTagGroupIdMask: number;
-
-  /**
-   * The ID of the group of this tag if it can be implicitly ended, or -1 otherwise. Tags with the same
-   * {@link TagParsingOptions.implicitlyEndedBy} array are in one group, since they are ended by the same tags. Groups
-   * have IDs, so {@link tokenizeMarkup} can find open tags that a tag ends, and skip the search if none of them is
-   * open. IDs are unique across contexts, so open tags of all contexts are counted together.
-   *
-   * @see {@link implicitlyEndedTagGroupIdMask}
-   */
-  tagGroupId: number;
-
-  /**
-   * The index of the bit that represents {@link tagGroupId} in bitmasks, or -1 if the tag can't be implicitly ended.
-   *
-   * @see {@link getTagGroupIdBitIndex}
-   */
-  tagGroupIdBitIndex: number;
-
-  /**
-   * `true` if the tag is `raw_text` or `script_data`, so parsers don't decode its text.
-   */
-  isRawText: boolean;
-}
-
-/**
- * Returns the index of the bit that represents a tag group ID in bitmasks. IDs that don't fit into 30 bits share the
- * last bit, so bitmasks are small integers, which V8 doesn't allocate. Tags with a shared bit can be considered open
- * while they aren't, which costs a search for tags to end, but doesn't change the result.
- *
- * @internal
- */
-export function getTagGroupIdBitIndex(tagGroupId: number): number {
-  return tagGroupId < 29 ? tagGroupId : 29;
-}
-
-/**
  * The state of reading a text, shared with the callback. Options are shared by all calls, so everything that changes
  * during a call is kept here. A writer reads all chunks with the same state, so it also keeps what is needed to continue
  * reading where the previous chunk ended.
@@ -246,17 +76,17 @@ export interface TokenizerState {
 
   /**
    * Resolved options of the start tag, or `undefined` if options don't mention the tag. Set before a `start_tag_name`
-   * token is passed to a callback, so the callback doesn't have to look the tag up again. {@link tokenizeMarkup} looks
-   * the tag up again if implicit ending switches the context.
+   * token is passed to a callback, so the callback doesn't have to look the tag up again. {@link createTokenizerWriter}
+   * looks the tag up again if implicit ending switches the context.
    */
   tagOptions: ResolvedTagParsingOptions | undefined;
 
   /**
-   * Contextual options of the content that is being read. {@link tokenizeMarkup} switches it when a foreign tag is
-   * started or ended, and restores the initial context when all foreign tags are ended. {@link readTokens} reads it on
-   * every use.
+   * Contextual options of the content that is being read. {@link createTokenizerWriter} switches it when a foreign tag
+   * is started or ended, and restores the initial context when all foreign tags are ended. {@link readTokens} reads it
+   * on every use.
    */
-  context: ContextualTokenReaderOptions;
+  context: ResolvedContextualTokenizerOptions;
 
   /**
    * If `false` then more chunks can follow the input, so {@link readTokens} doesn't read tokens that reach the end of
@@ -314,7 +144,7 @@ export interface TokenizerState {
  * @param context Contextual options that are applied outside of foreign tags.
  * @internal
  */
-export function createTokenizerState(context: ContextualTokenReaderOptions): TokenizerState {
+export function createTokenizerState(context: ResolvedContextualTokenizerOptions): TokenizerState {
   return {
     tagHashCode: 0,
     tagOptions: undefined,
@@ -329,91 +159,6 @@ export function createTokenizerState(context: ContextualTokenReaderOptions): Tok
     isEnclosingRawTextTagScriptData: false,
     isStartTagVoid: false,
   };
-}
-
-/**
- * Reads tokens from text and returns them by invoking a callback.
- *
- * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
- * if needed. Foreign tags switch contextual options for their content.
- *
- * @example
- * tokenizeMarkup(
- *   'Hello, <b>Bob</b>!',
- *   (token, startIndex, endIndex) => {
- *     // Handle token here
- *   },
- *   resolveTokenizerOptions({ tags: { br: { kind: 'void' } } })
- * );
- *
- * @param input The text to read tokens from.
- * @param callback The callback that is invoked when a token is read.
- * @param options Tokenizer options prepared by {@link resolveTokenizerOptions}.
- * @param state The state of reading, which is shared with the callback. Its context is applied outside of foreign
- *   tags. By default, the context is {@link ResolvedTokenizerOptions.initialContext}.
- * @throws {@link ParserError} If input is malformed and options don't allow to recover.
- * @internal
- */
-export function tokenizeMarkup(
-  input: string,
-  callback: TokenCallback,
-  options: ResolvedTokenizerOptions = { initialContext: {} },
-  state = createTokenizerState(options.initialContext)
-): void {
-  createTokenizerWriter(callback, options, state).end(input);
-}
-
-/**
- * Parses text that is written in chunks.
- *
- * A token that reaches the end of a chunk is read when the next chunk is written, since the token can continue there,
- * so the result is the same as if the whole text was parsed at once. Text between tags, including the content of raw
- * text tags, is read as a single token as well.
- *
- * @template TResult The result of parsing.
- * @see {@link DOMParser.createDocumentWriter}
- * @see {@link SAXParser.createDocumentWriter}
- * @see {@link Tokenizer.createDocumentWriter}
- * @group Parser
- */
-export interface ParserWriter<TResult = void> {
-  /**
-   * Parses a chunk of text.
-   *
-   * @param chunk The chunk of text.
-   * @throws {@link ParserError} If text is malformed and options don't allow to recover.
-   */
-  write(chunk: string): void;
-
-  /**
-   * Parses the last chunk of text, and ends tags that are still open. Chunks can't be written after that.
-   *
-   * @param chunk The last chunk of text.
-   * @returns The result of parsing.
-   * @throws {@link ParserError} If text is malformed and options don't allow to recover.
-   */
-  end(chunk?: string): TResult;
-}
-
-/**
- * Reads tokens from text that is written in chunks, and returns them by invoking a callback.
- *
- * @see {@link Tokenizer.createDocumentWriter}
- * @see {@link Tokenizer.createFragmentWriter}
- * @group Tokenizer
- */
-export interface TokenizerWriter extends ParserWriter {
-  /**
-   * The index in the stream where the input that is passed to the callback starts. The stream is all chunks that were
-   * written, and the input is the part of the stream that wasn't read before, followed by the last written chunk.
-   *
-   * @example
-   * const writer = HTMLTokenizer.createDocumentWriter((token, startIndex, endIndex, input) => {
-   *   writer.inputOffset + startIndex;
-   *   // ⮕ The index in the stream where the token starts
-   * });
-   */
-  readonly inputOffset: number;
 }
 
 /**
@@ -437,12 +182,12 @@ export function createTokenizerWriter(
   state: TokenizerState
 ): TokenizerWriter {
   const {
-    areTagNamesCaseInsensitive = false,
-    initialOpenTagCounts,
-    areUnbalancedStartTagsImplicitlyEnded = false,
-    areUnbalancedEndTagsIgnored = false,
-    isFragment = false,
-    isStrict = false,
+    areTagNamesCaseInsensitive,
+    initialEnclosingTagCounts,
+    areUnbalancedStartTagsImplicitlyEnded,
+    areUnbalancedEndTagsIgnored,
+    isFragment,
+    isStrict,
   } = options;
 
   const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
@@ -462,13 +207,13 @@ export function createTokenizerWriter(
   const tagOptionsStack: Array<ResolvedTagParsingOptions | undefined> = [];
 
   // The number of open tags by the bit of their group ID
-  const openTagCounts = initialOpenTagCounts !== undefined ? initialOpenTagCounts.slice() : [];
+  const openTagCounts = initialEnclosingTagCounts.slice();
 
   // Bits of group IDs of open tags, see ResolvedTagParsingOptions.implicitlyEndedTagGroupIdMask
   let openTagGroupIdMask = 0;
 
   // Contextual options that were current when each open foreign tag was started, so they're restored when it ends
-  const outerContextStack: ContextualTokenReaderOptions[] = [];
+  const outerContextStack: ResolvedContextualTokenizerOptions[] = [];
 
   // The index of the innermost open tag in tag stacks
   let tagStackCursor = -1;
@@ -789,10 +534,10 @@ export function createTokenizerWriter(
  * Returns resolved options of a tag in a context, or `undefined` if the tag has no options there.
  */
 function getTagOptions(
-  context: ContextualTokenReaderOptions,
+  context: ResolvedContextualTokenizerOptions,
   tagHashCode: number
 ): ResolvedTagParsingOptions | undefined {
-  return context.tagOptionsMap !== undefined ? context.tagOptionsMap.get(tagHashCode) : undefined;
+  return context.tagsMap !== undefined ? context.tagsMap.get(tagHashCode) : undefined;
 }
 
 /**
@@ -838,35 +583,6 @@ const TOKEN_CDATA_SECTION = 'cdata_section';
 const TOKEN_DOCTYPE_NAME = 'doctype_name';
 
 /**
- * Options that are applied depending on the enclosing foreign tag.
- *
- * @see {@link ContextualTokenizerOptions}
- * @internal
- */
-export interface ContextualTokenReaderOptions {
-  /**
-   * The map from a hash code of a tag to resolved options of the tag in this context. Contexts with the same
-   * {@link ContextualTokenizerOptions.tags tags} share the map.
-   */
-  tagOptionsMap?: Map<number, ResolvedTagParsingOptions>;
-
-  /**
-   * @see {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized}
-   */
-  areSelfClosingTagsRecognized?: boolean;
-
-  /**
-   * @see {@link ContextualTokenizerOptions.areCDATASectionsRecognized}
-   */
-  areCDATASectionsRecognized?: boolean;
-
-  /**
-   * @see {@link ContextualTokenizerOptions.areProcessingInstructionsRecognized}
-   */
-  areProcessingInstructionsRecognized?: boolean;
-}
-
-/**
  * Returns `true` if two tag names are equal. Names can be in different strings, since a tag that is still open can be
  * started in a previous chunk.
  *
@@ -882,39 +598,10 @@ export type TagNameEqualityComparer = (
 ) => boolean;
 
 /**
- * Options of {@link readTokens}.
- *
- * @internal
- */
-export interface TokenReaderOptions {
-  /**
-   * If `true` then tag names are hashed with {@link getCaseInsensitiveHashCode} and compared with
-   * {@link areCaseInsensitiveSubstringsEqual}, otherwise with {@link getCaseSensitiveHashCode} and
-   * {@link areCaseSensitiveSubstringsEqual}.
-   *
-   * @default false
-   */
-  areTagNamesCaseInsensitive?: boolean;
-
-  /**
-   * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
-   * `DOCTYPE` isn't recognized.
-   *
-   * @default false
-   */
-  isFragment?: boolean;
-
-  /**
-   * @see {@link TokenizerOptions.isStrict}
-   */
-  isStrict?: boolean;
-}
-
-/**
  * Reads tokens from text and returns them by invoking a callback.
  *
  * Tokens are returned in the order they appear in text, nothing is inserted, so start and end tags may be unbalanced.
- * Use {@link tokenizeMarkup} to get balanced tokens.
+ * Use {@link createTokenizerWriter} to get balanced tokens.
  *
  * Contextual options are read from {@link TokenizerState.context} on every use, and options of a start tag are read
  * from {@link TokenizerState.tagOptions} after the `start_tag_name` callback, so the callback can change both.
@@ -927,11 +614,10 @@ export interface TokenReaderOptions {
  * @param input The text to read tokens from.
  * @param callback The callback that is invoked when a token is read.
  * @param options Token reader options.
- * @param state The state of reading, which is shared with the callback. By default, the input is read from the start,
- *   and no contextual options are applied.
+ * @param state The state of reading, which is shared with the callback.
  * @param tagCallback The callback that is invoked instead of `callback` for `start_tag_name`, `end_tag_name`,
- *   `start_tag_self_closing`, and `start_tag_closing` of void tags. {@link tokenizeMarkup} balances tags with it, so
- *   other tokens don't pass through an extra call. By default, `callback` is invoked for all tokens.
+ *   `start_tag_self_closing`, and `start_tag_closing` of void tags. {@link createTokenizerWriter} balances tags with
+ *   it, so other tokens don't pass through an extra call. By default, `callback` is invoked for all tokens.
  * @returns The index in the input where the text that wasn't read starts, or the input length if the whole input was
  *   read.
  * @throws {@link ParserError} If {@link TokenReaderOptions.isStrict} is `true` and input is malformed.
@@ -940,11 +626,11 @@ export interface TokenReaderOptions {
 export function readTokens(
   input: string,
   callback: TokenCallback,
-  options: TokenReaderOptions = {},
-  state = createTokenizerState({}),
+  options: TokenReaderOptions,
+  state: TokenizerState,
   tagCallback = callback
 ): number {
-  const { areTagNamesCaseInsensitive = false, isFragment, isStrict = false } = options;
+  const { areTagNamesCaseInsensitive, isFragment, isStrict } = options;
 
   const inputLength = input.length;
 
@@ -1832,108 +1518,6 @@ function getHTMLCommentEndIndex(input: string, index: number): number {
   }
 }
 
-/**
- * Returns case-insensitive djb2 hash of a substring. The hash is computed in 32 bits and truncated to 30 bits, so V8
- * stores it as a small integer, which isn't allocated and is faster to look up in a Set or a Map.
- */
-export function getCaseInsensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
-  let hashCode = 5_381;
-
-  for (let i = startIndex; i < endIndex; ++i) {
-    hashCode = ((hashCode << 5) + hashCode + toLowerCaseCharCode(input.charCodeAt(i))) | 0;
-  }
-
-  return hashCode & 0x3fffffff;
-}
-
-/**
- * Returns case-sensitive djb2 hash of a substring. The hash is computed in 32 bits and truncated to 30 bits, so V8
- * stores it as a small integer, which isn't allocated and is faster to look up in a Set or a Map.
- */
-export function getCaseSensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
-  let hashCode = 5_381;
-
-  for (let i = startIndex; i < endIndex; ++i) {
-    hashCode = ((hashCode << 5) + hashCode + input.charCodeAt(i)) | 0;
-  }
-
-  return hashCode & 0x3fffffff;
-}
-
-/**
- * Returns `true` if two substrings are equal, ignoring the case of ASCII letters.
- */
-export function areCaseInsensitiveSubstringsEqual(
-  input1: string,
-  startIndex1: number,
-  endIndex1: number,
-  input2: string,
-  startIndex2: number,
-  endIndex2: number
-): boolean {
-  if (endIndex1 - startIndex1 !== endIndex2 - startIndex2) {
-    return false;
-  }
-
-  for (let i = startIndex1, j = startIndex2; i < endIndex1; ++i, ++j) {
-    const charCode1 = input1.charCodeAt(i);
-    const charCode2 = input2.charCodeAt(j);
-
-    // Case is folded only if chars differ, since end tags usually repeat start tags exactly
-    if (charCode1 !== charCode2 && toLowerCaseCharCode(charCode1) !== toLowerCaseCharCode(charCode2)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Returns `true` if two substrings are equal.
- */
-export function areCaseSensitiveSubstringsEqual(
-  input1: string,
-  startIndex1: number,
-  endIndex1: number,
-  input2: string,
-  startIndex2: number,
-  endIndex2: number
-): boolean {
-  if (endIndex1 - startIndex1 !== endIndex2 - startIndex2) {
-    return false;
-  }
-
-  for (let i = startIndex1, j = startIndex2; i < endIndex1; ++i, ++j) {
-    if (input1.charCodeAt(i) !== input2.charCodeAt(j)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Returns `true` if two strings are equal, ignoring the case of ASCII letters.
- *
- * @internal
- */
-export function areCaseInsensitiveStringsEqual(str1: string, str2: string): boolean {
-  if (str1.length !== str2.length) {
-    return false;
-  }
-
-  for (let i = 0; i < str1.length; ++i) {
-    const charCode1 = str1.charCodeAt(i);
-    const charCode2 = str2.charCodeAt(i);
-
-    if (charCode1 !== charCode2 && toLowerCaseCharCode(charCode1) !== toLowerCaseCharCode(charCode2)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 function getCharCodeAt(input: string, index: number): number {
   return index < input.length ? input.charCodeAt(index) : -1;
 }
@@ -1942,11 +1526,6 @@ function getIndexOfOrLength(input: string, searchString: string, index: number):
   index = input.indexOf(searchString, index);
 
   return index !== -1 ? index : input.length;
-}
-
-function toLowerCaseCharCode(charCode: number): number {
-  // Lower-case letters are the most common, and they're above "Z"
-  return charCode > /* Z */ 90 || charCode < /* A */ 65 ? charCode : charCode + 32;
 }
 
 function getUncheckedCaseInsensitiveCharCodeAt(input: string, index: number): number {

@@ -22,6 +22,12 @@ describe('createSerializer', () => {
     expect(serialize(f.f(f.aQ(), f.b0()))).toBe('<aQ><b0>');
   });
 
+  test('encodes attribute values separately from text', () => {
+    const serialize = createSerializer({ encodeText: () => 'xxx', encodeAttribute: () => 'yyy' });
+
+    expect(serialize(f.f(f.aaa({ bbb: 'ccc' }, 'ddd')))).toBe('<aaa bbb="yyy">xxx</aaa>');
+  });
+
   test('compares tag names ignoring case', () => {
     const serialize = createSerializer({ tags: { aaa: { kind: 'void' } }, areTagNamesCaseInsensitive: true });
 

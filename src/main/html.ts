@@ -1,9 +1,9 @@
 import { decodeHTML, decodeHTMLAttribute, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
-import { createSerializer, type SerializerOptions } from './createSerializer.ts';
-import { type ContextualTokenizerOptions, createTokenizer } from './createTokenizer.ts';
-import type { ParserOptions } from './types.ts';
+import { createSerializer } from './createSerializer.ts';
+import { createTokenizer } from './createTokenizer.ts';
+import type { ContextualTokenizerOptions, ParserOptions, SerializerOptions } from './types.ts';
 
 // Tags that implicitly end form controls
 const formTagNames = ['button', 'datalist', 'input', 'output', 'select', 'textarea'];
@@ -20,6 +20,7 @@ const tableSectionTagNames = ['tbody', 'tfoot'];
 // Tags that implicitly end SVG and MathML, other tags inside them don't end outer tags, see
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign
 const breakoutTagNames = [
+  ...headingTagNames,
   'b',
   'big',
   'blockquote',
@@ -33,7 +34,6 @@ const breakoutTagNames = [
   'dt',
   'em',
   'embed',
-  ...headingTagNames,
   'head',
   'hr',
   'i',
@@ -68,7 +68,7 @@ const svgOptions: ContextualTokenizerOptions = {
   areSelfClosingTagsRecognized: true,
 };
 
-const mathOptions: ContextualTokenizerOptions = {
+const mathmlOptions: ContextualTokenizerOptions = {
   areCDATASectionsRecognized: true,
   areProcessingInstructionsRecognized: true,
   areSelfClosingTagsRecognized: true,
@@ -77,56 +77,159 @@ const mathOptions: ContextualTokenizerOptions = {
 const htmlParserOptions: ParserOptions = {
   // Implicit ending boundaries follow https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
   tags: {
-    a: { implicitlyEndedBy: ['a'] },
-    'annotation-xml': { isImplicitEndingBoundary: true },
-    applet: { isImplicitEndingBoundary: true },
-    area: { kind: 'void' },
-    base: { kind: 'void' },
-    basefont: { kind: 'void' },
-    bgsound: { kind: 'void' },
-    br: { kind: 'void', isImplicitlyStarted: true },
-    button: { implicitlyEndedBy: formTagNames, isImplicitEndingBoundary: true },
-    caption: { isImplicitEndingBoundary: true },
-    col: { kind: 'void' },
-    datalist: { implicitlyEndedBy: formTagNames },
-    dd: { implicitlyEndedBy: ddtTagNames },
-    desc: { isImplicitEndingBoundary: true },
-    dl: { isImplicitEndingBoundary: true },
-    dt: { implicitlyEndedBy: ddtTagNames },
-    embed: { kind: 'void' },
-    foreignObject: { isImplicitEndingBoundary: true },
-    frame: { kind: 'void' },
-    h1: { implicitlyEndedBy: headingTagNames },
-    h2: { implicitlyEndedBy: headingTagNames },
-    h3: { implicitlyEndedBy: headingTagNames },
-    h4: { implicitlyEndedBy: headingTagNames },
-    h5: { implicitlyEndedBy: headingTagNames },
-    h6: { implicitlyEndedBy: headingTagNames },
-    head: { implicitlyEndedBy: ['body'] },
-    hr: { kind: 'void' },
-    html: { isImplicitEndingBoundary: true },
-    iframe: { kind: 'raw_text' },
-    img: { kind: 'void' },
-    input: { kind: 'void', implicitlyEndedBy: formTagNames },
-    keygen: { kind: 'void' },
-    li: { implicitlyEndedBy: ['li'] },
-    link: { kind: 'void', implicitlyEndedBy: ['body'] },
-    marquee: { isImplicitEndingBoundary: true },
-    math: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true, foreignContext: mathOptions },
-    meta: { kind: 'void' },
-    mi: { isImplicitEndingBoundary: true },
-    mn: { isImplicitEndingBoundary: true },
-    mo: { isImplicitEndingBoundary: true },
-    ms: { isImplicitEndingBoundary: true },
-    mtext: { isImplicitEndingBoundary: true },
-    noembed: { kind: 'raw_text' },
-    noframes: { kind: 'raw_text' },
-    object: { isImplicitEndingBoundary: true },
-    ol: { isImplicitEndingBoundary: true },
-    optgroup: { implicitlyEndedBy: [...formTagNames, 'optgroup'] },
-    option: { implicitlyEndedBy: [...formTagNames, 'optgroup', 'option'] },
+    a: {
+      implicitlyEndedBy: ['a'],
+    },
+    'annotation-xml': {
+      isImplicitEndingBoundary: true,
+    },
+    applet: {
+      isImplicitEndingBoundary: true,
+    },
+    area: {
+      kind: 'void',
+    },
+    base: {
+      kind: 'void',
+    },
+    basefont: {
+      kind: 'void',
+    },
+    bgsound: {
+      kind: 'void',
+    },
+    br: {
+      kind: 'void',
+      isImplicitlyStarted: true,
+    },
+    button: {
+      implicitlyEndedBy: formTagNames,
+      isImplicitEndingBoundary: true,
+    },
+    caption: {
+      isImplicitEndingBoundary: true,
+    },
+    col: {
+      kind: 'void',
+    },
+    datalist: {
+      implicitlyEndedBy: formTagNames,
+    },
+    dd: {
+      implicitlyEndedBy: ddtTagNames,
+    },
+    desc: {
+      isImplicitEndingBoundary: true,
+    },
+    dl: {
+      isImplicitEndingBoundary: true,
+    },
+    dt: {
+      implicitlyEndedBy: ddtTagNames,
+    },
+    embed: {
+      kind: 'void',
+    },
+    foreignObject: {
+      isImplicitEndingBoundary: true,
+    },
+    frame: {
+      kind: 'void',
+    },
+    h1: {
+      implicitlyEndedBy: headingTagNames,
+    },
+    h2: {
+      implicitlyEndedBy: headingTagNames,
+    },
+    h3: {
+      implicitlyEndedBy: headingTagNames,
+    },
+    h4: {
+      implicitlyEndedBy: headingTagNames,
+    },
+    h5: {
+      implicitlyEndedBy: headingTagNames,
+    },
+    h6: {
+      implicitlyEndedBy: headingTagNames,
+    },
+    head: {
+      implicitlyEndedBy: ['body'],
+    },
+    hr: {
+      kind: 'void',
+    },
+    html: {
+      isImplicitEndingBoundary: true,
+    },
+    iframe: {
+      kind: 'raw_text',
+    },
+    img: {
+      kind: 'void',
+    },
+    input: {
+      kind: 'void',
+      implicitlyEndedBy: formTagNames,
+    },
+    keygen: {
+      kind: 'void',
+    },
+    li: {
+      implicitlyEndedBy: ['li'],
+    },
+    link: {
+      kind: 'void',
+      implicitlyEndedBy: ['body'],
+    },
+    marquee: {
+      isImplicitEndingBoundary: true,
+    },
+    math: {
+      implicitlyEndedBy: breakoutTagNames,
+      isImplicitEndingBoundary: true,
+      foreignContext: mathmlOptions,
+    },
+    meta: {
+      kind: 'void',
+    },
+    mi: {
+      isImplicitEndingBoundary: true,
+    },
+    mn: {
+      isImplicitEndingBoundary: true,
+    },
+    mo: {
+      isImplicitEndingBoundary: true,
+    },
+    ms: {
+      isImplicitEndingBoundary: true,
+    },
+    mtext: {
+      isImplicitEndingBoundary: true,
+    },
+    noembed: {
+      kind: 'raw_text',
+    },
+    noframes: {
+      kind: 'raw_text',
+    },
+    object: {
+      isImplicitEndingBoundary: true,
+    },
+    ol: {
+      isImplicitEndingBoundary: true,
+    },
+    optgroup: {
+      implicitlyEndedBy: [...formTagNames, 'optgroup'],
+    },
+    option: {
+      implicitlyEndedBy: [...formTagNames, 'optgroup', 'option'],
+    },
     p: {
       implicitlyEndedBy: [
+        ...headingTagNames,
         'address',
         'article',
         'aside',
@@ -144,7 +247,6 @@ const htmlParserOptions: ParserOptions = {
         'figure',
         'footer',
         'form',
-        ...headingTagNames,
         'header',
         'hgroup',
         'hr',
@@ -166,30 +268,84 @@ const htmlParserOptions: ParserOptions = {
       ],
       isImplicitlyStarted: true,
     },
-    param: { kind: 'void' },
-    plaintext: { kind: 'raw_text' },
-    rb: { implicitlyEndedBy: rubyTagNames },
-    rp: { implicitlyEndedBy: rubyTagNames },
-    rt: { implicitlyEndedBy: rubyTagNames },
-    rtc: { implicitlyEndedBy: ['rb', 'rtc'] },
-    script: { kind: 'script_data', implicitlyEndedBy: ['body'] },
-    select: { implicitlyEndedBy: formTagNames },
-    source: { kind: 'void' },
-    style: { kind: 'raw_text' },
-    svg: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true, foreignContext: svgOptions },
-    table: { isImplicitEndingBoundary: true },
-    tbody: { implicitlyEndedBy: tableSectionTagNames },
-    td: { implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames], isImplicitEndingBoundary: true },
-    template: { isImplicitEndingBoundary: true },
-    textarea: { kind: 'escapable_raw_text', implicitlyEndedBy: formTagNames },
-    th: { implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames], isImplicitEndingBoundary: true },
-    thead: { implicitlyEndedBy: tableSectionTagNames },
-    title: { kind: 'escapable_raw_text' },
-    tr: { implicitlyEndedBy: ['tr', ...tableSectionTagNames] },
-    track: { kind: 'void' },
-    ul: { isImplicitEndingBoundary: true },
-    wbr: { kind: 'void' },
-    xmp: { kind: 'raw_text' },
+    param: {
+      kind: 'void',
+    },
+    plaintext: {
+      kind: 'raw_text',
+    },
+    rb: {
+      implicitlyEndedBy: rubyTagNames,
+    },
+    rp: {
+      implicitlyEndedBy: rubyTagNames,
+    },
+    rt: {
+      implicitlyEndedBy: rubyTagNames,
+    },
+    rtc: {
+      implicitlyEndedBy: ['rb', 'rtc'],
+    },
+    script: {
+      kind: 'script_data',
+      implicitlyEndedBy: ['body'],
+    },
+    select: {
+      implicitlyEndedBy: formTagNames,
+    },
+    source: {
+      kind: 'void',
+    },
+    style: {
+      kind: 'raw_text',
+    },
+    svg: {
+      implicitlyEndedBy: breakoutTagNames,
+      isImplicitEndingBoundary: true,
+      foreignContext: svgOptions,
+    },
+    table: {
+      isImplicitEndingBoundary: true,
+    },
+    tbody: {
+      implicitlyEndedBy: tableSectionTagNames,
+    },
+    td: {
+      implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames],
+      isImplicitEndingBoundary: true,
+    },
+    template: {
+      isImplicitEndingBoundary: true,
+    },
+    textarea: {
+      kind: 'escapable_raw_text',
+      implicitlyEndedBy: formTagNames,
+    },
+    th: {
+      implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames],
+      isImplicitEndingBoundary: true,
+    },
+    thead: {
+      implicitlyEndedBy: tableSectionTagNames,
+    },
+    title: {
+      kind: 'escapable_raw_text',
+    },
+    tr: {
+      implicitlyEndedBy: ['tr', ...tableSectionTagNames],
+    },
+    track: {
+      kind: 'void',
+    },
+    ul: {
+      isImplicitEndingBoundary: true,
+    },
+    wbr: {
+      kind: 'void',
+    },
+    xmp: {
+      kind: 'raw_text',
+    },
   },
   areTagNamesCaseInsensitive: true,
   areUnbalancedStartTagsImplicitlyEnded: true,
@@ -202,18 +358,30 @@ const htmlParserOptions: ParserOptions = {
 // SVG title is an integration point
 const foreignContentTags = {
   ...htmlParserOptions.tags,
-  math: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true },
-  svg: { implicitlyEndedBy: breakoutTagNames, isImplicitEndingBoundary: true },
-  title: { isImplicitEndingBoundary: true },
+
+  math: {
+    implicitlyEndedBy: breakoutTagNames,
+    isImplicitEndingBoundary: true,
+  },
+  svg: {
+    implicitlyEndedBy: breakoutTagNames,
+    isImplicitEndingBoundary: true,
+  },
+  title: {
+    isImplicitEndingBoundary: true,
+  },
 };
 
-mathOptions.tags = foreignContentTags;
+mathmlOptions.tags = foreignContentTags;
 
 svgOptions.tags = {
   ...foreignContentTags,
 
   // Content of foreignObject is read as HTML
-  foreignObject: { isImplicitEndingBoundary: true, foreignContext: htmlParserOptions },
+  foreignObject: {
+    isImplicitEndingBoundary: true,
+    foreignContext: htmlParserOptions,
+  },
 };
 
 const htmlSerializerOptions: SerializerOptions = {
@@ -221,6 +389,7 @@ const htmlSerializerOptions: SerializerOptions = {
   areTagNamesCaseInsensitive: true,
   areSelfClosingTagsSupported: false,
   encodeText: escapeXML,
+  encodeAttribute: escapeXML,
 };
 
 /**
@@ -252,7 +421,7 @@ export const HTMLDOMParser = createDOMParser(htmlParserOptions);
 export const HTMLSAXParser = createSAXParser(htmlParserOptions);
 
 /**
- * Serializes a DOM node as an HTML string. Encodes text with
+ * Serializes a DOM node as an HTML string. Encodes text and attribute values with
  * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html), except for the content of
  * raw text tags, like `script` and `style`.
  *

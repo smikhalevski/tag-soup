@@ -2,7 +2,7 @@ import { f } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
 import { expect, test } from 'vitest';
 import { createDOMParser, createDOMParserWriter } from '../main/createDOMParser.ts';
-import { resolveParserOptions } from '../main/types.ts';
+import { resolveParserOptions } from '../main/resolveParserOptions.ts';
 
 test('parses text', () => {
   expect(createDOMParser().parseDocument('aaa')).toStrictEqual(f.doc('aaa'));

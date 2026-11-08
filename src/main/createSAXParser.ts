@@ -1,17 +1,16 @@
-import {
-  createTokenizerState,
-  createTokenizerWriter,
-  type ParserWriter,
-  type TokenCallback,
-} from './tokenizeMarkup.ts';
-import { type ParserOptions, type ResolvedParserOptions, resolveParserOptions } from './types.ts';
+import { type ResolvedParserOptions, resolveParserOptions } from './resolveParserOptions.ts';
+import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
  *
- * Callbacks for a tag are called in this order: {@link onStartTagOpening}, {@link onAttribute} for each attribute,
- * {@link onStartTagClosing} or {@link onStartTagSelfClosing}, {@link onStartTag}, and then {@link onEndTag} after
- * the tag content.
+ * Callbacks for a tag are called in this order:
+ * 1. {@link onStartTagOpening},
+ * 2. {@link onAttribute} for each attribute,
+ * 3. {@link onStartTagClosing} or {@link onStartTagSelfClosing},
+ * 4. {@link onStartTag},
+ * 5. {@link onEndTag} after the tag content.
  *
  * @group SAX
  */
@@ -24,7 +23,7 @@ export interface SAXHandler {
   onText?(text: string): void;
 
   /**
-   * Called when a start tag name is read, before its attributes.
+   * Called when a start tag name is read.
    *
    * @param tagName The start tag name.
    */
@@ -51,8 +50,9 @@ export interface SAXHandler {
   onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
 
   /**
-   * Called when a tag is ended: by its end tag, implicitly, or right after the start tag of a void tag. Not called for
-   * self-closing tags.
+   * Called when a tag is ended: by its end tag, implicitly, or right after the start tag of a void tag.
+   *
+   * **Note:** Not called for self-closing tags.
    *
    * @param tagName The name of the tag that is ended.
    */
@@ -81,9 +81,9 @@ export interface SAXHandler {
   onComment?(data: string): void;
 
   /**
-   * Called when a `DOCTYPE` is read.
+   * Called when a DOCTYPE is read.
    *
-   * @param name The `DOCTYPE` name.
+   * @param name The DOCTYPE name.
    */
   onDoctype?(name: string): void;
 
@@ -104,7 +104,9 @@ export interface SAXHandler {
  */
 export interface SAXParser {
   /**
-   * Parses text as a document. Leading spaces are skipped, and `DOCTYPE` is recognized before the first tag or text.
+   * Parses text as a document.
+   *
+   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @param handler The token handler.
@@ -113,7 +115,9 @@ export interface SAXParser {
   parseDocument(input: string, handler: SAXHandler): void;
 
   /**
-   * Parses text as a document fragment. `DOCTYPE` isn't recognized.
+   * Parses text as a document fragment.
+   *
+   * DOCTYPE isn't recognized.
    *
    * @param input The text to parse.
    * @param handler The token handler.
@@ -122,8 +126,9 @@ export interface SAXParser {
   parseFragment(input: string, handler: SAXHandler): void;
 
   /**
-   * Creates a writer that parses a document written in chunks. Leading spaces are skipped, and `DOCTYPE` is recognized
-   * before the first tag or text.
+   * Creates a writer that parses a document written in chunks.
+   *
+   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @example
    * const writer = HTMLSAXParser.createDocumentWriter({
@@ -142,7 +147,9 @@ export interface SAXParser {
   createDocumentWriter(handler: SAXHandler): ParserWriter;
 
   /**
-   * Creates a writer that parses a document fragment written in chunks. `DOCTYPE` isn't recognized.
+   * Creates a writer that parses a document fragment written in chunks.
+   *
+   * DOCTYPE isn't recognized.
    *
    * @param handler The token handler.
    * @returns The new writer.
@@ -199,12 +206,11 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * @internal
  */
 export function createSAXParserWriter(handler: SAXHandler, options: ResolvedParserOptions): ParserWriter {
-  const { decodeText = identity, decodeAttribute = identity } = options;
+  const { decodeText, decodeAttribute } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
-  // The tokenizer looks up each start tag, so it isn't looked up again here
-  const state = createTokenizerState(options.initialContext);
+  const tokenizerState = createTokenizerState(options.initialContext);
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -216,8 +222,6 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
   let piTargetEndIndex = 0;
   let attributes: Record<string, string> | undefined;
 
-  // Attribute values and processing instruction data are read with the preceding name and target, so indices of the
-  // name and the target point to the same input
   const tokenCallback: TokenCallback = (token, startIndex, endIndex, input) => {
     switch (token) {
       case 'text':
@@ -229,15 +233,15 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
         break;
 
       case 'start_tag_name': {
-        const tagOptions = state.tagOptions;
+        const tagOptions = tokenizerState.tagOptions;
 
         let tagName;
 
-        // Text inside raw text tags isn't decoded
         isRawText = tagOptions !== undefined && tagOptions.isRawText;
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);
+
           handler.onStartTagOpening(tagName);
         }
 
@@ -246,8 +250,7 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
         }
 
         if (handler.onStartTag !== undefined) {
-          // No prototype, so attributes like "__proto__" are preserved
-          attributes = Object.create(null);
+          attributes = {};
         }
         break;
       }
@@ -273,6 +276,33 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
         --tagNameStackCursor;
         break;
 
+      case 'attribute_name':
+        attributeNameStartIndex = startIndex;
+        attributeNameEndIndex = endIndex;
+        break;
+
+      case 'attribute_value': {
+        if (attributes === undefined && handler.onAttribute === undefined) {
+          break;
+        }
+
+        const name = input.substring(attributeNameStartIndex, attributeNameEndIndex);
+        const value = decodeAttribute(input.substring(startIndex, endIndex));
+
+        if (attributes !== undefined) {
+          if (name === '__proto__') {
+            Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
+          } else {
+            attributes[name] = value;
+          }
+        }
+
+        if (handler.onAttribute !== undefined) {
+          handler.onAttribute(name, value);
+        }
+        break;
+      }
+
       case 'start_tag_self_closing':
         isRawText = false;
 
@@ -287,29 +317,6 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
 
         --tagNameStackCursor;
         break;
-
-      case 'attribute_name':
-        attributeNameStartIndex = startIndex;
-        attributeNameEndIndex = endIndex;
-        break;
-
-      case 'attribute_value': {
-        if (attributes === undefined && handler.onAttribute === undefined) {
-          break;
-        }
-
-        const attributeName = input.substring(attributeNameStartIndex, attributeNameEndIndex);
-        const attributeValue = decodeAttribute(input.substring(startIndex, endIndex));
-
-        if (attributes !== undefined) {
-          attributes[attributeName] = attributeValue;
-        }
-
-        if (handler.onAttribute !== undefined) {
-          handler.onAttribute(attributeName, attributeValue);
-        }
-        break;
-      }
 
       case 'cdata_section':
         if (handler.onCDATASection !== undefined) {
@@ -345,9 +352,5 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
     }
   };
 
-  return createTokenizerWriter(tokenCallback, options, state);
-}
-
-function identity(value: string): string {
-  return value;
+  return createTokenizerWriter(tokenCallback, options, tokenizerState);
 }

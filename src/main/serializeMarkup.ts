@@ -10,68 +10,8 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import {
-  areCaseInsensitiveStringsEqual,
-  getCaseInsensitiveHashCode,
-  getCaseSensitiveHashCode,
-  type TagKind,
-} from './tokenizeMarkup.ts';
-
-/**
- * Options of {@link serializeMarkup} produced by {@link resolveSerializerOptions}. Tags are represented by hash codes.
- *
- * @see {@link ResolvedSerializerOptions.areTagNamesCaseInsensitive}
- * @internal
- */
-export interface ResolvedSerializerOptions {
-  /**
-   * If `true` then tag names are hashed with {@link getCaseInsensitiveHashCode} and compared with
-   * {@link areCaseInsensitiveStringsEqual}, otherwise with {@link getCaseSensitiveHashCode} and compared as is.
-   *
-   * @default false
-   */
-  areTagNamesCaseInsensitive?: boolean;
-
-  /**
-   * The map from a hash code of a tag name to resolved options of tags with this hash code. Different names can have
-   * equal hash codes, so tags with the same hash code share an array, and their names are compared. Tags that are
-   * written the same way as tags that options don't mention aren't in the map.
-   */
-  tagOptionsMap?: Map<number, ResolvedTagSerializationOptions[]>;
-
-  /**
-   * @see {@link SerializerOptions.areSelfClosingTagsSupported}
-   */
-  areSelfClosingTagsSupported?: boolean;
-
-  /**
-   * @see {@link SerializerOptions.encodeText}
-   */
-  encodeText?: (text: string) => string;
-}
-
-/**
- * Options of a tag consumed by {@link serializeMarkup}. All of them are kept in one object, so the tag of an element is
- * looked up once, rather than once per option.
- *
- * @internal
- */
-export interface ResolvedTagSerializationOptions {
-  /**
-   * The name of the tag, which is compared with names of elements that have the same hash code.
-   */
-  tagName: string;
-
-  /**
-   * @see {@link TagSerializationOptions.kind}
-   */
-  kind: TagKind;
-
-  /**
-   * `true` if the tag is `raw_text` or `script_data`, so its text isn't encoded.
-   */
-  isRawText: boolean;
-}
+import type { ResolvedSerializerOptions, ResolvedTagSerializationOptions } from './resolveSerializerOptions.ts';
+import { areCaseInsensitiveStringsEqual, getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
 
 /**
  * Serializes a DOM node as an HTML/XML string.
@@ -82,7 +22,7 @@ export interface ResolvedTagSerializationOptions {
  * @internal
  */
 export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
-  const { areSelfClosingTagsSupported, encodeText = identity } = options;
+  const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = options;
 
   // Text is the most common node, and comparing the node type is faster than instanceof checks that walk the prototype
   // chain
@@ -94,7 +34,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
     let output = '<' + node.tagName;
 
     for (const name in node.attributes) {
-      output += ' ' + name + '="' + encodeText(node.attributes[name]) + '"';
+      output += ' ' + name + '="' + encodeAttribute(node.attributes[name]) + '"';
     }
 
     const tagOptions = getTagOptions(options, node.tagName);
@@ -162,13 +102,13 @@ function getTagOptions(
   options: ResolvedSerializerOptions,
   tagName: string
 ): ResolvedTagSerializationOptions | undefined {
-  const { tagOptionsMap, areTagNamesCaseInsensitive } = options;
+  const { tagsMap, areTagNamesCaseInsensitive } = options;
 
-  if (tagOptionsMap === undefined) {
+  if (tagsMap === undefined) {
     return;
   }
 
-  const tagOptionsList = tagOptionsMap.get(
+  const tagOptionsList = tagsMap.get(
     areTagNamesCaseInsensitive
       ? getCaseInsensitiveHashCode(tagName, 0, tagName.length)
       : getCaseSensitiveHashCode(tagName, 0, tagName.length)
@@ -188,8 +128,4 @@ function getTagOptions(
     }
   }
   return;
-}
-
-function identity(value: string): string {
-  return value;
 }

@@ -21,6 +21,10 @@ test('serializes HTML', () => {
   );
 });
 
+test('encodes attribute values', () => {
+  expect(toHTML(HTMLDOMParser.parseFragment('<a aaa="&quot;">'))).toBe('<a aaa="&quot;"></a>');
+});
+
 test('decodes attribute values differently from text', () => {
   expect(HTMLDOMParser.parseFragment('<a href="?aaa=111&amp;bbb=222&copy=333">&copy=333</a>')).toStrictEqual(
     f.f(f.a({ href: '?aaa=111&bbb=222&copy=333' }, '©=333'))

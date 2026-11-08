@@ -1,9 +1,9 @@
 import { decodeXML, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
-import { createSerializer, type SerializerOptions } from './createSerializer.ts';
+import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import { type ParserOptions } from './types.ts';
+import { type ParserOptions, type SerializerOptions } from './types.ts';
 
 const xmlParserOptions: ParserOptions = {
   areSelfClosingTagsRecognized: true,
@@ -17,6 +17,7 @@ const xmlParserOptions: ParserOptions = {
 const xmlSerializerOptions: SerializerOptions = {
   areSelfClosingTagsSupported: true,
   encodeText: escapeXML,
+  encodeAttribute: escapeXML,
 };
 
 /**
@@ -46,7 +47,7 @@ export const XMLDOMParser = createDOMParser(xmlParserOptions);
 export const XMLSAXParser = createSAXParser(xmlParserOptions);
 
 /**
- * Serializes a DOM node as an XML string. Encodes text with
+ * Serializes a DOM node as an XML string. Encodes text and attribute values with
  * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html). Elements without children
  * are written as self-closing tags.
  *
