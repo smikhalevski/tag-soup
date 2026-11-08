@@ -31,7 +31,7 @@ export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 's
 /**
  * Options of a tag that tokenizers and parsers use.
  *
- * @see {@link ContextualTokenizerOptions.tags}
+ * @see {@link TokenizerContextOptions.tags}
  * @see {@link TagSerializationOptions}
  * @group Tokenizer
  */
@@ -53,7 +53,7 @@ export interface TagParsingOptions {
    * rules:
    *
    * ```ts
-   * const svgOptions: ContextualTokenizerOptions = {
+   * const svgOptions: TokenizerContextOptions = {
    *   areSelfClosingTagsRecognized: true,
    * };
    *
@@ -69,7 +69,7 @@ export interface TagParsingOptions {
    * };
    * ```
    */
-  foreignContext?: ContextualTokenizerOptions;
+  foreignContext?: TokenizerContextOptions;
 
   /**
    * The list of tags that implicitly end this tag when they are started.
@@ -81,7 +81,7 @@ export interface TagParsingOptions {
    *                ▔▔▔▔ p is implicitly ended by h1
    * ```
    *
-   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
    *
    * ```ts
    * { p: { implicitlyEndedBy: ['h1'] } }
@@ -98,7 +98,7 @@ export interface TagParsingOptions {
    *                        ▔▔▔▔▔▔ svg is implicitly ended by br
    * ```
    *
-   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
    *
    * ```ts
    * {
@@ -124,7 +124,7 @@ export interface TagParsingOptions {
    *                                  ▔▔▔▔ outer li isn't ended by the nested li
    * ```
    *
-   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
    *
    * ```ts
    * {
@@ -154,7 +154,7 @@ export interface TagParsingOptions {
    *           ▔▔▔▔▔ br is implicitly started and self-closed
    * ```
    *
-   * To achieve this behavior, set {@link ContextualTokenizerOptions.tags tags} to:
+   * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
    *
    * ```ts
    * {
@@ -194,7 +194,7 @@ export interface TagSerializationOptions {
  *
  * @group Tokenizer
  */
-export interface ContextualTokenizerOptions {
+export interface TokenizerContextOptions {
   /**
    * The map from a tag name to options of the tag.
    *
@@ -240,7 +240,7 @@ export interface ContextualTokenizerOptions {
  *
  * @group Tokenizer
  */
-export interface TokenizerOptions extends ContextualTokenizerOptions {
+export interface TokenizerOptions extends TokenizerContextOptions {
   /**
    * If `true` then ASCII alpha characters are case-insensitive in tag names.
    *
@@ -332,6 +332,7 @@ export interface ParserOptions extends TokenizerOptions {
    */
   decodeAttribute?: (value: string) => string;
 }
+
 /**
  * Options of {@link createSerializer}.
  *
@@ -398,41 +399,6 @@ export interface SerializerOptions {
 }
 
 /**
- * A token that can be read from text. Indices passed to {@link TokenCallback} along with a token point to:
- *
- * - `text`: text between tags.
- * - `start_tag_name`: the tag name in a start tag, `p` in `<p>`.
- * - `start_tag_closing`: the `>` that closes a start tag.
- * - `start_tag_self_closing`: the `/>` that closes a self-closing tag.
- * - `end_tag_name`: the tag name in an end tag, `p` in `</p>`.
- * - `attribute_name`: an attribute name.
- * - `attribute_value`: an attribute value without quotes. Entities aren't decoded.
- * - `comment`: comment content between `<!--` and `-->`.
- * - `processing_instruction_target`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
- * - `processing_instruction_data`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
- * - `cdata_section`: CDATA section content between `<![CDATA[` and `]]>`.
- * - `doctype_name`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
- *
- * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
- * indices.
- *
- * @group Tokenizer
- */
-export type Token =
-  | 'text'
-  | 'start_tag_name'
-  | 'start_tag_closing'
-  | 'start_tag_self_closing'
-  | 'end_tag_name'
-  | 'attribute_name'
-  | 'attribute_value'
-  | 'comment'
-  | 'processing_instruction_target'
-  | 'processing_instruction_data'
-  | 'cdata_section'
-  | 'doctype_name';
-
-/**
  * Parses text that is written in chunks.
  *
  * A token that reaches the end of a chunk is read when the next chunk is written, since the token can continue there,
@@ -477,7 +443,7 @@ export interface TokenizerWriter extends ParserWriter {
    * written, and the input is the part of the stream that wasn't read before, followed by the last written chunk.
    *
    * @example
-   * const writer = HTMLTokenizer.createDocumentWriter((token, startIndex, endIndex, input) => {
+   * const writer = HTMLTokenizer.createDocumentWriter((tokenKind, startIndex, endIndex, input) => {
    *   writer.inputOffset + startIndex;
    *   // ⮕ The index in the stream where the token starts
    * });
@@ -486,13 +452,48 @@ export interface TokenizerWriter extends ParserWriter {
 }
 
 /**
+ * The kind of a token that can be read from text. Indices passed to {@link TokenCallback} with the kind point to:
+ *
+ * - `text`: text between tags.
+ * - `start_tag_name`: the tag name in a start tag, `p` in `<p>`.
+ * - `start_tag_closing`: the `>` that closes a start tag.
+ * - `start_tag_self_closing`: the `/>` that closes a self-closing tag.
+ * - `end_tag_name`: the tag name in an end tag, `p` in `</p>`.
+ * - `attribute_name`: an attribute name.
+ * - `attribute_value`: an attribute value without quotes. Entities aren't decoded.
+ * - `comment`: comment content between `<!--` and `-->`.
+ * - `processing_instruction_target`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
+ * - `processing_instruction_data`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
+ * - `cdata_section`: CDATA section content between `<![CDATA[` and `]]>`.
+ * - `doctype_name`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
+ *
+ * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
+ * indices.
+ *
+ * @group Tokenizer
+ */
+export type TokenKind =
+  | 'text'
+  | 'start_tag_name'
+  | 'start_tag_closing'
+  | 'start_tag_self_closing'
+  | 'end_tag_name'
+  | 'attribute_name'
+  | 'attribute_value'
+  | 'comment'
+  | 'processing_instruction_target'
+  | 'processing_instruction_data'
+  | 'cdata_section'
+  | 'doctype_name';
+
+/**
  * A callback that is invoked when a token is read from text.
  *
- * @param token The token that was read.
+ * @param tokenKind The kind of the token that was read.
  * @param startIndex The start index of the first meaningful token char in the input, inclusive.
  * @param endIndex The end index of the last meaningful token char in the input, exclusive.
  * @param input The text that indices point to. A writer passes the part of the stream that it didn't read before,
  * followed by the last written chunk, and this text starts at {@link TokenizerWriter.inputOffset} in the stream.
  * @group Tokenizer
  */
-export type TokenCallback = (token: Token, startIndex: number, endIndex: number, input: string) => void;
+export type TokenCallback = (tokenKind: TokenKind, startIndex: number, endIndex: number, input: string) => void;

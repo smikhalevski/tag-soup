@@ -233,7 +233,7 @@ tokenization and forgives malformed markup:
 ```ts
 import { HTMLTokenizer } from 'tag-soup';
 
-HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', (token, startIndex, endIndex) => {
+HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', (tokenKind, startIndex, endIndex) => {
   // Handle token
 });
 ```
@@ -246,10 +246,10 @@ XML spec:
 ```ts
 import { XMLTokenizer } from 'tag-soup';
 
-XMLTokenizer.tokenizeFragment('<p>hello</br>', (token, startIndex, endIndex) => {});
+XMLTokenizer.tokenizeFragment('<p>hello</br>', (tokenKind, startIndex, endIndex) => {});
 // ❌ MarkupSyntaxError: Unexpected end tag.
 
-XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', (token, startIndex, endIndex) => {
+XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', (tokenKind, startIndex, endIndex) => {
   // Handle token
 });
 ```
@@ -264,14 +264,14 @@ const myTokenizer = createTokenizer({
   tags: { br: { kind: 'void' } },
 });
 
-myTokenizer.tokenizeFragment('<p><br></p>', (token, startIndex, endIndex) => {
+myTokenizer.tokenizeFragment('<p><br></p>', (tokenKind, startIndex, endIndex) => {
   // Handle token
 });
 ```
 
-The [`Token`](https://smikhalevski.github.io/tag-soup/types/Token.html) passed to the callback is one of the following
-string literals. `startIndex` and `endIndex` point to the token's value in the input: `startIndex` is inclusive and
-`endIndex` is exclusive.
+The [`TokenKind`](https://smikhalevski.github.io/tag-soup/types/TokenKind.html) passed to the callback is one of the
+following string literals. `startIndex` and `endIndex` point to the token's value in the input: `startIndex` is
+inclusive and `endIndex` is exclusive.
 
 <dl>
 <dt><code>"text"</code></dt>
@@ -310,8 +310,8 @@ import { HTMLTokenizer } from 'tag-soup';
 
 const input = '<p class="x">hello</p>';
 
-HTMLTokenizer.tokenizeFragment(input, (token, startIndex, endIndex) => {
-  if (token === 'attribute_value') {
+HTMLTokenizer.tokenizeFragment(input, (tokenKind, startIndex, endIndex) => {
+  if (tokenKind === 'attribute_value') {
     input.substring(startIndex, endIndex);
     // ⮕ 'x'
   }
@@ -444,16 +444,16 @@ A parser that mimics browser HTML behavior:
 
 ```ts
 import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
-import { type ContextualTokenizerOptions, createDOMParser, type ParserOptions } from 'tag-soup';
+import { createDOMParser, type ParserOptions, type TokenizerContextOptions } from 'tag-soup';
 
 // SVG and MathML content doesn't inherit HTML tags
-const svgOptions: ContextualTokenizerOptions = {
+const svgOptions: TokenizerContextOptions = {
   areCDATASectionsRecognized: true,
   areProcessingInstructionsRecognized: true,
   areSelfClosingTagsRecognized: true,
 };
 
-const mathOptions: ContextualTokenizerOptions = {
+const mathOptions: TokenizerContextOptions = {
   areCDATASectionsRecognized: true,
   areProcessingInstructionsRecognized: true,
   areSelfClosingTagsRecognized: true,

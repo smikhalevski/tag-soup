@@ -36,7 +36,7 @@ export interface SAXHandler {
 
   /**
    * Called when a start tag is closed with `/>`. Only called if
-   * {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
+   * {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
    */
   onStartTagSelfClosing?(): void;
 
@@ -222,8 +222,8 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
   let piTargetEndIndex = 0;
   let attributes: Record<string, string> | undefined;
 
-  const tokenCallback: TokenCallback = (token, startIndex, endIndex, input) => {
-    switch (token) {
+  const tokenCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
+    switch (tokenKind) {
       case 'text':
         if (handler.onText !== undefined) {
           const text = input.substring(startIndex, endIndex);

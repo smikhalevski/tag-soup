@@ -127,8 +127,8 @@ export function createDOMParserWriter(options: ResolvedParserOptions): ParserWri
   let attributeName: string;
   let piTarget: string;
 
-  const tokenCallback: TokenCallback = (token, startIndex, endIndex, input) => {
-    switch (token) {
+  const tokenCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
+    switch (tokenKind) {
       case 'text': {
         const text = input.substring(startIndex, endIndex);
 

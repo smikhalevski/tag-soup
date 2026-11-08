@@ -3,7 +3,7 @@ import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import type { ContextualTokenizerOptions, ParserOptions, SerializerOptions } from './types.ts';
+import type { ParserOptions, SerializerOptions, TokenizerContextOptions } from './types.ts';
 
 // Tags that implicitly end form controls
 const formTagNames = ['button', 'datalist', 'input', 'output', 'select', 'textarea'];
@@ -62,13 +62,13 @@ const breakoutTagNames = [
 ];
 
 // Options of SVG and MathML content, their tags are assigned after HTML options
-const svgOptions: ContextualTokenizerOptions = {
+const svgOptions: TokenizerContextOptions = {
   areCDATASectionsRecognized: true,
   areProcessingInstructionsRecognized: true,
   areSelfClosingTagsRecognized: true,
 };
 
-const mathmlOptions: ContextualTokenizerOptions = {
+const mathmlOptions: TokenizerContextOptions = {
   areCDATASectionsRecognized: true,
   areProcessingInstructionsRecognized: true,
   areSelfClosingTagsRecognized: true,

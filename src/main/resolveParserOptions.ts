@@ -20,9 +20,5 @@ export interface ResolvedParserOptions extends ResolvedTokenizerOptions {
 export function resolveParserOptions(options: ParserOptions): ResolvedParserOptions {
   const { decodeText = identity, decodeAttribute = identity } = options;
 
-  return {
-    ...resolveTokenizerOptions(options),
-    decodeText,
-    decodeAttribute,
-  };
+  return { ...resolveTokenizerOptions(options), decodeText, decodeAttribute };
 }

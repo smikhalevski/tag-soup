@@ -1,4 +1,4 @@
-import type { ContextualTokenizerOptions, TagKind, TagParsingOptions, TokenizerOptions } from './types.ts';
+import type { TagKind, TagParsingOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
 import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
 
 export interface TokenReaderOptions {
@@ -19,35 +19,35 @@ export interface TokenReaderOptions {
   isFragment: boolean;
 }
 
-export interface ResolvedContextualTokenizerOptions {
+export interface ResolvedTokenizerContextOptions {
   /**
    * The map from a hash code of a tag to resolved options of the tag in this context. Contexts with the same
-   * {@link ContextualTokenizerOptions.tags tags} share the map.
+   * {@link TokenizerContextOptions.tags tags} share the map.
    */
   tagsMap: Map<number, ResolvedTagParsingOptions> | undefined;
 
   /**
-   * @see {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized}
+   * @see {@link TokenizerContextOptions.areSelfClosingTagsRecognized}
    */
   areSelfClosingTagsRecognized: boolean;
 
   /**
-   * @see {@link ContextualTokenizerOptions.areCDATASectionsRecognized}
+   * @see {@link TokenizerContextOptions.areCDATASectionsRecognized}
    */
   areCDATASectionsRecognized: boolean;
 
   /**
-   * @see {@link ContextualTokenizerOptions.areProcessingInstructionsRecognized}
+   * @see {@link TokenizerContextOptions.areProcessingInstructionsRecognized}
    */
   areProcessingInstructionsRecognized: boolean;
 }
 
 export interface ResolvedTokenizerOptions extends TokenReaderOptions {
   /**
-   * Contextual options that are applied outside of foreign tags. Parsers and tokenizers initialize
+   * Context options that are applied outside of foreign tags. Parsers and tokenizers initialize
    * {@link TokenizerState.context} with these options.
    */
-  initialContext: ResolvedContextualTokenizerOptions;
+  initialContext: ResolvedTokenizerContextOptions;
 
   /**
    * A zero for each {@link ResolvedTagParsingOptions.tagGroupIdBitIndex bit of tag group IDs}.
@@ -76,7 +76,7 @@ export interface ResolvedTagParsingOptions {
   /**
    * Resolved {@link TagParsingOptions.foreignContext}, or `undefined` if the tag isn't foreign.
    */
-  foreignContext: ResolvedContextualTokenizerOptions | undefined;
+  foreignContext: ResolvedTokenizerContextOptions | undefined;
 
   /**
    * @see {@link TagParsingOptions.isImplicitEndingBoundary}
@@ -138,9 +138,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   const toHashCode = (str: string) => getTagHashCode(str, 0, str.length);
 
-  const contextMap = new Map<ContextualTokenizerOptions, ResolvedContextualTokenizerOptions>();
+  const contextMap = new Map<TokenizerContextOptions, ResolvedTokenizerContextOptions>();
 
-  const initialContext = resolveContextualTokenizerOptions(options, contextMap);
+  const initialContext = resolveTokenizerContextOptions(options, contextMap);
 
   const initialEnclosingTagCounts = resolveTagOptions(contextMap, toHashCode);
 
@@ -167,7 +167,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
  * @see {@link getTagGroupIdBitIndex}
  */
 function resolveTagOptions(
-  contextMap: Map<ContextualTokenizerOptions, ResolvedContextualTokenizerOptions>,
+  contextMap: Map<TokenizerContextOptions, ResolvedTokenizerContextOptions>,
   toHashCode: (str: string) => number
 ): number[] {
   const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagParsingOptions>>();
@@ -222,7 +222,7 @@ function resolveTagOptions(
       resolvedTagParsingOptions.isImplicitlyStarted = isImplicitlyStarted;
 
       if (foreignContext !== undefined) {
-        resolvedTagParsingOptions.foreignContext = resolveContextualTokenizerOptions(foreignContext, contextMap);
+        resolvedTagParsingOptions.foreignContext = resolveTokenizerContextOptions(foreignContext, contextMap);
       }
 
       if (implicitlyEndedBy === undefined || implicitlyEndedBy.length === 0) {
@@ -256,8 +256,8 @@ function resolveTagOptions(
   }
 
   // Contexts that are added to the map while tags are resolved are visited too
-  for (const [contextualTokenizerOptions, resolvedContextualTokenizerOptions] of contextMap) {
-    const { tags = {} } = contextualTokenizerOptions;
+  for (const [tokenizerContextOptions, resolvedTokenizerContextOptions] of contextMap) {
+    const { tags = {} } = tokenizerContextOptions;
 
     let resolvedTagParsingOptionsMap = resolvedTagsMap.get(tags);
 
@@ -266,7 +266,7 @@ function resolveTagOptions(
       resolvedTagsMap.set(tags, resolvedTagParsingOptionsMap);
     }
 
-    resolvedContextualTokenizerOptions.tagsMap = resolvedTagParsingOptionsMap;
+    resolvedTokenizerContextOptions.tagsMap = resolvedTagParsingOptionsMap;
   }
 
   // A tag started in any context ends tags of other contexts, like br ends svg in HTML
@@ -300,12 +300,12 @@ function resolveTagOptions(
 }
 
 /**
- * Resolves contextual options once for each object, their tags are resolved by {@link resolveTagOptions}.
+ * Resolves context options once for each object, their tags are resolved by {@link resolveTagOptions}.
  */
-function resolveContextualTokenizerOptions(
-  options: ContextualTokenizerOptions,
-  resolvedOptionsMap: Map<ContextualTokenizerOptions, ResolvedContextualTokenizerOptions>
-): ResolvedContextualTokenizerOptions {
+function resolveTokenizerContextOptions(
+  options: TokenizerContextOptions,
+  resolvedOptionsMap: Map<TokenizerContextOptions, ResolvedTokenizerContextOptions>
+): ResolvedTokenizerContextOptions {
   let resolvedOptions = resolvedOptionsMap.get(options);
 
   if (resolvedOptions !== undefined) {

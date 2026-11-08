@@ -1,7 +1,7 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type {
-  ResolvedContextualTokenizerOptions,
   ResolvedTagParsingOptions,
+  ResolvedTokenizerContextOptions,
   ResolvedTokenizerOptions,
   TokenReaderOptions,
 } from './resolveTokenizerOptions.ts';
@@ -37,11 +37,11 @@ export interface TokenizerState {
   tagOptions: ResolvedTagParsingOptions | undefined;
 
   /**
-   * Contextual options of the content that is being read. {@link createTokenizerWriter} switches it when a foreign tag
+   * Context options of the content that is being read. {@link createTokenizerWriter} switches it when a foreign tag
    * is started or ended, and restores the initial context when all foreign tags are ended. {@link readTokens} reads it
    * on every use.
    */
-  context: ResolvedContextualTokenizerOptions;
+  context: ResolvedTokenizerContextOptions;
 
   /**
    * If `false` then more chunks can follow the input, so {@link readTokens} doesn't read tokens that reach the end of
@@ -96,10 +96,10 @@ export interface TokenizerState {
 /**
  * Creates the state of reading a text from the start.
  *
- * @param context Contextual options that are applied outside of foreign tags.
+ * @param context Context options that are applied outside of foreign tags.
  * @internal
  */
-export function createTokenizerState(context: ResolvedContextualTokenizerOptions): TokenizerState {
+export function createTokenizerState(context: ResolvedTokenizerContextOptions): TokenizerState {
   return {
     tagHashCode: 0,
     tagOptions: undefined,
@@ -120,7 +120,7 @@ export function createTokenizerState(context: ResolvedContextualTokenizerOptions
  * Creates a writer that reads tokens from chunks of text and returns them by invoking a callback.
  *
  * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
- * if needed. Foreign tags switch contextual options for their content.
+ * if needed. Foreign tags switch context options for their content.
  *
  * Parameters have no default values, since then V8 creates a separate context for variables that the closures capture,
  * which is slower to create.
@@ -167,8 +167,8 @@ export function createTokenizerWriter(
   // Bits of group IDs of open tags, see ResolvedTagParsingOptions.implicitlyEndedTagGroupIdMask
   let openTagGroupIdMask = 0;
 
-  // Contextual options that were current when each open foreign tag was started, so they're restored when it ends
-  const outerContextStack: ResolvedContextualTokenizerOptions[] = [];
+  // Context options that were current when each open foreign tag was started, so they're restored when it ends
+  const outerContextStack: ResolvedTokenizerContextOptions[] = [];
 
   // The index of the innermost open tag in tag stacks
   let tagStackCursor = -1;
@@ -254,16 +254,16 @@ export function createTokenizerWriter(
     }
 
     while (index <= tagStackCursor) {
-      callback(TOKEN_END_TAG_NAME, insertionIndex, insertionIndex, input);
+      callback(TOKEN_KIND_END_TAG_NAME, insertionIndex, insertionIndex, input);
       popTag();
     }
   }
 
   // Receives only tokens that start and end tags, other tokens are passed to the callback by readTokens
-  const tagCallback: TokenCallback = (token, startIndex, endIndex, input) => {
+  const tagCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
     // Cases are compared in order, so frequent tokens come first
-    switch (token) {
-      case TOKEN_START_TAG_NAME: {
+    switch (tokenKind) {
+      case TOKEN_KIND_START_TAG_NAME: {
         // Hashed and looked up by readTokens
         let startTagOptions = state.tagOptions;
 
@@ -286,7 +286,7 @@ export function createTokenizerWriter(
           isRootElementRead = true;
         }
 
-        callback(TOKEN_START_TAG_NAME, startIndex, endIndex, input);
+        callback(TOKEN_KIND_START_TAG_NAME, startIndex, endIndex, input);
 
         tagNameStartIndexStack[++tagStackCursor] = startIndex;
         tagNameEndIndexStack[tagStackCursor] = endIndex;
@@ -307,7 +307,7 @@ export function createTokenizerWriter(
         break;
       }
 
-      case TOKEN_END_TAG_NAME: {
+      case TOKEN_KIND_END_TAG_NAME: {
         // The end tag of the innermost open tag, unless it was started in a previous chunk, then it's found below
         if (
           tagStackCursor >= copiedTagNameCount &&
@@ -321,7 +321,7 @@ export function createTokenizerWriter(
           )
         ) {
           // Same as popTag, which V8 doesn't inline on this frequent path
-          callback(TOKEN_END_TAG_NAME, startIndex, endIndex, input);
+          callback(TOKEN_KIND_END_TAG_NAME, startIndex, endIndex, input);
 
           const tagOptions = tagOptionsStack[tagStackCursor--];
 
@@ -351,11 +351,11 @@ export function createTokenizerWriter(
 
           // Insert end tags for tags that were started after the matching start tag
           while (startTagIndex < tagStackCursor) {
-            callback(TOKEN_END_TAG_NAME, endTagStartIndex, endTagStartIndex, input);
+            callback(TOKEN_KIND_END_TAG_NAME, endTagStartIndex, endTagStartIndex, input);
             popTag();
           }
 
-          callback(TOKEN_END_TAG_NAME, startIndex, endIndex, input);
+          callback(TOKEN_KIND_END_TAG_NAME, startIndex, endIndex, input);
           popTag();
           break;
         }
@@ -379,27 +379,27 @@ export function createTokenizerWriter(
         state.tagHashCode = endTagHashCode;
         state.tagOptions = endTagOptions;
 
-        callback(TOKEN_START_TAG_NAME, startIndex, endIndex, input);
-        callback(TOKEN_START_TAG_CLOSING, endIndex, endIndex + 1, input);
-        callback(TOKEN_END_TAG_NAME, startIndex, endIndex, input);
+        callback(TOKEN_KIND_START_TAG_NAME, startIndex, endIndex, input);
+        callback(TOKEN_KIND_START_TAG_CLOSING, endIndex, endIndex + 1, input);
+        callback(TOKEN_KIND_END_TAG_NAME, startIndex, endIndex, input);
         break;
       }
 
       // Closings of void tags, and the closing that is inserted if the input ends inside a start tag
-      case TOKEN_START_TAG_CLOSING: {
-        callback(TOKEN_START_TAG_CLOSING, startIndex, endIndex, input);
+      case TOKEN_KIND_START_TAG_CLOSING: {
+        callback(TOKEN_KIND_START_TAG_CLOSING, startIndex, endIndex, input);
 
         const startTagOptions = tagOptionsStack[tagStackCursor];
 
         if (startTagOptions !== undefined && startTagOptions.kind === TAG_KIND_VOID) {
-          callback(TOKEN_END_TAG_NAME, endIndex, endIndex, input);
+          callback(TOKEN_KIND_END_TAG_NAME, endIndex, endIndex, input);
           popTag();
         }
         break;
       }
 
-      case TOKEN_START_TAG_SELF_CLOSING:
-        callback(TOKEN_START_TAG_SELF_CLOSING, startIndex, endIndex, input);
+      case TOKEN_KIND_START_TAG_SELF_CLOSING:
+        callback(TOKEN_KIND_START_TAG_SELF_CLOSING, startIndex, endIndex, input);
         popTag();
         break;
     }
@@ -434,11 +434,11 @@ export function createTokenizerWriter(
 
         // The input ended inside a start tag
         if (state.scope === SCOPE_START_TAG) {
-          tagCallback(TOKEN_START_TAG_CLOSING, input.length, input.length, input);
+          tagCallback(TOKEN_KIND_START_TAG_CLOSING, input.length, input.length, input);
         }
 
         while (tagStackCursor !== -1) {
-          callback(TOKEN_END_TAG_NAME, input.length, input.length, input);
+          callback(TOKEN_KIND_END_TAG_NAME, input.length, input.length, input);
           popTag();
         }
         return;
@@ -489,7 +489,7 @@ export function createTokenizerWriter(
  * Returns resolved options of a tag in a context, or `undefined` if the tag has no options there.
  */
 function getTagOptions(
-  context: ResolvedContextualTokenizerOptions,
+  context: ResolvedTokenizerContextOptions,
   tagHashCode: number
 ): ResolvedTagParsingOptions | undefined {
   return context.tagsMap !== undefined ? context.tagsMap.get(tagHashCode) : undefined;
@@ -524,18 +524,18 @@ const SCOPE_PROLOGUE = 0;
 const SCOPE_TEXT = 1;
 const SCOPE_START_TAG = 2;
 
-const TOKEN_TEXT = 'text';
-const TOKEN_START_TAG_NAME = 'start_tag_name';
-const TOKEN_START_TAG_CLOSING = 'start_tag_closing';
-const TOKEN_START_TAG_SELF_CLOSING = 'start_tag_self_closing';
-const TOKEN_END_TAG_NAME = 'end_tag_name';
-const TOKEN_ATTRIBUTE_NAME = 'attribute_name';
-const TOKEN_ATTRIBUTE_VALUE = 'attribute_value';
-const TOKEN_COMMENT = 'comment';
-const TOKEN_PROCESSING_INSTRUCTION_TARGET = 'processing_instruction_target';
-const TOKEN_PROCESSING_INSTRUCTION_DATA = 'processing_instruction_data';
-const TOKEN_CDATA_SECTION = 'cdata_section';
-const TOKEN_DOCTYPE_NAME = 'doctype_name';
+const TOKEN_KIND_TEXT = 'text';
+const TOKEN_KIND_START_TAG_NAME = 'start_tag_name';
+const TOKEN_KIND_START_TAG_CLOSING = 'start_tag_closing';
+const TOKEN_KIND_START_TAG_SELF_CLOSING = 'start_tag_self_closing';
+const TOKEN_KIND_END_TAG_NAME = 'end_tag_name';
+const TOKEN_KIND_ATTRIBUTE_NAME = 'attribute_name';
+const TOKEN_KIND_ATTRIBUTE_VALUE = 'attribute_value';
+const TOKEN_KIND_COMMENT = 'comment';
+const TOKEN_KIND_PROCESSING_INSTRUCTION_TARGET = 'processing_instruction_target';
+const TOKEN_KIND_PROCESSING_INSTRUCTION_DATA = 'processing_instruction_data';
+const TOKEN_KIND_CDATA_SECTION = 'cdata_section';
+const TOKEN_KIND_DOCTYPE_NAME = 'doctype_name';
 
 /**
  * Returns `true` if two tag names are equal. Names can be in different strings, since a tag that is still open can be
@@ -558,7 +558,7 @@ export type TagNameEqualityComparer = (
  * Tokens are returned in the order they appear in text, nothing is inserted, so start and end tags may be unbalanced.
  * Use {@link createTokenizerWriter} to get balanced tokens.
  *
- * Contextual options are read from {@link TokenizerState.context} on every use, and options of a start tag are read
+ * Context options are read from {@link TokenizerState.context} on every use, and options of a start tag are read
  * from {@link TokenizerState.tagOptions} after the `start_tag_name` callback, so the callback can change both.
  *
  * If {@link TokenizerState.isInputEnded} is `false` then reading stops at a token that reaches the end of the input,
@@ -633,7 +633,7 @@ export function readTokens(
     );
   }
 
-  // Conditions below compare the char code first, since it rules out most branches before contextual options are read.
+  // Conditions below compare the char code first, since it rules out most branches before context options are read.
   // Branches that end with a tag continue from the next char, rather than search for the next tag themselves, since the
   // next char is often "<", and the search is done in one place that V8 can inline. A token that can continue in the
   // next chunk breaks the loop at its start index, before anything is passed to callbacks.
@@ -657,7 +657,7 @@ export function readTokens(
           // Skip "/>"
           nextIndex += 2;
 
-          tagCallback(TOKEN_START_TAG_SELF_CLOSING, index, nextIndex, input);
+          tagCallback(TOKEN_KIND_START_TAG_SELF_CLOSING, index, nextIndex, input);
 
           // Self-closing raw text tag has no content
           enclosingRawTextTagHashCode = 0;
@@ -682,9 +682,9 @@ export function readTokens(
         ++nextIndex;
 
         if (isStartTagVoid) {
-          tagCallback(TOKEN_START_TAG_CLOSING, index, nextIndex, input);
+          tagCallback(TOKEN_KIND_START_TAG_CLOSING, index, nextIndex, input);
         } else {
-          callback(TOKEN_START_TAG_CLOSING, index, nextIndex, input);
+          callback(TOKEN_KIND_START_TAG_CLOSING, index, nextIndex, input);
         }
 
         scope = SCOPE_TEXT;
@@ -746,10 +746,10 @@ export function readTokens(
           break;
         }
 
-        callback(TOKEN_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
+        callback(TOKEN_KIND_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
 
         if (!isStrict) {
-          callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, nextIndex, input);
+          callback(TOKEN_KIND_ATTRIBUTE_VALUE, nextIndex, nextIndex, input);
           continue;
         }
 
@@ -783,7 +783,7 @@ export function readTokens(
           break;
         }
 
-        callback(TOKEN_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
+        callback(TOKEN_KIND_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
 
         if (isStrict) {
           throw new MarkupSyntaxError(
@@ -794,7 +794,7 @@ export function readTokens(
           );
         }
 
-        callback(TOKEN_ATTRIBUTE_VALUE, nextIndex, (nextIndex = attributeValueEndIndex), input);
+        callback(TOKEN_KIND_ATTRIBUTE_VALUE, nextIndex, (nextIndex = attributeValueEndIndex), input);
         continue;
       }
 
@@ -812,7 +812,7 @@ export function readTokens(
         break;
       }
 
-      callback(TOKEN_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
+      callback(TOKEN_KIND_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
 
       if (isStrict && nextIndex === inputLength) {
         throw new MarkupSyntaxError(
@@ -825,7 +825,7 @@ export function readTokens(
         );
       }
 
-      callback(TOKEN_ATTRIBUTE_VALUE, attributeValueStartIndex, nextIndex, input);
+      callback(TOKEN_KIND_ATTRIBUTE_VALUE, attributeValueStartIndex, nextIndex, input);
 
       // Skip closing quote char
       ++nextIndex;
@@ -871,7 +871,7 @@ export function readTokens(
 
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
-        callback(TOKEN_TEXT, textStartIndex, index, input);
+        callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
       }
 
       // No target
@@ -884,7 +884,7 @@ export function readTokens(
         );
       }
 
-      callback(TOKEN_PROCESSING_INSTRUCTION_TARGET, targetStartIndex, targetEndIndex, input);
+      callback(TOKEN_KIND_PROCESSING_INSTRUCTION_TARGET, targetStartIndex, targetEndIndex, input);
 
       if (isStrict && dataEndIndex === inputLength) {
         throw new MarkupSyntaxError(
@@ -895,7 +895,7 @@ export function readTokens(
         );
       }
 
-      callback(TOKEN_PROCESSING_INSTRUCTION_DATA, dataStartIndex, dataEndIndex, input);
+      callback(TOKEN_KIND_PROCESSING_INSTRUCTION_DATA, dataStartIndex, dataEndIndex, input);
 
       // Skip "?>"
       textStartIndex = nextIndex = dataEndIndex + 2;
@@ -931,7 +931,7 @@ export function readTokens(
         break;
       }
 
-      callback(TOKEN_DOCTYPE_NAME, doctypeNameStartIndex, doctypeNameEndIndex, input);
+      callback(TOKEN_KIND_DOCTYPE_NAME, doctypeNameStartIndex, doctypeNameEndIndex, input);
 
       // Skip ">"
       textStartIndex = nextIndex = skipSpaces(input, doctypeClosingIndex + 1);
@@ -958,14 +958,14 @@ export function readTokens(
       }
 
       if (textStartIndex !== index) {
-        callback(TOKEN_TEXT, textStartIndex, index, input);
+        callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
       }
 
       if (isStrict && cdataSectionEndIndex === inputLength) {
         throw new MarkupSyntaxError("Expected the CDATA section to be closed with ']]>'.", input, index, inputLength);
       }
 
-      callback(TOKEN_CDATA_SECTION, cdataSectionStartIndex, cdataSectionEndIndex, input);
+      callback(TOKEN_KIND_CDATA_SECTION, cdataSectionStartIndex, cdataSectionEndIndex, input);
 
       scope = SCOPE_TEXT;
 
@@ -1003,14 +1003,14 @@ export function readTokens(
 
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
-        callback(TOKEN_TEXT, textStartIndex, index, input);
+        callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
       }
 
       if (isStrict && commentEndIndex === inputLength) {
         throw new MarkupSyntaxError("Expected the comment to be closed with '-->'.", input, index, inputLength);
       }
 
-      callback(TOKEN_COMMENT, commentStartIndex, commentEndIndex, input);
+      callback(TOKEN_KIND_COMMENT, commentStartIndex, commentEndIndex, input);
 
       // Skip ">"
       textStartIndex = nextIndex = commentClosingIndex + 1;
@@ -1038,7 +1038,7 @@ export function readTokens(
 
       if (textStartIndex !== index) {
         scope = SCOPE_TEXT;
-        callback(TOKEN_TEXT, textStartIndex, index, input);
+        callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
       }
 
       if (isStrict) {
@@ -1060,7 +1060,7 @@ export function readTokens(
         ++nextIndex;
       }
 
-      callback(TOKEN_COMMENT, nextIndex, commentEndIndex, input);
+      callback(TOKEN_KIND_COMMENT, nextIndex, commentEndIndex, input);
 
       // Skip ">"
       textStartIndex = nextIndex = commentEndIndex + 1;
@@ -1114,12 +1114,12 @@ export function readTokens(
         }
 
         if (textStartIndex !== index) {
-          callback(TOKEN_TEXT, textStartIndex, index, input);
+          callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
         }
 
         // "</>" is ignored, and anything else is a comment, like "#" in "</#>"
         if (commentEndIndex !== nextIndex) {
-          callback(TOKEN_COMMENT, nextIndex, commentEndIndex, input);
+          callback(TOKEN_KIND_COMMENT, nextIndex, commentEndIndex, input);
         }
 
         // Skip ">"
@@ -1164,10 +1164,10 @@ export function readTokens(
       scope = SCOPE_TEXT;
 
       if (textStartIndex !== index) {
-        callback(TOKEN_TEXT, textStartIndex, index, input);
+        callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
       }
 
-      tagCallback(TOKEN_END_TAG_NAME, tagNameStartIndex, nextIndex, input);
+      tagCallback(TOKEN_KIND_END_TAG_NAME, tagNameStartIndex, nextIndex, input);
 
       // End the raw text tag
       enclosingRawTextTagHashCode = 0;
@@ -1252,14 +1252,14 @@ export function readTokens(
     }
 
     if (textStartIndex !== index) {
-      callback(TOKEN_TEXT, textStartIndex, index, input);
+      callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
     }
 
     // The callback reads options of the start tag from the state, rather than looking the tag up
     state.tagHashCode = startTagHashCode;
     state.tagOptions = getTagOptions(state.context, startTagHashCode);
 
-    tagCallback(TOKEN_START_TAG_NAME, tagNameStartIndex, nextIndex, input);
+    tagCallback(TOKEN_KIND_START_TAG_NAME, tagNameStartIndex, nextIndex, input);
 
     // The callback can switch the context, which changes options of the start tag
     const startTagOptions = state.tagOptions;
@@ -1289,7 +1289,7 @@ export function readTokens(
   if (state.isInputEnded) {
     // The input may end inside a start tag, after an attribute without a value
     if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
-      callback(TOKEN_TEXT, textStartIndex, inputLength, input);
+      callback(TOKEN_KIND_TEXT, textStartIndex, inputLength, input);
     }
     return inputLength;
   }

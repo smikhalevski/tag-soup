@@ -37,7 +37,7 @@ export interface Tokenizer {
    * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @example
-   * const writer = HTMLTokenizer.createDocumentWriter((token, startIndex, endIndex, input) => {
+   * const writer = HTMLTokenizer.createDocumentWriter((tokenKind, startIndex, endIndex, input) => {
    *   input.substring(startIndex, endIndex);
    *   // ⮕ The token text
    * });
@@ -79,7 +79,7 @@ export interface Tokenizer {
  *
  * tokenizer.tokenizeFragment(
  *   'Hello, <b>Bob</b>!',
- *   (token, startIndex, endIndex) => {
+ *   (tokenKind, startIndex, endIndex) => {
  *     // Handle token here
  *   },
  * );

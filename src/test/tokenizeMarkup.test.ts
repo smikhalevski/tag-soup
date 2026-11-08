@@ -13,7 +13,7 @@ import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from '../main/ut
 const callbackMock = vi.fn();
 
 // Tokens are checked by indices, so the input isn't passed to the mock
-const callback: TokenCallback = (token, startIndex, endIndex) => callbackMock(token, startIndex, endIndex);
+const callback: TokenCallback = (tokenKind, startIndex, endIndex) => callbackMock(tokenKind, startIndex, endIndex);
 
 const defaultOptions = resolveTokenizerOptions({});
 const strictOptions = resolveTokenizerOptions({ isStrict: true });
@@ -28,8 +28,8 @@ function readChunks(chunks: string[], options: ResolvedTokenizerOptions): string
   const tokens: string[] = [];
 
   const writer = createTokenizerWriter(
-    (token, startIndex, endIndex, input) => {
-      tokens.push(token + ' ' + (writer.inputOffset + startIndex) + ' ' + input.substring(startIndex, endIndex));
+    (tokenKind, startIndex, endIndex, input) => {
+      tokens.push(tokenKind + ' ' + (writer.inputOffset + startIndex) + ' ' + input.substring(startIndex, endIndex));
     },
     options,
     makeTestState(options)
@@ -1180,8 +1180,8 @@ describe('readTokens', () => {
 
     readTokens(
       '<aaa><bbb>',
-      token => {
-        if (token === 'start_tag_name') {
+      tokenKind => {
+        if (tokenKind === 'start_tag_name') {
           states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
         }
       },
@@ -1198,8 +1198,12 @@ describe('readTokens', () => {
     const tagCallbackMock = vi.fn();
     const options = resolveTokenizerOptions({ tags: { ccc: { kind: 'void' } }, areSelfClosingTagsRecognized: true });
 
-    readTokens('<aaa>bbb</aaa><ccc><ddd/>', callback, options, makeTestState(options), (token, startIndex, endIndex) =>
-      tagCallbackMock(token, startIndex, endIndex)
+    readTokens(
+      '<aaa>bbb</aaa><ccc><ddd/>',
+      callback,
+      options,
+      makeTestState(options),
+      (tokenKind, startIndex, endIndex) => tagCallbackMock(tokenKind, startIndex, endIndex)
     );
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
@@ -1873,8 +1877,8 @@ describe('createTokenizerWriter', () => {
     const states: Partial<TokenizerState>[] = [];
 
     createTokenizerWriter(
-      token => {
-        if (token === 'start_tag_name') {
+      tokenKind => {
+        if (tokenKind === 'start_tag_name') {
           states.push({ tagHashCode: state.tagHashCode, tagOptions: state.tagOptions });
         }
       },
