@@ -1,7 +1,6 @@
 import {
-  areCaseInsensitiveSubstringsEqual,
-  areCaseSensitiveSubstringsEqual,
   type ContextualTokenReaderOptions,
+  createTokenizerState,
   createTokenizerWriter,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
@@ -347,11 +346,11 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
     },
 
     createDocumentWriter(callback) {
-      return createTokenizerWriter(callback, documentOptions);
+      return createTokenizerWriter(callback, documentOptions, createTokenizerState(documentOptions.initialContext));
     },
 
     createFragmentWriter(callback) {
-      return createTokenizerWriter(callback, fragmentOptions);
+      return createTokenizerWriter(callback, fragmentOptions, createTokenizerState(fragmentOptions.initialContext));
     },
   };
 }
@@ -378,8 +377,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
   const initialOpenTagCounts = resolveTagOptions(contextMap, toHashCode);
 
   return {
-    getTagHashCode,
-    areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveSubstringsEqual : areCaseSensitiveSubstringsEqual,
+    areTagNamesCaseInsensitive,
     initialContext,
     isFragment: false,
     isStrict,

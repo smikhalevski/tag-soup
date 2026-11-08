@@ -26,9 +26,13 @@ function makeTestState(options: ResolvedTokenizerOptions): TokenizerState {
 function readChunks(chunks: string[], options: ResolvedTokenizerOptions): string[] {
   const tokens: string[] = [];
 
-  const writer = createTokenizerWriter((token, startIndex, endIndex, input) => {
-    tokens.push(token + ' ' + (writer.inputOffset + startIndex) + ' ' + input.substring(startIndex, endIndex));
-  }, options);
+  const writer = createTokenizerWriter(
+    (token, startIndex, endIndex, input) => {
+      tokens.push(token + ' ' + (writer.inputOffset + startIndex) + ' ' + input.substring(startIndex, endIndex));
+    },
+    options,
+    makeTestState(options)
+  );
 
   try {
     for (const chunk of chunks) {
@@ -99,6 +103,14 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 9);
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 9, 10);
+  });
+
+  test('reads XML names with non-ASCII chars', () => {
+    readTokens('<äää·>', callback, resolveTokenizerOptions({ isStrict: true }));
+
+    expect(callbackMock).toHaveBeenCalledTimes(2);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 5, 6);
   });
 
   test('ignores bullshit in end tags', () => {
@@ -1890,7 +1902,8 @@ describe('tokenizeMarkup', () => {
 
 describe('createTokenizerWriter', () => {
   test('reads tokens from chunks', () => {
-    const writer = createTokenizerWriter(callback);
+    const options = resolveTokenizerOptions({});
+    const writer = createTokenizerWriter(callback, options, makeTestState(options));
 
     writer.write('<aaa>bb');
     writer.write('b</a');
@@ -1976,7 +1989,8 @@ describe('createTokenizerWriter', () => {
   });
 
   test('sets the input offset of an error', () => {
-    const writer = createTokenizerWriter(callback, resolveTokenizerOptions({ isStrict: true }));
+    const options = resolveTokenizerOptions({ isStrict: true });
+    const writer = createTokenizerWriter(callback, options, makeTestState(options));
 
     writer.write('<aaa>');
 
@@ -1984,7 +1998,8 @@ describe('createTokenizerWriter', () => {
   });
 
   test('throws if a chunk is written after the end', () => {
-    const writer = createTokenizerWriter(callback);
+    const options = resolveTokenizerOptions({});
+    const writer = createTokenizerWriter(callback, options, makeTestState(options));
 
     writer.end();
 
@@ -1992,7 +2007,8 @@ describe('createTokenizerWriter', () => {
   });
 
   test('throws if a chunk is written after an error', () => {
-    const writer = createTokenizerWriter(callback, resolveTokenizerOptions({ isStrict: true }));
+    const options = resolveTokenizerOptions({ isStrict: true });
+    const writer = createTokenizerWriter(callback, options, makeTestState(options));
 
     expect(() => writer.write('</aaa>')).toThrow(ParserError);
     expect(() => writer.write('bbb')).toThrow(new Error('The writer is ended.'));

@@ -78,7 +78,7 @@ test('parses quirky comment, DOCTYPE and text', () => {
 });
 
 test('parses chunks', () => {
-  const writer = createDOMParserWriter();
+  const writer = createDOMParserWriter(resolveParserOptions({}));
 
   writer.write('<aaa>bb');
   writer.write('b</a');

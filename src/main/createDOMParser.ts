@@ -125,11 +125,10 @@ export function parseDOM(
  * @param options Parser options.
  * @returns The writer that returns the document node, or the document fragment node if
  *   {@link ResolvedParserOptions.isFragment} is `true`.
+ * @see {@link createTokenizerWriter}
  * @internal
  */
-export function createDOMParserWriter(
-  options: ResolvedParserOptions = { initialContext: {} }
-): ParserWriter<Document | DocumentFragment> {
+export function createDOMParserWriter(options: ResolvedParserOptions): ParserWriter<Document | DocumentFragment> {
   const { isFragment, decodeText = identity, decodeAttribute = identity } = options;
 
   // The tokenizer looks up each start tag, so it isn't looked up again here
@@ -164,8 +163,8 @@ export function createDOMParserWriter(
       case 'start_tag_closing':
         break;
 
-      case 'start_tag_self_closing':
       case 'end_tag_name':
+      case 'start_tag_self_closing':
         isRawText = false;
         parent = parent.parentNode!;
         break;

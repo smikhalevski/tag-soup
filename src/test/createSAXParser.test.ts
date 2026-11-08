@@ -333,7 +333,7 @@ test('calls onEndTag if it is a single handler', () => {
 });
 
 test('parses chunks', () => {
-  const writer = createSAXParserWriter(mockHandler);
+  const writer = createSAXParserWriter(mockHandler, resolveParserOptions({}));
 
   writer.write('<aaa bbb="cc');
   writer.write('c">ddd</aaa>');

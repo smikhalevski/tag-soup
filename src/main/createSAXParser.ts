@@ -212,12 +212,10 @@ export function parseSAX(
  *
  * @param handler The token handler.
  * @param options Parser options.
+ * @see {@link createTokenizerWriter}
  * @internal
  */
-export function createSAXParserWriter(
-  handler: SAXHandler,
-  options: ResolvedParserOptions = { initialContext: {} }
-): ParserWriter {
+export function createSAXParserWriter(handler: SAXHandler, options: ResolvedParserOptions): ParserWriter {
   const { decodeText = identity, decodeAttribute = identity } = options;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
@@ -282,6 +280,16 @@ export function createSAXParserWriter(
         }
         break;
 
+      case 'end_tag_name':
+        isRawText = false;
+
+        if (handler.onEndTag !== undefined) {
+          handler.onEndTag(tagNameStack[tagNameStackCursor]);
+        }
+
+        --tagNameStackCursor;
+        break;
+
       case 'start_tag_self_closing':
         isRawText = false;
 
@@ -292,16 +300,6 @@ export function createSAXParserWriter(
         if (handler.onStartTag !== undefined) {
           handler.onStartTag(tagNameStack[tagNameStackCursor], attributes!, true);
           attributes = undefined;
-        }
-
-        --tagNameStackCursor;
-        break;
-
-      case 'end_tag_name':
-        isRawText = false;
-
-        if (handler.onEndTag !== undefined) {
-          handler.onEndTag(tagNameStack[tagNameStackCursor]);
         }
 
         --tagNameStackCursor;

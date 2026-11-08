@@ -378,26 +378,33 @@ export interface TokenizerWriter extends ParserWriter {
  * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
  * if needed. Foreign tags switch contextual options for their content.
  *
+ * Parameters have no default values, since then V8 creates a separate context for variables that the closures capture,
+ * which is slower to create.
+ *
  * @param callback The callback that is invoked when a token is read.
  * @param options Tokenizer options prepared by {@link resolveTokenizerOptions}.
  * @param state The state of reading, which is shared with the callback. Its context is applied outside of foreign
- *   tags. By default, the context is {@link ResolvedTokenizerOptions.initialContext}.
+ *   tags.
  * @internal
  */
 export function createTokenizerWriter(
   callback: TokenCallback,
-  options: ResolvedTokenizerOptions = { initialContext: {} },
-  state = createTokenizerState(options.initialContext)
+  options: ResolvedTokenizerOptions,
+  state: TokenizerState
 ): TokenizerWriter {
   const {
-    getTagHashCode = getCaseSensitiveHashCode,
-    areTagNamesEqual = areCaseSensitiveSubstringsEqual,
+    areTagNamesCaseInsensitive = false,
     initialOpenTagCounts,
     areUnbalancedStartTagsImplicitlyEnded = false,
     areUnbalancedEndTagsIgnored = false,
     isFragment = false,
     isStrict = false,
   } = options;
+
+  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const areTagNamesEqual = areTagNamesCaseInsensitive
+    ? areCaseInsensitiveSubstringsEqual
+    : areCaseSensitiveSubstringsEqual;
 
   // Positions of start tag names in the input, to compare them with end tag names
   const tagNameStartIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -508,7 +515,6 @@ export function createTokenizerWriter(
     switch (token) {
       case TOKEN_START_TAG_NAME: {
         // Hashed and looked up by readTokens
-        const startTagHashCode = state.tagHashCode;
         let startTagOptions = state.tagOptions;
 
         // Usually none of the tags that must be ended is open, so the stack isn't searched
@@ -516,7 +522,7 @@ export function createTokenizerWriter(
           insertImplicitEndTags(startTagOptions.endedTagIds, startIndex - 1, input);
 
           // Ended foreign tags restore outer options, so the start tag is read with tags of the restored context
-          startTagOptions = getTagOptions(state.context, startTagHashCode);
+          startTagOptions = getTagOptions(state.context, state.tagHashCode);
           state.tagOptions = startTagOptions;
         }
 
@@ -654,7 +660,9 @@ export function createTokenizerWriter(
     // If reading throws, the state can be inconsistent, so chunks can't be written after that
     isEnded = true;
 
-    const input = unreadInput + chunk;
+    // Strings are joined rather than concatenated, since V8 reads a cons string that concatenation creates slower than a
+    // flat string. A cons string with an empty first part isn't flattened by V8 at all.
+    const input = unreadInput.length === 0 ? chunk : [unreadInput, chunk].join('');
 
     state.isInputEnded = isInputEnded;
 
@@ -829,19 +837,13 @@ export type TagNameEqualityComparer = (
  */
 export interface TokenReaderOptions {
   /**
-   * Returns a hash code of a tag name. Tags are compared by their hash codes.
+   * If `true` then tag names are hashed with {@link getCaseInsensitiveHashCode} and compared with
+   * {@link areCaseInsensitiveSubstringsEqual}, otherwise with {@link getCaseSensitiveHashCode} and
+   * {@link areCaseSensitiveSubstringsEqual}.
    *
-   * @default getCaseSensitiveHashCode
+   * @default false
    */
-  getTagHashCode?: (input: string, startIndex: number, endIndex: number) => number;
-
-  /**
-   * Returns `true` if two tag names are equal. End tags are matched with start tags by name, since different names can
-   * have equal hash codes.
-   *
-   * @default areCaseSensitiveSubstringsEqual
-   */
-  areTagNamesEqual?: TagNameEqualityComparer;
+  areTagNamesCaseInsensitive?: boolean;
 
   /**
    * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
@@ -891,15 +893,17 @@ export function readTokens(
   state = createTokenizerState({}),
   tagCallback = callback
 ): number {
-  const {
-    getTagHashCode = getCaseSensitiveHashCode,
-    areTagNamesEqual = areCaseSensitiveSubstringsEqual,
-    isFragment,
-    isStrict = false,
-  } = options;
+  const { areTagNamesCaseInsensitive = false, isFragment, isStrict = false } = options;
 
-  const isInputEnded = state.isInputEnded;
   const inputLength = input.length;
+
+  // A token that reaches this index can continue in the next chunk, so it isn't read. If the input is ended, then no
+  // token reaches it.
+  const openEndIndex = state.isInputEnded ? -1 : inputLength;
+
+  const areTagNamesEqual = areTagNamesCaseInsensitive
+    ? areCaseInsensitiveSubstringsEqual
+    : areCaseSensitiveSubstringsEqual;
 
   const skipName = isStrict ? skipXMLName : skipHTMLName;
   const skipAttributeName = isStrict ? skipXMLName : skipHTMLAttributeName;
@@ -972,7 +976,7 @@ export function readTokens(
         }
 
         // ">" can be in the next chunk
-        if (index + 1 === inputLength && !isInputEnded) {
+        if (index + 1 === openEndIndex) {
           break;
         }
       }
@@ -1046,7 +1050,7 @@ export function readTokens(
       // No attribute value
       if (charCode !== /* = */ 61) {
         // The name or "=" can be in the next chunk
-        if (charCode === -1 && !isInputEnded) {
+        if (nextIndex === openEndIndex) {
           break;
         }
 
@@ -1083,7 +1087,7 @@ export function readTokens(
         const attributeValueEndIndex = skipUnquotedAttributeValue(input, nextIndex);
 
         // The value, or its opening quote char, can be in the next chunk
-        if (attributeValueEndIndex === inputLength && !isInputEnded) {
+        if (attributeValueEndIndex === openEndIndex) {
           break;
         }
 
@@ -1112,7 +1116,7 @@ export function readTokens(
       nextIndex = getIndexOfOrLength(input, quoteCharCode === /* " */ 34 ? '"' : "'", nextIndex);
 
       // The closing quote char can be in the next chunk
-      if (nextIndex === inputLength && !isInputEnded) {
+      if (nextIndex === openEndIndex) {
         break;
       }
 
@@ -1169,7 +1173,7 @@ export function readTokens(
       const dataEndIndex = getIndexOfOrLength(input, '?>', dataStartIndex);
 
       // "?>" can be in the next chunk
-      if (dataEndIndex === inputLength && !isInputEnded) {
+      if (dataEndIndex === openEndIndex) {
         break;
       }
 
@@ -1219,7 +1223,7 @@ export function readTokens(
       const doctypeClosingIndex = skipUntilTagClosing(input, doctypeNameEndIndex);
 
       // ">" can be in the next chunk
-      if (doctypeClosingIndex === inputLength && !isInputEnded) {
+      if (doctypeClosingIndex === openEndIndex) {
         break;
       }
 
@@ -1245,7 +1249,7 @@ export function readTokens(
       const cdataSectionEndIndex = getIndexOfOrLength(input, ']]>', cdataSectionStartIndex);
 
       // "]]>" can be in the next chunk
-      if (cdataSectionEndIndex === inputLength && !isInputEnded) {
+      if (cdataSectionEndIndex === openEndIndex) {
         break;
       }
 
@@ -1289,7 +1293,7 @@ export function readTokens(
       const commentClosingIndex = skipUntilTagClosing(input, commentEndIndex);
 
       // The comment closing can be in the next chunk
-      if (commentClosingIndex === inputLength && !isInputEnded) {
+      if (commentClosingIndex === openEndIndex) {
         break;
       }
 
@@ -1324,7 +1328,7 @@ export function readTokens(
       const commentEndIndex = skipUntilTagClosing(input, nextIndex);
 
       // ">" can be in the next chunk, and so can the rest of a comment, a CDATA section or a DOCTYPE opening
-      if (commentEndIndex === inputLength && !isInputEnded) {
+      if (commentEndIndex === openEndIndex) {
         break;
       }
 
@@ -1377,7 +1381,7 @@ export function readTokens(
       nextIndex = skipName(input, nextIndex);
 
       // The name can continue in the next chunk
-      if (nextIndex === inputLength && !isInputEnded) {
+      if (nextIndex === openEndIndex) {
         break;
       }
 
@@ -1396,7 +1400,7 @@ export function readTokens(
         const commentEndIndex = skipUntilTagClosing(input, nextIndex);
 
         // ">" can be in the next chunk
-        if (commentEndIndex === inputLength && !isInputEnded) {
+        if (commentEndIndex === openEndIndex) {
           break;
         }
 
@@ -1443,7 +1447,7 @@ export function readTokens(
       const tagClosingIndex = isStrict ? skipSpaces(input, nextIndex) : skipUntilTagClosing(input, nextIndex);
 
       // ">" can be in the next chunk
-      if (tagClosingIndex === inputLength && !isInputEnded) {
+      if (tagClosingIndex === openEndIndex) {
         break;
       }
 
@@ -1475,7 +1479,7 @@ export function readTokens(
     // Start tags are ignored inside raw text tags
     if (enclosingRawTextTagHashCode !== 0) {
       // "<" at the end of the input can be followed by the end tag in the next chunk
-      if (nextIndex === inputLength && !isInputEnded) {
+      if (nextIndex === openEndIndex) {
         break;
       }
 
@@ -1485,10 +1489,34 @@ export function readTokens(
 
     const tagNameStartIndex = nextIndex;
 
-    nextIndex = skipName(input, nextIndex);
+    // The name is hashed while it's read, rather than read again by getCaseInsensitiveHashCode or
+    // getCaseSensitiveHashCode, which return the same hash code
+    let startTagHashCode = 5_381;
+
+    if (isXMLNameStartChar(charCode)) {
+      while (true) {
+        startTagHashCode =
+          ((startTagHashCode << 5) +
+            startTagHashCode +
+            (areTagNamesCaseInsensitive ? toLowerCaseCharCode(charCode) : charCode)) |
+          0;
+
+        if (++nextIndex === inputLength) {
+          break;
+        }
+
+        charCode = input.charCodeAt(nextIndex);
+
+        if (isStrict ? !isXMLNameChar(charCode) : !isHTMLNameChar(charCode)) {
+          break;
+        }
+      }
+    }
+
+    startTagHashCode &= 0x3fffffff;
 
     // The name can continue in the next chunk
-    if (nextIndex === inputLength && !isInputEnded) {
+    if (nextIndex === openEndIndex) {
       break;
     }
 
@@ -1508,8 +1536,6 @@ export function readTokens(
       callback(TOKEN_TEXT, textStartIndex, index, input);
     }
 
-    const startTagHashCode = getTagHashCode(input, tagNameStartIndex, nextIndex);
-
     // The callback reads options of the start tag from the state, rather than looking the tag up
     state.tagHashCode = startTagHashCode;
     state.tagOptions = getTagOptions(state.context, startTagHashCode);
@@ -1519,20 +1545,21 @@ export function readTokens(
     // The callback can switch the context, which changes options of the start tag
     const startTagOptions = state.tagOptions;
 
-    isStartTagVoid = startTagOptions !== undefined && startTagOptions.kind === TAG_KIND_VOID;
+    isStartTagVoid = false;
 
-    // Start of a raw text tag of any kind
-    if (
-      startTagOptions !== undefined &&
-      startTagOptions.kind !== TAG_KIND_NORMAL &&
-      startTagOptions.kind !== TAG_KIND_VOID
-    ) {
-      enclosingRawTextTagHashCode = startTagHashCode;
+    // Most tags are normal, so the kind of their options is compared once
+    if (startTagOptions !== undefined && startTagOptions.kind !== TAG_KIND_NORMAL) {
+      isStartTagVoid = startTagOptions.kind === TAG_KIND_VOID;
 
-      state.enclosingRawTextTagNameInput = input;
-      state.enclosingRawTextTagNameStartIndex = tagNameStartIndex;
-      state.enclosingRawTextTagNameEndIndex = nextIndex;
-      state.isEnclosingRawTextTagScriptData = startTagOptions.kind === TAG_KIND_SCRIPT_DATA;
+      // Start of a raw text tag of any kind
+      if (!isStartTagVoid) {
+        enclosingRawTextTagHashCode = startTagHashCode;
+
+        state.enclosingRawTextTagNameInput = input;
+        state.enclosingRawTextTagNameStartIndex = tagNameStartIndex;
+        state.enclosingRawTextTagNameEndIndex = nextIndex;
+        state.isEnclosingRawTextTagScriptData = startTagOptions.kind === TAG_KIND_SCRIPT_DATA;
+      }
     }
 
     scope = SCOPE_START_TAG;
@@ -1540,7 +1567,7 @@ export function readTokens(
 
   state.scope = scope;
 
-  if (isInputEnded) {
+  if (state.isInputEnded) {
     // The input may end inside a start tag, after an attribute without a value
     if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
       callback(TOKEN_TEXT, textStartIndex, inputLength, input);
@@ -1921,11 +1948,22 @@ function isSpaceChar(charCode: number): boolean {
 
 // https://www.w3.org/TR/xml/#NT-NameStartChar
 function isXMLNameStartChar(charCode: number): boolean {
+  // Most names are ASCII, so ranges of other chars are checked in a separate function, which keeps this one small enough
+  // for V8 to inline it, along with other functions that read names
+  if (charCode < 0x80) {
+    return (
+      (charCode >= /* a */ 97 && charCode <= /* z */ 122) ||
+      (charCode >= /* A */ 65 && charCode <= /* Z */ 90) ||
+      charCode === /* _ */ 95 ||
+      charCode === /* : */ 58
+    );
+  }
+
+  return isNonASCIIXMLNameStartChar(charCode);
+}
+
+function isNonASCIIXMLNameStartChar(charCode: number): boolean {
   return (
-    (charCode >= /* a */ 97 && charCode <= /* z */ 122) ||
-    (charCode >= /* A */ 65 && charCode <= /* Z */ 90) ||
-    charCode === /* _ */ 95 ||
-    charCode === /* : */ 58 ||
     (charCode >= 0x000c0 && charCode <= 0x000d6) ||
     (charCode >= 0x000d8 && charCode <= 0x000f6) ||
     (charCode >= 0x000f8 && charCode <= 0x002ff) ||
@@ -1943,7 +1981,7 @@ function isXMLNameStartChar(charCode: number): boolean {
 
 // https://www.w3.org/TR/xml/#NT-NameChar
 function isXMLNameChar(charCode: number): boolean {
-  // Most names are ASCII, so ranges of other chars aren't checked for them
+  // Same as isXMLNameStartChar
   if (charCode < 0x80) {
     return (
       (charCode >= /* a */ 97 && charCode <= /* z */ 122) ||
@@ -1956,12 +1994,13 @@ function isXMLNameChar(charCode: number): boolean {
     );
   }
 
+  return isNonASCIIXMLNameChar(charCode);
+}
+
+function isNonASCIIXMLNameChar(charCode: number): boolean {
   return (
-    isXMLNameStartChar(charCode) ||
-    charCode === /* - */ 45 ||
-    charCode === /* . */ 46 ||
+    isNonASCIIXMLNameStartChar(charCode) ||
     charCode === 0xb7 ||
-    (charCode >= /* 0 */ 48 && charCode <= /* 9 */ 57) ||
     (charCode >= 0x0300 && charCode <= 0x036f) ||
     (charCode >= 0x203f && charCode <= 0x2040)
   );
