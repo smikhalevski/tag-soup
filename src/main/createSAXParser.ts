@@ -173,11 +173,11 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
 
   return {
     parseDocument(input, handler) {
-      return parseSAX(input, handler, documentOptions);
+      createSAXParserWriter(handler, documentOptions).end(input);
     },
 
     parseFragment(input, handler) {
-      return parseSAX(input, handler, fragmentOptions);
+      createSAXParserWriter(handler, fragmentOptions).end(input);
     },
 
     createDocumentWriter(handler) {
@@ -188,23 +188,6 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
       return createSAXParserWriter(handler, fragmentOptions);
     },
   };
-}
-
-/**
- * Parses text and calls {@link SAXHandler} methods when tokens are read.
- *
- * @param input The text to parse.
- * @param handler The token handler.
- * @param options Parser options.
- * @throws {@link ParserError} If input is malformed and options don't allow to recover.
- * @internal
- */
-export function parseSAX(
-  input: string,
-  handler: SAXHandler,
-  options: ResolvedParserOptions = { initialContext: {} }
-): void {
-  createSAXParserWriter(handler, options).end(input);
 }
 
 /**

@@ -41,7 +41,7 @@ export interface ParserOptions extends TokenizerOptions {
 }
 
 /**
- * Options of {@link parseDOM} and {@link parseSAX}.
+ * Options of {@link createDOMParserWriter} and {@link createSAXParserWriter}.
  *
  * @internal
  */
@@ -58,7 +58,8 @@ export interface ResolvedParserOptions extends ResolvedTokenizerOptions {
 }
 
 /**
- * Converts human-readable parser options into options consumed by {@link parseDOM} and {@link parseSAX}.
+ * Converts human-readable parser options into options consumed by {@link createDOMParserWriter} and
+ * {@link createSAXParserWriter}.
  *
  * @param options Parser options.
  * @internal

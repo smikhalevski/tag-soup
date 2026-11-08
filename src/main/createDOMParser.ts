@@ -86,11 +86,11 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 
   return {
     parseDocument(input) {
-      return parseDOM(input, documentOptions) as Document;
+      return createDOMParserWriter(documentOptions).end(input) as Document;
     },
 
     parseFragment(input) {
-      return parseDOM(input, fragmentOptions) as DocumentFragment;
+      return createDOMParserWriter(fragmentOptions).end(input) as DocumentFragment;
     },
 
     createDocumentWriter() {
@@ -101,22 +101,6 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
       return createDOMParserWriter(fragmentOptions) as ParserWriter<DocumentFragment>;
     },
   };
-}
-
-/**
- * Parses text as a DOM.
- *
- * @param input The text to parse.
- * @param options Parser options.
- * @returns The document node, or the document fragment node if {@link ResolvedParserOptions.isFragment} is `true`.
- * @throws {@link ParserError} If input is malformed and options don't allow to recover.
- * @internal
- */
-export function parseDOM(
-  input: string,
-  options: ResolvedParserOptions = { initialContext: {} }
-): Document | DocumentFragment {
-  return createDOMParserWriter(options).end(input);
 }
 
 /**

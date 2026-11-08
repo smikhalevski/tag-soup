@@ -1,6 +1,6 @@
 import { decodeXML } from 'speedy-entities';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { createSAXParserWriter, parseSAX } from '../main/createSAXParser.ts';
+import { createSAXParser, createSAXParserWriter } from '../main/createSAXParser.ts';
 import type { SAXHandler } from '../main/index.ts';
 import { resolveParserOptions } from '../main/types.ts';
 
@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 
 test('parses text', () => {
-  parseSAX('aaa&lt;', mockHandler, resolveParserOptions({ decodeText: decodeXML }));
+  createSAXParser({ decodeText: decodeXML }).parseDocument('aaa&lt;', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'aaa<');
@@ -41,10 +41,9 @@ test('parses text', () => {
 });
 
 test('parses element', () => {
-  parseSAX(
+  createSAXParser({ areTagNamesCaseInsensitive: true, decodeText: decodeXML }).parseDocument(
     '<aaa>bbb</AAA>',
-    mockHandler,
-    resolveParserOptions({ areTagNamesCaseInsensitive: true, decodeText: decodeXML })
+    mockHandler
   );
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
@@ -71,10 +70,9 @@ test('parses element', () => {
 });
 
 test('parses element with implicitly inserted end tag', () => {
-  parseSAX(
+  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true, decodeText: decodeXML }).parseDocument(
     '<aaa>bbb',
-    mockHandler,
-    resolveParserOptions({ areUnbalancedStartTagsImplicitlyEnded: true, decodeText: decodeXML })
+    mockHandler
   );
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
@@ -101,7 +99,7 @@ test('parses element with implicitly inserted end tag', () => {
 });
 
 test('parses attributes', () => {
-  parseSAX('<aaa xxx="yyy" zzz="vvv">bbb</aaa>', mockHandler);
+  createSAXParser().parseDocument('<aaa xxx="yyy" zzz="vvv">bbb</aaa>', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'bbb');
@@ -130,10 +128,9 @@ test('parses attributes', () => {
 });
 
 test('parses self-closing tags elements', () => {
-  parseSAX(
+  createSAXParser({ areSelfClosingTagsRecognized: true, decodeText: decodeXML }).parseDocument(
     '<aaa><bbb/></aaa>',
-    mockHandler,
-    resolveParserOptions({ areSelfClosingTagsRecognized: true, decodeText: decodeXML })
+    mockHandler
   );
 
   expect(mockHandler.onText).not.toHaveBeenCalled();
@@ -161,7 +158,7 @@ test('parses self-closing tags elements', () => {
 });
 
 test('parses comments', () => {
-  parseSAX('<!--xxx-->', mockHandler);
+  createSAXParser().parseDocument('<!--xxx-->', mockHandler);
 
   expect(mockHandler.onText).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagOpening).not.toHaveBeenCalled();
@@ -180,7 +177,7 @@ test('parses comments', () => {
 });
 
 test('parses processing instructions in elements', () => {
-  parseSAX('<aaa><?xxx yyy?></aaa>', mockHandler, resolveParserOptions({ areProcessingInstructionsRecognized: true }));
+  createSAXParser({ areProcessingInstructionsRecognized: true }).parseDocument('<aaa><?xxx yyy?></aaa>', mockHandler);
 
   expect(mockHandler.onText).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagOpening).toHaveBeenCalledTimes(1);
@@ -201,10 +198,9 @@ test('parses processing instructions in elements', () => {
 });
 
 test('parses DOCTYPE, processing instruction and text', () => {
-  parseSAX(
+  createSAXParser({ areProcessingInstructionsRecognized: true }).parseDocument(
     '   <!DOCTYPE html>  <?xxx yyy?>  vvv',
-    mockHandler,
-    resolveParserOptions({ areProcessingInstructionsRecognized: true })
+    mockHandler
   );
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
@@ -227,7 +223,7 @@ test('parses DOCTYPE, processing instruction and text', () => {
 });
 
 test('parses DOCTYPE, text and quirky comment', () => {
-  parseSAX('   <!DOCTYPE html>   vvv   <?xxx yyy?>', mockHandler);
+  createSAXParser().parseDocument('   <!DOCTYPE html>   vvv   <?xxx yyy?>', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'vvv   ');
@@ -250,7 +246,7 @@ test('parses DOCTYPE, text and quirky comment', () => {
 });
 
 test('parses quirky comment, DOCTYPE and text', () => {
-  parseSAX('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ', mockHandler);
+  createSAXParser().parseDocument('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'vvv   ');
@@ -273,10 +269,9 @@ test('parses quirky comment, DOCTYPE and text', () => {
 });
 
 test('does not decode text in raw text tags', () => {
-  parseSAX(
+  createSAXParser({ tags: { aaa: { kind: 'raw_text' } }, decodeText: decodeXML }).parseDocument(
     '<aaa>&lt;</aaa>&lt;',
-    mockHandler,
-    resolveParserOptions({ tags: { aaa: { kind: 'raw_text' } }, decodeText: decodeXML })
+    mockHandler
   );
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(2);
@@ -285,20 +280,20 @@ test('does not decode text in raw text tags', () => {
 });
 
 test('decodes attribute values with decodeAttribute', () => {
-  parseSAX('<aaa bbb="&lt;">&lt;</aaa>', mockHandler, resolveParserOptions({ decodeAttribute: decodeXML }));
+  createSAXParser({ decodeAttribute: decodeXML }).parseDocument('<aaa bbb="&lt;">&lt;</aaa>', mockHandler);
 
   expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'bbb', '<');
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
 });
 
 test('preserves __proto__ attribute', () => {
-  parseSAX('<aaa __proto__="bbb"></aaa>', mockHandler);
+  createSAXParser().parseDocument('<aaa __proto__="bbb"></aaa>', mockHandler);
 
   expect(Object.entries(mockHandler.onStartTag.mock.calls[0][1])).toEqual([['__proto__', 'bbb']]);
 });
 
 test('calls onStartTag for a start tag that is not closed at the end of the input', () => {
-  parseSAX('<aaa', mockHandler, resolveParserOptions({ areUnbalancedStartTagsImplicitlyEnded: true }));
+  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true }).parseDocument('<aaa', mockHandler);
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
@@ -309,10 +304,9 @@ test('calls onStartTag if it is a single handler', () => {
     onStartTag: vi.fn(),
   } satisfies SAXHandler;
 
-  parseSAX(
+  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true }).parseDocument(
     '<aaa xxx="yyy"><bbb zzz="vvv">',
-    mockHandler,
-    resolveParserOptions({ areUnbalancedStartTagsImplicitlyEnded: true })
+    mockHandler
   );
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
@@ -325,7 +319,7 @@ test('calls onEndTag if it is a single handler', () => {
     onEndTag: vi.fn(),
   } satisfies SAXHandler;
 
-  parseSAX('<aaa><bbb>', mockHandler, resolveParserOptions({ areUnbalancedStartTagsImplicitlyEnded: true }));
+  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true }).parseDocument('<aaa><bbb>', mockHandler);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');
