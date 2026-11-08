@@ -1,11 +1,10 @@
 import { Node } from 'flyweight-dom';
-import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.ts';
 import {
-  areCaseInsensitiveStringsEqual,
-  getCaseInsensitiveHashCode,
-  getCaseSensitiveHashCode,
-  type TagKind,
-} from './tokenizeMarkup.ts';
+  type ResolvedSerializerOptions,
+  type ResolvedTagSerializationOptions,
+  serializeMarkup,
+} from './serializeMarkup.ts';
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, type TagKind } from './tokenizeMarkup.ts';
 
 /**
  * Options of {@link createSerializer}.
@@ -60,16 +59,9 @@ export interface SerializerOptions {
  */
 export interface TagSerializationOptions {
   /**
-   * The kind of the tag:
+   * The kind of the tag.
    *
-   * - `'normal'`: children of the tag are written, and its text content is encoded with
-   *   {@link SerializerOptions.encodeText}.
-   * - `'void'`: the tag is written without an end tag, and its children are ignored.
-   * - `'raw_text'`: text content of the tag is written as is, without {@link SerializerOptions.encodeText}.
-   * - `'escapable_raw_text'`: same as `'normal'`. This kind is accepted, so parsers and serializers can share tag
-   *   options.
-   * - `'script_data'`: same as `'raw_text'`.
-   *
+   * @see {@link TagKind}
    * @default 'normal'
    */
   kind?: TagKind;
@@ -111,45 +103,40 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
 export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
   const { tags = {}, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
 
-  const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
-  const toHashCode = (str: string) => getHashCode(str, 0, str.length);
-
-  const voidTagNameMap = new Map<number, string[]>();
-  const rawTextTagNameMap = new Map<number, string[]>();
+  const tagOptionsMap = new Map<number, ResolvedTagSerializationOptions[]>();
 
   for (const [tagName, tagOptions] of Object.entries(tags)) {
-    if (tagOptions.kind === 'void') {
-      addTagName(voidTagNameMap, toHashCode(tagName), tagName);
-    } else if (tagOptions.kind === 'raw_text' || tagOptions.kind === 'script_data') {
-      addTagName(rawTextTagNameMap, toHashCode(tagName), tagName);
+    const { kind = 'normal' } = tagOptions;
+
+    // Tags of these kinds are written the same way as tags that options don't mention
+    if (kind === 'normal' || kind === 'escapable_raw_text') {
+      continue;
+    }
+
+    const resolvedTagOptions = {
+      tagName,
+      kind,
+      isRawText: kind === 'raw_text' || kind === 'script_data',
+    };
+
+    const tagHashCode = getTagHashCode(tagName, 0, tagName.length);
+
+    const tagOptionsList = tagOptionsMap.get(tagHashCode);
+
+    if (tagOptionsList !== undefined) {
+      tagOptionsList.push(resolvedTagOptions);
+    } else {
+      tagOptionsMap.set(tagHashCode, [resolvedTagOptions]);
     }
   }
 
   return {
-    toHashCode,
-    areTagNamesEqual: areTagNamesCaseInsensitive ? areCaseInsensitiveStringsEqual : areStringsEqual,
+    areTagNamesCaseInsensitive,
     // Tag names aren't hashed if there are no tags to look up
-    voidTagNameMap: voidTagNameMap.size !== 0 ? voidTagNameMap : undefined,
-    rawTextTagNameMap: rawTextTagNameMap.size !== 0 ? rawTextTagNameMap : undefined,
+    tagOptionsMap: tagOptionsMap.size !== 0 ? tagOptionsMap : undefined,
     areSelfClosingTagsSupported,
     encodeText,
   };
-}
-
-/**
- * Adds a tag name to names of tags with the same hash code.
- */
-function addTagName(tagNameMap: Map<number, string[]>, hashCode: number, tagName: string): void {
-  const tagNames = tagNameMap.get(hashCode);
-
-  if (tagNames !== undefined) {
-    tagNames.push(tagName);
-  } else {
-    tagNameMap.set(hashCode, [tagName]);
-  }
-}
-
-function areStringsEqual(str1: string, str2: string): boolean {
-  return str1 === str2;
 }

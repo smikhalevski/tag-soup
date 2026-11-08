@@ -5,7 +5,7 @@ import {
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
   getTagGroupIdBitIndex,
-  type ResolvedTagOptions,
+  type ResolvedTagParsingOptions,
   type ResolvedTokenizerOptions,
   type TagKind,
   type TokenCallback,
@@ -119,23 +119,9 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
  */
 export interface TagParsingOptions {
   /**
-   * The kind of the tag:
+   * The kind of the tag.
    *
-   * - `'normal'`: the tag can contain tags and text.
-   * - `'void'`: an end tag is inserted right after the start tag.
-   * - `'raw_text'`: the content is read as text until the matching end tag. Parsers don't decode this text.
-   * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text.
-   * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
-   *   end tag or `-->`. Browsers read `script` this way for compatibility with old scripts wrapped in comments:
-   *
-   * ```html
-   * <script><!--<script></script></script>
-   *                              ^^^^^^^^^ ends the script
-   * ```
-   *
-   * In raw text of any kind, an end tag must be followed by a space, `/` or `>`, so `</script` at the end of the input
-   * is text.
-   *
+   * @see {@link TagKind}
    * @default 'normal'
    */
   kind?: TagKind;
@@ -395,13 +381,15 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
  * single array. Tags are ended by name, so a tag that ends other tags has the same implicitly ended tag group IDs in
  * every map.
  *
- * Returns a zero for each bit of group IDs, see {@link getTagGroupIdBitIndex}.
+ * Returns a zero for each bit of group IDs.
+ *
+ * @see {@link getTagGroupIdBitIndex}
  */
 function resolveTagOptions(
   contextMap: Map<ContextualTokenizerOptions, ContextualTokenReaderOptions>,
   toHashCode: (str: string) => number
 ): number[] {
-  const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagOptions>>();
+  const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagParsingOptions>>();
 
   // The map from a hash code of a tag to IDs of groups of tags that it ends
   const implicitlyEndedTagGroupIdsMap = new Map<number, number[]>();
@@ -412,7 +400,7 @@ function resolveTagOptions(
 
   let tagGroupCount = 0;
 
-  function getResolvedTagOptions(tagOptionsMap: Map<number, ResolvedTagOptions>, tagHashCode: number) {
+  function getResolvedTagParsingOptions(tagOptionsMap: Map<number, ResolvedTagParsingOptions>, tagHashCode: number) {
     let resolvedTagOptions = tagOptionsMap.get(tagHashCode);
 
     if (resolvedTagOptions === undefined) {
@@ -433,7 +421,7 @@ function resolveTagOptions(
   }
 
   function resolveTags(tags: Record<string, TagParsingOptions>) {
-    const tagOptionsMap = new Map<number, ResolvedTagOptions>();
+    const tagOptionsMap = new Map<number, ResolvedTagParsingOptions>();
 
     for (const [tagName, tagOptions] of Object.entries(tags)) {
       const {
@@ -444,7 +432,7 @@ function resolveTagOptions(
         isImplicitlyStarted = false,
       } = tagOptions;
 
-      const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, toHashCode(tagName));
+      const resolvedTagOptions = getResolvedTagParsingOptions(tagOptionsMap, toHashCode(tagName));
 
       resolvedTagOptions.kind = kind;
       resolvedTagOptions.isRawText = kind === 'raw_text' || kind === 'script_data';
@@ -502,7 +490,7 @@ function resolveTagOptions(
   // A tag started in any context ends tags of other contexts, like br ends svg in HTML
   for (const tagOptionsMap of resolvedTagsMap.values()) {
     for (const [tagHashCode, implicitlyEndedTagGroupIds] of implicitlyEndedTagGroupIdsMap) {
-      const resolvedTagOptions = getResolvedTagOptions(tagOptionsMap, tagHashCode);
+      const resolvedTagOptions = getResolvedTagParsingOptions(tagOptionsMap, tagHashCode);
 
       resolvedTagOptions.implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIds;
 

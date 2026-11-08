@@ -92,14 +92,24 @@ export type Token =
 export type TokenCallback = (token: Token, startIndex: number, endIndex: number, input: string) => void;
 
 /**
- * The kind of a tag, which defines what the tag can contain:
+ * The kind of a tag, which defines what the tag can contain, and how parsers read it and serializers write it:
  *
- * - `'normal'`: tags and text.
- * - `'void'`: nothing, the tag can't have content.
- * - `'raw_text'`: text up to the matching end tag. Entities in this text aren't decoded or encoded.
- * - `'escapable_raw_text'`: same as `'raw_text'`, but entities are decoded and encoded.
+ * - `'normal'`: tags and text. Serializers encode the text with {@link SerializerOptions.encodeText}.
+ * - `'void'`: nothing. Parsers insert an end tag right after the start tag, and serializers write the tag without an
+ *   end tag and ignore its children.
+ * - `'raw_text'`: text up to the matching end tag. Parsers don't decode this text with
+ *   {@link ParserOptions.decodeText}, and serializers write it as is.
+ * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text, and serializers encode it.
  * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
- *   end tag or `-->`, like in HTML `script`.
+ *   end tag or `-->`. Browsers read `script` this way for compatibility with old scripts wrapped in comments:
+ *
+ * ```html
+ * <script><!--<script></script></script>
+ *                              ^^^^^^^^^ ends the script
+ * ```
+ *
+ * In raw text of any kind, an end tag must be followed by a space, `/` or `>`, so `</script` at the end of the input is
+ * text.
  *
  * @see [HTML Normal Elements](https://html.spec.whatwg.org/multipage/syntax.html#normal-elements)
  * @see [HTML Void Elements](https://html.spec.whatwg.org/multipage/syntax.html#void-elements)
@@ -111,9 +121,9 @@ export type TokenCallback = (token: Token, startIndex: number, endIndex: number,
 export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 'script_data';
 
 /**
- * Options of {@link tokenizeMarkup} produced by {@link resolveTokenizerOptions}. Tags are represented by hash codes
- * returned by {@link TokenReaderOptions.getTagHashCode}.
+ * Options of {@link tokenizeMarkup} produced by {@link resolveTokenizerOptions}. Tags are represented by hash codes.
  *
+ * @see {@link TokenReaderOptions.areTagNamesCaseInsensitive}
  * @internal
  */
 export interface ResolvedTokenizerOptions extends TokenReaderOptions {
@@ -124,9 +134,9 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
   initialContext: ContextualTokenReaderOptions;
 
   /**
-   * A zero for each {@link ResolvedTagOptions.tagGroupIdBitIndex bit of tag group IDs}. {@link tokenizeMarkup} copies
-   * this array to count open tags by the bit of their group ID, which is faster than creating an array of zeros on
-   * every call.
+   * A zero for each {@link ResolvedTagParsingOptions.tagGroupIdBitIndex bit of tag group IDs}. {@link tokenizeMarkup}
+   * copies this array to count open tags by the bit of their group ID, which is faster than creating an array of zeros
+   * on every call.
    */
   initialOpenTagCounts?: number[];
 
@@ -150,7 +160,7 @@ export interface ResolvedTokenizerOptions extends TokenReaderOptions {
  *
  * @internal
  */
-export interface ResolvedTagOptions {
+export interface ResolvedTagParsingOptions {
   /**
    * @see {@link TagParsingOptions.kind}
    */
@@ -178,9 +188,10 @@ export interface ResolvedTagOptions {
   implicitlyEndedTagGroupIds: number[];
 
   /**
-   * Bits that represent {@link implicitlyEndedTagGroupIds}, see {@link tagGroupIdBitIndex}. {@link tokenizeMarkup}
-   * keeps the same bits for open tags, so it checks if any of tags that this tag ends is open with a single bitwise
-   * AND.
+   * Bits that represent {@link implicitlyEndedTagGroupIds}. {@link tokenizeMarkup} keeps the same bits for open tags,
+   * so it checks if any of tags that this tag ends is open with a single bitwise AND.
+   *
+   * @see {@link tagGroupIdBitIndex}
    */
   implicitlyEndedTagGroupIdMask: number;
 
@@ -188,14 +199,16 @@ export interface ResolvedTagOptions {
    * The ID of the group of this tag if it can be implicitly ended, or -1 otherwise. Tags with the same
    * {@link TagParsingOptions.implicitlyEndedBy} array are in one group, since they are ended by the same tags. Groups
    * have IDs, so {@link tokenizeMarkup} can find open tags that a tag ends, and skip the search if none of them is
-   * open, see {@link implicitlyEndedTagGroupIdMask}. IDs are unique across contexts, so open tags of all contexts are
-   * counted together.
+   * open. IDs are unique across contexts, so open tags of all contexts are counted together.
+   *
+   * @see {@link implicitlyEndedTagGroupIdMask}
    */
   tagGroupId: number;
 
   /**
-   * The index of the bit that represents {@link tagGroupId} in bitmasks, see {@link getTagGroupIdBitIndex}, or -1 if
-   * the tag can't be implicitly ended.
+   * The index of the bit that represents {@link tagGroupId} in bitmasks, or -1 if the tag can't be implicitly ended.
+   *
+   * @see {@link getTagGroupIdBitIndex}
    */
   tagGroupIdBitIndex: number;
 
@@ -236,7 +249,7 @@ export interface TokenizerState {
    * token is passed to a callback, so the callback doesn't have to look the tag up again. {@link tokenizeMarkup} looks
    * the tag up again if implicit ending switches the context.
    */
-  tagOptions: ResolvedTagOptions | undefined;
+  tagOptions: ResolvedTagParsingOptions | undefined;
 
   /**
    * Contextual options of the content that is being read. {@link tokenizeMarkup} switches it when a foreign tag is
@@ -446,12 +459,12 @@ export function createTokenizerWriter(
   const copiedTagNameStack: string[] = [];
 
   // Resolved options of open tags, or undefined for tags that options don't mention
-  const tagOptionsStack: Array<ResolvedTagOptions | undefined> = [];
+  const tagOptionsStack: Array<ResolvedTagParsingOptions | undefined> = [];
 
   // The number of open tags by the bit of their group ID
   const openTagCounts = initialOpenTagCounts !== undefined ? initialOpenTagCounts.slice() : [];
 
-  // Bits of group IDs of open tags, see ResolvedTagOptions.implicitlyEndedTagGroupIdMask
+  // Bits of group IDs of open tags, see ResolvedTagParsingOptions.implicitlyEndedTagGroupIdMask
   let openTagGroupIdMask = 0;
 
   // Contextual options that were current when each open foreign tag was started, so they're restored when it ends
@@ -775,7 +788,10 @@ export function createTokenizerWriter(
 /**
  * Returns resolved options of a tag in a context, or `undefined` if the tag has no options there.
  */
-function getTagOptions(context: ContextualTokenReaderOptions, tagHashCode: number): ResolvedTagOptions | undefined {
+function getTagOptions(
+  context: ContextualTokenReaderOptions,
+  tagHashCode: number
+): ResolvedTagParsingOptions | undefined {
   return context.tagOptionsMap !== undefined ? context.tagOptionsMap.get(tagHashCode) : undefined;
 }
 
@@ -784,14 +800,17 @@ function getTagOptions(context: ContextualTokenReaderOptions, tagHashCode: numbe
  *
  * @see {@link TagParsingOptions.isImplicitEndingBoundary}
  */
-function isImplicitEndingBoundary(tagOptions: ResolvedTagOptions | undefined): boolean {
+function isImplicitEndingBoundary(tagOptions: ResolvedTagParsingOptions | undefined): boolean {
   return tagOptions !== undefined && tagOptions.isImplicitEndingBoundary;
 }
 
 /**
  * Returns `true` if a tag must be implicitly ended.
  */
-function isImplicitlyEnded(tagOptions: ResolvedTagOptions | undefined, implicitlyEndedTagGroupIds: number[]): boolean {
+function isImplicitlyEnded(
+  tagOptions: ResolvedTagParsingOptions | undefined,
+  implicitlyEndedTagGroupIds: number[]
+): boolean {
   return tagOptions !== undefined && implicitlyEndedTagGroupIds.includes(tagOptions.tagGroupId);
 }
 
@@ -829,7 +848,7 @@ export interface ContextualTokenReaderOptions {
    * The map from a hash code of a tag to resolved options of the tag in this context. Contexts with the same
    * {@link ContextualTokenizerOptions.tags tags} share the map.
    */
-  tagOptionsMap?: Map<number, ResolvedTagOptions>;
+  tagOptionsMap?: Map<number, ResolvedTagParsingOptions>;
 
   /**
    * @see {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized}
