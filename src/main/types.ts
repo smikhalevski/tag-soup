@@ -139,8 +139,8 @@ export interface TagParsingOptions {
   isImplicitEndingBoundary?: boolean;
 
   /**
-   * If `true` then a start tag is inserted if an unbalanced end tag of this tag is met. Otherwise, a {@link ParserError}
-   * is thrown.
+   * If `true` then a start tag is inserted if an unbalanced end tag of this tag is met. Otherwise,
+   * a {@link MarkupSyntaxError} is thrown.
    *
    * You can ignore unbalanced end tags with {@link TokenizerOptions.areUnbalancedEndTagsIgnored}.
    *
@@ -250,7 +250,7 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
 
   /**
    * If `true` then tags that aren't ended before the end tag of an ancestor, or before the end of the input, are
-   * implicitly ended. Otherwise, a {@link ParserError} is thrown.
+   * implicitly ended. Otherwise, a {@link MarkupSyntaxError} is thrown.
    *
    * Use in conjunction with {@link areUnbalancedEndTagsIgnored}.
    *
@@ -264,8 +264,8 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   areUnbalancedStartTagsImplicitlyEnded?: boolean;
 
   /**
-   * If `true` then end tags that don't have a corresponding start tag are ignored. Otherwise, a {@link ParserError}
-   * is thrown.
+   * If `true` then end tags that don't have a corresponding start tag are ignored. Otherwise,
+   * a {@link MarkupSyntaxError} is thrown.
    *
    * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyEnded}.
    *
@@ -279,8 +279,8 @@ export interface TokenizerOptions extends ContextualTokenizerOptions {
   areUnbalancedEndTagsIgnored?: boolean;
 
   /**
-   * If `true` then input is read with XML constraints, and a {@link ParserError} is thrown if input doesn't satisfy
-   * them:
+   * If `true` then input is read with XML constraints, and a {@link MarkupSyntaxError} is thrown if input doesn't
+   * satisfy them:
    *
    * - tag names, attribute names and processing instruction targets must be valid XML names;
    * - attributes must have values in double or single quotes;
@@ -450,7 +450,7 @@ export interface ParserWriter<TResult = void> {
    * Parses a chunk of text.
    *
    * @param chunk The chunk of text.
-   * @throws {@link ParserError} If text is malformed and options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If text is malformed and options don't allow to recover.
    */
   write(chunk: string): void;
 
@@ -459,7 +459,7 @@ export interface ParserWriter<TResult = void> {
    *
    * @param chunk The last chunk of text.
    * @returns The result of parsing.
-   * @throws {@link ParserError} If text is malformed and options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If text is malformed and options don't allow to recover.
    */
   end(chunk?: string): TResult;
 }

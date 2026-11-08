@@ -26,7 +26,7 @@ export interface DOMParser {
    *
    * @param input The text to parse.
    * @returns The document node.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseDocument(input: string): Document;
 
@@ -37,7 +37,7 @@ export interface DOMParser {
    *
    * @param input The text to parse.
    * @returns The document fragment node.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string): DocumentFragment;
 

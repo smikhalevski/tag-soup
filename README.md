@@ -51,14 +51,14 @@ toHTML(fragment);
 [`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html).
 
 [`XMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/XMLDOMParser.html) parses XML markup as a DOM node.
-It throws [`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't satisfy
-XML spec:
+It throws [`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup
+doesn't satisfy XML spec:
 
 ```ts
 import { XMLDOMParser, toXML } from 'tag-soup';
 
 XMLDOMParser.parseFragment('<p>hello</br>');
-// ❌ ParserError: Unexpected end tag.
+// ❌ MarkupSyntaxError: Unexpected end tag.
 
 const fragment = XMLDOMParser.parseFragment('<p>hello<br/></p>');
 // ⮕ DocumentFragment
@@ -131,13 +131,14 @@ HTMLSAXParser.parseFragment('<p>hello<p>cool</br>', {
 
 [`XMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/XMLSAXParser.html) parses XML markup and calls
 handler methods when a token is read. It throws
-[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't satisfy XML spec:
+[`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup doesn't satisfy
+XML spec:
 
 ```ts
 import { XMLSAXParser } from 'tag-soup';
 
 XMLSAXParser.parseFragment('<p>hello</br>', {});
-// ❌ ParserError: Unexpected end tag.
+// ❌ MarkupSyntaxError: Unexpected end tag.
 
 XMLSAXParser.parseFragment('<p>hello<br/></p>', {
   onEndTag(tagName) {
@@ -239,13 +240,14 @@ HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', (token, startIndex, endIn
 
 [`XMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html) parses XML markup and invokes a
 callback when a token is read. It throws
-[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html) if markup doesn't satisfy XML spec:
+[`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup doesn't satisfy
+XML spec:
 
 ```ts
 import { XMLTokenizer } from 'tag-soup';
 
 XMLTokenizer.tokenizeFragment('<p>hello</br>', (token, startIndex, endIndex) => {});
-// ❌ ParserError: Unexpected end tag.
+// ❌ MarkupSyntaxError: Unexpected end tag.
 
 XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', (token, startIndex, endIndex) => {
   // Handle token
@@ -407,11 +409,11 @@ options except `decodeText` and `decodeAttribute`.
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
 <dd>If <code>true</code>, ASCII letters in tag names are compared ignoring case.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyended"><code>areUnbalancedStartTagsImplicitlyEnded</code></a></dt>
-<dd>If <code>true</code>, tags that aren't ended before the end tag of an ancestor, or before the end of the input, are implicitly ended. Otherwise, <code>ParserError</code> is thrown.</dd>
+<dd>If <code>true</code>, tags that aren't ended before the end tag of an ancestor, or before the end of the input, are implicitly ended. Otherwise, <code>MarkupSyntaxError</code> is thrown.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedendtagsignored"><code>areUnbalancedEndTagsIgnored</code></a></dt>
-<dd>If <code>true</code>, end tags without a matching start tag are ignored. Otherwise, <code>ParserError</code> is thrown.</dd>
+<dd>If <code>true</code>, end tags without a matching start tag are ignored. Otherwise, <code>MarkupSyntaxError</code> is thrown.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#isstrict"><code>isStrict</code></a></dt>
-<dd>If <code>true</code>, input must satisfy XML constraints, otherwise <code>ParserError</code> is thrown: tag names, attribute names and processing instruction targets must be valid XML names, attribute values must be in double or single quotes, comments, CDATA sections and processing instructions must be terminated, and a document must have a single root element.</dd>
+<dd>If <code>true</code>, input must satisfy XML constraints, otherwise <code>MarkupSyntaxError</code> is thrown: tag names, attribute names and processing instruction targets must be valid XML names, attribute values must be in double or single quotes, comments, CDATA sections and processing instructions must be terminated, and a document must have a single root element.</dd>
 </dl>
 
 ## Tag options
@@ -504,16 +506,16 @@ const myParser = createDOMParser(htmlOptions);
 # Error handling
 
 Parsers and tokenizers that aren't configured to recover from malformed markup throw
-[`ParserError`](https://smikhalevski.github.io/tag-soup/classes/ParserError.html). Its `startIndex` and `endIndex` point
-to the malformed part of the `input`:
+[`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html). Its `startIndex` and
+`endIndex` point to the malformed part of the `input`:
 
 ```ts
-import { ParserError, XMLDOMParser } from 'tag-soup';
+import { MarkupSyntaxError, XMLDOMParser } from 'tag-soup';
 
 try {
   XMLDOMParser.parseFragment('<p>hello</br>');
 } catch (error) {
-  if (error instanceof ParserError) {
+  if (error instanceof MarkupSyntaxError) {
     error.message;
     // ⮕ 'Unexpected end tag.'
 

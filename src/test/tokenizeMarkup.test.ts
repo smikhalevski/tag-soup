@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { TagParsingOptions, TokenCallback, TokenizerOptions } from '../main/index.ts';
+import { MarkupSyntaxError } from '../main/MarkupSyntaxError.ts';
 import { type ResolvedTokenizerOptions, resolveTokenizerOptions } from '../main/resolveTokenizerOptions.ts';
 import {
   createTokenizerState,
   createTokenizerWriter,
-  ParserError,
   readTokens,
   type TokenizerState,
 } from '../main/tokenizeMarkup.ts';
@@ -41,7 +41,7 @@ function readChunks(chunks: string[], options: ResolvedTokenizerOptions): string
     }
     writer.end();
   } catch (error) {
-    if (!(error instanceof ParserError)) {
+    if (!(error instanceof MarkupSyntaxError)) {
       throw error;
     }
     tokens.push(error.message + ' ' + (error.inputOffset + error.startIndex));
@@ -1008,7 +1008,7 @@ describe('readTokens', () => {
 
   test('strict throws if invalid char in start tag', () => {
     expect(() => readTokens('<aaa ///', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected an attribute name or a start tag closing ('>').", '<aaa ///', 5, 6)
+      new MarkupSyntaxError("Expected an attribute name or a start tag closing ('>').", '<aaa ///', 5, 6)
     );
   });
 
@@ -1016,7 +1016,7 @@ describe('readTokens', () => {
     const options = resolveTokenizerOptions({ isStrict: true, areSelfClosingTagsRecognized: true });
 
     expect(() => readTokens('<aaa ///', callback, options, makeTestState(options))).toThrow(
-      new ParserError(
+      new MarkupSyntaxError(
         "Expected an attribute name, a self-closing start tag ('/>'), or a start tag closing ('>').",
         '<aaa ///',
         5,
@@ -1027,19 +1027,24 @@ describe('readTokens', () => {
 
   test('strict throws if attribute is not followed by equals sign', () => {
     expect(() => readTokens('<aaa bbb', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected an attribute value separated by an equals sign ('=').", '<aaa bbb', 8, 9)
+      new MarkupSyntaxError("Expected an attribute value separated by an equals sign ('=').", '<aaa bbb', 8, 9)
     );
   });
 
   test('strict throws if attribute is not followed by equals sign', () => {
     expect(() => readTokens('<aaa bbb', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected an attribute value separated by an equals sign ('=').", '<aaa bbb', 8, 9)
+      new MarkupSyntaxError("Expected an attribute value separated by an equals sign ('=').", '<aaa bbb', 8, 9)
     );
   });
 
   test('strict throws if attribute has no value', () => {
     expect(() => readTokens('<aaa bbb=', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError('Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.', '<aaa bbb=', 9, 10)
+      new MarkupSyntaxError(
+        'Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.',
+        '<aaa bbb=',
+        9,
+        10
+      )
     );
   });
 
@@ -1055,13 +1060,23 @@ describe('readTokens', () => {
 
   test('strict throws if attribute value is not terminated', () => {
     expect(() => readTokens('<aaa bbb="ccc', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected the attribute value to be closed with a double-quote ('\"').", '<aaa bbb="ccc', 10, 13)
+      new MarkupSyntaxError(
+        "Expected the attribute value to be closed with a double-quote ('\"').",
+        '<aaa bbb="ccc',
+        10,
+        13
+      )
     );
   });
 
   test('strict throws if single-quoted attribute value is not terminated', () => {
     expect(() => readTokens("<aaa bbb='ccc", callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError('Expected the attribute value to be closed with a single-quote ("\'").', "<aaa bbb='ccc", 10, 13)
+      new MarkupSyntaxError(
+        'Expected the attribute value to be closed with a single-quote ("\'").',
+        "<aaa bbb='ccc",
+        10,
+        13
+      )
     );
   });
 
@@ -1069,29 +1084,29 @@ describe('readTokens', () => {
     const options = resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true });
 
     expect(() => readTokens('<??>', callback, options, makeTestState(options))).toThrow(
-      new ParserError('Expected a processing instruction target.', '<??>', 2, 3)
+      new MarkupSyntaxError('Expected a processing instruction target.', '<??>', 2, 3)
     );
 
     expect(() => readTokens('<?   aaa?>', callback, options, makeTestState(options))).toThrow(
-      new ParserError('Expected a processing instruction target.', '<?   aaa?>', 2, 3)
+      new MarkupSyntaxError('Expected a processing instruction target.', '<?   aaa?>', 2, 3)
     );
   });
 
   test('strict throws if start tag has no name', () => {
     expect(() => readTokens('< >', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError('Expected a name for the start tag.', '< >', 1, 2)
+      new MarkupSyntaxError('Expected a name for the start tag.', '< >', 1, 2)
     );
   });
 
   test('strict throws if end tag has no name', () => {
     expect(() => readTokens('</ >', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError('Expected a name for the end tag.', '</ >', 2, 3)
+      new MarkupSyntaxError('Expected a name for the end tag.', '</ >', 2, 3)
     );
   });
 
   test('strict throws if comment is not terminated', () => {
     expect(() => readTokens('<!--aaa', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected the comment to be closed with '-->'.", '<!--aaa', 0, 7)
+      new MarkupSyntaxError("Expected the comment to be closed with '-->'.", '<!--aaa', 0, 7)
     );
   });
 
@@ -1106,7 +1121,7 @@ describe('readTokens', () => {
     const options = resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true });
 
     expect(() => readTokens('<![CDATA[aaa', callback, options, makeTestState(options))).toThrow(
-      new ParserError("Expected the CDATA section to be closed with ']]>'.", '<![CDATA[aaa', 0, 12)
+      new MarkupSyntaxError("Expected the CDATA section to be closed with ']]>'.", '<![CDATA[aaa', 0, 12)
     );
   });
 
@@ -1114,7 +1129,7 @@ describe('readTokens', () => {
     const options = resolveTokenizerOptions({ isStrict: true, areProcessingInstructionsRecognized: true });
 
     expect(() => readTokens('<?aaa', callback, options, makeTestState(options))).toThrow(
-      new ParserError("Expected the processing instruction to be closed with '?>'.", '<?aaa', 0, 5)
+      new MarkupSyntaxError("Expected the processing instruction to be closed with '?>'.", '<?aaa', 0, 5)
     );
   });
 
@@ -1122,7 +1137,7 @@ describe('readTokens', () => {
     const options = resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true });
 
     expect(() => readTokens('<![cdata[]]>', callback, options, makeTestState(options))).toThrow(
-      new ParserError(
+      new MarkupSyntaxError(
         "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[').",
         '<![cdata[]]>',
         0,
@@ -1133,23 +1148,23 @@ describe('readTokens', () => {
 
   test('strict throws if processing instruction is not supported', () => {
     expect(() => readTokens('<?xml?>', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError('Processing instructions are forbidden.', '<?xml?>', 0, 2)
+      new MarkupSyntaxError('Processing instructions are forbidden.', '<?xml?>', 0, 2)
     );
   });
 
   test('strict throws if CDATA is not supported', () => {
     expect(() => readTokens('<![CDATA[]]>', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE').", '<![CDATA[]]>', 0, 2)
+      new MarkupSyntaxError("Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE').", '<![CDATA[]]>', 0, 2)
     );
 
     expect(() => readTokens('aaa<![CDATA[]]>', callback, strictOptions, makeTestState(strictOptions))).toThrow(
-      new ParserError("Expected a comment ('<!--').", 'aaa<![CDATA[]]>', 3, 5)
+      new MarkupSyntaxError("Expected a comment ('<!--').", 'aaa<![CDATA[]]>', 3, 5)
     );
 
     const options = resolveTokenizerOptions({ isStrict: true, areCDATASectionsRecognized: true });
 
     expect(() => readTokens('<!bbb>', callback, options, makeTestState(options))).toThrow(
-      new ParserError(
+      new MarkupSyntaxError(
         "Expected a comment ('<!--'), a doctype declaration ('<!DOCTYPE'), or a CDATA section ('<![CDATA[').",
         '<!bbb>',
         0,
@@ -1849,7 +1864,7 @@ describe('createTokenizerWriter', () => {
     // "aQ" and "b0" have the same hash code
     expect(() =>
       createTokenizerWriter(callback, defaultOptions, makeTestState(defaultOptions)).end('<aQ></b0>')
-    ).toThrow(new ParserError('Unexpected end tag.', '<aQ></b0>', 6, 8));
+    ).toThrow(new MarkupSyntaxError('Unexpected end tag.', '<aQ></b0>', 6, 8));
   });
 
   test('sets the tag hash code and the tag options before an implicitly started start tag name is passed to the callback', () => {
@@ -1890,14 +1905,14 @@ describe('createTokenizerWriter', () => {
     const options = resolveTokenizerOptions({ isStrict: true, areSelfClosingTagsRecognized: true });
 
     expect(() => createTokenizerWriter(callback, options, makeTestState(options)).end('<aaa/><bbb/>')).toThrow(
-      new ParserError('Expected a single root element.', '<aaa/><bbb/>', 6, 10)
+      new MarkupSyntaxError('Expected a single root element.', '<aaa/><bbb/>', 6, 10)
     );
   });
 
   test('throws if start tag is not closed before EOF', () => {
     expect(() =>
       createTokenizerWriter(callback, defaultOptions, makeTestState(defaultOptions)).end('<aaa xxx="bbb"')
-    ).toThrow(new ParserError('Unexpected end of the document.', '<aaa xxx="bbb"', 14));
+    ).toThrow(new MarkupSyntaxError('Unexpected end of the document.', '<aaa xxx="bbb"', 14));
   });
 
   test('reads tokens from chunks', () => {
@@ -2009,7 +2024,7 @@ describe('createTokenizerWriter', () => {
     const options = resolveTokenizerOptions({ isStrict: true });
     const writer = createTokenizerWriter(callback, options, makeTestState(options));
 
-    expect(() => writer.write('</aaa>')).toThrow(ParserError);
+    expect(() => writer.write('</aaa>')).toThrow(MarkupSyntaxError);
     expect(() => writer.write('bbb')).toThrow(new Error('The writer is ended.'));
   });
 });

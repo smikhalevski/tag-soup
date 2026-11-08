@@ -110,7 +110,7 @@ export interface SAXParser {
    *
    * @param input The text to parse.
    * @param handler The token handler.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseDocument(input: string, handler: SAXHandler): void;
 
@@ -121,7 +121,7 @@ export interface SAXParser {
    *
    * @param input The text to parse.
    * @param handler The token handler.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string, handler: SAXHandler): void;
 

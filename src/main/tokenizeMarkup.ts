@@ -1,3 +1,4 @@
+import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type {
   ResolvedContextualTokenizerOptions,
   ResolvedTagParsingOptions,
@@ -12,52 +13,6 @@ import {
   getCaseSensitiveHashCode,
   toLowerCaseCharCode,
 } from './utils.ts';
-
-/**
- * The error thrown by a tokenizer or a parser if an {@link ParserError.input input} is malformed.
- *
- * Forgiving parsers, like {@link HTMLDOMParser}, never throw this error.
- *
- * @example
- * try {
- *   XMLDOMParser.parseFragment('<p>hello</br>');
- * } catch (error) {
- *   if (error instanceof ParserError) {
- *     error.input.substring(error.startIndex, error.endIndex);
- *     // ⮕ 'br'
- *   }
- * }
- *
- * @group Parser
- */
-export class ParserError extends SyntaxError {
-  /**
-   * Creates a new {@link ParserError} instance.
-   *
-   * @param message The error message.
-   * @param input The text where an error was detected.
-   * @param startIndex The index of the first char in text where an error was detected, inclusive, or -1 if unknown.
-   * @param endIndex The index of the last char in text where an error was detected, exclusive. Equals to
-   * `startIndex` if the error points to a position rather than to a range of chars.
-   * @param inputOffset The index in the stream where the input starts, so `inputOffset + startIndex` is the index in
-   * the stream where the error was detected. The stream is all chunks that were written to a writer, and the input is
-   * the part of the stream that the writer didn't read before, followed by the last written chunk.
-   */
-  constructor(
-    message: string,
-    public input: string,
-    public startIndex = -1,
-    public endIndex = startIndex,
-    public inputOffset = 0
-  ) {
-    super(message);
-  }
-}
-
-/**
- * @internal
- */
-ParserError.prototype.name = 'ParserError';
 
 /**
  * The state of reading a text, shared with the callback. Options are shared by all calls, so everything that changes
@@ -326,7 +281,7 @@ export function createTokenizerWriter(
 
         if (isStrict && !isFragment && tagStackCursor === -1) {
           if (isRootElementRead) {
-            throw new ParserError('Expected a single root element.', input, startIndex - 1, endIndex);
+            throw new MarkupSyntaxError('Expected a single root element.', input, startIndex - 1, endIndex);
           }
           isRootElementRead = true;
         }
@@ -391,7 +346,7 @@ export function createTokenizerWriter(
         // Found a start tag
         if (startTagIndex !== -1) {
           if (!areUnbalancedStartTagsImplicitlyEnded && startTagIndex !== tagStackCursor) {
-            throw new ParserError('Expected an end tag.', input, endTagStartIndex);
+            throw new MarkupSyntaxError('Expected an end tag.', input, endTagStartIndex);
           }
 
           // Insert end tags for tags that were started after the matching start tag
@@ -412,7 +367,7 @@ export function createTokenizerWriter(
 
         if (endTagOptions === undefined || !endTagOptions.isImplicitlyStarted) {
           if (!areUnbalancedEndTagsIgnored) {
-            throw new ParserError('Unexpected end tag.', input, startIndex, endIndex);
+            throw new MarkupSyntaxError('Unexpected end tag.', input, startIndex, endIndex);
           }
           break;
         }
@@ -474,7 +429,7 @@ export function createTokenizerWriter(
 
       if (isInputEnded) {
         if (tagStackCursor !== -1 && !areUnbalancedStartTagsImplicitlyEnded) {
-          throw new ParserError('Unexpected end of the document.', input, input.length);
+          throw new MarkupSyntaxError('Unexpected end of the document.', input, input.length);
         }
 
         // The input ended inside a start tag
@@ -504,7 +459,7 @@ export function createTokenizerWriter(
       writer.inputOffset += unreadIndex;
     } catch (error) {
       // Indices of errors that the tokenizer throws point to the input
-      if (error instanceof ParserError && error.input === input) {
+      if (error instanceof MarkupSyntaxError && error.input === input) {
         error.inputOffset = writer.inputOffset;
       }
       throw error;
@@ -620,7 +575,7 @@ export type TagNameEqualityComparer = (
  *   it, so other tokens don't pass through an extra call. By default, `callback` is invoked for all tokens.
  * @returns The index in the input where the text that wasn't read starts, or the input length if the whole input was
  *   read.
- * @throws {@link ParserError} If {@link TokenReaderOptions.isStrict} is `true` and input is malformed.
+ * @throws {@link MarkupSyntaxError} If {@link TokenReaderOptions.isStrict} is `true` and input is malformed.
  * @internal
  */
 export function readTokens(
@@ -763,7 +718,7 @@ export function readTokens(
           continue;
         }
 
-        throw new ParserError(
+        throw new MarkupSyntaxError(
           'Expected an attribute name' +
             (state.context.areSelfClosingTagsRecognized ? ", a self-closing start tag ('/>')," : '') +
             " or a start tag closing ('>').",
@@ -798,7 +753,7 @@ export function readTokens(
           continue;
         }
 
-        throw new ParserError(
+        throw new MarkupSyntaxError(
           "Expected an attribute value separated by an equals sign ('=').",
           input,
           nextIndex,
@@ -831,7 +786,7 @@ export function readTokens(
         callback(TOKEN_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
 
         if (isStrict) {
-          throw new ParserError(
+          throw new MarkupSyntaxError(
             'Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.',
             input,
             nextIndex,
@@ -860,7 +815,7 @@ export function readTokens(
       callback(TOKEN_ATTRIBUTE_NAME, index, attributeNameEndIndex, input);
 
       if (isStrict && nextIndex === inputLength) {
-        throw new ParserError(
+        throw new MarkupSyntaxError(
           quoteCharCode === /* " */ 34
             ? "Expected the attribute value to be closed with a double-quote ('\"')."
             : 'Expected the attribute value to be closed with a single-quote ("\'").',
@@ -921,7 +876,7 @@ export function readTokens(
 
       // No target
       if (isStrict && targetStartIndex === targetEndIndex) {
-        throw new ParserError(
+        throw new MarkupSyntaxError(
           'Expected a processing instruction target.',
           input,
           targetStartIndex,
@@ -932,7 +887,12 @@ export function readTokens(
       callback(TOKEN_PROCESSING_INSTRUCTION_TARGET, targetStartIndex, targetEndIndex, input);
 
       if (isStrict && dataEndIndex === inputLength) {
-        throw new ParserError("Expected the processing instruction to be closed with '?>'.", input, index, inputLength);
+        throw new MarkupSyntaxError(
+          "Expected the processing instruction to be closed with '?>'.",
+          input,
+          index,
+          inputLength
+        );
       }
 
       callback(TOKEN_PROCESSING_INSTRUCTION_DATA, dataStartIndex, dataEndIndex, input);
@@ -1002,7 +962,7 @@ export function readTokens(
       }
 
       if (isStrict && cdataSectionEndIndex === inputLength) {
-        throw new ParserError("Expected the CDATA section to be closed with ']]>'.", input, index, inputLength);
+        throw new MarkupSyntaxError("Expected the CDATA section to be closed with ']]>'.", input, index, inputLength);
       }
 
       callback(TOKEN_CDATA_SECTION, cdataSectionStartIndex, cdataSectionEndIndex, input);
@@ -1047,7 +1007,7 @@ export function readTokens(
       }
 
       if (isStrict && commentEndIndex === inputLength) {
-        throw new ParserError("Expected the comment to be closed with '-->'.", input, index, inputLength);
+        throw new MarkupSyntaxError("Expected the comment to be closed with '-->'.", input, index, inputLength);
       }
 
       callback(TOKEN_COMMENT, commentStartIndex, commentEndIndex, input);
@@ -1082,7 +1042,7 @@ export function readTokens(
       }
 
       if (isStrict) {
-        throw new ParserError(
+        throw new MarkupSyntaxError(
           charCode === /* ? */ 63
             ? 'Processing instructions are forbidden.'
             : "Expected a comment ('<!--')" +
@@ -1132,7 +1092,12 @@ export function readTokens(
       // No tag name
       if (tagNameStartIndex === nextIndex) {
         if (isStrict) {
-          throw new ParserError('Expected a name for the end tag.', input, tagNameStartIndex, tagNameStartIndex + 1);
+          throw new MarkupSyntaxError(
+            'Expected a name for the end tag.',
+            input,
+            tagNameStartIndex,
+            tagNameStartIndex + 1
+          );
         }
 
         // "</" is a part of raw text, and of text at the end of the input
@@ -1208,7 +1173,12 @@ export function readTokens(
       enclosingRawTextTagHashCode = 0;
 
       if (isStrict && getCharCodeAt(input, tagClosingIndex) !== /* > */ 62) {
-        throw new ParserError("Expected a closing angle bracket ('>').", input, tagClosingIndex, tagClosingIndex + 1);
+        throw new MarkupSyntaxError(
+          "Expected a closing angle bracket ('>').",
+          input,
+          tagClosingIndex,
+          tagClosingIndex + 1
+        );
       }
 
       // Skip ">"
@@ -1267,7 +1237,12 @@ export function readTokens(
     // No tag name
     if (tagNameStartIndex === nextIndex) {
       if (isStrict) {
-        throw new ParserError('Expected a name for the start tag.', input, tagNameStartIndex, tagNameStartIndex + 1);
+        throw new MarkupSyntaxError(
+          'Expected a name for the start tag.',
+          input,
+          tagNameStartIndex,
+          tagNameStartIndex + 1
+        );
       }
 
       // "<" is a part of text, which ends the prolog

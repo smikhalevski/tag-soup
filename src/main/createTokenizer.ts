@@ -16,7 +16,7 @@ export interface Tokenizer {
    *
    * @param text The text to read tokens from.
    * @param callback The callback that is invoked when a token is read.
-   * @throws {@link ParserError} If text is malformed and tokenizer options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
    */
   tokenizeDocument(text: string, callback: TokenCallback): void;
 
@@ -27,7 +27,7 @@ export interface Tokenizer {
    *
    * @param text The text to read tokens from.
    * @param callback The callback that is invoked when a token is read.
-   * @throws {@link ParserError} If text is malformed and tokenizer options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
    */
   tokenizeFragment(text: string, callback: TokenCallback): void;
 
