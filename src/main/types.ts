@@ -190,7 +190,8 @@ export interface TagSerializationOptions {
 }
 
 /**
- * Options of {@link createTokenizer} that can be changed by {@link TagParsingOptions.foreignContext foreign tags}.
+ * Options of a context, which defines how content is read: which tags are known, and whether self-closing tags, CDATA
+ * sections and processing instructions are recognized.
  *
  * @group Tokenizer
  */
@@ -421,7 +422,7 @@ export interface ParserWriter<TResult = void> {
   write(chunk: string): void;
 
   /**
-   * Parses the last chunk of text, and ends tags that are still open. Chunks can't be written after that.
+   * Parses the last chunk of text, and ends tags that weren't ended. Chunks can't be written after that.
    *
    * @param chunk The last chunk of text.
    * @returns The result of parsing.

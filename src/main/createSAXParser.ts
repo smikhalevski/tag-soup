@@ -1,4 +1,4 @@
-import { type ResolvedParserOptions, resolveParserOptions } from './resolveParserOptions.ts';
+import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
 import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
 
@@ -174,25 +174,25 @@ export interface SAXParser {
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
-  const documentOptions: ResolvedParserOptions = resolveParserOptions(options);
+  const documentConfig: ParserConfig = resolveParserOptions(options);
 
-  const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
+  const fragmentConfig: ParserConfig = { ...documentConfig, isFragment: true };
 
   return {
     parseDocument(input, handler) {
-      createSAXParserWriter(handler, documentOptions).end(input);
+      createSAXParserWriter(handler, documentConfig).end(input);
     },
 
     parseFragment(input, handler) {
-      createSAXParserWriter(handler, fragmentOptions).end(input);
+      createSAXParserWriter(handler, fragmentConfig).end(input);
     },
 
     createDocumentWriter(handler) {
-      return createSAXParserWriter(handler, documentOptions);
+      return createSAXParserWriter(handler, documentConfig);
     },
 
     createFragmentWriter(handler) {
-      return createSAXParserWriter(handler, fragmentOptions);
+      return createSAXParserWriter(handler, fragmentConfig);
     },
   };
 }
@@ -201,16 +201,16 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
  * Creates a writer that parses chunks of text and calls {@link SAXHandler} methods when tokens are read.
  *
  * @param handler The token handler.
- * @param options Parser options.
+ * @param config The parser config.
  * @see {@link createTokenizerWriter}
  * @internal
  */
-export function createSAXParserWriter(handler: SAXHandler, options: ResolvedParserOptions): ParserWriter {
-  const { decodeText, decodeAttribute } = options;
+export function createSAXParserWriter(handler: SAXHandler, config: ParserConfig): ParserWriter {
+  const { decodeText, decodeAttribute } = config;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
-  const tokenizerState = createTokenizerState(options.initialContext);
+  const tokenizerState = createTokenizerState(config.initialContext);
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -233,11 +233,11 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
         break;
 
       case 'start_tag_name': {
-        const tagOptions = tokenizerState.tagOptions;
+        const tagConfig = tokenizerState.tagConfig;
 
         let tagName;
 
-        isRawText = tagOptions !== undefined && tagOptions.isRawText;
+        isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);
@@ -352,5 +352,5 @@ export function createSAXParserWriter(handler: SAXHandler, options: ResolvedPars
     }
   };
 
-  return createTokenizerWriter(tokenCallback, options, tokenizerState);
+  return createTokenizerWriter(tokenCallback, config, tokenizerState);
 }

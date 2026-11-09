@@ -8,7 +8,7 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import { type ResolvedParserOptions, resolveParserOptions } from './resolveParserOptions.ts';
+import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
 import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
 
@@ -83,25 +83,25 @@ export interface DOMParser {
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
-  const documentOptions: ResolvedParserOptions = resolveParserOptions(options);
+  const documentConfig: ParserConfig = resolveParserOptions(options);
 
-  const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
+  const fragmentConfig: ParserConfig = { ...documentConfig, isFragment: true };
 
   return {
     parseDocument(input) {
-      return createDOMParserWriter(documentOptions).end(input) as Document;
+      return createDOMParserWriter(documentConfig).end(input) as Document;
     },
 
     parseFragment(input) {
-      return createDOMParserWriter(fragmentOptions).end(input) as DocumentFragment;
+      return createDOMParserWriter(fragmentConfig).end(input) as DocumentFragment;
     },
 
     createDocumentWriter() {
-      return createDOMParserWriter(documentOptions) as ParserWriter<Document>;
+      return createDOMParserWriter(documentConfig) as ParserWriter<Document>;
     },
 
     createFragmentWriter() {
-      return createDOMParserWriter(fragmentOptions) as ParserWriter<DocumentFragment>;
+      return createDOMParserWriter(fragmentConfig) as ParserWriter<DocumentFragment>;
     },
   };
 }
@@ -109,16 +109,16 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 /**
  * Creates a writer that parses chunks of text as a DOM.
  *
- * @param options Parser options.
+ * @param config The parser config.
  * @returns The writer that returns the document node, or the document fragment node if
- * {@link ResolvedParserOptions.isFragment} is `true`.
+ * {@link ParserConfig.isFragment} is `true`.
  * @see {@link createTokenizerWriter}
  * @internal
  */
-export function createDOMParserWriter(options: ResolvedParserOptions): ParserWriter<Document | DocumentFragment> {
-  const { isFragment, decodeText, decodeAttribute } = options;
+export function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | DocumentFragment> {
+  const { isFragment, decodeText, decodeAttribute } = config;
 
-  const tokenizerState = createTokenizerState(options.initialContext);
+  const tokenizerState = createTokenizerState(config.initialContext);
 
   const rootNode = isFragment ? new DocumentFragment() : new Document();
 
@@ -137,9 +137,9 @@ export function createDOMParserWriter(options: ResolvedParserOptions): ParserWri
       }
 
       case 'start_tag_name': {
-        const tagOptions = tokenizerState.tagOptions;
+        const tagConfig = tokenizerState.tagConfig;
 
-        isRawText = tagOptions !== undefined && tagOptions.isRawText;
+        isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
         parentNode.appendChild((parentNode = new Element(input.substring(startIndex, endIndex))));
         break;
@@ -184,7 +184,7 @@ export function createDOMParserWriter(options: ResolvedParserOptions): ParserWri
     }
   };
 
-  const tokenizerWriter = createTokenizerWriter(tokenCallback, options, tokenizerState);
+  const tokenizerWriter = createTokenizerWriter(tokenCallback, config, tokenizerState);
 
   return {
     write(chunk) {

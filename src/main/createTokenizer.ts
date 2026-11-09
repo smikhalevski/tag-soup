@@ -1,4 +1,4 @@
-import { type ResolvedTokenizerOptions, resolveTokenizerOptions } from './resolveTokenizerOptions.ts';
+import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenizerOptions.ts';
 import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
 import type { TokenCallback, TokenizerOptions, TokenizerWriter } from './types.ts';
 
@@ -89,25 +89,25 @@ export interface Tokenizer {
  * @group Tokenizer
  */
 export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
-  const documentOptions: ResolvedTokenizerOptions = resolveTokenizerOptions(options);
+  const documentConfig: TokenizerConfig = resolveTokenizerOptions(options);
 
-  const fragmentOptions: ResolvedTokenizerOptions = { ...documentOptions, isFragment: true };
+  const fragmentConfig: TokenizerConfig = { ...documentConfig, isFragment: true };
 
   return {
     tokenizeDocument(text, callback) {
-      createTokenizerWriter(callback, documentOptions, createTokenizerState(documentOptions.initialContext)).end(text);
+      createTokenizerWriter(callback, documentConfig, createTokenizerState(documentConfig.initialContext)).end(text);
     },
 
     tokenizeFragment(text, callback) {
-      createTokenizerWriter(callback, fragmentOptions, createTokenizerState(fragmentOptions.initialContext)).end(text);
+      createTokenizerWriter(callback, fragmentConfig, createTokenizerState(fragmentConfig.initialContext)).end(text);
     },
 
     createDocumentWriter(callback) {
-      return createTokenizerWriter(callback, documentOptions, createTokenizerState(documentOptions.initialContext));
+      return createTokenizerWriter(callback, documentConfig, createTokenizerState(documentConfig.initialContext));
     },
 
     createFragmentWriter(callback) {
-      return createTokenizerWriter(callback, fragmentOptions, createTokenizerState(fragmentOptions.initialContext));
+      return createTokenizerWriter(callback, fragmentConfig, createTokenizerState(fragmentConfig.initialContext));
     },
   };
 }

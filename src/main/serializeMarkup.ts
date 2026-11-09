@@ -10,19 +10,19 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import type { ResolvedSerializerOptions, ResolvedTagSerializationOptions } from './resolveSerializerOptions.ts';
+import type { SerializerConfig, TagSerializationConfig } from './resolveSerializerOptions.ts';
 import { areCaseInsensitiveStringsEqual, getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
 
 /**
  * Serializes a DOM node as an HTML/XML string.
  *
  * @param node The DOM node to serialize.
- * @param options Serializer options.
+ * @param config The serializer config.
  * @returns The serialized node.
  * @internal
  */
-export function serializeMarkup(node: Node, options: ResolvedSerializerOptions): string {
-  const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = options;
+export function serializeMarkup(node: Node, config: SerializerConfig): string {
+  const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = config;
 
   // Text is the most common node, and comparing the node type is faster than instanceof checks that walk the prototype
   // chain
@@ -37,25 +37,25 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
       output += ' ' + name + '="' + encodeAttribute(node.attributes[name]) + '"';
     }
 
-    const tagOptions = getTagOptions(options, node.tagName);
+    const tagConfig = getTagConfig(config, node.tagName);
 
     if (node.firstChild !== null) {
       output += '>';
 
       // Text inside raw text tags isn't encoded
-      const isRawText = tagOptions !== undefined && tagOptions.isRawText;
+      const isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
         // Text children are written here, rather than serialized recursively
         if (child.nodeType === Node.TEXT_NODE) {
           output += isRawText ? (child as Text).data : encodeText((child as Text).data);
         } else {
-          output += serializeMarkup(child, options);
+          output += serializeMarkup(child, config);
         }
       }
 
       output += '</' + node.tagName + '>';
-    } else if (tagOptions !== undefined && tagOptions.kind === 'void') {
+    } else if (tagConfig !== undefined && tagConfig.kind === 'void') {
       output += '>';
     } else if (areSelfClosingTagsSupported) {
       output += '/>';
@@ -74,7 +74,7 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
     let output = '';
 
     for (let child = node.firstChild; child !== null; child = child.nextSibling) {
-      output += serializeMarkup(child, options);
+      output += serializeMarkup(child, config);
     }
 
     return output;
@@ -96,35 +96,32 @@ export function serializeMarkup(node: Node, options: ResolvedSerializerOptions):
 }
 
 /**
- * Returns resolved options of a tag, or `undefined` if the tag has no options.
+ * Returns the config of a tag, or `undefined` if options don't mention the tag.
  */
-function getTagOptions(
-  options: ResolvedSerializerOptions,
-  tagName: string
-): ResolvedTagSerializationOptions | undefined {
-  const { tagsMap, areTagNamesCaseInsensitive } = options;
+function getTagConfig(config: SerializerConfig, tagName: string): TagSerializationConfig | undefined {
+  const { tagConfigsMap, areTagNamesCaseInsensitive } = config;
 
-  if (tagsMap === undefined) {
+  if (tagConfigsMap === undefined) {
     return;
   }
 
-  const tagOptionsList = tagsMap.get(
+  const tagConfigs = tagConfigsMap.get(
     areTagNamesCaseInsensitive
       ? getCaseInsensitiveHashCode(tagName, 0, tagName.length)
       : getCaseSensitiveHashCode(tagName, 0, tagName.length)
   );
 
-  if (tagOptionsList === undefined) {
+  if (tagConfigs === undefined) {
     return;
   }
 
-  for (const tagOptions of tagOptionsList) {
+  for (const tagConfig of tagConfigs) {
     if (
       areTagNamesCaseInsensitive
-        ? areCaseInsensitiveStringsEqual(tagOptions.tagName, tagName)
-        : tagOptions.tagName === tagName
+        ? areCaseInsensitiveStringsEqual(tagConfig.tagName, tagName)
+        : tagConfig.tagName === tagName
     ) {
-      return tagOptions;
+      return tagConfig;
     }
   }
   return;

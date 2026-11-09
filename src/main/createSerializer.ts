@@ -28,7 +28,7 @@ import type { SerializerOptions } from './types.ts';
  * @group Serializer
  */
 export function createSerializer(options: SerializerOptions = {}): (node: Node) => string {
-  const resolvedOptions = resolveSerializerOptions(options);
+  const config = resolveSerializerOptions(options);
 
-  return node => serializeMarkup(node, resolvedOptions);
+  return node => serializeMarkup(node, config);
 }

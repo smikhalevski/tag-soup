@@ -1,13 +1,13 @@
 import type { SerializerOptions, TagKind } from './types.ts';
 import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, identity } from './utils.ts';
 
-export interface ResolvedSerializerOptions {
+export interface SerializerConfig {
   /**
-   * The map from a hash code of a tag name to resolved options of tags with this hash code. Different names can have
-   * equal hash codes, so tags with the same hash code share an array, and their names are compared. Tags that are
-   * written the same way as tags that options don't mention aren't in the map.
+   * The map from a hash code of a tag name to configs of tags with this hash code. Different names can have equal
+   * hash codes, so tags with the same hash code share an array, and their names are compared. Tags that are written
+   * the same way as tags that options don't mention aren't in the map.
    */
-  tagsMap: Map<number, ResolvedTagSerializationOptions[]> | undefined;
+  tagConfigsMap: Map<number, TagSerializationConfig[]> | undefined;
 
   /**
    * If `true` then tag names are hashed with {@link getCaseInsensitiveHashCode} and compared with
@@ -31,7 +31,7 @@ export interface ResolvedSerializerOptions {
   encodeAttribute: (value: string) => string;
 }
 
-export interface ResolvedTagSerializationOptions {
+export interface TagSerializationConfig {
   /**
    * The name of the tag, which is compared with names of elements that have the same hash code.
    */
@@ -49,9 +49,9 @@ export interface ResolvedTagSerializationOptions {
 }
 
 /**
- * Converts human-readable serializer options into options consumed by a serializer.
+ * Converts serializer options into the config consumed by a serializer.
  */
-export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
+export function resolveSerializerOptions(options: SerializerOptions): SerializerConfig {
   const {
     tags = {},
     areTagNamesCaseInsensitive = false,
@@ -62,7 +62,7 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
 
   const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
-  const tagsMap = new Map<number, ResolvedTagSerializationOptions[]>();
+  const tagConfigsMap = new Map<number, TagSerializationConfig[]>();
 
   for (const [tagName, tagOptions] of Object.entries(tags)) {
     const { kind = 'normal' } = tagOptions;
@@ -72,7 +72,7 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
       continue;
     }
 
-    const resolvedTagOptions = {
+    const tagConfig = {
       tagName,
       kind,
       isRawText: kind === 'raw_text' || kind === 'script_data',
@@ -80,18 +80,18 @@ export function resolveSerializerOptions(options: SerializerOptions): ResolvedSe
 
     const tagHashCode = getTagHashCode(tagName, 0, tagName.length);
 
-    const resolvedTagOptionsArray = tagsMap.get(tagHashCode);
+    const tagConfigs = tagConfigsMap.get(tagHashCode);
 
-    if (resolvedTagOptionsArray !== undefined) {
-      resolvedTagOptionsArray.push(resolvedTagOptions);
+    if (tagConfigs !== undefined) {
+      tagConfigs.push(tagConfig);
     } else {
-      tagsMap.set(tagHashCode, [resolvedTagOptions]);
+      tagConfigsMap.set(tagHashCode, [tagConfig]);
     }
   }
 
   return {
     // Tag names aren't hashed if there are no tags to look up
-    tagsMap: tagsMap.size !== 0 ? tagsMap : undefined,
+    tagConfigsMap: tagConfigsMap.size !== 0 ? tagConfigsMap : undefined,
     areTagNamesCaseInsensitive,
     areSelfClosingTagsSupported,
     encodeText,

@@ -56,7 +56,7 @@ describe('HTML tokenizer (large source)', () => {
 
 describe('HTML SAX (large source)', () => {
   test('tag-soup', () => {
-    const saxHandler = {};
+    const saxHandler: tagSoup.SAXHandler = {};
 
     measure(() => {
       tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
@@ -110,7 +110,7 @@ describe('HTML SAX (large source)', () => {
 
 describe('HTML SAX with handlers (large source)', () => {
   test('tag-soup', () => {
-    const saxHandler = {
+    const saxHandler: tagSoup.SAXHandler = {
       onStartTag: noop,
       onEndTag: noop,
       onText: noop,
@@ -199,7 +199,7 @@ describe('HTML SAX with handlers (large source)', () => {
 
 describe('HTML SAX (large source in chunks)', () => {
   test('tag-soup', () => {
-    const saxHandler = {};
+    const saxHandler: tagSoup.SAXHandler = {};
     const chunks = splitIntoTextChunks(largeHtmlSource);
 
     measure(() => {

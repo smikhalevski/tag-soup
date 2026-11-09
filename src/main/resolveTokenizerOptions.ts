@@ -1,73 +1,7 @@
 import type { TagKind, TagParsingOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
 import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
 
-export interface TokenReaderOptions {
-  /**
-   * If `true` then tag names are hashed with and compared in case-insensitive manner.
-   */
-  areTagNamesCaseInsensitive: boolean;
-
-  /**
-   * @see {@link TokenizerOptions.isStrict}
-   */
-  isStrict: boolean;
-
-  /**
-   * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
-   * DOCTYPE isn't recognized.
-   */
-  isFragment: boolean;
-}
-
-export interface ResolvedTokenizerContextOptions {
-  /**
-   * The map from a hash code of a tag to resolved options of the tag in this context. Contexts with the same
-   * {@link TokenizerContextOptions.tags tags} share the map.
-   */
-  tagsMap: Map<number, ResolvedTagParsingOptions> | undefined;
-
-  /**
-   * @see {@link TokenizerContextOptions.areSelfClosingTagsRecognized}
-   */
-  areSelfClosingTagsRecognized: boolean;
-
-  /**
-   * @see {@link TokenizerContextOptions.areCDATASectionsRecognized}
-   */
-  areCDATASectionsRecognized: boolean;
-
-  /**
-   * @see {@link TokenizerContextOptions.areProcessingInstructionsRecognized}
-   */
-  areProcessingInstructionsRecognized: boolean;
-}
-
-export interface ResolvedTokenizerOptions extends TokenReaderOptions {
-  /**
-   * Context options that are applied outside of foreign tags. Parsers and tokenizers initialize
-   * {@link TokenizerState.context} with these options.
-   */
-  initialContext: ResolvedTokenizerContextOptions;
-
-  /**
-   * A zero for each {@link ResolvedTagParsingOptions.tagGroupIdBitIndex bit of tag group IDs}.
-   * {@link createTokenizerWriter} copies this array to count enclosing tags by the bit of their group ID, which is
-   * faster than creating an array of zeros on every call.
-   */
-  initialEnclosingTagCounts: number[];
-
-  /**
-   * @see {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded}
-   */
-  areUnbalancedStartTagsImplicitlyEnded: boolean;
-
-  /**
-   * @see {@link TokenizerOptions.areUnbalancedEndTagsIgnored}
-   */
-  areUnbalancedEndTagsIgnored: boolean;
-}
-
-export interface ResolvedTagParsingOptions {
+export interface TagParsingConfig {
   /**
    * @see {@link TagParsingOptions.kind}
    */
@@ -76,7 +10,7 @@ export interface ResolvedTagParsingOptions {
   /**
    * Resolved {@link TagParsingOptions.foreignContext}, or `undefined` if the tag isn't foreign.
    */
-  foreignContext: ResolvedTokenizerContextOptions | undefined;
+  foreignContext: TokenizerContext | undefined;
 
   /**
    * @see {@link TagParsingOptions.isImplicitEndingBoundary}
@@ -104,7 +38,7 @@ export interface ResolvedTagParsingOptions {
   /**
    * The ID of the group of this tag if it can be implicitly ended, or -1 otherwise. Tags with the same
    * {@link TagParsingOptions.implicitlyEndedBy} array are in one group, since they are ended by the same tags. IDs are
-   * unique across contexts, so open tags of all contexts are counted together.
+   * unique across contexts, so enclosing tags of all contexts are counted together.
    *
    * @see {@link implicitlyEndedTagGroupIdMask}
    */
@@ -123,10 +57,74 @@ export interface ResolvedTagParsingOptions {
   isRawText: boolean;
 }
 
+export interface TokenizerContext {
+  /**
+   * The map from a hash code of a tag to the config of the tag in this context. Contexts with the same
+   * {@link TokenizerContextOptions.tags tags} share the map.
+   */
+  tagConfigMap: Map<number, TagParsingConfig> | undefined;
+
+  /**
+   * @see {@link TokenizerContextOptions.areSelfClosingTagsRecognized}
+   */
+  areSelfClosingTagsRecognized: boolean;
+
+  /**
+   * @see {@link TokenizerContextOptions.areCDATASectionsRecognized}
+   */
+  areCDATASectionsRecognized: boolean;
+
+  /**
+   * @see {@link TokenizerContextOptions.areProcessingInstructionsRecognized}
+   */
+  areProcessingInstructionsRecognized: boolean;
+}
+
+export interface TokenizerConfig {
+  /**
+   * The context that is applied outside of foreign tags. Parsers and tokenizers initialize
+   * {@link TokenizerState.context} with it.
+   */
+  initialContext: TokenizerContext;
+
+  /**
+   * A zero for each {@link TagParsingConfig.tagGroupIdBitIndex bit of tag group IDs}.
+   * {@link createTokenizerWriter} copies this array to count enclosing tags by the bit of their group ID, which is
+   * faster than creating an array of zeros on every call.
+   */
+  initialEnclosingTagCounts: number[];
+
+  /**
+   * @see {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded}
+   */
+  areUnbalancedStartTagsImplicitlyEnded: boolean;
+
+  /**
+   * @see {@link TokenizerOptions.areUnbalancedEndTagsIgnored}
+   */
+  areUnbalancedEndTagsIgnored: boolean;
+
+  /**
+   * If `true` then tag names are hashed with and compared in case-insensitive manner.
+   */
+  areTagNamesCaseInsensitive: boolean;
+
+  /**
+   * @see {@link TokenizerOptions.isStrict}
+   */
+  isStrict: boolean;
+
+  /**
+   * If `true` then the input is read as a fragment, so it doesn't have a prologue: leading spaces aren't skipped and
+   * DOCTYPE isn't recognized.
+   */
+  isFragment: boolean;
+}
+
 /**
- * Converts human-readable tokenizer options into options consumed by a tokenizer.
+ * Converts tokenizer options into the config consumed by a tokenizer.
  */
-export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedTokenizerOptions {
+export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerConfig {
   const {
     areTagNamesCaseInsensitive = false,
     areUnbalancedStartTagsImplicitlyEnded = false,
@@ -136,13 +134,11 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 
   const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
-  const toHashCode = (str: string) => getTagHashCode(str, 0, str.length);
-
-  const contextMap = new Map<TokenizerContextOptions, ResolvedTokenizerContextOptions>();
+  const contextMap = new Map<TokenizerContextOptions, TokenizerContext>();
 
   const initialContext = resolveTokenizerContextOptions(options, contextMap);
 
-  const initialEnclosingTagCounts = resolveTagOptions(contextMap, toHashCode);
+  const initialEnclosingTagCounts = resolveContextTags(contextMap, getTagHashCode);
 
   return {
     initialContext,
@@ -158,19 +154,19 @@ export function resolveTokenizerOptions(options: TokenizerOptions): ResolvedToke
 /**
  * Resolves tags of each context into a map, so {@link readTokens} looks up a start tag once. Contexts with the same
  * tags share the map. Foreign contexts of tags are added to the context map and resolved too. Tags that can be
- * implicitly ended are grouped by tags that end them, and groups get sequential IDs, so open tags can be counted in a
- * single array. Tags are ended by name, so a tag that ends other tags has the same implicitly ended tag group IDs in
- * every map.
+ * implicitly ended are grouped by tags that end them, and groups get sequential IDs, so enclosing tags can be counted
+ * in a single array. Tags are ended by name, so a tag that ends other tags has the same implicitly ended tag group IDs
+ * in every map.
  *
  * Returns a zero for each bit of group IDs.
  *
  * @see {@link getTagGroupIdBitIndex}
  */
-function resolveTagOptions(
-  contextMap: Map<TokenizerContextOptions, ResolvedTokenizerContextOptions>,
-  toHashCode: (str: string) => number
+function resolveContextTags(
+  contextMap: Map<TokenizerContextOptions, TokenizerContext>,
+  getTagHashCode: typeof getCaseSensitiveHashCode
 ): number[] {
-  const resolvedTagsMap = new Map<Record<string, TagParsingOptions>, Map<number, ResolvedTagParsingOptions>>();
+  const tagConfigMapMap = new Map<Record<string, TagParsingOptions>, Map<number, TagParsingConfig>>();
 
   // The map from a hash code of a tag to IDs of groups of tags that it ends
   const implicitlyEndedTagGroupIdsMap = new Map<number, number[]>();
@@ -181,11 +177,11 @@ function resolveTagOptions(
 
   let tagGroupCount = 0;
 
-  function getResolvedTagParsingOptions(tagsMap: Map<number, ResolvedTagParsingOptions>, tagHashCode: number) {
-    let resolvedTagParsingOptions = tagsMap.get(tagHashCode);
+  function getOrCreateTagConfig(tagConfigMap: Map<number, TagParsingConfig>, tagHashCode: number) {
+    let tagConfig = tagConfigMap.get(tagHashCode);
 
-    if (resolvedTagParsingOptions === undefined) {
-      resolvedTagParsingOptions = {
+    if (tagConfig === undefined) {
+      tagConfig = {
         kind: 'normal',
         foreignContext: undefined,
         isImplicitEndingBoundary: false,
@@ -196,33 +192,33 @@ function resolveTagOptions(
         tagGroupIdBitIndex: -1,
         isRawText: false,
       };
-      tagsMap.set(tagHashCode, resolvedTagParsingOptions);
+      tagConfigMap.set(tagHashCode, tagConfig);
     }
 
-    return resolvedTagParsingOptions;
+    return tagConfig;
   }
 
-  function resolveTagParsingOptions(tags: Record<string, TagParsingOptions>) {
-    const tagsMap = new Map<number, ResolvedTagParsingOptions>();
+  function resolveTags(tags: Record<string, TagParsingOptions>) {
+    const tagConfigMap = new Map<number, TagParsingConfig>();
 
-    for (const [tagName, tagParsingOptions] of Object.entries(tags)) {
+    for (const [tagName, tagOptions] of Object.entries(tags)) {
       const {
         kind = 'normal',
         foreignContext,
         implicitlyEndedBy,
         isImplicitEndingBoundary = false,
         isImplicitlyStarted = false,
-      } = tagParsingOptions;
+      } = tagOptions;
 
-      const resolvedTagParsingOptions = getResolvedTagParsingOptions(tagsMap, toHashCode(tagName));
+      const tagConfig = getOrCreateTagConfig(tagConfigMap, getTagHashCode(tagName, 0, tagName.length));
 
-      resolvedTagParsingOptions.kind = kind;
-      resolvedTagParsingOptions.isRawText = kind === 'raw_text' || kind === 'script_data';
-      resolvedTagParsingOptions.isImplicitEndingBoundary = isImplicitEndingBoundary;
-      resolvedTagParsingOptions.isImplicitlyStarted = isImplicitlyStarted;
+      tagConfig.kind = kind;
+      tagConfig.isRawText = kind === 'raw_text' || kind === 'script_data';
+      tagConfig.isImplicitEndingBoundary = isImplicitEndingBoundary;
+      tagConfig.isImplicitlyStarted = isImplicitlyStarted;
 
       if (foreignContext !== undefined) {
-        resolvedTagParsingOptions.foreignContext = resolveTokenizerContextOptions(foreignContext, contextMap);
+        tagConfig.foreignContext = resolveTokenizerContextOptions(foreignContext, contextMap);
       }
 
       if (implicitlyEndedBy === undefined || implicitlyEndedBy.length === 0) {
@@ -237,7 +233,7 @@ function resolveTagOptions(
 
         // Tags that end this group keep its ID, so they know which tags to end when they are started
         for (const endingTagName of implicitlyEndedBy) {
-          const endingTagHashCode = toHashCode(endingTagName);
+          const endingTagHashCode = getTagHashCode(endingTagName, 0, endingTagName.length);
 
           let implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIdsMap.get(endingTagHashCode);
 
@@ -249,91 +245,91 @@ function resolveTagOptions(
         }
       }
 
-      resolvedTagParsingOptions.tagGroupId = tagGroupId;
-      resolvedTagParsingOptions.tagGroupIdBitIndex = getTagGroupIdBitIndex(tagGroupId);
+      tagConfig.tagGroupId = tagGroupId;
+      tagConfig.tagGroupIdBitIndex = getTagGroupIdBitIndex(tagGroupId);
     }
-    return tagsMap;
+    return tagConfigMap;
   }
 
   // Contexts that are added to the map while tags are resolved are visited too
-  for (const [tokenizerContextOptions, resolvedTokenizerContextOptions] of contextMap) {
-    const { tags = {} } = tokenizerContextOptions;
+  for (const [contextOptions, context] of contextMap) {
+    const { tags = {} } = contextOptions;
 
-    let resolvedTagParsingOptionsMap = resolvedTagsMap.get(tags);
+    let tagConfigMap = tagConfigMapMap.get(tags);
 
-    if (resolvedTagParsingOptionsMap === undefined) {
-      resolvedTagParsingOptionsMap = resolveTagParsingOptions(tags);
-      resolvedTagsMap.set(tags, resolvedTagParsingOptionsMap);
+    if (tagConfigMap === undefined) {
+      tagConfigMap = resolveTags(tags);
+      tagConfigMapMap.set(tags, tagConfigMap);
     }
 
-    resolvedTokenizerContextOptions.tagsMap = resolvedTagParsingOptionsMap;
+    context.tagConfigMap = tagConfigMap;
   }
 
   // A tag started in any context ends tags of other contexts, like br ends svg in HTML
-  for (const tagOptionsMap of resolvedTagsMap.values()) {
+  for (const tagConfigMap of tagConfigMapMap.values()) {
     for (const [tagHashCode, implicitlyEndedTagGroupIds] of implicitlyEndedTagGroupIdsMap) {
-      const resolvedTagOptions = getResolvedTagParsingOptions(tagOptionsMap, tagHashCode);
+      const tagConfig = getOrCreateTagConfig(tagConfigMap, tagHashCode);
 
-      resolvedTagOptions.implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIds;
+      tagConfig.implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIds;
 
       for (const implicitlyEndedTagGroupId of implicitlyEndedTagGroupIds) {
-        resolvedTagOptions.implicitlyEndedTagGroupIdMask |= 1 << getTagGroupIdBitIndex(implicitlyEndedTagGroupId);
+        tagConfig.implicitlyEndedTagGroupIdMask |= 1 << getTagGroupIdBitIndex(implicitlyEndedTagGroupId);
       }
     }
   }
 
   // Start tags aren't looked up if options don't mention any tags
   for (const context of contextMap.values()) {
-    if (context.tagsMap !== undefined && context.tagsMap.size === 0) {
-      context.tagsMap = undefined;
+    if (context.tagConfigMap !== undefined && context.tagConfigMap.size === 0) {
+      context.tagConfigMap = undefined;
     }
   }
 
-  const initialOpenTagCounts: number[] = [];
+  const initialEnclosingTagCounts: number[] = [];
 
   // Groups that share a bit share a count
-  for (let i = 0; i < tagGroupCount; ++i) {
-    initialOpenTagCounts[getTagGroupIdBitIndex(i)] = 0;
+  for (let tagGroupId = 0; tagGroupId < tagGroupCount; ++tagGroupId) {
+    initialEnclosingTagCounts[getTagGroupIdBitIndex(tagGroupId)] = 0;
   }
 
-  return initialOpenTagCounts;
+  return initialEnclosingTagCounts;
 }
 
 /**
- * Resolves context options once for each object, their tags are resolved by {@link resolveTagOptions}.
+ * Resolves context options once for each object, their tags are resolved by {@link resolveContextTags}.
  */
 function resolveTokenizerContextOptions(
-  options: TokenizerContextOptions,
-  resolvedOptionsMap: Map<TokenizerContextOptions, ResolvedTokenizerContextOptions>
-): ResolvedTokenizerContextOptions {
-  let resolvedOptions = resolvedOptionsMap.get(options);
+  contextOptions: TokenizerContextOptions,
+  contextMap: Map<TokenizerContextOptions, TokenizerContext>
+): TokenizerContext {
+  let context = contextMap.get(contextOptions);
 
-  if (resolvedOptions !== undefined) {
-    return resolvedOptions;
+  if (context !== undefined) {
+    return context;
   }
 
   const {
     areSelfClosingTagsRecognized = false,
     areCDATASectionsRecognized = false,
     areProcessingInstructionsRecognized = false,
-  } = options;
+  } = contextOptions;
 
-  resolvedOptions = {
-    tagsMap: undefined,
+  context = {
+    tagConfigMap: undefined,
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,
     areProcessingInstructionsRecognized,
   };
 
-  resolvedOptionsMap.set(options, resolvedOptions);
+  contextMap.set(contextOptions, context);
 
-  return resolvedOptions;
+  return context;
 }
 
 /**
  * Returns the index of the bit that represents a tag group ID in bitmasks. IDs that don't fit into 30 bits share the
- * last bit, so bitmasks are small integers, which V8 doesn't allocate. Tags with a shared bit can be considered open
- * while they aren't, which costs a search for tags to end, but doesn't change the result.
+ * last bit, so bitmasks are small integers, which V8 doesn't allocate. Tags with a shared bit can be considered
+ * enclosing while they aren't, which costs a search for tags to end, but doesn't change the result.
  */
 function getTagGroupIdBitIndex(tagGroupId: number): number {
   return tagGroupId < 29 ? tagGroupId : 29;
