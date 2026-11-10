@@ -12,7 +12,7 @@
     "includeFolders": false,
     "includeGroups": true
   },
-  "groupOrder": ["DOM", "SAX", "Parser", "Serializer", "Tokenizer"],
+  "groupOrder": ["DOM", "SAX", "JSON", "Parser", "Serializer", "Tokenizer"],
   "entryPoints": ["./src/main/index.ts"],
   "plugin": ["typedoc-plugin-mdn-links"],
   "externalSymbolLinkMappings": {

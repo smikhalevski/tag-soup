@@ -1,9 +1,10 @@
 import { decodeXML, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
+import { createJSONParser } from './createJSONParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
-import { createSerializer, type SerializerOptions } from './createSerializer.ts';
+import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import { type ParserOptions } from './types.ts';
+import { type ParserOptions, type SerializerOptions } from './types.ts';
 
 const xmlParserOptions: ParserOptions = {
   areSelfClosingTagsRecognized: true,
@@ -17,12 +18,13 @@ const xmlParserOptions: ParserOptions = {
 const xmlSerializerOptions: SerializerOptions = {
   areSelfClosingTagsSupported: true,
   encodeText: escapeXML,
+  encodeAttribute: escapeXML,
 };
 
 /**
  * Tokenizes XML markup as a stream of tokens.
  *
- * @throws {@link ParserError} If markup isn't well-formed XML.
+ * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group Tokenizer
  */
 export const XMLTokenizer = createTokenizer(xmlParserOptions);
@@ -31,7 +33,7 @@ export const XMLTokenizer = createTokenizer(xmlParserOptions);
  * Parses XML markup as a DOM. Decodes XML entities with
  * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
  *
- * @throws {@link ParserError} If markup isn't well-formed XML.
+ * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group DOM
  */
 export const XMLDOMParser = createDOMParser(xmlParserOptions);
@@ -40,13 +42,18 @@ export const XMLDOMParser = createDOMParser(xmlParserOptions);
  * Parses XML markup and calls {@link SAXHandler} methods when tokens are read. Decodes XML entities with
  * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
  *
- * @throws {@link ParserError} If markup isn't well-formed XML.
+ * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group SAX
  */
 export const XMLSAXParser = createSAXParser(xmlParserOptions);
 
 /**
- * Serializes a DOM node as an XML string. Encodes text with
+ * @group JSON
+ */
+export const XMLJSONParser = createJSONParser(xmlParserOptions);
+
+/**
+ * Serializes a DOM node as an XML string. Encodes text and attribute values with
  * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html). Elements without children
  * are written as self-closing tags.
  *

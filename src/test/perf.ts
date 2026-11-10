@@ -2,8 +2,10 @@ import fs from 'node:fs';
 import * as fastXmlParser from 'fast-xml-parser';
 import * as htmlparser2 from 'htmlparser2';
 import * as hyntax from 'hyntax';
+import * as nodeHTMLParser from 'node-html-parser';
 import * as parse5 from 'parse5';
 import * as parse5SAXParser from 'parse5-sax-parser';
+import * as saxWasm from 'sax-wasm';
 import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
 // @ts-ignore
 import * as tagSoup from '../../lib/index.js';
@@ -17,11 +19,44 @@ const largeHtmlSource = fs.readFileSync(new URL('test.html', import.meta.url), '
 
 const xmlSource = fs.readFileSync(new URL('test.xml', import.meta.url), 'utf8');
 
+// The size of chunks that streams usually emit, in bytes
+const chunkSize = 65_536;
+
+const noop = () => {};
+
 beforeBatch(collectGarbage);
+
+describe('HTML tokenizer (large source)', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.HTMLTokenizer.tokenizeDocument(largeHtmlSource, noop);
+    });
+  });
+
+  test('htmlparser2', () => {
+    // Entities aren't decoded, since tag-soup tokenizer doesn't decode them either
+    const tokenizer = new htmlparser2.Tokenizer({ decodeEntities: false }, createTokenizerCallbacks());
+
+    afterIteration(() => {
+      tokenizer.reset();
+    });
+
+    measure(() => {
+      tokenizer.write(largeHtmlSource);
+      tokenizer.end();
+    });
+  });
+
+  test('hyntax', () => {
+    measure(() => {
+      hyntax.tokenize(largeHtmlSource);
+    });
+  });
+});
 
 describe('HTML SAX (large source)', () => {
   test('tag-soup', () => {
-    const saxHandler = {};
+    const saxHandler: tagSoup.SAXHandler = {};
 
     measure(() => {
       tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
@@ -62,6 +97,155 @@ describe('HTML SAX (large source)', () => {
       parser._transform(largeHtmlSource, 'utf8', transformCallback);
     });
   });
+
+  test('sax-wasm', async () => {
+    const parser = await createSAXWasmParser(0);
+    const chunks = splitIntoByteChunks(largeHtmlSource);
+
+    measure(() => {
+      writeSAXWasmChunks(parser, chunks);
+    });
+  });
+});
+
+describe('HTML SAX with handlers (large source)', () => {
+  test('tag-soup', () => {
+    const saxHandler: tagSoup.SAXHandler = {
+      onStartTag: noop,
+      onEndTag: noop,
+      onText: noop,
+    };
+
+    measure(() => {
+      tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
+    });
+  });
+
+  test('htmlparser2', () => {
+    let parser: htmlparser2.Parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(
+        {
+          onopentag: noop,
+          onclosetag: noop,
+          ontext: noop,
+        },
+        {
+          lowerCaseTags: false,
+          lowerCaseAttributeNames: false,
+        }
+      );
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      parser.end(largeHtmlSource);
+    });
+  });
+
+  test('parse5', () => {
+    let parser: parse5SAXParser.SAXParser;
+    let transformCallback = () => undefined;
+
+    beforeIteration(() => {
+      parser = new parse5SAXParser.SAXParser();
+      parser.on('startTag', noop);
+      parser.on('endTag', noop);
+      parser.on('text', noop);
+    });
+
+    measure(() => {
+      parser._transform(largeHtmlSource, 'utf8', transformCallback);
+    });
+  });
+
+  test('sax-wasm', async () => {
+    const parser = await createSAXWasmParser(
+      saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text
+    );
+    const chunks = splitIntoByteChunks(largeHtmlSource);
+
+    // sax-wasm decodes names and values when they are read, while other parsers pass them to handlers as strings
+    parser.eventHandler = (event, detail) => {
+      if (event === saxWasm.SaxEventType.OpenTag) {
+        const tag = detail as saxWasm.Tag;
+
+        tag.name;
+
+        for (const attribute of tag.attributes) {
+          attribute.name.value;
+          attribute.value.value;
+        }
+        return;
+      }
+
+      if (event === saxWasm.SaxEventType.CloseTag) {
+        (detail as saxWasm.Tag).name;
+        return;
+      }
+
+      (detail as saxWasm.Text).value;
+    };
+
+    measure(() => {
+      writeSAXWasmChunks(parser, chunks);
+    });
+  });
+});
+
+describe('HTML SAX (large source in chunks)', () => {
+  test('tag-soup', () => {
+    const saxHandler: tagSoup.SAXHandler = {};
+    const chunks = splitIntoTextChunks(largeHtmlSource);
+
+    measure(() => {
+      const writer = tagSoup.HTMLSAXParser.createDocumentWriter(saxHandler);
+
+      for (const chunk of chunks) {
+        writer.write(chunk);
+      }
+      writer.end();
+    });
+  });
+
+  test('htmlparser2', () => {
+    let parser: htmlparser2.Parser;
+    const chunks = splitIntoTextChunks(largeHtmlSource);
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(
+        {},
+        {
+          lowerCaseTags: false,
+          lowerCaseAttributeNames: false,
+        }
+      );
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      for (const chunk of chunks) {
+        parser.write(chunk);
+      }
+      parser.end();
+    });
+  });
+
+  test('sax-wasm', async () => {
+    const parser = await createSAXWasmParser(0);
+    const chunks = splitIntoByteChunks(largeHtmlSource);
+
+    measure(() => {
+      writeSAXWasmChunks(parser, chunks);
+    });
+  });
 });
 
 describe('HTML DOM (large source)', () => {
@@ -96,9 +280,73 @@ describe('HTML DOM (large source)', () => {
     });
   });
 
-  test('hyntax', () => {
+  test('node-html-parser', () => {
     measure(() => {
-      hyntax.tokenize(largeHtmlSource);
+      nodeHTMLParser.parse(largeHtmlSource);
+    });
+  });
+});
+
+describe('HTML DOM (large source in chunks)', () => {
+  test('tag-soup', () => {
+    const chunks = splitIntoTextChunks(largeHtmlSource);
+
+    measure(() => {
+      const writer = tagSoup.HTMLDOMParser.createDocumentWriter();
+
+      for (const chunk of chunks) {
+        writer.write(chunk);
+      }
+      writer.end();
+    });
+  });
+
+  test('htmlparser2', () => {
+    let parser: htmlparser2.Parser;
+    const chunks = splitIntoTextChunks(largeHtmlSource);
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+        lowerCaseTags: false,
+        lowerCaseAttributeNames: false,
+      });
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      for (const chunk of chunks) {
+        parser.write(chunk);
+      }
+      parser.end();
+    });
+  });
+});
+
+describe('HTML serialization (large source)', () => {
+  test('tag-soup', () => {
+    const document = tagSoup.HTMLDOMParser.parseDocument(largeHtmlSource);
+
+    measure(() => {
+      tagSoup.toHTML(document);
+    });
+  });
+
+  test('parse5', () => {
+    const document = parse5.parse(largeHtmlSource);
+
+    measure(() => {
+      parse5.serialize(document);
+    });
+  });
+
+  test('node-html-parser', () => {
+    const root = nodeHTMLParser.parse(largeHtmlSource);
+
+    measure(() => {
+      root.toString();
     });
   });
 });
@@ -134,6 +382,18 @@ describe('HTML SAX (small sources)', () => {
     for (const smallSource of smallHtmlSources) {
       measure(() => {
         parser.end(smallSource);
+      });
+    }
+  });
+
+  test('sax-wasm', async () => {
+    const parser = await createSAXWasmParser(0);
+
+    for (const smallSource of smallHtmlSources) {
+      const chunks = splitIntoByteChunks(smallSource);
+
+      measure(() => {
+        writeSAXWasmChunks(parser, chunks);
       });
     }
   });
@@ -177,12 +437,39 @@ describe('HTML DOM (small sources)', () => {
     }
   });
 
-  test('hyntax', () => {
+  test('node-html-parser', () => {
     for (const smallSource of smallHtmlSources) {
       measure(() => {
-        hyntax.tokenize(smallSource);
+        nodeHTMLParser.parse(smallSource);
       });
     }
+  });
+});
+
+describe('HTML JSON', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.HTMLJSONParser.parseDocument(largeHtmlSource);
+    });
+  });
+});
+
+describe('XML SAX', () => {
+  test('tag-soup', () => {
+    const saxHandler = {};
+
+    measure(() => {
+      tagSoup.XMLSAXParser.parseDocument(xmlSource, saxHandler);
+    });
+  });
+
+  test('sax-wasm', async () => {
+    const parser = await createSAXWasmParser(0);
+    const chunks = splitIntoByteChunks(xmlSource);
+
+    measure(() => {
+      writeSAXWasmChunks(parser, chunks);
+    });
   });
 });
 
@@ -201,3 +488,96 @@ describe('XML DOM', () => {
     });
   });
 });
+
+describe('XML serialization', () => {
+  test('tag-soup', () => {
+    const document = tagSoup.XMLDOMParser.parseDocument(xmlSource);
+
+    measure(() => {
+      tagSoup.toXML(document);
+    });
+  });
+
+  test('fast-xml-parser', () => {
+    const builder = new fastXmlParser.XMLBuilder();
+    const document = new fastXmlParser.XMLParser().parse(xmlSource);
+
+    measure(() => {
+      builder.build(document);
+    });
+  });
+});
+
+describe('XML JSON', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.XMLJSONParser.parseDocument(xmlSource);
+    });
+  });
+
+  test('fast-xml-parser', () => {
+    const parser = new fastXmlParser.XMLParser();
+
+    measure(() => {
+      parser.parse(xmlSource);
+    });
+  });
+});
+
+// Streams emit chunks of bytes
+function splitIntoByteChunks(source: string): Uint8Array[] {
+  const bytes = new TextEncoder().encode(source);
+  const byteChunks = [];
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    byteChunks.push(bytes.subarray(i, i + chunkSize));
+  }
+  return byteChunks;
+}
+
+// Chunks of bytes are decoded before they are written to parsers that read strings, like streams with an encoding do
+function splitIntoTextChunks(source: string): string[] {
+  const textDecoder = new TextDecoder();
+  const textChunks = [];
+
+  for (const byteChunk of splitIntoByteChunks(source)) {
+    textChunks.push(textDecoder.decode(byteChunk, { stream: true }));
+  }
+  return textChunks;
+}
+
+async function createSAXWasmParser(events: number): Promise<saxWasm.SAXParser> {
+  const parser = new saxWasm.SAXParser(events);
+
+  await parser.prepareWasm(fs.readFileSync(new URL(import.meta.resolve('sax-wasm/lib/sax-wasm.wasm'))));
+
+  return parser;
+}
+
+// sax-wasm copies each chunk into its memory, which can't fit large sources, so sources are always written in chunks
+function writeSAXWasmChunks(parser: saxWasm.SAXParser, chunks: Uint8Array[]): void {
+  for (const chunk of chunks) {
+    parser.write(chunk);
+  }
+  parser.end();
+}
+
+function createTokenizerCallbacks(): htmlparser2.TokenizerCallbacks {
+  return {
+    onattribdata: noop,
+    onattribentity: noop,
+    onattribend: noop,
+    onattribname: noop,
+    oncdata: noop,
+    onclosetag: noop,
+    oncomment: noop,
+    ondeclaration: noop,
+    onend: noop,
+    onopentagend: noop,
+    onopentagname: noop,
+    onprocessinginstruction: noop,
+    onselfclosingtag: noop,
+    ontext: noop,
+    ontextentity: noop,
+  };
+}

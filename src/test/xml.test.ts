@@ -18,6 +18,10 @@ test('serializes XML', () => {
   );
 });
 
+test('encodes attribute values', () => {
+  expect(toXML(XMLDOMParser.parseFragment('<aaa bbb="&quot;"/>'))).toBe('<aaa bbb="&quot;"/>');
+});
+
 test('serializes processing instruction without data', () => {
   expect(toXML(XMLDOMParser.parseFragment('<?aaa?>'))).toBe('<?aaa?>');
 });

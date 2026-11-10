@@ -8,9 +8,9 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import { resolveTokenizerOptions } from './createTokenizer.ts';
-import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
-import type { ParserOptions, ResolvedParserOptions } from './types.ts';
+import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
+import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
 
 /**
  * Parses text as a DOM.
@@ -20,22 +20,53 @@ import type { ParserOptions, ResolvedParserOptions } from './types.ts';
  */
 export interface DOMParser {
   /**
-   * Parses text as a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Parses text as a document.
+   *
+   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @returns The document node.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseDocument(input: string): Document;
 
   /**
-   * Parses text as a document fragment. DOCTYPE isn't recognized.
+   * Parses text as a document fragment.
+   *
+   * DOCTYPE isn't recognized.
    *
    * @param input The text to parse.
    * @returns The document fragment node.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string): DocumentFragment;
+
+  /**
+   * Creates a writer that parses a document written in chunks.
+   *
+   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   *
+   * @example
+   * const writer = HTMLDOMParser.createDocumentWriter();
+   *
+   * writer.write('<p>Hello, ');
+   * writer.write('Bob!');
+   *
+   * writer.end();
+   * // ⮕ Document
+   *
+   * @returns The new writer.
+   */
+  createDocumentWriter(): ParserWriter<Document>;
+
+  /**
+   * Creates a writer that parses a document fragment written in chunks.
+   *
+   * DOCTYPE isn't recognized.
+   *
+   * @returns The new writer.
+   */
+  createFragmentWriter(): ParserWriter<DocumentFragment>;
 }
 
 /**
@@ -52,113 +83,117 @@ export interface DOMParser {
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
-  const { decodeText, decodeAttribute } = options;
+  const documentConfig: ParserConfig = resolveParserOptions(options);
 
-  const documentOptions: ResolvedParserOptions = {
-    ...resolveTokenizerOptions(options),
-    decodeText,
-    decodeAttribute,
-  };
-
-  const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
+  const fragmentConfig: ParserConfig = { ...documentConfig, isFragment: true };
 
   return {
     parseDocument(input) {
-      return parseDOM(input, documentOptions) as Document;
+      return createDOMParserWriter(documentConfig).end(input) as Document;
     },
 
     parseFragment(input) {
-      return parseDOM(input, fragmentOptions) as DocumentFragment;
+      return createDOMParserWriter(fragmentConfig).end(input) as DocumentFragment;
+    },
+
+    createDocumentWriter() {
+      return createDOMParserWriter(documentConfig) as ParserWriter<Document>;
+    },
+
+    createFragmentWriter() {
+      return createDOMParserWriter(fragmentConfig) as ParserWriter<DocumentFragment>;
     },
   };
 }
 
 /**
- * Parses text as a DOM.
+ * Creates a writer that parses chunks of text as a DOM.
  *
- * @param input The text to parse.
- * @param options Parser options.
- * @returns The document node, or the document fragment node if {@link ResolvedParserOptions.isFragment} is `true`.
- * @throws {@link ParserError} If input is malformed and options don't allow to recover.
+ * @param config The parser config.
+ * @returns The writer that returns the document node, or the document fragment node if
+ * {@link ParserConfig.isFragment} is `true`.
+ * @see {@link createTokenizerWriter}
  * @internal
  */
-export function parseDOM(input: string, options: ResolvedParserOptions = {}): Document | DocumentFragment {
-  const { rawTextTagSet, isFragment, decodeText = identity, decodeAttribute = identity } = options;
+export function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | DocumentFragment> {
+  const { isFragment, decodeText, decodeAttribute } = config;
 
-  // Text inside raw text tags isn't decoded
-  const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
+  const tokenizerState = createTokenizerState(config.initialContext);
 
-  // The tokenizer sets the hash code of each start tag name, so it isn't hashed again here
-  const state = { tagHashCode: 0 };
+  const rootNode = isFragment ? new DocumentFragment() : new Document();
 
-  const root = isFragment ? new DocumentFragment() : new Document();
-
-  let parent = root;
+  let parentNode = rootNode;
   let isRawText = false;
   let attributeName: string;
   let piTarget: string;
 
-  const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
-    switch (token) {
-      case 'TEXT': {
+  const tokenCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
+    switch (tokenKind) {
+      case 'text': {
         const text = input.substring(startIndex, endIndex);
 
-        parent.appendChild(new Text(isRawText ? text : decodeText(text)));
+        parentNode.appendChild(new Text(isRawText ? text : decodeText(text)));
         break;
       }
 
-      case 'START_TAG_NAME':
-        if (undecodedTextTagSet !== undefined) {
-          isRawText = undecodedTextTagSet.has(state.tagHashCode);
-        }
+      case 'start_tag_name': {
+        const tagConfig = tokenizerState.tagConfig;
 
-        parent.appendChild((parent = new Element(input.substring(startIndex, endIndex))));
+        isRawText = tagConfig !== undefined && tagConfig.isRawText;
+
+        parentNode.appendChild((parentNode = new Element(input.substring(startIndex, endIndex))));
+        break;
+      }
+
+      case 'start_tag_closing':
         break;
 
-      case 'START_TAG_CLOSING':
-        break;
-
-      case 'START_TAG_SELF_CLOSING':
-      case 'END_TAG_NAME':
+      case 'end_tag_name':
+      case 'start_tag_self_closing':
         isRawText = false;
-        parent = parent.parentNode!;
+        parentNode = parentNode.parentNode!;
         break;
 
-      case 'ATTRIBUTE_NAME':
+      case 'attribute_name':
         attributeName = input.substring(startIndex, endIndex);
         break;
 
-      case 'ATTRIBUTE_VALUE':
-        (parent as Element).setAttribute(attributeName, decodeAttribute(input.substring(startIndex, endIndex)));
+      case 'attribute_value':
+        (parentNode as Element).setAttribute(attributeName, decodeAttribute(input.substring(startIndex, endIndex)));
         break;
 
-      case 'CDATA_SECTION':
-        parent.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
+      case 'cdata_section':
+        parentNode.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
         break;
 
-      case 'COMMENT':
-        parent.appendChild(new Comment(input.substring(startIndex, endIndex)));
+      case 'comment':
+        parentNode.appendChild(new Comment(input.substring(startIndex, endIndex)));
         break;
 
-      case 'DOCTYPE_NAME':
-        parent.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
+      case 'doctype_name':
+        parentNode.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
         break;
 
-      case 'PROCESSING_INSTRUCTION_TARGET':
+      case 'processing_instruction_target':
         piTarget = input.substring(startIndex, endIndex);
         break;
 
-      case 'PROCESSING_INSTRUCTION_DATA':
-        parent.appendChild(new ProcessingInstruction(piTarget, input.substring(startIndex, endIndex)));
+      case 'processing_instruction_data':
+        parentNode.appendChild(new ProcessingInstruction(piTarget, input.substring(startIndex, endIndex)));
         break;
     }
   };
 
-  tokenizeMarkup(input, tokenCallback, options, state);
+  const tokenizerWriter = createTokenizerWriter(tokenCallback, config, tokenizerState);
 
-  return root;
-}
+  return {
+    write(chunk) {
+      tokenizerWriter.write(chunk);
+    },
 
-function identity(value: string): string {
-  return value;
+    end(chunk) {
+      tokenizerWriter.end(chunk);
+      return rootNode;
+    },
+  };
 }

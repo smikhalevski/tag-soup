@@ -1,13 +1,16 @@
-import { resolveTokenizerOptions } from './createTokenizer.ts';
-import { type TokenCallback, tokenizeMarkup } from './tokenizeMarkup.ts';
-import type { ParserOptions, ResolvedParserOptions } from './types.ts';
+import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
+import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
  *
- * Callbacks for a tag are called in this order: {@link onStartTagOpening}, {@link onAttribute} for each attribute,
- * {@link onStartTagClosing} or {@link onStartTagSelfClosing}, {@link onStartTag}, and then {@link onEndTag} after
- * the tag content.
+ * Callbacks for a tag are called in this order:
+ * 1. {@link onStartTagOpening},
+ * 2. {@link onAttribute} for each attribute,
+ * 3. {@link onStartTagClosing} or {@link onStartTagSelfClosing},
+ * 4. {@link onStartTag},
+ * 5. {@link onEndTag} after the tag content.
  *
  * @group SAX
  */
@@ -15,12 +18,12 @@ export interface SAXHandler {
   /**
    * Called when text is read.
    *
-   * @param text The decoded text. Text inside {@link TokenizerOptions.rawTextTags raw text tags} isn't decoded.
+   * @param text The decoded text. Text inside {@link TagParsingOptions.kind raw text tags} isn't decoded.
    */
   onText?(text: string): void;
 
   /**
-   * Called when a start tag name is read, before its attributes.
+   * Called when a start tag name is read.
    *
    * @param tagName The start tag name.
    */
@@ -33,7 +36,7 @@ export interface SAXHandler {
 
   /**
    * Called when a start tag is closed with `/>`. Only called if
-   * {@link ContextualTokenizerOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
+   * {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
    */
   onStartTagSelfClosing?(): void;
 
@@ -47,10 +50,11 @@ export interface SAXHandler {
   onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
 
   /**
-   * Called when a tag is closed: by its end tag, implicitly, or right after the start tag of a void tag. Not called for
-   * self-closing tags.
+   * Called when a tag is ended: by its end tag, implicitly, or right after the start tag of a void tag.
    *
-   * @param tagName The name of the start tag that is closed.
+   * **Note:** Not called for self-closing tags.
+   *
+   * @param tagName The name of the tag that is ended.
    */
   onEndTag?(tagName: string): void;
 
@@ -100,22 +104,57 @@ export interface SAXHandler {
  */
 export interface SAXParser {
   /**
-   * Parses text as a document. Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Parses text as a document.
+   *
+   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @param input The text to parse.
    * @param handler The token handler.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseDocument(input: string, handler: SAXHandler): void;
 
   /**
-   * Parses text as a document fragment. DOCTYPE isn't recognized.
+   * Parses text as a document fragment.
+   *
+   * DOCTYPE isn't recognized.
    *
    * @param input The text to parse.
    * @param handler The token handler.
-   * @throws {@link ParserError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
    */
   parseFragment(input: string, handler: SAXHandler): void;
+
+  /**
+   * Creates a writer that parses a document written in chunks.
+   *
+   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   *
+   * @example
+   * const writer = HTMLSAXParser.createDocumentWriter({
+   *   onText(text) {
+   *     // Handle text here
+   *   },
+   * });
+   *
+   * writer.write('<p>Hello, ');
+   * writer.write('Bob!');
+   * writer.end();
+   *
+   * @param handler The token handler.
+   * @returns The new writer.
+   */
+  createDocumentWriter(handler: SAXHandler): ParserWriter;
+
+  /**
+   * Creates a writer that parses a document fragment written in chunks.
+   *
+   * DOCTYPE isn't recognized.
+   *
+   * @param handler The token handler.
+   * @returns The new writer.
+   */
+  createFragmentWriter(handler: SAXHandler): ParserWriter;
 }
 
 /**
@@ -135,46 +174,43 @@ export interface SAXParser {
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
-  const { decodeText, decodeAttribute } = options;
+  const documentConfig: ParserConfig = resolveParserOptions(options);
 
-  const documentOptions: ResolvedParserOptions = {
-    ...resolveTokenizerOptions(options),
-    decodeText,
-    decodeAttribute,
-  };
-
-  const fragmentOptions: ResolvedParserOptions = { ...documentOptions, isFragment: true };
+  const fragmentConfig: ParserConfig = { ...documentConfig, isFragment: true };
 
   return {
     parseDocument(input, handler) {
-      return parseSAX(input, handler, documentOptions);
+      createSAXParserWriter(handler, documentConfig).end(input);
     },
 
     parseFragment(input, handler) {
-      return parseSAX(input, handler, fragmentOptions);
+      createSAXParserWriter(handler, fragmentConfig).end(input);
+    },
+
+    createDocumentWriter(handler) {
+      return createSAXParserWriter(handler, documentConfig);
+    },
+
+    createFragmentWriter(handler) {
+      return createSAXParserWriter(handler, fragmentConfig);
     },
   };
 }
 
 /**
- * Parses text and calls {@link SAXHandler} methods when tokens are read.
+ * Creates a writer that parses chunks of text and calls {@link SAXHandler} methods when tokens are read.
  *
- * @param input The text to parse.
  * @param handler The token handler.
- * @param options Parser options.
- * @throws {@link ParserError} If input is malformed and options don't allow to recover.
+ * @param config The parser config.
+ * @see {@link createTokenizerWriter}
  * @internal
  */
-export function parseSAX(input: string, handler: SAXHandler, options: ResolvedParserOptions = {}): void {
-  const { rawTextTagSet, decodeText = identity, decodeAttribute = identity } = options;
+export function createSAXParserWriter(handler: SAXHandler, config: ParserConfig): ParserWriter {
+  const { decodeText, decodeAttribute } = config;
 
   const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
 
-  // Text inside raw text tags isn't decoded
-  const undecodedTextTagSet = options.decodeText !== undefined ? rawTextTagSet : undefined;
-
-  // The tokenizer sets the hash code of each start tag name, so it isn't hashed again here
-  const state = { tagHashCode: 0 };
+  const tokenizerState = createTokenizerState(config.initialContext);
 
   const tagNameStack = ['', '', '', '', '', '', '', '', ''];
 
@@ -186,9 +222,9 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
   let piTargetEndIndex = 0;
   let attributes: Record<string, string> | undefined;
 
-  const tokenCallback: TokenCallback = (token, startIndex, endIndex) => {
-    switch (token) {
-      case 'TEXT':
+  const tokenCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
+    switch (tokenKind) {
+      case 'text':
         if (handler.onText !== undefined) {
           const text = input.substring(startIndex, endIndex);
 
@@ -196,15 +232,16 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         }
         break;
 
-      case 'START_TAG_NAME': {
+      case 'start_tag_name': {
+        const tagConfig = tokenizerState.tagConfig;
+
         let tagName;
 
-        if (undecodedTextTagSet !== undefined) {
-          isRawText = undecodedTextTagSet.has(state.tagHashCode);
-        }
+        isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
         if (handler.onStartTagOpening !== undefined) {
           tagName = input.substring(startIndex, endIndex);
+
           handler.onStartTagOpening(tagName);
         }
 
@@ -213,13 +250,12 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         }
 
         if (handler.onStartTag !== undefined) {
-          // No prototype, so attributes like "__proto__" are preserved
-          attributes = Object.create(null);
+          attributes = {};
         }
         break;
       }
 
-      case 'START_TAG_CLOSING':
+      case 'start_tag_closing':
         if (handler.onStartTagClosing !== undefined) {
           handler.onStartTagClosing();
         }
@@ -230,7 +266,44 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         }
         break;
 
-      case 'START_TAG_SELF_CLOSING':
+      case 'end_tag_name':
+        isRawText = false;
+
+        if (handler.onEndTag !== undefined) {
+          handler.onEndTag(tagNameStack[tagNameStackCursor]);
+        }
+
+        --tagNameStackCursor;
+        break;
+
+      case 'attribute_name':
+        attributeNameStartIndex = startIndex;
+        attributeNameEndIndex = endIndex;
+        break;
+
+      case 'attribute_value': {
+        if (attributes === undefined && handler.onAttribute === undefined) {
+          break;
+        }
+
+        const name = input.substring(attributeNameStartIndex, attributeNameEndIndex);
+        const value = decodeAttribute(input.substring(startIndex, endIndex));
+
+        if (attributes !== undefined) {
+          if (name === '__proto__') {
+            Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
+          } else {
+            attributes[name] = value;
+          }
+        }
+
+        if (handler.onAttribute !== undefined) {
+          handler.onAttribute(name, value);
+        }
+        break;
+      }
+
+      case 'start_tag_self_closing':
         isRawText = false;
 
         if (handler.onStartTagSelfClosing !== undefined) {
@@ -245,63 +318,30 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
         --tagNameStackCursor;
         break;
 
-      case 'END_TAG_NAME':
-        isRawText = false;
-
-        if (handler.onEndTag !== undefined) {
-          handler.onEndTag(tagNameStack[tagNameStackCursor]);
-        }
-
-        --tagNameStackCursor;
-        break;
-
-      case 'ATTRIBUTE_NAME':
-        attributeNameStartIndex = startIndex;
-        attributeNameEndIndex = endIndex;
-        break;
-
-      case 'ATTRIBUTE_VALUE': {
-        if (attributes === undefined && handler.onAttribute === undefined) {
-          break;
-        }
-
-        const attributeName = input.substring(attributeNameStartIndex, attributeNameEndIndex);
-        const attributeValue = decodeAttribute(input.substring(startIndex, endIndex));
-
-        if (attributes !== undefined) {
-          attributes[attributeName] = attributeValue;
-        }
-
-        if (handler.onAttribute !== undefined) {
-          handler.onAttribute(attributeName, attributeValue);
-        }
-        break;
-      }
-
-      case 'CDATA_SECTION':
+      case 'cdata_section':
         if (handler.onCDATASection !== undefined) {
           handler.onCDATASection(input.substring(startIndex, endIndex));
         }
         break;
 
-      case 'COMMENT':
+      case 'comment':
         if (handler.onComment !== undefined) {
           handler.onComment(input.substring(startIndex, endIndex));
         }
         break;
 
-      case 'DOCTYPE_NAME':
+      case 'doctype_name':
         if (handler.onDoctype !== undefined) {
           handler.onDoctype(input.substring(startIndex, endIndex));
         }
         break;
 
-      case 'PROCESSING_INSTRUCTION_TARGET':
+      case 'processing_instruction_target':
         piTargetStartIndex = startIndex;
         piTargetEndIndex = endIndex;
         break;
 
-      case 'PROCESSING_INSTRUCTION_DATA':
+      case 'processing_instruction_data':
         if (handler.onProcessingInstruction !== undefined) {
           handler.onProcessingInstruction(
             input.substring(piTargetStartIndex, piTargetEndIndex),
@@ -312,9 +352,5 @@ export function parseSAX(input: string, handler: SAXHandler, options: ResolvedPa
     }
   };
 
-  tokenizeMarkup(input, tokenCallback, options, state);
-}
-
-function identity(value: string): string {
-  return value;
+  return createTokenizerWriter(tokenCallback, config, tokenizerState);
 }
