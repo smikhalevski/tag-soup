@@ -3,6 +3,15 @@ export function identity(str: string): string {
 }
 
 /**
+ * Throws an error if a condition isn't met.
+ */
+export function assert(condition: boolean, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+/**
  * Returns char code of a lower case ASCII char.
  */
 export function toLowerCaseCharCode(charCode: number): number {

@@ -335,6 +335,171 @@ export interface ParserOptions extends TokenizerOptions {
 }
 
 /**
+ * A value in the output of a {@link JSONParser}. Markup has no numbers, booleans or `null`, so the output consists of
+ * strings, arrays and objects only.
+ *
+ * @group JSON
+ */
+export type JSONValue = string | JSONValue[] | { [key: string]: JSONValue };
+
+/**
+ * Options of {@link createJSONParser}.
+ *
+ * Without these options the output keeps all elements, attributes and text in the order they are written. Each option
+ * makes the output simpler and gives up a part of this information. Options never make the type of a value depend on
+ * the parsed markup: if markup doesn't fit options, a {@link MarkupSyntaxError} is thrown.
+ *
+ * @group JSON
+ */
+export interface JSONParserOptions extends ParserOptions {
+  /**
+   * How the content of an element is stored in its object:
+   *
+   * - `'ordered'`: the `$` key holds an array of text and child elements in the order they are written. Text between
+   * child elements is a string, and a child element is an object with a single key, the name of the element. Nothing
+   * is lost, so this layout fits markup with mixed content, like HTML.
+   *
+   * - `'grouped'`: the `$` key holds all text of the element as a single string, and child elements are stored in
+   * arrays under their names. An array is used even if there's a single child element with this name, see
+   * {@link singleElements}. Paths to values are short, but the order of child elements with different names is lost,
+   * and so are positions of text among child elements. This layout fits markup that holds data, like feeds and API
+   * responses.
+   *
+   * ```ts
+   * // <aaa xxx="yyy">bbb<ccc></ccc>ddd</aaa>
+   *
+   * // 'ordered'
+   * { aaa: { $xxx: 'yyy', $: ['bbb', { ccc: { $: [] } }, 'ddd'] } }
+   *
+   * // 'grouped'
+   * { aaa: { $xxx: 'yyy', $: 'bbbddd', ccc: [{ $: '' }] } }
+   * ```
+   *
+   * @default 'ordered'
+   */
+  layout?: 'ordered' | 'grouped';
+
+  /**
+   * What whitespace is removed from text:
+   *
+   * - `'preserve'`: none. Indentation of markup is text, so it is a part of the output.
+   * - `'drop_blank'`: whitespace of text that consists only of whitespace. Other text is kept as is.
+   * - `'trim'`: whitespace at the start and at the end of text.
+   *
+   * Whitespace is a space, a tab, a line feed and a carriage return. Other chars are text, even a no-break space.
+   *
+   * The option is applied to each string of the output that holds text: an item of the `$` array in the `'ordered'`
+   * {@link layout}, the `$` string in the `'grouped'` layout, and the value of a {@link textElements text element}.
+   * The option is applied to the whole string, so whitespace is kept between parts of text that child elements
+   * separate. A string that becomes empty isn't added to the `$` array.
+   *
+   * Attribute values are never changed.
+   *
+   * The text of an element is kept as is if the element preserves whitespace: among `xml:space` attributes of the
+   * element and its ancestors that are either `preserve` or `default`, the nearest one is `preserve`.
+   *
+   * @default 'preserve'
+   */
+  whitespace?: 'preserve' | 'drop_blank' | 'trim';
+
+  /**
+   * What to do with the `$` key of an object if the content of its element is empty:
+   *
+   * - `'keep'`: the key holds `[]` in the `'ordered'` {@link layout}, or `''` in the `'grouped'` layout, so every
+   * object of an element has this key.
+   * - `'omit'`: the key is absent. Nothing is lost, since an absent key means the empty content.
+   *
+   * @default 'keep'
+   */
+  emptyContent?: 'keep' | 'omit';
+
+  /**
+   * What a document is converted to:
+   *
+   * - `'wrap'`: an object with a single key, the name of the root element, that holds the value of the root element.
+   * - `'unwrap'`: the value of the root element, so its name is lost.
+   *
+   * A fragment has no root element, so the option isn't applied to it.
+   *
+   * @default 'wrap'
+   */
+  root?: 'wrap' | 'unwrap';
+
+  /**
+   * The map from a prefix to a namespace URI, which makes names in the output independent of prefixes that markup
+   * uses.
+   *
+   * By default, names of elements and attributes are kept as written, like `atom:link`, and namespace declarations
+   * (`xmlns` and `xmlns:*`) are attributes.
+   *
+   * If the map is provided, names are resolved with namespace declarations that are in scope. A tag name without
+   * a prefix is in the default namespace if it is declared, and an attribute name without a prefix is in no
+   * namespace. A name in a namespace that is mapped to a prefix becomes the prefix, `$` and the local part of the
+   * name, like `atom$link`, or only the local part if the prefix is `''`. A name that is in no namespace is kept as
+   * is. Namespace declarations aren't a part of the output.
+   *
+   * A prefix is an XML name without a colon, or `''`. A namespace URI can't be mapped to several prefixes. The `xml`
+   * prefix can be mapped only to `http://www.w3.org/XML/1998/namespace`, and it is mapped to it by default, unless
+   * this URI is mapped to another prefix.
+   *
+   * A {@link MarkupSyntaxError} is thrown if a name is in a namespace that isn't mapped, has a prefix that isn't
+   * declared, or isn't a qualified name. It's also thrown if two attributes of an element have the same name in the
+   * output, and if two child elements of an element have the same name in the output but different namespaces.
+   *
+   * @example
+   * {
+   *   '': 'http://www.w3.org/2005/Atom',
+   *   dc: 'http://purl.org/dc/elements/1.1/',
+   * }
+   */
+  namespaces?: Readonly<Record<string, string>>;
+
+  /**
+   * Elements that are converted to strings, since their text is all that matters, like `title`.
+   *
+   * The string is the text of the element and of all its descendants. Attributes of the element are lost, and so is
+   * the markup inside it, so their names aren't {@link namespaces resolved}.
+   *
+   * An entry is either a name of an element, or names of its parent and of the element separated by a slash, like
+   * `item/title`. Entries are names that elements have in the output, so with {@link namespaces} an entry looks like
+   * `dc$creator`.
+   *
+   * @default []
+   */
+  textElements?: readonly string[];
+
+  /**
+   * Elements that occur at most once in their parent, so in the `'grouped'` {@link layout} they are stored under their
+   * names as is, rather than in arrays. A {@link MarkupSyntaxError} is thrown if such element occurs twice in its
+   * parent.
+   *
+   * The option has no effect in the `'ordered'` layout.
+   *
+   * Entries have the same format as entries of {@link textElements}.
+   *
+   * @default []
+   */
+  singleElements?: readonly string[];
+
+  /**
+   * Elements that only hold a list of elements with the same name, like `tags` that holds `tag` elements. They are
+   * converted to arrays of values of their child elements, so the name of child elements is lost.
+   *
+   * A {@link MarkupSyntaxError} is thrown if such element has attributes other than namespace declarations, text other
+   * than whitespace, or child elements with different names.
+   *
+   * In the `'grouped'` {@link layout} such elements are {@link singleElements single elements}: they are stored under
+   * their names as is, and can't occur twice in their parent.
+   *
+   * Entries have the same format as entries of {@link textElements}. An element can't be both in this list and in
+   * {@link textElements}.
+   *
+   * @default []
+   */
+  listElements?: readonly string[];
+}
+
+/**
  * Options of {@link createSerializer}.
  *
  * @group Serializer
@@ -409,6 +574,7 @@ export interface SerializerOptions {
  * @template TResult The result of parsing.
  * @see {@link DOMParser.createDocumentWriter}
  * @see {@link SAXParser.createDocumentWriter}
+ * @see {@link JSONParser.createDocumentWriter}
  * @see {@link Tokenizer.createDocumentWriter}
  * @group Parser
  */

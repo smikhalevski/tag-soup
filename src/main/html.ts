@@ -1,5 +1,6 @@
 import { decodeHTML, decodeHTMLAttribute, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
+import { createJSONParser } from './createJSONParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
@@ -419,6 +420,11 @@ export const HTMLDOMParser = createDOMParser(htmlParserOptions);
  * @group SAX
  */
 export const HTMLSAXParser = createSAXParser(htmlParserOptions);
+
+/**
+ * @group JSON
+ */
+export const HTMLJSONParser = createJSONParser(htmlParserOptions);
 
 /**
  * Serializes a DOM node as an HTML string. Encodes text and attribute values with

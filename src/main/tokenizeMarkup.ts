@@ -1653,7 +1653,7 @@ function isCDATASectionOpening(input: string, index: number, isCaseSensitive: bo
 // ----------------------------------------------------------
 
 // https://www.w3.org/TR/xml/#NT-S
-function isSpaceChar(charCode: number): boolean {
+export function isSpaceChar(charCode: number): boolean {
   // Most chars are above the space, so they're rejected with a single comparison
   return (
     charCode <= /* \s */ 32 &&

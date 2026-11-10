@@ -446,6 +446,14 @@ describe('HTML DOM (small sources)', () => {
   });
 });
 
+describe('HTML JSON', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.HTMLJSONParser.parseDocument(largeHtmlSource);
+    });
+  });
+});
+
 describe('XML SAX', () => {
   test('tag-soup', () => {
     const saxHandler = {};
@@ -496,6 +504,22 @@ describe('XML serialization', () => {
 
     measure(() => {
       builder.build(document);
+    });
+  });
+});
+
+describe('XML JSON', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.XMLJSONParser.parseDocument(xmlSource);
+    });
+  });
+
+  test('fast-xml-parser', () => {
+    const parser = new fastXmlParser.XMLParser();
+
+    measure(() => {
+      parser.parse(xmlSource);
     });
   });
 });

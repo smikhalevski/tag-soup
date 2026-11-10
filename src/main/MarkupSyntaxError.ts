@@ -1,5 +1,6 @@
 /**
  * The error thrown by a tokenizer or a parser if an {@link MarkupSyntaxError.input input} is malformed.
+ * A {@link JSONParser} also throws it if an input doesn't fit {@link JSONParserOptions its options}.
  *
  * Forgiving parsers, like {@link HTMLDOMParser}, never throw this error.
  *
