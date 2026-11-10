@@ -5,10 +5,16 @@ import { resolveTokenizerOptions, type TokenizerConfig } from '../main/resolveTo
 import {
   createTokenizerState,
   createTokenizerWriter,
+  getTagConfig,
   readTokens,
   type TokenizerState,
 } from '../main/tokenizeMarkup.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from '../main/utils.ts';
+import {
+  areCaseSensitiveSubstringsEqual,
+  getCaseInsensitiveHashCode,
+  getCaseSensitiveHashCode,
+  toASCIILowerCase,
+} from '../main/utils.ts';
 
 const callbackMock = vi.fn();
 
@@ -1189,17 +1195,24 @@ describe('readTokens', () => {
       { tagHashCode: getCaseSensitiveHashCode('bbb', 0, 3), tagConfig: undefined },
     ]);
   });
-  test('passes tag tokens to the tag callback', () => {
+  test('passes tag tokens to the tag callback that looks up start tags', () => {
     const tagCallbackMock = vi.fn();
     const config = resolveTokenizerOptions({ tags: { ccc: { kind: 'void' } }, areSelfClosingTagsRecognized: true });
+    const state = makeTestState(config);
 
-    readTokens(
-      '<aaa>bbb</aaa><ccc><ddd/>',
-      callback,
-      config,
-      makeTestState(config),
-      (tokenKind, startIndex, endIndex) => tagCallbackMock(tokenKind, startIndex, endIndex)
-    );
+    readTokens('<aaa>bbb</aaa><ccc><ddd/>', callback, config, state, (tokenKind, startIndex, endIndex, input) => {
+      if (tokenKind === 'start_tag_name') {
+        state.tagConfig = getTagConfig(
+          state.context,
+          state.tagHashCode,
+          input,
+          startIndex,
+          endIndex,
+          areCaseSensitiveSubstringsEqual
+        );
+      }
+      tagCallbackMock(tokenKind, startIndex, endIndex);
+    });
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_closing', 4, 5);
@@ -1866,6 +1879,62 @@ describe('createTokenizerWriter', () => {
     );
   });
 
+  test('ends a tag after its child was ended', () => {
+    const config = resolveTokenizerOptions({ areUnbalancedStartTagsImplicitlyEnded: true });
+
+    createTokenizerWriter(callback, config, makeTestState(config)).end('<aaa><bbb></bbb><ccc></aaa>');
+
+    expect(callbackMock).toHaveBeenCalledTimes(9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 12, 15);
+    expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 21, 21);
+    expect(callbackMock).toHaveBeenNthCalledWith(9, 'end_tag_name', 23, 26);
+  });
+
+  test('does not read a tag with the config of a tag that has the same hash code but a different name', () => {
+    // "aQ" and "b0" have the same hash code
+    const config = resolveTokenizerOptions({ tags: { aQ: { kind: 'void' } } });
+
+    createTokenizerWriter(callback, config, makeTestState(config)).end('<b0></b0>');
+
+    expect(callbackMock).toHaveBeenCalledTimes(3);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 3, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 6, 8);
+  });
+
+  test('reads tags that have the same hash code with their own configs', () => {
+    // "aQ" and "b0" have the same hash code
+    const config = resolveTokenizerOptions({ tags: { aQ: { kind: 'void' }, b0: { kind: 'raw_text' } } });
+
+    createTokenizerWriter(callback, config, makeTestState(config)).end('<aQ><b0><ccc></b0>');
+
+    expect(callbackMock).toHaveBeenCalledTimes(7);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 3);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 3, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 4, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 5, 7);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 7, 8);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'text', 8, 13);
+    expect(callbackMock).toHaveBeenNthCalledWith(7, 'end_tag_name', 15, 17);
+  });
+
+  test('reads names that differ in case in options as the same tag if tag names are case-insensitive', () => {
+    const config = resolveTokenizerOptions({
+      tags: { aaa: { implicitlyEndedBy: ['BBB'] }, bbb: { kind: 'void' } },
+      areTagNamesCaseInsensitive: true,
+    });
+
+    createTokenizerWriter(callback, config, makeTestState(config)).end('<aaa><bbb>');
+
+    expect(callbackMock).toHaveBeenCalledTimes(6);
+    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
+    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 5, 5);
+    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 6, 9);
+    expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 9, 10);
+    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
+  });
+
   test('sets the tag hash code and the tag config before an implicitly started start tag name is passed to the callback', () => {
     const config = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } });
     const state = makeTestState(config);
@@ -2025,6 +2094,12 @@ describe('createTokenizerWriter', () => {
 
     expect(() => writer.write('</aaa>')).toThrow(MarkupSyntaxError);
     expect(() => writer.write('bbb')).toThrow(new Error('The writer is ended.'));
+  });
+});
+
+describe('toASCIILowerCase', () => {
+  test('converts only ASCII letters to lower case', () => {
+    expect(toASCIILowerCase('AAAbbbФФФ')).toBe('aaabbbФФФ');
   });
 });
 

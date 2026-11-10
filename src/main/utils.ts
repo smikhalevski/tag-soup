@@ -10,6 +10,14 @@ export function toLowerCaseCharCode(charCode: number): number {
   return charCode > /* Z */ 90 || charCode < /* A */ 65 ? charCode : charCode + 32;
 }
 
+/**
+ * Returns a string with ASCII letters in lower case. Unlike `String.prototype.toLowerCase`, other chars are returned as
+ * is, since only ASCII letters are case-insensitive in tag names.
+ */
+export function toASCIILowerCase(str: string): string {
+  return str.replace(/[A-Z]+/g, substring => substring.toLowerCase());
+}
+
 // ----------------------------------------------------------
 // String equality
 // ----------------------------------------------------------

@@ -25,9 +25,12 @@ export interface TokenizerState {
   tagHashCode: number;
 
   /**
-   * The config of the start tag, or `undefined` if options don't mention the tag. Set before a `start_tag_name` token
-   * is passed to a callback, so the callback doesn't have to look the tag up again. {@link createTokenizerWriter}
-   * looks the tag up again if implicit ending switches the context.
+   * The config of the start tag, or `undefined` if options don't mention the tag. The tag callback of
+   * {@link readTokens} sets it when a `start_tag_name` token is passed to it, so {@link readTokens} and the callback of
+   * {@link createTokenizerWriter} don't have to look the tag up again. If there's no tag callback, {@link readTokens}
+   * sets it before a `start_tag_name` token is passed to the callback.
+   *
+   * @see {@link getTagConfig}
    */
   tagConfig: TagParsingConfig | undefined;
 
@@ -149,6 +152,10 @@ export function createTokenizerWriter(
   const tagNameStartIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
   const tagNameEndIndexStack = [0, 0, 0, 0, 0, 0, 0, 0];
 
+  // Hash codes of names of enclosing tags. If an end tag doesn't end the innermost enclosing tag, its start tag is
+  // searched for by the hash code, and names are compared only if hash codes are equal.
+  const tagHashCodeStack = [0, 0, 0, 0, 0, 0, 0, 0];
+
   // Names of enclosing tags that were started in previous chunks, since inputs of previous chunks aren't retained.
   // These tags are at the bottom of the stack, below tags that were started in the current chunk.
   const copiedTagNameStack: string[] = [];
@@ -161,6 +168,11 @@ export function createTokenizerWriter(
 
   // Bits of group IDs of enclosing tags, see TagParsingConfig.implicitlyEndedTagGroupIdMask
   let enclosingTagGroupIdMask = 0;
+
+  // The number of enclosing tags by low bits of the hash code of their name. If the count for the hash code of an end
+  // tag is zero, the end tag has no start tag, so enclosing tags aren't searched. Tags with different names can share
+  // a count, which costs a search, but doesn't change the result.
+  const enclosingTagHashCodeCounts = initialEnclosingTagHashCodeCounts.slice();
 
   // Contexts that were current when each enclosing foreign tag was started, so they're restored when it ends
   const outerContextStack: TokenizerContext[] = [];
@@ -183,6 +195,8 @@ export function createTokenizerWriter(
       copiedTagNameCount = tagStackCursor;
     }
 
+    --enclosingTagHashCodeCounts[tagHashCodeStack[tagStackCursor] & ENCLOSING_TAG_HASH_CODE_MASK];
+
     const tagConfig = tagConfigStack[tagStackCursor--];
 
     if (tagConfig !== undefined) {
@@ -197,14 +211,24 @@ export function createTokenizerWriter(
     }
   }
 
-  // Returns the index of the nearest enclosing tag that has the same name as the end tag, or -1 if there's none. Names
-  // are compared without hash codes: the length or the first char tells most names apart, and hash codes would have to
-  // be stored for every start tag.
-  function getStartTagIndex(input: string, endTagNameStartIndex: number, endTagNameEndIndex: number): number {
+  // Returns the index of the nearest enclosing tag that has the same name as the end tag, or -1 if there's none.
+  // Different names can have equal hash codes, so names of tags that have the hash code of the end tag are compared.
+  function getStartTagIndex(
+    endTagHashCode: number,
+    input: string,
+    endTagNameStartIndex: number,
+    endTagNameEndIndex: number
+  ): number {
+    // None of the enclosing tags has these low bits of the hash code, so there's nothing to search for
+    if (enclosingTagHashCodeCounts[endTagHashCode & ENCLOSING_TAG_HASH_CODE_MASK] === 0) {
+      return -1;
+    }
+
     let index = tagStackCursor;
 
     for (; index >= copiedTagNameCount; --index) {
       if (
+        tagHashCodeStack[index] === endTagHashCode &&
         areTagNamesEqual(
           input,
           tagNameStartIndexStack[index],
@@ -220,6 +244,10 @@ export function createTokenizerWriter(
 
     // Tags that were started in previous chunks
     for (; index !== -1; --index) {
+      if (tagHashCodeStack[index] !== endTagHashCode) {
+        continue;
+      }
+
       const tagName = copiedTagNameStack[index];
 
       if (areTagNamesEqual(tagName, 0, tagName.length, input, endTagNameStartIndex, endTagNameEndIndex)) {
@@ -259,8 +287,17 @@ export function createTokenizerWriter(
     // Cases are compared in order, so frequent tokens come first
     switch (tokenKind) {
       case TOKEN_KIND_START_TAG_NAME: {
-        // Hashed and looked up by readTokens
-        let startTagConfig = state.tagConfig;
+        // Hashed by readTokens, which reads the config of the tag from the state after this callback
+        const startTagHashCode = state.tagHashCode;
+
+        let startTagConfig = getTagConfig(
+          state.context,
+          startTagHashCode,
+          input,
+          startIndex,
+          endIndex,
+          areTagNamesEqual
+        );
 
         // Usually none of the enclosing tags must be ended, so the stack isn't searched
         if (
@@ -270,9 +307,11 @@ export function createTokenizerWriter(
           insertImplicitEndTags(startTagConfig.implicitlyEndedTagGroupIds, startIndex - 1, input);
 
           // Ended foreign tags restore the outer context, so the start tag is read with tags of the restored context
-          startTagConfig = getTagConfig(state.context, state.tagHashCode);
-          state.tagConfig = startTagConfig;
+          startTagConfig = getTagConfig(state.context, startTagHashCode, input, startIndex, endIndex, areTagNamesEqual);
         }
+
+        // The callback reads the config of the start tag from the state, rather than looking the tag up
+        state.tagConfig = startTagConfig;
 
         if (isStrict && !isFragment && tagStackCursor === -1) {
           if (isRootElementRead) {
@@ -285,7 +324,10 @@ export function createTokenizerWriter(
 
         tagNameStartIndexStack[++tagStackCursor] = startIndex;
         tagNameEndIndexStack[tagStackCursor] = endIndex;
+        tagHashCodeStack[tagStackCursor] = startTagHashCode;
         tagConfigStack[tagStackCursor] = startTagConfig;
+
+        ++enclosingTagHashCodeCounts[startTagHashCode & ENCLOSING_TAG_HASH_CODE_MASK];
 
         if (startTagConfig !== undefined) {
           if (startTagConfig.foreignContext !== undefined) {
@@ -318,6 +360,8 @@ export function createTokenizerWriter(
           // Same as popTag, which V8 doesn't inline on this frequent path
           callback(TOKEN_KIND_END_TAG_NAME, startIndex, endIndex, input);
 
+          --enclosingTagHashCodeCounts[tagHashCodeStack[tagStackCursor] & ENCLOSING_TAG_HASH_CODE_MASK];
+
           const tagConfig = tagConfigStack[tagStackCursor--];
 
           if (tagConfig !== undefined) {
@@ -336,7 +380,9 @@ export function createTokenizerWriter(
         // Include "</"
         const endTagStartIndex = startIndex - 2;
 
-        const startTagIndex = getStartTagIndex(input, startIndex, endIndex);
+        const endTagHashCode = getTagHashCode(input, startIndex, endIndex);
+
+        const startTagIndex = getStartTagIndex(endTagHashCode, input, startIndex, endIndex);
 
         // Found a start tag
         if (startTagIndex !== -1) {
@@ -355,10 +401,8 @@ export function createTokenizerWriter(
           break;
         }
 
-        const endTagHashCode = getTagHashCode(input, startIndex, endIndex);
-
         // Like a start tag, an unbalanced end tag has the config of the context it's read in
-        const endTagConfig = getTagConfig(state.context, endTagHashCode);
+        const endTagConfig = getTagConfig(state.context, endTagHashCode, input, startIndex, endIndex, areTagNamesEqual);
 
         if (endTagConfig === undefined || !endTagConfig.isImplicitlyStarted) {
           if (!areUnbalancedEndTagsIgnored) {
@@ -482,9 +526,52 @@ export function createTokenizerWriter(
 
 /**
  * Returns the config of a tag in a context, or `undefined` if options don't mention the tag there.
+ *
+ * Different names can have equal hash codes, so the name of the tag is compared with the name of a config that has the
+ * same hash code.
+ *
+ * @param context The context to look up the tag in.
+ * @param tagHashCode The hash code of the tag name.
+ * @param input The text that contains the tag name.
+ * @param tagNameStartIndex The index in the input where the tag name starts.
+ * @param tagNameEndIndex The index in the input where the tag name ends.
+ * @param areTagNamesEqual Compares tag names.
+ * @see {@link createTagConfigTable}
+ * @internal
  */
-function getTagConfig(context: TokenizerContext, tagHashCode: number): TagParsingConfig | undefined {
-  return context.tagConfigMap !== undefined ? context.tagConfigMap.get(tagHashCode) : undefined;
+export function getTagConfig(
+  context: TokenizerContext,
+  tagHashCode: number,
+  input: string,
+  tagNameStartIndex: number,
+  tagNameEndIndex: number,
+  areTagNamesEqual: TagNameEqualityComparer
+): TagParsingConfig | undefined {
+  const tagConfigTable = context.tagConfigTable;
+
+  if (tagConfigTable === undefined) {
+    return undefined;
+  }
+
+  const indexMask = tagConfigTable.length - 1;
+
+  let index = tagHashCode & indexMask;
+  let tagConfig = tagConfigTable[index];
+
+  // A vacant index ends the lookup
+  while (tagConfig !== undefined) {
+    if (
+      tagConfig.tagHashCode === tagHashCode &&
+      areTagNamesEqual(tagConfig.tagName, 0, tagConfig.tagName.length, input, tagNameStartIndex, tagNameEndIndex)
+    ) {
+      return tagConfig;
+    }
+
+    index = (index + 1) & indexMask;
+    tagConfig = tagConfigTable[index];
+  }
+
+  return undefined;
 }
 
 /**
@@ -501,6 +588,17 @@ function isImplicitEndingBoundary(tagConfig: TagParsingConfig | undefined): bool
  */
 function isImplicitlyEnded(tagConfig: TagParsingConfig | undefined, implicitlyEndedTagGroupIds: number[]): boolean {
   return tagConfig !== undefined && implicitlyEndedTagGroupIds.includes(tagConfig.tagGroupId);
+}
+
+// Low bits of the hash code of a tag name that select the count of enclosing tags, see enclosingTagHashCodeCounts
+const ENCLOSING_TAG_HASH_CODE_MASK = 15;
+
+// A zero for each count of enclosing tags. createTokenizerWriter copies this array, which is faster than creating an
+// array of zeros on every call.
+const initialEnclosingTagHashCodeCounts: number[] = [];
+
+for (let index = 0; index <= ENCLOSING_TAG_HASH_CODE_MASK; ++index) {
+  initialEnclosingTagHashCodeCounts.push(0);
 }
 
 const TAG_KIND_NORMAL = 'normal';
@@ -548,7 +646,8 @@ export type TagNameEqualityComparer = (
  * Use {@link createTokenizerWriter} to get balanced tokens.
  *
  * The context is read from {@link TokenizerState.context} on every use, and the config of a start tag is read from
- * {@link TokenizerState.tagConfig} after the `start_tag_name` callback, so the callback can change both.
+ * {@link TokenizerState.tagConfig} after the `start_tag_name` token is passed to the tag callback, which sets the
+ * config and can change the context.
  *
  * If {@link TokenizerState.isInputEnded} is `false` then reading stops at a token that reaches the end of the input,
  * since the token can continue in the next chunk, and text before the token isn't returned either. The state keeps
@@ -561,7 +660,9 @@ export type TagNameEqualityComparer = (
  * @param state The state of reading, which is shared with the callback.
  * @param tagCallback The callback that is invoked instead of `callback` for `start_tag_name`, `end_tag_name`,
  *   `start_tag_self_closing`, and `start_tag_closing` of void tags. {@link createTokenizerWriter} balances tags with
- *   it, so other tokens don't pass through an extra call. By default, `callback` is invoked for all tokens.
+ *   it, so other tokens don't pass through an extra call. It must set {@link TokenizerState.tagConfig} when a
+ *   `start_tag_name` token is passed to it. By default, `callback` is invoked for all tokens, and start tags are
+ *   looked up before they are passed to it.
  * @returns The index in the input where the text that wasn't read starts, or the input length if the whole input was
  *   read.
  * @throws {@link MarkupSyntaxError} If {@link TokenizerConfig.isStrict} is `true` and input is malformed.
@@ -1244,13 +1345,26 @@ export function readTokens(
       callback(TOKEN_KIND_TEXT, textStartIndex, index, input);
     }
 
-    // The callback reads the config of the start tag from the state, rather than looking the tag up
+    // The tag callback reads the hash code from the state, rather than hashing the name again
     state.tagHashCode = startTagHashCode;
-    state.tagConfig = getTagConfig(state.context, startTagHashCode);
+
+    // The tag callback looks the tag up, the tag is looked up here only if there's no tag callback. V8 inlines a
+    // limited amount of code into a function, so a lookup of every start tag is inlined here in place of hotter
+    // functions, while the tag callback is called for every start tag anyway.
+    if (tagCallback === callback) {
+      state.tagConfig = getTagConfig(
+        state.context,
+        startTagHashCode,
+        input,
+        tagNameStartIndex,
+        nextIndex,
+        areTagNamesEqual
+      );
+    }
 
     tagCallback(TOKEN_KIND_START_TAG_NAME, tagNameStartIndex, nextIndex, input);
 
-    // The callback can switch the context, which changes the config of the start tag
+    // Set by the tag callback, which can also switch the context
     const startTagConfig = state.tagConfig;
 
     isStartTagVoid = false;

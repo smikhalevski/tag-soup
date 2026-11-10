@@ -1,7 +1,18 @@
 import type { TagKind, TagParsingOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, identity, toASCIILowerCase } from './utils.ts';
 
 export interface TagParsingConfig {
+  /**
+   * The name of the tag, in lower case if tag names are case-insensitive. Different names can have equal hash codes, so
+   * a tag that is looked up by a hash code is the tag of this config only if it has this name.
+   */
+  tagName: string;
+
+  /**
+   * The hash code of {@link tagName}.
+   */
+  tagHashCode: number;
+
   /**
    * @see {@link TagParsingOptions.kind}
    */
@@ -59,10 +70,12 @@ export interface TagParsingConfig {
 
 export interface TokenizerContext {
   /**
-   * The map from a hash code of a tag to the config of the tag in this context. Contexts with the same
-   * {@link TokenizerContextOptions.tags tags} share the map.
+   * The hash table of configs of tags in this context, or `undefined` if options don't mention any tags. Contexts with
+   * the same {@link TokenizerContextOptions.tags tags} share the table.
+   *
+   * @see {@link createTagConfigTable}
    */
-  tagConfigMap: Map<number, TagParsingConfig> | undefined;
+  tagConfigTable: Array<TagParsingConfig | undefined> | undefined;
 
   /**
    * @see {@link TokenizerContextOptions.areSelfClosingTagsRecognized}
@@ -132,13 +145,11 @@ export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerCon
     isStrict = false,
   } = options;
 
-  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-
   const contextMap = new Map<TokenizerContextOptions, TokenizerContext>();
 
   const initialContext = resolveTokenizerContextOptions(options, contextMap);
 
-  const initialEnclosingTagCounts = resolveContextTags(contextMap, getTagHashCode);
+  const initialEnclosingTagCounts = resolveContextTags(contextMap, areTagNamesCaseInsensitive);
 
   return {
     initialContext,
@@ -152,24 +163,34 @@ export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerCon
 }
 
 /**
- * Resolves tags of each context into a map, so {@link readTokens} looks up a start tag once. Contexts with the same
- * tags share the map. Foreign contexts of tags are added to the context map and resolved too. Tags that can be
+ * Resolves tags of each context into a hash table, so {@link readTokens} looks up a start tag once. Contexts with the
+ * same tags share the table. Foreign contexts of tags are added to the context map and resolved too. Tags that can be
  * implicitly ended are grouped by tags that end them, and groups get sequential IDs, so enclosing tags can be counted
  * in a single array. Tags are ended by name, so a tag that ends other tags has the same implicitly ended tag group IDs
- * in every map.
+ * in every table.
  *
  * Returns a zero for each bit of group IDs.
  *
+ * @see {@link createTagConfigTable}
  * @see {@link getTagGroupIdBitIndex}
  */
 function resolveContextTags(
   contextMap: Map<TokenizerContextOptions, TokenizerContext>,
-  getTagHashCode: typeof getCaseSensitiveHashCode
+  areTagNamesCaseInsensitive: boolean
 ): number[] {
-  const tagConfigMapMap = new Map<Record<string, TagParsingOptions>, Map<number, TagParsingConfig>>();
+  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
-  // The map from a hash code of a tag to IDs of groups of tags that it ends
-  const implicitlyEndedTagGroupIdsMap = new Map<number, number[]>();
+  // Names that differ only in the case of ASCII letters are names of the same tag if tag names are case-insensitive
+  const normalizeTagName = areTagNamesCaseInsensitive ? toASCIILowerCase : identity;
+
+  // Tags of contexts that have no tags, so these contexts share a table
+  const defaultTags: Record<string, TagParsingOptions> = {};
+
+  // Configs are kept by a normalized tag name while tags are resolved, since different names can have equal hash codes
+  const tagConfigMapMap = new Map<Record<string, TagParsingOptions>, Map<string, TagParsingConfig>>();
+
+  // The map from a normalized name of a tag to IDs of groups of tags that it ends
+  const implicitlyEndedTagGroupIdsMap = new Map<string, number[]>();
 
   // The map from a list of tags that implicitly end a tag to the ID of the group of tags with this list, so tags that
   // end them check one ID, like br that ends both svg and math in HTML
@@ -177,11 +198,13 @@ function resolveContextTags(
 
   let tagGroupCount = 0;
 
-  function getOrCreateTagConfig(tagConfigMap: Map<number, TagParsingConfig>, tagHashCode: number) {
-    let tagConfig = tagConfigMap.get(tagHashCode);
+  function getOrCreateTagConfig(tagConfigMap: Map<string, TagParsingConfig>, tagName: string) {
+    let tagConfig = tagConfigMap.get(tagName);
 
     if (tagConfig === undefined) {
       tagConfig = {
+        tagName,
+        tagHashCode: getTagHashCode(tagName, 0, tagName.length),
         kind: 'normal',
         foreignContext: undefined,
         isImplicitEndingBoundary: false,
@@ -192,14 +215,14 @@ function resolveContextTags(
         tagGroupIdBitIndex: -1,
         isRawText: false,
       };
-      tagConfigMap.set(tagHashCode, tagConfig);
+      tagConfigMap.set(tagName, tagConfig);
     }
 
     return tagConfig;
   }
 
   function resolveTags(tags: Record<string, TagParsingOptions>) {
-    const tagConfigMap = new Map<number, TagParsingConfig>();
+    const tagConfigMap = new Map<string, TagParsingConfig>();
 
     for (const [tagName, tagOptions] of Object.entries(tags)) {
       const {
@@ -210,7 +233,7 @@ function resolveContextTags(
         isImplicitlyStarted = false,
       } = tagOptions;
 
-      const tagConfig = getOrCreateTagConfig(tagConfigMap, getTagHashCode(tagName, 0, tagName.length));
+      const tagConfig = getOrCreateTagConfig(tagConfigMap, normalizeTagName(tagName));
 
       tagConfig.kind = kind;
       tagConfig.isRawText = kind === 'raw_text' || kind === 'script_data';
@@ -233,13 +256,13 @@ function resolveContextTags(
 
         // Tags that end this group keep its ID, so they know which tags to end when they are started
         for (const endingTagName of implicitlyEndedBy) {
-          const endingTagHashCode = getTagHashCode(endingTagName, 0, endingTagName.length);
+          const normalizedEndingTagName = normalizeTagName(endingTagName);
 
-          let implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIdsMap.get(endingTagHashCode);
+          let implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIdsMap.get(normalizedEndingTagName);
 
           if (implicitlyEndedTagGroupIds === undefined) {
             implicitlyEndedTagGroupIds = [];
-            implicitlyEndedTagGroupIdsMap.set(endingTagHashCode, implicitlyEndedTagGroupIds);
+            implicitlyEndedTagGroupIdsMap.set(normalizedEndingTagName, implicitlyEndedTagGroupIds);
           }
           implicitlyEndedTagGroupIds.push(tagGroupId);
         }
@@ -252,23 +275,20 @@ function resolveContextTags(
   }
 
   // Contexts that are added to the map while tags are resolved are visited too
-  for (const [contextOptions, context] of contextMap) {
-    const { tags = {} } = contextOptions;
+  for (const contextOptions of contextMap.keys()) {
+    const { tags = defaultTags } = contextOptions;
 
-    let tagConfigMap = tagConfigMapMap.get(tags);
-
-    if (tagConfigMap === undefined) {
-      tagConfigMap = resolveTags(tags);
-      tagConfigMapMap.set(tags, tagConfigMap);
+    if (!tagConfigMapMap.has(tags)) {
+      tagConfigMapMap.set(tags, resolveTags(tags));
     }
-
-    context.tagConfigMap = tagConfigMap;
   }
 
-  // A tag started in any context ends tags of other contexts, like br ends svg in HTML
-  for (const tagConfigMap of tagConfigMapMap.values()) {
-    for (const [tagHashCode, implicitlyEndedTagGroupIds] of implicitlyEndedTagGroupIdsMap) {
-      const tagConfig = getOrCreateTagConfig(tagConfigMap, tagHashCode);
+  const tagConfigTableMap = new Map<Record<string, TagParsingOptions>, TokenizerContext['tagConfigTable']>();
+
+  for (const [tags, tagConfigMap] of tagConfigMapMap) {
+    // A tag started in any context ends tags of other contexts, like br ends svg in HTML
+    for (const [tagName, implicitlyEndedTagGroupIds] of implicitlyEndedTagGroupIdsMap) {
+      const tagConfig = getOrCreateTagConfig(tagConfigMap, tagName);
 
       tagConfig.implicitlyEndedTagGroupIds = implicitlyEndedTagGroupIds;
 
@@ -276,13 +296,15 @@ function resolveContextTags(
         tagConfig.implicitlyEndedTagGroupIdMask |= 1 << getTagGroupIdBitIndex(implicitlyEndedTagGroupId);
       }
     }
+
+    // Configs of all tags are in the map by now, so it's converted to a table
+    tagConfigTableMap.set(tags, createTagConfigTable(tagConfigMap));
   }
 
-  // Start tags aren't looked up if options don't mention any tags
-  for (const context of contextMap.values()) {
-    if (context.tagConfigMap !== undefined && context.tagConfigMap.size === 0) {
-      context.tagConfigMap = undefined;
-    }
+  for (const [contextOptions, context] of contextMap) {
+    const { tags = defaultTags } = contextOptions;
+
+    context.tagConfigTable = tagConfigTableMap.get(tags);
   }
 
   const initialEnclosingTagCounts: number[] = [];
@@ -293,6 +315,48 @@ function resolveContextTags(
   }
 
   return initialEnclosingTagCounts;
+}
+
+/**
+ * Creates a hash table of tag configs, or returns `undefined` if there are no configs, so start tags aren't looked up.
+ *
+ * A config is stored at the index of low bits of its hash code. If this index is taken, the config is stored at the
+ * next vacant index, and the first index follows the last one. So a lookup starts at the index of low bits of a hash
+ * code, and goes through next indices until the config with this hash code and the looked up name is found, or a
+ * vacant index is met.
+ *
+ * The table length is a power of two, so the index is read from a hash code with a bitmask. At least half of the table
+ * is vacant, so a lookup is short and always meets a vacant index.
+ *
+ * Unlike a Map from a hash code to a config, the table keeps configs of tags that have equal hash codes, and it's
+ * looked up as fast.
+ *
+ * @see {@link getTagConfig}
+ */
+function createTagConfigTable(tagConfigMap: Map<string, TagParsingConfig>): TokenizerContext['tagConfigTable'] {
+  if (tagConfigMap.size === 0) {
+    return undefined;
+  }
+
+  let tableLength = 2;
+
+  while (tableLength < tagConfigMap.size * 2) {
+    tableLength *= 2;
+  }
+
+  const tagConfigTable = new Array<TagParsingConfig | undefined>(tableLength).fill(undefined);
+
+  for (const tagConfig of tagConfigMap.values()) {
+    let index = tagConfig.tagHashCode & (tableLength - 1);
+
+    while (tagConfigTable[index] !== undefined) {
+      index = (index + 1) & (tableLength - 1);
+    }
+
+    tagConfigTable[index] = tagConfig;
+  }
+
+  return tagConfigTable;
 }
 
 /**
@@ -315,7 +379,7 @@ function resolveTokenizerContextOptions(
   } = contextOptions;
 
   context = {
-    tagConfigMap: undefined,
+    tagConfigTable: undefined,
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,
     areProcessingInstructionsRecognized,
