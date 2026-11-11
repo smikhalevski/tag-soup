@@ -1302,7 +1302,7 @@ describe('createTokenizerWriter', () => {
 
     // Each tag is in its own group, and groups from the 30th up share a bit
     for (let i = 0; i < 32; ++i) {
-      tags['a' + i] = { implicitlyEndedBy: ['b' + i] };
+      tags['a' + i] = { implicitEndingTagNames: ['b' + i] };
     }
 
     const config = resolveTokenizerOptions({ tags, areUnbalancedStartTagsImplicitlyEnded: true });
@@ -1319,7 +1319,7 @@ describe('createTokenizerWriter', () => {
   test('implicitly ends the immediate parent', () => {
     const config = resolveTokenizerOptions({
       areUnbalancedStartTagsImplicitlyEnded: true,
-      tags: { aaa: { implicitlyEndedBy: ['ccc'] } },
+      tags: { aaa: { implicitEndingTagNames: ['ccc'] } },
     });
 
     createTokenizerWriter(handler, config).end('<aaa>bbb<ccc>ddd');
@@ -1338,7 +1338,7 @@ describe('createTokenizerWriter', () => {
   test('implicitly ends the ancestor', () => {
     const config = resolveTokenizerOptions({
       areUnbalancedStartTagsImplicitlyEnded: true,
-      tags: { aaa: { implicitlyEndedBy: ['eee'] } },
+      tags: { aaa: { implicitEndingTagNames: ['eee'] } },
     });
 
     createTokenizerWriter(handler, config).end('<aaa>bbb<ccc>ddd<eee>');
@@ -1360,7 +1360,7 @@ describe('createTokenizerWriter', () => {
   test('implicitly ends the topmost ancestor', () => {
     const config = resolveTokenizerOptions({
       areUnbalancedStartTagsImplicitlyEnded: true,
-      tags: { aaa: { implicitlyEndedBy: ['ggg'] }, eee: { implicitlyEndedBy: ['ggg'] } },
+      tags: { aaa: { implicitEndingTagNames: ['ggg'] }, eee: { implicitEndingTagNames: ['ggg'] } },
     });
 
     createTokenizerWriter(handler, config).end('<aaa>bbb<ccc>ddd<eee>fff<ggg>');
@@ -1469,7 +1469,7 @@ describe('createTokenizerWriter', () => {
 
   test('implicitly ends a tag', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: ['bbb'] } },
+      tags: { aaa: { implicitEndingTagNames: ['bbb'] } },
       areUnbalancedStartTagsImplicitlyEnded: true,
     });
 
@@ -1486,7 +1486,7 @@ describe('createTokenizerWriter', () => {
 
   test('inserts start tag that forcefully ends preceding tag', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: ['bbb'] }, bbb: { isImplicitlyStarted: true } },
+      tags: { aaa: { implicitEndingTagNames: ['bbb'] }, bbb: { isImplicitlyStarted: true } },
     });
 
     createTokenizerWriter(handler, config).end('<aaa></bbb>');
@@ -1502,7 +1502,7 @@ describe('createTokenizerWriter', () => {
 
   test('inserts start tags and end tags during nesting of the same tag', () => {
     const config = resolveTokenizerOptions({
-      tags: { xxx: { implicitlyEndedBy: ['xxx'], isImplicitlyStarted: true } },
+      tags: { xxx: { implicitEndingTagNames: ['xxx'], isImplicitlyStarted: true } },
     });
 
     createTokenizerWriter(handler, config).end('aaa<xxx>bbb<xxx>ccc</xxx>ddd</xxx>eee');
@@ -1583,7 +1583,7 @@ describe('createTokenizerWriter', () => {
 
   test('implicitly ends tags inside the nearest boundary', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { isImplicitEndingBoundary: true }, bbb: { implicitlyEndedBy: ['bbb'] } },
+      tags: { aaa: { isImplicitEndingBoundary: true }, bbb: { implicitEndingTagNames: ['bbb'] } },
       areUnbalancedStartTagsImplicitlyEnded: true,
     });
 
@@ -1606,7 +1606,7 @@ describe('createTokenizerWriter', () => {
 
   test('implicitly ends the boundary tag that must be ended', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: ['aaa'], isImplicitEndingBoundary: true } },
+      tags: { aaa: { implicitEndingTagNames: ['aaa'], isImplicitEndingBoundary: true } },
       areUnbalancedStartTagsImplicitlyEnded: true,
     });
 
@@ -1808,7 +1808,7 @@ describe('createTokenizerWriter', () => {
 
   test('implicitly ends a tag that was started in another context', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { foreignContext: {} }, bbb: { implicitlyEndedBy: ['ccc'] } },
+      tags: { aaa: { foreignContext: {} }, bbb: { implicitEndingTagNames: ['ccc'] } },
       areUnbalancedStartTagsImplicitlyEnded: true,
     });
 
@@ -1829,8 +1829,8 @@ describe('createTokenizerWriter', () => {
   test('does not implicitly end a tag of another context that is ended by other tags', () => {
     const config = resolveTokenizerOptions({
       tags: {
-        aaa: { foreignContext: { tags: { eee: { implicitlyEndedBy: ['ddd'] } } } },
-        bbb: { implicitlyEndedBy: ['ccc'] },
+        aaa: { foreignContext: { tags: { eee: { implicitEndingTagNames: ['ddd'] } } } },
+        bbb: { implicitEndingTagNames: ['ccc'] },
       },
       areUnbalancedStartTagsImplicitlyEnded: true,
     });
@@ -1851,7 +1851,7 @@ describe('createTokenizerWriter', () => {
 
   test('reads a tag that implicitly ends a foreign tag with outer tags', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'void' } },
+      tags: { aaa: { implicitEndingTagNames: ['bbb'], foreignContext: {} }, bbb: { kind: 'void' } },
     });
 
     createTokenizerWriter(handler, config).end('<aaa><bbb>ccc');
@@ -1868,7 +1868,7 @@ describe('createTokenizerWriter', () => {
 
   test('reads raw text of a tag that implicitly ends a foreign tag with outer tags', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: ['bbb'], foreignContext: {} }, bbb: { kind: 'raw_text' } },
+      tags: { aaa: { implicitEndingTagNames: ['bbb'], foreignContext: {} }, bbb: { kind: 'raw_text' } },
     });
 
     createTokenizerWriter(handler, config).end('<aaa><bbb><ccc></bbb>');
@@ -1947,7 +1947,7 @@ describe('createTokenizerWriter', () => {
 
   test('reads names that differ in case in options as the same tag if tag names are case-insensitive', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: ['BBB'] }, bbb: { kind: 'void' } },
+      tags: { aaa: { implicitEndingTagNames: ['BBB'] }, bbb: { kind: 'void' } },
       areTagNamesCaseInsensitive: true,
     });
 
@@ -1960,28 +1960,6 @@ describe('createTokenizerWriter', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_name', 6, 9);
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'start_tag_closing', 9, 10);
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 10, 10);
-  });
-
-  test('reads a tag with the options of the last name that differs only in case if tag names are case-insensitive', () => {
-    const config = resolveTokenizerOptions({
-      tags: {
-        AAA: { implicitlyEndedBy: ['bbb'], foreignContext: { areSelfClosingTagsRecognized: true } },
-        aaa: {},
-      },
-      areTagNamesCaseInsensitive: true,
-      areUnbalancedStartTagsImplicitlyEnded: true,
-    });
-
-    // aaa isn't foreign, so the self-closing bbb is a start tag, and bbb doesn't end aaa
-    createTokenizerWriter(handler, config).end('<aaa><bbb/></aaa>');
-
-    expect(callbackMock).toHaveBeenCalledTimes(6);
-    expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 1, 4);
-    expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 4, 5);
-    expect(callbackMock).toHaveBeenNthCalledWith(3, 'start_tag_name', 6, 9);
-    expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 10, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 11, 11);
-    expect(callbackMock).toHaveBeenNthCalledWith(6, 'end_tag_name', 13, 16);
   });
 
   test('reads tags of a context once', () => {
@@ -2031,9 +2009,9 @@ describe('createTokenizerWriter', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'end_tag_name', 13, 16);
   });
 
-  test('reads implicitlyEndedBy given as a Set', () => {
+  test('reads implicitEndingTagNames given as a Set', () => {
     const config = resolveTokenizerOptions({
-      tags: { aaa: { implicitlyEndedBy: new Set(['AAA']) as unknown as string[] } },
+      tags: { aaa: { implicitEndingTagNames: new Set(['AAA']) as unknown as string[] } },
       areTagNamesCaseInsensitive: true,
       areUnbalancedStartTagsImplicitlyEnded: true,
     });
@@ -2126,7 +2104,7 @@ describe('createTokenizerWriter', () => {
     const config = resolveTokenizerOptions({
       tags: {
         br: { kind: 'void' },
-        p: { implicitlyEndedBy: ['p'], isImplicitlyStarted: true },
+        p: { implicitEndingTagNames: ['p'], isImplicitlyStarted: true },
         script: { kind: 'script_data' },
         style: { kind: 'raw_text' },
         svg: {

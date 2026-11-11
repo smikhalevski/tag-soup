@@ -84,7 +84,7 @@ export interface TagParsingOptions {
    * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
    *
    * ```ts
-   * { p: { implicitlyEndedBy: ['h1'] } }
+   * { p: { implicitEndingTagNames: ['h1'] } }
    * ```
    *
    * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded} and
@@ -103,17 +103,17 @@ export interface TagParsingOptions {
    * ```ts
    * {
    *   svg: {
-   *     implicitlyEndedBy: ['br'],
+   *     implicitEndingTagNames: ['br'],
    *     foreignContext: {},
    *   },
    *   br: { kind: 'void' },
    * }
    * ```
    */
-  implicitlyEndedBy?: string[];
+  implicitEndingTagNames?: Iterable<string>;
 
   /**
-   * If `true` then the tag is a boundary for {@link implicitlyEndedBy implicit ending}: tags that are started inside
+   * If `true` then the tag is a boundary for {@link implicitEndingTagNames implicit ending}: tags that are started inside
    * this tag don't implicitly end tags outside of it. A boundary tag that must be implicitly ended itself doesn't limit
    * anything.
    *
@@ -128,7 +128,7 @@ export interface TagParsingOptions {
    *
    * ```ts
    * {
-   *   li: { implicitlyEndedBy: ['li'] },
+   *   li: { implicitEndingTagNames: ['li'] },
    *   ul: { isImplicitEndingBoundary: true },
    *   ol: { isImplicitEndingBoundary: true },
    * }
@@ -198,8 +198,7 @@ export interface TagSerializationOptions {
 export interface TokenizerContextOptions {
   /**
    * The map from a tag name to options of the tag. If several keys differ only in case and
-   * {@link TokenizerOptions.areTagNamesCaseInsensitive tag names are case-insensitive}, the options of the last one are
-   * used.
+   * {@link TokenizerOptions.areTagNamesCaseInsensitive tag names are case-insensitive}, an error is thrown.
    *
    * **Note:** These tags aren't applied to content of {@link TagParsingOptions.foreignContext foreign tags}, which is
    * read with tags of their own options.
@@ -209,7 +208,7 @@ export interface TokenizerContextOptions {
    *   br: { kind: 'void' },
    *   script: { kind: 'raw_text' },
    *   p: {
-   *     implicitlyEndedBy: ['div', 'p'],
+   *     implicitEndingTagNames: ['div', 'p'],
    *     isImplicitlyStarted: true,
    *   },
    * }

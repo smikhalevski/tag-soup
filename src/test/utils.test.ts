@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, toASCIILowerCase } from '../main/utils.ts';
-
-describe('toASCIILowerCase', () => {
-  test('converts only ASCII letters to lower case', () => {
-    expect(toASCIILowerCase('AAAbbbФФФ')).toBe('aaabbbФФФ');
-  });
-});
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from '../main/utils.ts';
 
 describe('getCaseInsensitiveHashCode', () => {
   test('returns a non-negative 30-bit integer', () => {

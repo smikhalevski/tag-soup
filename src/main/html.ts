@@ -78,7 +78,7 @@ const htmlParserOptions: ParserOptions = {
   // Implicit ending boundaries follow https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
   tags: {
     a: {
-      implicitlyEndedBy: ['a'],
+      implicitEndingTagNames: ['a'],
     },
     'annotation-xml': {
       isImplicitEndingBoundary: true,
@@ -103,7 +103,7 @@ const htmlParserOptions: ParserOptions = {
       isImplicitlyStarted: true,
     },
     button: {
-      implicitlyEndedBy: formTagNames,
+      implicitEndingTagNames: formTagNames,
       isImplicitEndingBoundary: true,
     },
     caption: {
@@ -113,10 +113,10 @@ const htmlParserOptions: ParserOptions = {
       kind: 'void',
     },
     datalist: {
-      implicitlyEndedBy: formTagNames,
+      implicitEndingTagNames: formTagNames,
     },
     dd: {
-      implicitlyEndedBy: ddtTagNames,
+      implicitEndingTagNames: ddtTagNames,
     },
     desc: {
       isImplicitEndingBoundary: true,
@@ -125,7 +125,7 @@ const htmlParserOptions: ParserOptions = {
       isImplicitEndingBoundary: true,
     },
     dt: {
-      implicitlyEndedBy: ddtTagNames,
+      implicitEndingTagNames: ddtTagNames,
     },
     embed: {
       kind: 'void',
@@ -137,25 +137,25 @@ const htmlParserOptions: ParserOptions = {
       kind: 'void',
     },
     h1: {
-      implicitlyEndedBy: headingTagNames,
+      implicitEndingTagNames: headingTagNames,
     },
     h2: {
-      implicitlyEndedBy: headingTagNames,
+      implicitEndingTagNames: headingTagNames,
     },
     h3: {
-      implicitlyEndedBy: headingTagNames,
+      implicitEndingTagNames: headingTagNames,
     },
     h4: {
-      implicitlyEndedBy: headingTagNames,
+      implicitEndingTagNames: headingTagNames,
     },
     h5: {
-      implicitlyEndedBy: headingTagNames,
+      implicitEndingTagNames: headingTagNames,
     },
     h6: {
-      implicitlyEndedBy: headingTagNames,
+      implicitEndingTagNames: headingTagNames,
     },
     head: {
-      implicitlyEndedBy: ['body'],
+      implicitEndingTagNames: ['body'],
     },
     hr: {
       kind: 'void',
@@ -171,23 +171,23 @@ const htmlParserOptions: ParserOptions = {
     },
     input: {
       kind: 'void',
-      implicitlyEndedBy: formTagNames,
+      implicitEndingTagNames: formTagNames,
     },
     keygen: {
       kind: 'void',
     },
     li: {
-      implicitlyEndedBy: ['li'],
+      implicitEndingTagNames: ['li'],
     },
     link: {
       kind: 'void',
-      implicitlyEndedBy: ['body'],
+      implicitEndingTagNames: ['body'],
     },
     marquee: {
       isImplicitEndingBoundary: true,
     },
     math: {
-      implicitlyEndedBy: breakoutTagNames,
+      implicitEndingTagNames: breakoutTagNames,
       isImplicitEndingBoundary: true,
       foreignContext: mathmlOptions,
     },
@@ -222,13 +222,13 @@ const htmlParserOptions: ParserOptions = {
       isImplicitEndingBoundary: true,
     },
     optgroup: {
-      implicitlyEndedBy: [...formTagNames, 'optgroup'],
+      implicitEndingTagNames: [...formTagNames, 'optgroup'],
     },
     option: {
-      implicitlyEndedBy: [...formTagNames, 'optgroup', 'option'],
+      implicitEndingTagNames: [...formTagNames, 'optgroup', 'option'],
     },
     p: {
-      implicitlyEndedBy: [
+      implicitEndingTagNames: [
         ...headingTagNames,
         'address',
         'article',
@@ -275,23 +275,23 @@ const htmlParserOptions: ParserOptions = {
       kind: 'raw_text',
     },
     rb: {
-      implicitlyEndedBy: rubyTagNames,
+      implicitEndingTagNames: rubyTagNames,
     },
     rp: {
-      implicitlyEndedBy: rubyTagNames,
+      implicitEndingTagNames: rubyTagNames,
     },
     rt: {
-      implicitlyEndedBy: rubyTagNames,
+      implicitEndingTagNames: rubyTagNames,
     },
     rtc: {
-      implicitlyEndedBy: ['rb', 'rtc'],
+      implicitEndingTagNames: ['rb', 'rtc'],
     },
     script: {
       kind: 'script_data',
-      implicitlyEndedBy: ['body'],
+      implicitEndingTagNames: ['body'],
     },
     select: {
-      implicitlyEndedBy: formTagNames,
+      implicitEndingTagNames: formTagNames,
     },
     source: {
       kind: 'void',
@@ -300,7 +300,7 @@ const htmlParserOptions: ParserOptions = {
       kind: 'raw_text',
     },
     svg: {
-      implicitlyEndedBy: breakoutTagNames,
+      implicitEndingTagNames: breakoutTagNames,
       isImplicitEndingBoundary: true,
       foreignContext: svgOptions,
     },
@@ -308,10 +308,10 @@ const htmlParserOptions: ParserOptions = {
       isImplicitEndingBoundary: true,
     },
     tbody: {
-      implicitlyEndedBy: tableSectionTagNames,
+      implicitEndingTagNames: tableSectionTagNames,
     },
     td: {
-      implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames],
+      implicitEndingTagNames: ['tr', 'th', 'td', ...tableSectionTagNames],
       isImplicitEndingBoundary: true,
     },
     template: {
@@ -319,20 +319,20 @@ const htmlParserOptions: ParserOptions = {
     },
     textarea: {
       kind: 'escapable_raw_text',
-      implicitlyEndedBy: formTagNames,
+      implicitEndingTagNames: formTagNames,
     },
     th: {
-      implicitlyEndedBy: ['tr', 'th', 'td', ...tableSectionTagNames],
+      implicitEndingTagNames: ['tr', 'th', 'td', ...tableSectionTagNames],
       isImplicitEndingBoundary: true,
     },
     thead: {
-      implicitlyEndedBy: tableSectionTagNames,
+      implicitEndingTagNames: tableSectionTagNames,
     },
     title: {
       kind: 'escapable_raw_text',
     },
     tr: {
-      implicitlyEndedBy: ['tr', ...tableSectionTagNames],
+      implicitEndingTagNames: ['tr', ...tableSectionTagNames],
     },
     track: {
       kind: 'void',
@@ -361,11 +361,11 @@ const foreignContentTags = {
   ...htmlParserOptions.tags,
 
   math: {
-    implicitlyEndedBy: breakoutTagNames,
+    implicitEndingTagNames: breakoutTagNames,
     isImplicitEndingBoundary: true,
   },
   svg: {
-    implicitlyEndedBy: breakoutTagNames,
+    implicitEndingTagNames: breakoutTagNames,
     isImplicitEndingBoundary: true,
   },
   title: {

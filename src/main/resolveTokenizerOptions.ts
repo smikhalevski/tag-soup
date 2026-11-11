@@ -5,16 +5,9 @@ import {
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
   identity,
-  type SubstringEqualityComparer,
-  type TagNameHashFunction,
-  toASCIILowerCase,
+  type SubstringComparer,
+  type SubstringHasher,
 } from './utils.ts';
-
-// Groups from the 30th up share bit 29, the highest bit of a positive small integer, which V8 doesn't allocate
-const LAST_GROUP_BIT_INDEX = 29;
-
-// The empty set of ending tag names, shared by tags that can't be implicitly ended
-const noTagNames: ReadonlySet<string> = new Set();
 
 /**
  * Resolved options of a tag in a context.
@@ -54,20 +47,22 @@ export interface TagParsingConfig {
   /**
    * Names of tags that implicitly end this tag, normalized like {@link tagName}.
    *
-   * @see {@link TagParsingOptions.implicitlyEndedBy}
+   * @see {@link TagParsingOptions.implicitEndingTagNames}
    */
-  implicitlyEndedBy: ReadonlySet<string>;
+  implicitEndingTagNameSet: ReadonlySet<string>;
 
   /**
    * The bit of the group of this tag, or 0 if the tag can't be implicitly ended. Tags with the same set of
-   * {@link implicitlyEndedBy} names are in one group. Groups of all contexts are numbered together, so one bitmask
+   * {@link implicitEndingTagNameSet} names are in one group. Groups of all contexts are numbered together, so one bitmask
    * covers enclosing tags of any context. Groups from the 30th up share bit 29.
    */
   groupBit: number;
 
   /**
    * Bits of the groups that this tag implicitly ends when it's started, in any context, since tags are ended by name.
-   * They rule out most enclosing tags before {@link implicitlyEndedBy} is checked. A shared bit only costs a check.
+   * They rule out most enclosing tags before {@link implicitEndingTagNameSet} is checked. A shared bit only costs a check.
+   *
+   * 0 until the groups of all contexts are created, then set by {@link resolveContexts}.
    */
   endedGroupBits: number;
 
@@ -120,7 +115,7 @@ export interface TokenizerConfig {
   /**
    * The context outside of foreign tags, where {@link TagStack.context} starts.
    */
-  initialContext: TokenizerContext;
+  rootContext: TokenizerContext;
 
   /**
    * @see {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded}
@@ -141,12 +136,12 @@ export interface TokenizerConfig {
    * Compares substrings, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`. Comparisons of names with
    * equal hash codes pass end indices minus 1 to skip the last char, see {@link getCaseInsensitiveHashCode}.
    */
-  areSubstringsEqual: SubstringEqualityComparer;
+  areSubstringsEqual: SubstringComparer;
 
   /**
    * Returns the hash code of a tag name, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`.
    */
-  getTagHashCode: TagNameHashFunction;
+  getSubstringHashCode: SubstringHasher;
 
   /**
    * @see {@link TokenizerOptions.isStrict}
@@ -172,28 +167,32 @@ export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerCon
   } = options;
 
   // Functions that depend on whether tag names are case-insensitive
-  const normalizeTagName = areTagNamesCaseInsensitive ? toASCIILowerCase : identity;
-  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const normalizeTagName = areTagNamesCaseInsensitive ? toLowerCase : identity;
+  const getSubstringHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
   const areSubstringsEqual = areTagNamesCaseInsensitive
     ? areCaseInsensitiveSubstringsEqual
     : areCaseSensitiveSubstringsEqual;
 
-  const contextMap = new Map<TokenizerContextOptions, TokenizerContext>();
-
-  const initialContext = resolveTokenizerContextOptions(options, contextMap);
-
-  resolveContextTags(contextMap, normalizeTagName, getTagHashCode);
-
   return {
-    initialContext,
+    rootContext: resolveContexts(options, normalizeTagName, getSubstringHashCode),
     areUnbalancedStartTagsImplicitlyEnded,
     areUnbalancedEndTagsIgnored,
     areTagNamesCaseInsensitive,
     areSubstringsEqual,
-    getTagHashCode,
+    getSubstringHashCode,
     isStrict,
     isFragment: false,
   };
+}
+
+type TagMapping = Record<string, TagParsingOptions> | undefined;
+
+/**
+ * Contexts that share a {@link TokenizerContextOptions.tags tags} record, and the tag configs created from it.
+ */
+interface TagsEntry {
+  contexts: TokenizerContext[];
+  tagConfigMap: Map<string, TagParsingConfig>;
 }
 
 /**
@@ -206,78 +205,51 @@ interface TagGroup {
   groupBit: number;
 
   /**
-   * @see {@link TagParsingConfig.implicitlyEndedBy}
+   * @see {@link TagParsingConfig.implicitEndingTagNameSet}
    */
-  implicitlyEndedBy: ReadonlySet<string>;
+  implicitEndingTagNameSet: ReadonlySet<string>;
 }
 
-/**
- * Options of a tag, read once.
- */
-interface ResolvedTagOptions {
-  /**
-   * @see {@link TagParsingOptions.kind}
-   */
-  kind: TagKind;
+// Groups from the 30th up share bit 29, the highest bit of a positive small integer, which V8 doesn't allocate
+const LAST_GROUP_BIT_INDEX = 29;
 
-  /**
-   * @see {@link TagParsingConfig.foreignContext}
-   */
-  foreignContext: TokenizerContext | undefined;
-
-  /**
-   * @see {@link TagParsingOptions.isImplicitEndingBoundary}
-   */
-  isImplicitEndingBoundary: boolean;
-
-  /**
-   * @see {@link TagParsingOptions.isImplicitlyStarted}
-   */
-  isImplicitlyStarted: boolean;
-
-  /**
-   * The group of the tag, or `undefined` if the tag can't be implicitly ended.
-   */
-  group: TagGroup | undefined;
-}
-
-// Options of a tag without options, like a tag that only ends tags of other contexts
-const noTagOptions: ResolvedTagOptions = {
-  kind: 'normal',
-  foreignContext: undefined,
-  isImplicitEndingBoundary: false,
-  isImplicitlyStarted: false,
-  group: undefined,
+// The empty set of ending tag names, shared by tags that can't be implicitly ended
+const emptyGroup: TagGroup = {
+  groupBit: 0,
+  implicitEndingTagNameSet: new Set(),
 };
 
+// Shared by configs that pass 2 creates for ending tags that have no options, so one isn't allocated per tag
+const emptyTagOptions: TagParsingOptions = {};
+
 /**
- * Builds the tag config table of each context, so {@link readTokens} looks up a start tag once. Foreign contexts of
- * tags are added to the context map and resolved too. Contexts with the same {@link TokenizerContextOptions.tags tags}
- * share the configs and the table.
+ * Resolves the initial context and the contexts of foreign tags reachable from it, and builds the tag config table of
+ * each, so {@link readTokens} looks up a start tag once. Contexts with the same
+ * {@link TokenizerContextOptions.tags tags} share the configs and the table.
  *
- * Tag names are normalized, and if several names in one tags record normalize to the same name, the last one wins.
+ * Tag names are normalized, and if several names in one tags record normalize to the same name, an error is thrown.
  * Tags that can be implicitly ended are grouped by the names of the tags that end them, and each group gets a bit, so
  * the groups of all enclosing tags fit into one bitmask.
  *
  * Options are read once and the results are kept, so a getter or a proxy that returns new objects on every read works
  * too.
  *
- * @param contextMap Contexts by their options. Contexts added while tags are resolved are resolved too.
+ * @param rootContextOptions Options of the context outside of foreign tags.
  * @param normalizeTagName Returns a tag name in lower case if tag names are case-insensitive, or as is.
+ * @param getSubstringHashCode Returns the hash code of a tag name.
+ * @returns The resolved initial context.
  * @see {@link createTagConfigTable}
  */
-function resolveContextTags(
-  contextMap: Map<TokenizerContextOptions, TokenizerContext>,
+function resolveContexts(
+  rootContextOptions: TokenizerContextOptions,
   normalizeTagName: (tagName: string) => string,
-  getTagHashCode: TagNameHashFunction
-): void {
-  type TagsRecord = Record<string, TagParsingOptions> | undefined;
+  getSubstringHashCode: SubstringHasher
+): TokenizerContext {
+  // Contexts by their options, filled while configs are created, since foreign tags reference contexts
+  const contextMap = new Map<TokenizerContextOptions, TokenizerContext>();
 
-  // The tags record of each context, read in pass 1
-  const contextTagsMap = new Map<TokenizerContextOptions, TagsRecord>();
-
-  // Tag options by normalized tag name, for each tags record
-  const tagOptionsMaps = new Map<TagsRecord, Map<string, ResolvedTagOptions>>();
+  // Entries by tags record, which is read once, in pass 1
+  const tagsEntryMap = new Map<TagMapping, TagsEntry>();
 
   // Groups by the sorted normalized names of the tags that end them
   const groupMap = new Map<string, TagGroup>();
@@ -285,122 +257,132 @@ function resolveContextTags(
   // Bits of the groups that a tag implicitly ends, by normalized tag name
   const endedGroupBitsMap = new Map<string, number>();
 
-  // Returns the group of tags that are implicitly ended by tags with normalized names
+  /**
+   * Returns the group of tags that are implicitly ended by the same tags, created once per set of names. A new group
+   * gets its bit, and each of its ending tags gets the bit too, so it knows which tags to end when it's started.
+   *
+   * @param endingTagNames Normalized names of the tags that implicitly end the tags of the group. Sorted in place, so
+   * callers must pass a fresh array.
+   */
   const getOrCreateGroup = (endingTagNames: string[]): TagGroup => {
-    const tagNames = Array.from(new Set(endingTagNames)).sort();
-    const groupKey = JSON.stringify(tagNames);
+    const implicitEndingTagNameSet = new Set(endingTagNames.sort());
+    const groupKey = Array.from(implicitEndingTagNameSet).join('\u0000');
 
     let group = groupMap.get(groupKey);
 
-    if (group === undefined) {
-      group = {
-        groupBit: 1 << Math.min(groupMap.size, LAST_GROUP_BIT_INDEX),
-        implicitlyEndedBy: new Set(tagNames),
-      };
+    if (group !== undefined) {
+      return group;
+    }
 
-      groupMap.set(groupKey, group);
+    group = {
+      groupBit: 1 << Math.min(groupMap.size, LAST_GROUP_BIT_INDEX),
+      implicitEndingTagNameSet,
+    };
 
-      // Each tag that ends this group gets its bit, so it knows which tags to end when it's started
-      for (const tagName of tagNames) {
-        endedGroupBitsMap.set(tagName, (endedGroupBitsMap.get(tagName) || 0) | group.groupBit);
-      }
+    groupMap.set(groupKey, group);
+
+    // Each tag that ends this group gets its bit, so it knows which tags to end when it's started
+    for (const tagName of implicitEndingTagNameSet) {
+      endedGroupBitsMap.set(tagName, endedGroupBitsMap.get(tagName)! | group.groupBit);
     }
     return group;
   };
 
-  const resolveTagOptions = (tagOptions: TagParsingOptions): ResolvedTagOptions => {
+  /**
+   * Creates the config of a tag. Options are read here, once, and a foreign context is added to the context map, so
+   * pass 1 visits it.
+   */
+  const createTagConfig = (tagName: string, tagOptions: TagParsingOptions): TagParsingConfig => {
     const {
       kind = 'normal',
       foreignContext,
-      implicitlyEndedBy,
+      implicitEndingTagNames,
       isImplicitEndingBoundary = false,
       isImplicitlyStarted = false,
     } = tagOptions;
 
-    // Any iterable is accepted, like a Set, although the type is an array
-    const endingTagNames = implicitlyEndedBy !== undefined ? Array.from(implicitlyEndedBy, normalizeTagName) : [];
+    let group = emptyGroup;
 
-    return {
-      kind,
-      foreignContext:
-        foreignContext !== undefined ? resolveTokenizerContextOptions(foreignContext, contextMap) : undefined,
-      isImplicitEndingBoundary,
-      isImplicitlyStarted,
+    if (implicitEndingTagNames !== undefined) {
+      const endingTagNames = Array.from(implicitEndingTagNames, normalizeTagName);
 
-      // Created in pass 1, so its ending tags get their bits before configs are created
-      group: endingTagNames.length !== 0 ? getOrCreateGroup(endingTagNames) : undefined,
-    };
-  };
-
-  const createTagConfig = (tagName: string, tagOptions: ResolvedTagOptions): TagParsingConfig => {
-    const { kind, foreignContext, isImplicitEndingBoundary, isImplicitlyStarted, group } = tagOptions;
+      if (endingTagNames.length !== 0) {
+        group = getOrCreateGroup(endingTagNames);
+      }
+    }
 
     return {
       tagName,
-      tagHashCode: getTagHashCode(tagName, 0, tagName.length),
+      tagHashCode: getSubstringHashCode(tagName, 0, tagName.length),
       kind,
-      foreignContext,
+      foreignContext: foreignContext !== undefined ? getOrCreateContext(foreignContext, contextMap) : undefined,
       isImplicitEndingBoundary,
       isImplicitlyStarted,
-      implicitlyEndedBy: group?.implicitlyEndedBy ?? noTagNames,
-      groupBit: group?.groupBit ?? 0,
-      endedGroupBits: endedGroupBitsMap.get(tagName) || 0,
+      implicitEndingTagNameSet: group.implicitEndingTagNameSet,
+      groupBit: group.groupBit,
+
+      // Groups can be created after this config, so the bits are set in pass 2
+      endedGroupBits: 0,
       isRawText: kind === 'raw_text' || kind === 'script_data',
     };
   };
 
-  // Pass 1 reads tag options, resolves foreign contexts and creates groups. The loop also visits contexts that are added
-  // to the map meanwhile.
-  for (const contextOptions of contextMap.keys()) {
+  const rootContext = getOrCreateContext(rootContextOptions, contextMap);
+
+  // Pass 1 creates configs, resolves foreign contexts and creates groups.
+  // The loop also visits contexts that are added to the map meanwhile.
+  for (const [contextOptions, context] of contextMap) {
     const { tags } = contextOptions;
 
-    contextTagsMap.set(contextOptions, tags);
+    const tagsEntry = tagsEntryMap.get(tags);
 
-    if (tagOptionsMaps.has(tags)) {
+    if (tagsEntry !== undefined) {
+      tagsEntry.contexts.push(context);
       continue;
     }
 
-    // If several names normalize to the same name, only the options of the last one are read
-    const lastTagOptionsMap = new Map<string, TagParsingOptions>();
+    const tagConfigMap = new Map<string, TagParsingConfig>();
 
-    if (tags !== undefined) {
-      for (const [tagName, tagOptions] of Object.entries(tags)) {
-        lastTagOptionsMap.set(normalizeTagName(tagName), tagOptions);
+    tagsEntryMap.set(tags, { contexts: [context], tagConfigMap });
+
+    if (tags === undefined) {
+      continue;
+    }
+
+    for (const tagName of Object.keys(tags)) {
+      const normalizedTagName = normalizeTagName(tagName);
+
+      if (tagConfigMap.has(normalizedTagName)) {
+        throw new Error('The tag "' + tagName + '" is duplicated.');
       }
+
+      tagConfigMap.set(normalizedTagName, createTagConfig(normalizedTagName, tags[tagName]));
     }
-
-    const tagOptionsMap = new Map<string, ResolvedTagOptions>();
-
-    for (const [tagName, tagOptions] of lastTagOptionsMap) {
-      tagOptionsMap.set(tagName, resolveTagOptions(tagOptions));
-    }
-
-    tagOptionsMaps.set(tags, tagOptionsMap);
   }
 
-  // Pass 2 creates configs. Tags are ended by name in any context, like br ends svg in HTML, so every table gets a
-  // config for each tag that ends a group, and its bits are known only after pass 1.
-  const tagConfigTableMap = new Map<TagsRecord, TagConfigTable>();
+  // Pass 2 sets the bits of the groups that each tag ends, which are known only after pass 1.
+  // Tags are ended by name in any context, like <br> ends <svg> in HTML, so every table also gets a config for each tag
+  // that ends a group. Tags that end nothing keep 0 from createTagConfig.
+  for (const { contexts, tagConfigMap } of tagsEntryMap.values()) {
+    for (const [tagName, endedGroupBits] of endedGroupBitsMap) {
+      let tagConfig = tagConfigMap.get(tagName);
 
-  for (const [tags, tagOptionsMap] of tagOptionsMaps) {
-    const tagConfigs: TagParsingConfig[] = [];
-
-    for (const [tagName, tagOptions] of tagOptionsMap) {
-      tagConfigs.push(createTagConfig(tagName, tagOptions));
-    }
-
-    for (const tagName of endedGroupBitsMap.keys()) {
-      if (!tagOptionsMap.has(tagName)) {
-        tagConfigs.push(createTagConfig(tagName, noTagOptions));
+      if (tagConfig === undefined) {
+        tagConfig = createTagConfig(tagName, emptyTagOptions);
+        tagConfigMap.set(tagName, tagConfig);
       }
+
+      tagConfig.endedGroupBits = endedGroupBits;
     }
 
-    tagConfigTableMap.set(tags, createTagConfigTable(tagConfigs));
+    const tagConfigTable = createTagConfigTable(tagConfigMap);
+
+    for (const context of contexts) {
+      context.tagConfigTable = tagConfigTable;
+    }
   }
 
-  for (const [contextOptions, context] of contextMap) {
-    context.tagConfigTable = tagConfigTableMap.get(contextTagsMap.get(contextOptions))!;
-  }
+  return rootContext;
 }
 
 /**
@@ -411,20 +393,23 @@ function resolveContextTags(
  * and the name, or an empty slot. At least half of the slots are empty, so lookups are short and always stop. Without
  * configs the table has two empty slots, so a lookup needs no check.
  *
- * Unlike a Map by hash code, the table keeps configs of tags with equal hash codes, and it's looked up as fast.
- *
- * @see {@link getTagConfig}
+ * @param tagConfigMap The configs to store in the table, by normalized tag name.
+ * @returns The hash table.
  */
-function createTagConfigTable(tagConfigs: TagParsingConfig[]): TagConfigTable {
+function createTagConfigTable(tagConfigMap: ReadonlyMap<string, TagParsingConfig>): TagConfigTable {
   let tableLength = 2;
 
-  while (tableLength < tagConfigs.length * 2) {
+  while (tableLength < tagConfigMap.size * 2) {
     tableLength *= 2;
   }
 
-  const tagConfigTable = new Array<TagParsingConfig | undefined>(tableLength).fill(undefined);
+  const tagConfigTable = [];
 
-  for (const tagConfig of tagConfigs) {
+  for (let i = 0; i < tableLength; ++i) {
+    tagConfigTable.push(undefined);
+  }
+
+  for (const tagConfig of tagConfigMap.values()) {
     let index = tagConfig.tagHashCode & (tableLength - 1);
 
     while (tagConfigTable[index] !== undefined) {
@@ -438,9 +423,14 @@ function createTagConfigTable(tagConfigs: TagParsingConfig[]): TagConfigTable {
 }
 
 /**
- * Returns the context of context options, created once per options object. {@link resolveContextTags} adds its tags.
+ * Returns the context of context options, created once per options object. A created context has an empty tag config
+ * table, which {@link resolveContexts} builds once the configs of all contexts are known.
+ *
+ * @param contextOptions Options of the context.
+ * @param contextMap Contexts by their options, where the context is looked up and stored.
+ * @returns The context.
  */
-function resolveTokenizerContextOptions(
+function getOrCreateContext(
   contextOptions: TokenizerContextOptions,
   contextMap: Map<TokenizerContextOptions, TokenizerContext>
 ): TokenizerContext {
@@ -467,4 +457,11 @@ function resolveTokenizerContextOptions(
   contextMap.set(contextOptions, context);
 
   return context;
+}
+
+/**
+ * Converts ASCII letters to lower case.
+ */
+function toLowerCase(str: string): string {
+  return str.replace(/[A-Z]+/g, str => str.toLowerCase());
 }

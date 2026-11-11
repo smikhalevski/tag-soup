@@ -1,7 +1,7 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type { TagParsingConfig, TokenizerConfig, TokenizerContext } from './resolveTokenizerOptions.ts';
 import type { TokenHandler, TokenizerWriter } from './types.ts';
-import { type SubstringEqualityComparer, toLowerCaseCharCode as importedToLowerCaseCharCode } from './utils.ts';
+import { type SubstringComparer, toLowerCaseCharCode as importedToLowerCaseCharCode } from './utils.ts';
 
 // Before the first tag or text of a document: spaces are skipped and DOCTYPE is recognized
 const SCOPE_PROLOGUE = 0;
@@ -167,7 +167,7 @@ export function createTagStack(config: TokenizerConfig): TagStack {
     countedTagCount: 0,
     outerContexts: [],
     cursor: -1,
-    context: config.initialContext,
+    context: config.rootContext,
     previousChunkTagCount: 0,
     isRootElementRead: false,
   };
@@ -355,7 +355,7 @@ const copyChunkTagNames = (tagStack: TagStack, input: string): void => {
  */
 const getEnclosingTagIndex = (
   tagStack: TagStack,
-  areSubstringsEqual: SubstringEqualityComparer,
+  areSubstringsEqual: SubstringComparer,
   endTagHashCode: number,
   input: string,
   endTagNameStartIndex: number,
@@ -470,7 +470,7 @@ const insertImplicitEndTagsBeforeStartTag = (
   input: string,
   tagNameStartIndex: number,
   tagNameEndIndex: number,
-  areSubstringsEqual: SubstringEqualityComparer
+  areSubstringsEqual: SubstringComparer
 ): TagParsingConfig | undefined => {
   const context = tagStack.context;
 
@@ -506,13 +506,17 @@ const balanceEndTag = (
   endTagNameStartIndex: number,
   endTagNameEndIndex: number
 ): void => {
-  const { areSubstringsEqual, getTagHashCode, areUnbalancedStartTagsImplicitlyEnded, areUnbalancedEndTagsIgnored } =
-    config;
+  const {
+    areSubstringsEqual,
+    getSubstringHashCode,
+    areUnbalancedStartTagsImplicitlyEnded,
+    areUnbalancedEndTagsIgnored,
+  } = config;
 
   // The index of "</"
   const endTagStartIndex = endTagNameStartIndex - 2;
 
-  const endTagHashCode = getTagHashCode(input, endTagNameStartIndex, endTagNameEndIndex);
+  const endTagHashCode = getSubstringHashCode(input, endTagNameStartIndex, endTagNameEndIndex);
 
   const enclosingTagIndex = getEnclosingTagIndex(
     tagStack,
@@ -579,7 +583,7 @@ const getTagConfig = (
   input: string,
   tagNameStartIndex: number,
   tagNameEndIndex: number,
-  areSubstringsEqual: SubstringEqualityComparer
+  areSubstringsEqual: SubstringComparer
 ): TagParsingConfig | undefined => {
   // The same lookup is written in readTokens, keep them in sync
   let tagConfig: TagParsingConfig | undefined;
@@ -627,7 +631,7 @@ const isImplicitlyEndedBy = (tagConfig: TagParsingConfig | undefined, endingTagC
   return (
     tagConfig !== undefined &&
     (tagConfig.groupBit & endingTagConfig.endedGroupBits) !== 0 &&
-    tagConfig.implicitlyEndedBy.has(endingTagConfig.tagName)
+    tagConfig.implicitEndingTagNameSet.has(endingTagConfig.tagName)
   );
 };
 
@@ -1125,7 +1129,7 @@ export function readTokens(
 
       const tagNameStartIndex = index;
 
-      // The name is hashed while it's read, rather than read again by config.getTagHashCode, which gives the same hash.
+      // The name is hashed while it's read, rather than read again by config.getSubstringHashCode, which gives the same hash.
       // Keep in sync with getCaseInsensitiveHashCode and getCaseSensitiveHashCode.
       let startTagHashCode = 5_381;
 
@@ -1525,7 +1529,7 @@ const isRawTextTagNameAt = (
   input: string,
   index: number,
   tagName: string,
-  areSubstringsEqual: SubstringEqualityComparer
+  areSubstringsEqual: SubstringComparer
 ): boolean => {
   const endIndex = index + tagName.length;
   const charCode = getCharCodeAt(input, endIndex);
@@ -1552,7 +1556,7 @@ const getScriptDataEndIndex = (
   input: string,
   index: number,
   tagName: string,
-  areSubstringsEqual: SubstringEqualityComparer
+  areSubstringsEqual: SubstringComparer
 ): number => {
   // Most "<" in script data aren't followed by the tag name, so its first char is compared before the whole name.
   // Ignoring case here also works for case-sensitive names, since this only filters.

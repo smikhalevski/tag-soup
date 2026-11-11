@@ -65,7 +65,7 @@ export function resolveSerializerOptions(options: SerializerOptions): Serializer
     encodeAttribute = identity,
   } = options;
 
-  const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  const getSubstringHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
 
   const tagConfigsMap = new Map<number, TagSerializationConfig[]>();
 
@@ -83,7 +83,7 @@ export function resolveSerializerOptions(options: SerializerOptions): Serializer
       isRawText: kind === 'raw_text' || kind === 'script_data',
     };
 
-    const tagHashCode = getTagHashCode(tagName, 0, tagName.length);
+    const tagHashCode = getSubstringHashCode(tagName, 0, tagName.length);
 
     const tagConfigs = tagConfigsMap.get(tagHashCode);
 

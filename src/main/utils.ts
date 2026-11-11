@@ -2,17 +2,17 @@ export function identity(str: string): string {
   return str;
 }
 
-const keptInstances: object[] = [];
+const retainedInstances: object[] = [];
 
 /**
  * Keeps instances alive while the module is loaded, one per class that token handlers use.
  *
- * A major garbage collection that finds no instance of a class drops its hidden class, which discards optimized
- * `readTokens` code that inlines methods or constructors of the class, so the next few parses are slow. A kept instance
- * keeps the hidden class.
+ * A major garbage collection that finds no instance of a class drops its hidden class, which discards optimized code
+ * that inlines methods or constructors of the class, so the next few parses are slow. A kept instance keeps the hidden
+ * class.
  */
 export function retainHiddenClasses(...instances: object[]): void {
-  keptInstances.push(...instances);
+  retainedInstances.push(...instances);
 }
 
 /**
@@ -21,14 +21,6 @@ export function retainHiddenClasses(...instances: object[]): void {
 export function toLowerCaseCharCode(charCode: number): number {
   // Lower case letters are the most common, and they're above "Z", so the first comparison passes them
   return charCode > /* Z */ 90 || charCode < /* A */ 65 ? charCode : charCode + 32;
-}
-
-/**
- * Converts ASCII letters to lower case. Unlike `String.prototype.toLowerCase`, other chars stay as is, since only ASCII
- * letters are case-insensitive in tag names.
- */
-export function toASCIILowerCase(str: string): string {
-  return str.replace(/[A-Z]+/g, substring => substring.toLowerCase());
 }
 
 // ----------------------------------------------------------
@@ -42,11 +34,11 @@ export function toASCIILowerCase(str: string): string {
  * Returns `true` if two substrings are equal. Substrings can be in different strings, since an enclosing tag can be
  * started in a previous chunk.
  */
-export type SubstringEqualityComparer = (
-  input1: string,
+export type SubstringComparer = (
+  str1: string,
   startIndex1: number,
   endIndex1: number,
-  input2: string,
+  str2: string,
   startIndex2: number,
   endIndex2: number
 ) => boolean;
@@ -129,7 +121,7 @@ export function areCaseInsensitiveSubstringsEqual(
 /**
  * Returns the hash code of a tag name.
  */
-export type TagNameHashFunction = (input: string, startIndex: number, endIndex: number) => number;
+export type SubstringHasher = (str: string, startIndex: number, endIndex: number) => number;
 
 /**
  * Returns the case-insensitive djb2 hash code of a substring: start with 5381, then for each char multiply by 33 and
@@ -138,29 +130,30 @@ export type TagNameHashFunction = (input: string, startIndex: number, endIndex: 
  * A hash code is the hash of the chars before the last one, times 33, plus the last char, modulo 2^30. Char codes are
  * below 2^30, so substrings with equal hash codes, equal lengths and equal preceding chars have equal last chars.
  * Comparisons of names with equal hash codes rely on this, and skip the last char by passing end indices minus 1 to a
- * {@link SubstringEqualityComparer}.
+ * {@link SubstringComparer}.
  *
- * readTokens hashes start tag names inline with the same formula, keep them in sync.
+ * {@link readTokens} hashes start tag names inline with the same formula, keep them in sync.
  */
-export function getCaseInsensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
+export function getCaseInsensitiveHashCode(str: string, startIndex: number, endIndex: number): number {
   let hashCode = 5_381;
 
   for (let i = startIndex; i < endIndex; ++i) {
-    hashCode = ((hashCode << 5) + hashCode + toLowerCaseCharCode(input.charCodeAt(i))) | 0;
+    hashCode = ((hashCode << 5) + hashCode + toLowerCaseCharCode(str.charCodeAt(i))) | 0;
   }
 
   return hashCode & 0x3fffffff;
 }
 
 /**
- * Returns the case-sensitive djb2 hash code of a substring, see {@link getCaseInsensitiveHashCode}. readTokens hashes
- * start tag names inline with the same formula, keep them in sync.
+ * Returns the case-sensitive djb2 hash code of a substring, see {@link getCaseInsensitiveHashCode}.
+ *
+ * {@link readTokens} hashes start tag names inline with the same formula, keep them in sync.
  */
-export function getCaseSensitiveHashCode(input: string, startIndex: number, endIndex: number): number {
+export function getCaseSensitiveHashCode(str: string, startIndex: number, endIndex: number): number {
   let hashCode = 5_381;
 
   for (let i = startIndex; i < endIndex; ++i) {
-    hashCode = ((hashCode << 5) + hashCode + input.charCodeAt(i)) | 0;
+    hashCode = ((hashCode << 5) + hashCode + str.charCodeAt(i)) | 0;
   }
 
   return hashCode & 0x3fffffff;
