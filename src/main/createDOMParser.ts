@@ -149,7 +149,7 @@ class DOMTokenHandler implements TokenHandler {
     this.rootNode = this.parentNode = config.isFragment ? new DocumentFragment() : new Document();
   }
 
-  text(startIndex: number, endIndex: number, input: string): void {
+  onText(startIndex: number, endIndex: number, input: string): void {
     const text = input.substring(startIndex, endIndex);
 
     // Called through a local, so the decoder gets `this` undefined
@@ -158,7 +158,7 @@ class DOMTokenHandler implements TokenHandler {
     this.parentNode.appendChild(new Text(this.isRawText ? text : decodeText(text)));
   }
 
-  startTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
+  onStartTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
     const element = new Element(input.substring(startIndex, endIndex));
 
     this.isRawText = tagConfig !== undefined && tagConfig.isRawText;
@@ -167,23 +167,23 @@ class DOMTokenHandler implements TokenHandler {
     this.parentNode = element;
   }
 
-  startTagClosing(): void {}
+  onStartTagClosing(): void {}
 
-  startTagSelfClosing(): void {
+  onStartTagSelfClosing(): void {
     this.isRawText = false;
     this.parentNode = this.parentNode.parentNode!;
   }
 
-  endTagName(): void {
+  onEndTagName(): void {
     this.isRawText = false;
     this.parentNode = this.parentNode.parentNode!;
   }
 
-  attributeName(startIndex: number, endIndex: number, input: string): void {
+  onAttributeName(startIndex: number, endIndex: number, input: string): void {
     this.pendingAttributeName = input.substring(startIndex, endIndex);
   }
 
-  attributeValue(startIndex: number, endIndex: number, input: string): void {
+  onAttributeValue(startIndex: number, endIndex: number, input: string): void {
     // Called through a local, so the decoder gets `this` undefined
     const decodeAttribute = this.decodeAttribute;
 
@@ -193,23 +193,23 @@ class DOMTokenHandler implements TokenHandler {
     );
   }
 
-  comment(startIndex: number, endIndex: number, input: string): void {
+  onComment(startIndex: number, endIndex: number, input: string): void {
     this.parentNode.appendChild(new Comment(input.substring(startIndex, endIndex)));
   }
 
-  processingInstructionTarget(startIndex: number, endIndex: number, input: string): void {
+  onProcessingInstructionTarget(startIndex: number, endIndex: number, input: string): void {
     this.piTarget = input.substring(startIndex, endIndex);
   }
 
-  processingInstructionData(startIndex: number, endIndex: number, input: string): void {
+  onProcessingInstructionData(startIndex: number, endIndex: number, input: string): void {
     this.parentNode.appendChild(new ProcessingInstruction(this.piTarget, input.substring(startIndex, endIndex)));
   }
 
-  cdataSection(startIndex: number, endIndex: number, input: string): void {
+  onCDATASection(startIndex: number, endIndex: number, input: string): void {
     this.parentNode.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
   }
 
-  doctypeName(startIndex: number, endIndex: number, input: string): void {
+  onDoctypeName(startIndex: number, endIndex: number, input: string): void {
     this.parentNode.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
   }
 }

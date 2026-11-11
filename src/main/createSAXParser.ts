@@ -232,7 +232,7 @@ class SAXTokenHandler implements TokenHandler {
     this.isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
   }
 
-  text(startIndex: number, endIndex: number, input: string): void {
+  onText(startIndex: number, endIndex: number, input: string): void {
     const handler = this.handler;
 
     if (handler.onText !== undefined) {
@@ -245,7 +245,7 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  startTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
+  onStartTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
     const handler = this.handler;
 
     let tagName;
@@ -268,7 +268,7 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  startTagClosing(): void {
+  onStartTagClosing(): void {
     const handler = this.handler;
 
     if (handler.onStartTagClosing !== undefined) {
@@ -281,7 +281,7 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  startTagSelfClosing(): void {
+  onStartTagSelfClosing(): void {
     const handler = this.handler;
 
     this.isRawText = false;
@@ -298,7 +298,7 @@ class SAXTokenHandler implements TokenHandler {
     --this.tagNameStackCursor;
   }
 
-  endTagName(): void {
+  onEndTagName(): void {
     const handler = this.handler;
 
     this.isRawText = false;
@@ -310,12 +310,12 @@ class SAXTokenHandler implements TokenHandler {
     --this.tagNameStackCursor;
   }
 
-  attributeName(startIndex: number, endIndex: number): void {
+  onAttributeName(startIndex: number, endIndex: number): void {
     this.attributeNameStartIndex = startIndex;
     this.attributeNameEndIndex = endIndex;
   }
 
-  attributeValue(startIndex: number, endIndex: number, input: string): void {
+  onAttributeValue(startIndex: number, endIndex: number, input: string): void {
     const handler = this.handler;
     const attributes = this.attributes;
 
@@ -342,18 +342,18 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  comment(startIndex: number, endIndex: number, input: string): void {
+  onComment(startIndex: number, endIndex: number, input: string): void {
     if (this.handler.onComment !== undefined) {
       this.handler.onComment(input.substring(startIndex, endIndex));
     }
   }
 
-  processingInstructionTarget(startIndex: number, endIndex: number): void {
+  onProcessingInstructionTarget(startIndex: number, endIndex: number): void {
     this.piTargetStartIndex = startIndex;
     this.piTargetEndIndex = endIndex;
   }
 
-  processingInstructionData(startIndex: number, endIndex: number, input: string): void {
+  onProcessingInstructionData(startIndex: number, endIndex: number, input: string): void {
     if (this.handler.onProcessingInstruction !== undefined) {
       this.handler.onProcessingInstruction(
         input.substring(this.piTargetStartIndex, this.piTargetEndIndex),
@@ -362,13 +362,13 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  cdataSection(startIndex: number, endIndex: number, input: string): void {
+  onCDATASection(startIndex: number, endIndex: number, input: string): void {
     if (this.handler.onCDATASection !== undefined) {
       this.handler.onCDATASection(input.substring(startIndex, endIndex));
     }
   }
 
-  doctypeName(startIndex: number, endIndex: number, input: string): void {
+  onDoctypeName(startIndex: number, endIndex: number, input: string): void {
     if (this.handler.onDoctype !== undefined) {
       this.handler.onDoctype(input.substring(startIndex, endIndex));
     }

@@ -1994,7 +1994,7 @@ describe('createTokenizerWriter', () => {
   test('passes the tag config to the handler along with the start tag name, also of an implicitly started tag', () => {
     const config = resolveTokenizerOptions({ tags: { aaa: { kind: 'void' }, ccc: { isImplicitlyStarted: true } } });
     const tagConfigHandler: TokenHandler = new CallbackTokenHandler(() => {});
-    const startTagNameSpy = vi.spyOn(tagConfigHandler, 'startTagName');
+    const startTagNameSpy = vi.spyOn(tagConfigHandler, 'onStartTagName');
 
     createTokenizerWriter(tagConfigHandler, config).end('<aaa><bbb></bbb></ccc>');
 

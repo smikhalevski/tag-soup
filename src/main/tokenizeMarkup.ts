@@ -32,23 +32,23 @@ const toLowerCaseCharCode = importedToLowerCaseCharCode;
  * @internal
  */
 export interface TokenHandler {
-  text(startIndex: number, endIndex: number, input: string): void;
+  onText(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * @param tagConfig The tag config, or `undefined` if the context has none. Passed so the handler doesn't look it up.
    */
-  startTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void;
+  onStartTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void;
 
-  startTagClosing(startIndex: number, endIndex: number, input: string): void;
-  startTagSelfClosing(startIndex: number, endIndex: number, input: string): void;
-  endTagName(startIndex: number, endIndex: number, input: string): void;
-  attributeName(startIndex: number, endIndex: number, input: string): void;
-  attributeValue(startIndex: number, endIndex: number, input: string): void;
-  comment(startIndex: number, endIndex: number, input: string): void;
-  processingInstructionTarget(startIndex: number, endIndex: number, input: string): void;
-  processingInstructionData(startIndex: number, endIndex: number, input: string): void;
-  cdataSection(startIndex: number, endIndex: number, input: string): void;
-  doctypeName(startIndex: number, endIndex: number, input: string): void;
+  onStartTagClosing(startIndex: number, endIndex: number, input: string): void;
+  onStartTagSelfClosing(startIndex: number, endIndex: number, input: string): void;
+  onEndTagName(startIndex: number, endIndex: number, input: string): void;
+  onAttributeName(startIndex: number, endIndex: number, input: string): void;
+  onAttributeValue(startIndex: number, endIndex: number, input: string): void;
+  onComment(startIndex: number, endIndex: number, input: string): void;
+  onProcessingInstructionTarget(startIndex: number, endIndex: number, input: string): void;
+  onProcessingInstructionData(startIndex: number, endIndex: number, input: string): void;
+  onCDATASection(startIndex: number, endIndex: number, input: string): void;
+  onDoctypeName(startIndex: number, endIndex: number, input: string): void;
 }
 
 /**
@@ -322,18 +322,18 @@ const endEnclosingTags = (
 
   // The input ended inside a start tag, so close it
   if (scope === SCOPE_START_TAG) {
-    handler.startTagClosing(inputLength, inputLength, input);
+    handler.onStartTagClosing(inputLength, inputLength, input);
 
     const tagConfig = tagStack.tagConfigs[tagStack.cursor];
 
     if (tagConfig !== undefined && tagConfig.kind === 'void') {
-      handler.endTagName(inputLength, inputLength, input);
+      handler.onEndTagName(inputLength, inputLength, input);
       popTag(tagStack);
     }
   }
 
   while (tagStack.cursor !== -1) {
-    handler.endTagName(inputLength, inputLength, input);
+    handler.onEndTagName(inputLength, inputLength, input);
     popTag(tagStack);
   }
 };
@@ -481,7 +481,7 @@ const insertImplicitEndTags = (
   }
 
   while (index <= tagStack.cursor) {
-    handler.endTagName(insertionIndex, insertionIndex, input);
+    handler.onEndTagName(insertionIndex, insertionIndex, input);
     popTag(tagStack);
   }
 };
@@ -560,11 +560,11 @@ const balanceEndTag = (
 
     // End the tags inside the matching tag
     while (enclosingTagIndex < tagStack.cursor) {
-      handler.endTagName(endTagStartIndex, endTagStartIndex, input);
+      handler.onEndTagName(endTagStartIndex, endTagStartIndex, input);
       popTag(tagStack);
     }
 
-    handler.endTagName(endTagNameStartIndex, endTagNameEndIndex, input);
+    handler.onEndTagName(endTagNameStartIndex, endTagNameEndIndex, input);
     popTag(tagStack);
     return;
   }
@@ -590,9 +590,9 @@ const balanceEndTag = (
     insertImplicitEndTags(tagStack, handler, endTagConfig, endTagStartIndex, input);
   }
 
-  handler.startTagName(endTagNameStartIndex, endTagNameEndIndex, input, endTagConfig);
-  handler.startTagClosing(endTagNameEndIndex, endTagNameEndIndex + 1, input);
-  handler.endTagName(endTagNameStartIndex, endTagNameEndIndex, input);
+  handler.onStartTagName(endTagNameStartIndex, endTagNameEndIndex, input, endTagConfig);
+  handler.onStartTagClosing(endTagNameEndIndex, endTagNameEndIndex + 1, input);
+  handler.onEndTagName(endTagNameStartIndex, endTagNameEndIndex, input);
 };
 
 /**
@@ -828,12 +828,12 @@ export function readTokens(
           }
 
           if (textStartIndex !== tokenStartIndex) {
-            handler.text(textStartIndex, tokenStartIndex, input);
+            handler.onText(textStartIndex, tokenStartIndex, input);
           }
 
           // "</>" is ignored, and anything else is a bogus comment, like "#" in "</#>"
           if (commentEndIndex !== index) {
-            handler.comment(index, commentEndIndex, input);
+            handler.onComment(index, commentEndIndex, input);
           }
 
           // Skip ">"
@@ -866,7 +866,7 @@ export function readTokens(
         scope = SCOPE_TEXT;
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.text(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input);
         }
 
         const tagStackCursor = tagStack.cursor;
@@ -885,7 +885,7 @@ export function readTokens(
             tagNameEndIndex
           )
         ) {
-          handler.endTagName(tagNameStartIndex, tagNameEndIndex, input);
+          handler.onEndTagName(tagNameStartIndex, tagNameEndIndex, input);
 
           // popTag written inline, since V8 doesn't inline it on this hot path. Other pops are rarer and stay calls.
           // The tag is from this chunk, so previousChunkTagCount stays.
@@ -953,7 +953,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.text(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input);
         }
 
         // No target
@@ -966,7 +966,7 @@ export function readTokens(
           );
         }
 
-        handler.processingInstructionTarget(targetStartIndex, targetEndIndex, input);
+        handler.onProcessingInstructionTarget(targetStartIndex, targetEndIndex, input);
 
         if (isStrict && dataEndIndex === inputLength) {
           throw new MarkupSyntaxError(
@@ -977,7 +977,7 @@ export function readTokens(
           );
         }
 
-        handler.processingInstructionData(dataStartIndex, dataEndIndex, input);
+        handler.onProcessingInstructionData(dataStartIndex, dataEndIndex, input);
 
         // Skip "?>"
         index = dataEndIndex + 2;
@@ -1002,7 +1002,7 @@ export function readTokens(
           break outer;
         }
 
-        handler.doctypeName(doctypeNameStartIndex, doctypeNameEndIndex, input);
+        handler.onDoctypeName(doctypeNameStartIndex, doctypeNameEndIndex, input);
 
         // Skip ">"
         textStartIndex = index = skipSpaces(input, doctypeClosingIndex + 1);
@@ -1028,7 +1028,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.text(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input);
         }
 
         if (isStrict && cdataSectionEndIndex === inputLength) {
@@ -1040,7 +1040,7 @@ export function readTokens(
           );
         }
 
-        handler.cdataSection(cdataSectionStartIndex, cdataSectionEndIndex, input);
+        handler.onCDATASection(cdataSectionStartIndex, cdataSectionEndIndex, input);
 
         scope = SCOPE_TEXT;
 
@@ -1075,7 +1075,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.text(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input);
         }
 
         if (isStrict && commentEndIndex === inputLength) {
@@ -1087,7 +1087,7 @@ export function readTokens(
           );
         }
 
-        handler.comment(commentStartIndex, commentEndIndex, input);
+        handler.onComment(commentStartIndex, commentEndIndex, input);
 
         // Skip ">"
         index = commentClosingIndex + 1;
@@ -1110,7 +1110,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.text(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input);
         }
 
         if (isStrict) {
@@ -1132,7 +1132,7 @@ export function readTokens(
           ++index;
         }
 
-        handler.comment(index, commentEndIndex, input);
+        handler.onComment(index, commentEndIndex, input);
 
         // Skip ">"
         index = commentEndIndex + 1;
@@ -1215,7 +1215,7 @@ export function readTokens(
       }
 
       if (textStartIndex !== tokenStartIndex) {
-        handler.text(textStartIndex, tokenStartIndex, input);
+        handler.onText(textStartIndex, tokenStartIndex, input);
       }
 
       // getTagConfig written inline, since it doesn't fit into the inlining budget of readTokens. Keep them in sync.
@@ -1264,7 +1264,7 @@ export function readTokens(
         tagStack.isRootElementRead = true;
       }
 
-      handler.startTagName(tagNameStartIndex, tagNameEndIndex, input, startTagConfig);
+      handler.onStartTagName(tagNameStartIndex, tagNameEndIndex, input, startTagConfig);
 
       // Push written inline, since a push function would compete for the inlining budget of readTokens and stay a call
       const tagStackCursor = ++tagStack.cursor;
@@ -1328,7 +1328,7 @@ export function readTokens(
           // Skip "/>"
           index += 2;
 
-          handler.startTagSelfClosing(tokenStartIndex, index, input);
+          handler.onStartTagSelfClosing(tokenStartIndex, index, input);
 
           popTag(tagStack);
 
@@ -1355,11 +1355,11 @@ export function readTokens(
         // Skip ">"
         ++index;
 
-        handler.startTagClosing(tokenStartIndex, index, input);
+        handler.onStartTagClosing(tokenStartIndex, index, input);
 
         // A void tag is ended right after its start tag
         if (isStartTagVoid) {
-          handler.endTagName(index, index, input);
+          handler.onEndTagName(index, index, input);
           popTag(tagStack);
         }
 
@@ -1432,10 +1432,10 @@ export function readTokens(
           break outer;
         }
 
-        handler.attributeName(tokenStartIndex, attributeNameEndIndex, input);
+        handler.onAttributeName(tokenStartIndex, attributeNameEndIndex, input);
 
         if (!isStrict) {
-          handler.attributeValue(index, index, input);
+          handler.onAttributeValue(index, index, input);
           continue;
         }
 
@@ -1469,7 +1469,7 @@ export function readTokens(
           break outer;
         }
 
-        handler.attributeName(tokenStartIndex, attributeNameEndIndex, input);
+        handler.onAttributeName(tokenStartIndex, attributeNameEndIndex, input);
 
         if (isStrict) {
           throw new MarkupSyntaxError(
@@ -1480,7 +1480,7 @@ export function readTokens(
           );
         }
 
-        handler.attributeValue(index, (index = attributeValueEndIndex), input);
+        handler.onAttributeValue(index, (index = attributeValueEndIndex), input);
 
         charCode = getCharCodeAt(input, index);
         continue;
@@ -1500,7 +1500,7 @@ export function readTokens(
         break outer;
       }
 
-      handler.attributeName(tokenStartIndex, attributeNameEndIndex, input);
+      handler.onAttributeName(tokenStartIndex, attributeNameEndIndex, input);
 
       if (isStrict && index === inputLength) {
         throw new MarkupSyntaxError(
@@ -1513,7 +1513,7 @@ export function readTokens(
         );
       }
 
-      handler.attributeValue(attributeValueStartIndex, index, input);
+      handler.onAttributeValue(attributeValueStartIndex, index, input);
 
       // Skip closing quote char
       charCode = getCharCodeAt(input, ++index);
@@ -1525,7 +1525,7 @@ export function readTokens(
   if (isInputEnded) {
     // Trailing text, unless the input ended inside a start tag
     if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
-      handler.text(textStartIndex, inputLength, input);
+      handler.onText(textStartIndex, inputLength, input);
     }
     return inputLength;
   }
