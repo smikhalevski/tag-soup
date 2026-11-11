@@ -9,8 +9,8 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
+import { createTokenizerWriter } from './createTokenizerWriter.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import { createTokenizerWriter } from './tokenizeMarkup.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
 import { retainHiddenClasses } from './utils.ts';
 

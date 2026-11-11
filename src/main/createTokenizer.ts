@@ -1,5 +1,5 @@
+import { createTokenizerWriter } from './createTokenizerWriter.ts';
 import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenizerOptions.ts';
-import { createTokenizerWriter } from './tokenizeMarkup.ts';
 import type { TokenHandler, TokenizerOptions, TokenizerWriter } from './types.ts';
 
 /**
@@ -14,22 +14,22 @@ export interface Tokenizer {
    *
    * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
-   * @param text The text to read tokens from.
+   * @param input The text to read tokens from.
    * @param handler The handler that receives tokens.
    * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
    */
-  tokenizeDocument(text: string, handler: TokenHandler): void;
+  tokenizeDocument(input: string, handler: TokenHandler): void;
 
   /**
    * Reads tokens from a document fragment.
    *
    * DOCTYPE isn't recognized.
    *
-   * @param text The text to read tokens from.
+   * @param input The text to read tokens from.
    * @param handler The handler that receives tokens.
    * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
    */
-  tokenizeFragment(text: string, handler: TokenHandler): void;
+  tokenizeFragment(input: string, handler: TokenHandler): void;
 
   /**
    * Creates a writer that reads tokens from a document written in chunks.

@@ -1,7 +1,81 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type { TagParsingConfig, TokenizerConfig, TokenizerContext } from './resolveTokenizerOptions.ts';
 import type { TokenHandler, TokenizerWriter } from './types.ts';
-import { type SubstringComparer, toLowerCaseCharCode as importedToLowerCaseCharCode } from './utils.ts';
+import { type SubstringComparer, toLowerCaseCharCode as __toLowerCaseCharCode } from './utils.ts';
+
+/**
+ * Creates a writer that reads tokens from chunks of text and passes them to a handler. Tokens are balanced: each start
+ * tag gets an end tag, unless it's self-closing.
+ *
+ * @param handler The handler that receives tokens.
+ * @param config The config from {@link resolveTokenizerOptions}.
+ * @internal
+ */
+export function createTokenizerWriter(handler: TokenHandler, config: TokenizerConfig): TokenizerWriter {
+  const state = createTokenizerState(config);
+  const tagStack = createTagStack(config);
+
+  // The unread end of the previous input, the next chunk is appended to it
+  let unreadInput = '';
+  let isEnded = false;
+
+  const readChunk = (chunk: string, isInputEnded: boolean): void => {
+    if (isEnded) {
+      throw new Error('The writer was ended.');
+    }
+
+    // Nothing new to read
+    if (chunk.length === 0 && !isInputEnded) {
+      return;
+    }
+
+    // Stays `true` if reading throws, since the state can be inconsistent after that
+    isEnded = true;
+
+    // join() makes a flat string, which V8 reads faster than the cons string (two linked parts) that `+` makes
+    const input = unreadInput.length === 0 ? chunk : [unreadInput, chunk].join('');
+
+    try {
+      const unreadStartIndex = readTokens(input, isInputEnded, handler, config, state, tagStack);
+
+      if (isInputEnded) {
+        endEnclosingTags(tagStack, handler, config, state.scope, input);
+
+        // The writer stays ended
+        return;
+      }
+
+      copyChunkTagNames(tagStack, input);
+
+      unreadInput = input.substring(unreadStartIndex);
+      writer.inputOffset = state.inputOffset += unreadStartIndex;
+    } catch (error) {
+      writer.inputOffset = state.inputOffset;
+
+      // Error indices point into the input, so add where the input starts in the stream
+      if (error instanceof MarkupSyntaxError && error.input === input) {
+        error.inputOffset = state.inputOffset;
+      }
+      throw error;
+    }
+
+    isEnded = false;
+  };
+
+  const writer = {
+    inputOffset: 0,
+
+    write(chunk) {
+      readChunk(chunk, false);
+    },
+
+    end(chunk = '') {
+      readChunk(chunk, true);
+    },
+  } satisfies TokenizerWriter;
+
+  return writer;
+}
 
 // Before the first tag or text of a document: spaces are skipped and DOCTYPE is recognized
 const SCOPE_PROLOGUE = 0;
@@ -12,14 +86,13 @@ const SCOPE_TEXT = 1;
 // Inside a start tag, after its name. Saved in the state only when a chunk ends inside a start tag.
 const SCOPE_START_TAG = 2;
 
-// One of the SCOPE_* constants
 type Scope = typeof SCOPE_PROLOGUE | typeof SCOPE_TEXT | typeof SCOPE_START_TAG;
 
 // Selects the low 4 bits of a tag name hash code, the index in TagStack.enclosingTagHashCodeCounts
-const ENCLOSING_TAG_HASH_CODE_MASK = 15;
+const ENCLOSING_TAG_HASH_CODE_MASK = 0b1111;
 
 // V8 checks an imported function at every call, but inlines a local constant without a check
-const toLowerCaseCharCode = importedToLowerCaseCharCode;
+const toLowerCaseCharCode = __toLowerCaseCharCode;
 
 /**
  * Where reading resumes in the next chunk. The {@link TagStack} holds the rest of what reading needs to resume.
@@ -27,16 +100,16 @@ const toLowerCaseCharCode = importedToLowerCaseCharCode;
  * @see {@link createTokenizerState}
  * @internal
  */
-export interface TokenizerState {
+interface TokenizerState {
   /**
-   * One of the `SCOPE_*` constants.
+   * The scope in which the tokenizer has stopped.
    */
   scope: Scope;
 
   /**
    * The length of text at the start of the input that was already scanned and has no tokens, so it isn't scanned again.
    */
-  pendingTextLength: number;
+  scannedLength: number;
 
   /**
    * The index in the stream where the input starts. The stream is all chunks that were written, and the input is the
@@ -55,9 +128,7 @@ export interface TokenizerState {
  * @see {@link createTagStack}
  * @internal
  */
-export interface TagStack {
-  // Arrays indexed by tag
-
+interface TagStack {
   /**
    * Start indices of tag names in the input.
    */
@@ -91,8 +162,6 @@ export interface TagStack {
    */
   previousChunkTagNames: string[];
 
-  // The innermost tag, and the tags from previous chunks
-
   /**
    * The index of the innermost tag, or -1 if the stack is empty.
    */
@@ -103,14 +172,10 @@ export interface TagStack {
    */
   previousChunkTagCount: number;
 
-  // Groups of enclosing tags, for implicit ending
-
   /**
    * Bitwise OR of {@link TagParsingConfig.groupBit} of all enclosing tags.
    */
   enclosingGroupBits: number;
-
-  // Counts of enclosing tags by hash code bits, which are kept lazily
 
   /**
    * Counts of enclosing tags by the low 4 bits of their name hash code. If the count for an end tag is 0, no enclosing
@@ -127,8 +192,6 @@ export interface TagStack {
    */
   countedTagCount: number;
 
-  // The current context
-
   /**
    * The context of the content being read. Foreign tags switch it, so code reads it from here on every use.
    */
@@ -138,8 +201,6 @@ export interface TagStack {
    * The context outside each enclosing foreign tag, pushed when the tag starts and restored when it ends.
    */
   outerContexts: TokenizerContext[];
-
-  // The root element
 
   /**
    * `true` once the root element of a document was started, so a strict tokenizer rejects a second one.
@@ -181,85 +242,9 @@ export function createTagStack(config: TokenizerConfig): TagStack {
 export function createTokenizerState(config: TokenizerConfig): TokenizerState {
   return {
     scope: config.isFragment ? SCOPE_TEXT : SCOPE_PROLOGUE,
-    pendingTextLength: 0,
+    scannedLength: 0,
     inputOffset: 0,
   };
-}
-
-/**
- * Creates a writer that reads tokens from chunks of text and passes them to a handler. Tokens are balanced: each start
- * tag gets an end tag, unless it's self-closing.
- *
- * Parameters have no default values, since then V8 creates an extra context for the variables that the closures
- * capture, which is slower to create.
- *
- * @param handler The handler that receives tokens.
- * @param config The config from {@link resolveTokenizerOptions}.
- * @internal
- */
-export function createTokenizerWriter(handler: TokenHandler, config: TokenizerConfig): TokenizerWriter {
-  const state = createTokenizerState(config);
-  const tagStack = createTagStack(config);
-
-  // The unread end of the previous input, the next chunk is appended to it
-  let unreadInput = '';
-  let isEnded = false;
-
-  function read(chunk: string, isInputEnded: boolean): void {
-    if (isEnded) {
-      throw new Error('The writer is ended.');
-    }
-
-    // Nothing new to read
-    if (chunk.length === 0 && !isInputEnded) {
-      return;
-    }
-
-    // Stays `true` if reading throws, since the state can be inconsistent after that
-    isEnded = true;
-
-    // join() makes a flat string, which V8 reads faster than the cons string (two linked parts) that `+` makes
-    const input = unreadInput.length === 0 ? chunk : [unreadInput, chunk].join('');
-
-    try {
-      const unreadIndex = readTokens(input, isInputEnded, handler, config, state, tagStack);
-
-      if (isInputEnded) {
-        endEnclosingTags(tagStack, handler, config, state.scope, input);
-
-        // The writer stays ended
-        return;
-      }
-
-      copyChunkTagNames(tagStack, input);
-
-      unreadInput = input.substring(unreadIndex);
-      writer.inputOffset = state.inputOffset += unreadIndex;
-    } catch (error) {
-      // Error indices point into the input, so add where the input starts in the stream
-      if (error instanceof MarkupSyntaxError && error.input === input) {
-        error.inputOffset = state.inputOffset;
-      }
-      throw error;
-    }
-
-    isEnded = false;
-  }
-
-  // write and end don't use `this`, so they can be called without the writer as `this`
-  const writer = {
-    inputOffset: 0,
-
-    write(chunk) {
-      read(chunk, false);
-    },
-
-    end(chunk = '') {
-      read(chunk, true);
-    },
-  } satisfies TokenizerWriter;
-
-  return writer;
 }
 
 // Module-private helpers are `const` arrow functions: a function declaration is a mutable binding, so V8 checks it at
@@ -637,8 +622,7 @@ const isImplicitlyEndedBy = (tagConfig: TagParsingConfig | undefined, endingTagC
 
 /**
  * Reads tokens from text and passes them to a handler, balancing tags on the way: inserts missing end tags, ends and
- * starts tags implicitly, ignores or rejects stray end tags, and switches the context at foreign tags. Balancing is
- * done here rather than in a handler, since V8 doesn't inline a handler that big, so every tag would pay an extra call.
+ * starts tags implicitly, ignores or rejects stray end tags, and switches the context at foreign tags.
  *
  * If the input isn't ended, trailing text and a token that reaches the end of the input aren't passed to the handler,
  * since they can continue in the next chunk. Read the unread text followed by the next chunk with the same state and
@@ -667,35 +651,32 @@ export function readTokens(
 
   const inputLength = input.length;
 
-  // A token that reaches this index can continue in the next chunk, so reading stops. -1 if the input is ended.
+  // A token that reaches this index can continue in the next chunk, so reading stops, or -1 if the input is ended
   const openEndIndex = isInputEnded ? -1 : inputLength;
 
   const skipName = isStrict ? skipXMLName : skipHTMLName;
 
-  let scope: Scope = state.scope;
+  let scope = state.scope;
 
   let textStartIndex = scope === SCOPE_PROLOGUE ? skipSpaces(input, 0) : 0;
 
   // On resume the innermost tag is the start tag being read, or the raw text tag whose text is being read, since raw
   // text contains no tags
-  const innermostTagConfig = tagStack.cursor !== -1 ? tagStack.tagConfigs[tagStack.cursor] : undefined;
+  const tagConfig = tagStack.cursor !== -1 ? tagStack.tagConfigs[tagStack.cursor] : undefined;
 
   // Here raw text is any kind other than normal and void, including escapable_raw_text: its content has no tags. Unlike
   // TagParsingConfig.isRawText, which excludes escapable_raw_text, since parsers decode its text.
   let enclosingRawTextTagConfig =
-    innermostTagConfig !== undefined && innermostTagConfig.kind !== 'normal' && innermostTagConfig.kind !== 'void'
-      ? innermostTagConfig
-      : undefined;
+    tagConfig === undefined || tagConfig.kind === 'normal' || tagConfig.kind === 'void' ? undefined : tagConfig;
 
-  // 1 if enclosingRawTextTagConfig is set, 0 otherwise. Most tags check it, and V8 checks a small integer faster than
-  // an object or undefined: XML SAX is 8% faster in its own process.
-  let enclosingRawTextTagCount: 0 | 1 = enclosingRawTextTagConfig !== undefined ? 1 : 0;
+  // V8 checks a boolean faster than an object or undefined
+  let isEnclosingRawTextTag = enclosingRawTextTagConfig !== undefined;
 
   // `true` while a void start tag is read, so its closing also ends it
-  let isStartTagVoid = scope === SCOPE_START_TAG && innermostTagConfig?.kind === 'void';
+  let isStartTagVoid = scope === SCOPE_START_TAG && tagConfig?.kind === 'void';
 
   // Skip the pending text, scanned with the previous chunk
-  let index = textStartIndex + state.pendingTextLength;
+  let index = textStartIndex + state.scannedLength;
 
   // The index of the end tag that ends the enclosing script data
   let scriptDataEndIndex = -1;
@@ -718,9 +699,7 @@ export function readTokens(
   // Where the token being read starts, so reading can stop there
   let tokenStartIndex: number;
 
-  // "break outer" stops reading and "continue outer" goes to the next token. Plain break and continue only act on the
-  // inner loops: name loops, the config lookup and the attribute loop.
-  outer: while (true) {
+  nextToken: while (true) {
     tokenStartIndex = index;
 
     if (tokenStartIndex >= inputLength) {
@@ -799,7 +778,7 @@ export function readTokens(
           }
 
           // "</" is text inside raw text and at the end of the input
-          if (enclosingRawTextTagCount !== 0 || index === inputLength) {
+          if (isEnclosingRawTextTag || index === inputLength) {
             continue;
           }
 
@@ -827,7 +806,7 @@ export function readTokens(
 
         // Inside raw text only the end tag of the raw text tag counts. The end tag of script data was found in advance.
         if (
-          enclosingRawTextTagCount !== 0 &&
+          isEnclosingRawTextTag &&
           tokenStartIndex !== scriptDataEndIndex &&
           !isRawTextTagNameAt(input, tagNameStartIndex, enclosingRawTextTagConfig!.tagName, areSubstringsEqual)
         ) {
@@ -894,7 +873,7 @@ export function readTokens(
 
         // End the raw text tag
         enclosingRawTextTagConfig = undefined;
-        enclosingRawTextTagCount = 0;
+        isEnclosingRawTextTag = false;
 
         if (isStrict && getCharCodeAt(input, tagClosingIndex) !== /* > */ 62) {
           throw new MarkupSyntaxError(
@@ -911,7 +890,7 @@ export function readTokens(
       }
 
       // Raw text has no tokens other than its end tag, which is read above
-      if (enclosingRawTextTagCount !== 0) {
+      if (isEnclosingRawTextTag) {
         // "<" at the end of the input can be followed by the end tag in the next chunk
         if (index === openEndIndex) {
           break;
@@ -974,7 +953,11 @@ export function readTokens(
 
       // The char is checked first, so the call isn't made at the first tag of every document: with short documents V8
       // would inline it in place of hotter calls
-      if (charCode === /* ! */ 33 && scope === SCOPE_PROLOGUE && startsWithIgnoringCase(input, index, '!doctype')) {
+      if (
+        charCode === /* ! */ 33 &&
+        scope === SCOPE_PROLOGUE &&
+        isCaseInsensitiveSubstringAt(input, index, '!doctype')
+      ) {
         // Skip "!DOCTYPE"
         const doctypeNameStartIndex = skipSpaces(input, index + 8);
         const doctypeNameEndIndex = skipName(input, doctypeNameStartIndex);
@@ -1129,8 +1112,8 @@ export function readTokens(
 
       const tagNameStartIndex = index;
 
-      // The name is hashed while it's read, rather than read again by config.getSubstringHashCode, which gives the same hash.
-      // Keep in sync with getCaseInsensitiveHashCode and getCaseSensitiveHashCode.
+      // The name is hashed while it's read, rather than read again by config.getSubstringHashCode, which gives the same
+      // hash. Keep in sync with getCaseInsensitiveHashCode and getCaseSensitiveHashCode.
       let startTagHashCode = 5_381;
 
       if (isXMLNameStartChar(charCode)) {
@@ -1276,7 +1259,7 @@ export function readTokens(
         // Start of a raw text tag of any kind
         if (!isStartTagVoid) {
           enclosingRawTextTagConfig = startTagConfig;
-          enclosingRawTextTagCount = 1;
+          isEnclosingRawTextTag = true;
         }
       }
 
@@ -1293,7 +1276,7 @@ export function readTokens(
       tokenStartIndex = index;
 
       if (tokenStartIndex >= inputLength) {
-        break outer;
+        break nextToken;
       }
 
       // Spaces are skipped here, in one place, rather than after the tag name and after each attribute
@@ -1317,16 +1300,16 @@ export function readTokens(
 
           // Self-closing raw text tag has no content
           enclosingRawTextTagConfig = undefined;
-          enclosingRawTextTagCount = 0;
+          isEnclosingRawTextTag = false;
 
           scope = SCOPE_TEXT;
           textStartIndex = index;
-          continue outer;
+          continue nextToken;
         }
 
         // ">" can be in the next chunk
         if (tokenStartIndex + 1 === openEndIndex) {
-          break outer;
+          break nextToken;
         }
       }
 
@@ -1358,7 +1341,7 @@ export function readTokens(
             areSubstringsEqual
           );
         }
-        continue outer;
+        continue nextToken;
       }
 
       // ----------------------------------------------------------
@@ -1412,7 +1395,7 @@ export function readTokens(
       if (charCode !== /* = */ 61) {
         // The name or "=" can be in the next chunk
         if (index === openEndIndex) {
-          break outer;
+          break nextToken;
         }
 
         if (isStrict) {
@@ -1447,7 +1430,7 @@ export function readTokens(
 
         // The value, or its opening quote char, can be in the next chunk
         if (attributeValueEndIndex === openEndIndex) {
-          break outer;
+          break nextToken;
         }
 
         if (isStrict) {
@@ -1477,7 +1460,7 @@ export function readTokens(
 
       // The closing quote char can be in the next chunk
       if (index === openEndIndex) {
-        break outer;
+        break nextToken;
       }
 
       if (isStrict && index === inputLength) {
@@ -1501,7 +1484,7 @@ export function readTokens(
   state.scope = scope;
 
   if (isInputEnded) {
-    // Trailing text, unless the input ended inside a start tag. Inside a raw text tag it's the raw text content.
+    // Trailing text, unless the input ended inside a start tag
     if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
       handler.onText?.(textStartIndex, inputLength, input, enclosingRawTextTagConfig?.isRawText === true);
     }
@@ -1511,7 +1494,7 @@ export function readTokens(
   // Text before the token can continue in the next chunk, so it's held back as pending text that isn't scanned again
   const resumeIndex = scope !== SCOPE_START_TAG && textStartIndex < tokenStartIndex ? textStartIndex : tokenStartIndex;
 
-  state.pendingTextLength = tokenStartIndex - resumeIndex;
+  state.scannedLength = tokenStartIndex - resumeIndex;
 
   return resumeIndex;
 }
@@ -1701,13 +1684,13 @@ const getIndexOfOrLength = (input: string, searchString: string, index: number):
  * Returns `true` if `![CDATA[` starts at index, ignoring case unless `isCaseSensitive`.
  */
 const isCDATASectionOpening = (input: string, index: number, isCaseSensitive: boolean): boolean => {
-  return isCaseSensitive ? input.startsWith('![CDATA[', index) : startsWithIgnoringCase(input, index, '![cdata[');
+  return isCaseSensitive ? input.startsWith('![CDATA[', index) : isCaseInsensitiveSubstringAt(input, index, '![cdata[');
 };
 
 /**
  * Returns `true` if a lower case prefix starts at index, ignoring the case of ASCII letters in the input.
  */
-const startsWithIgnoringCase = (input: string, index: number, lowerCasePrefix: string): boolean => {
+const isCaseInsensitiveSubstringAt = (input: string, index: number, lowerCasePrefix: string): boolean => {
   if (index + lowerCasePrefix.length > input.length) {
     return false;
   }
@@ -1725,12 +1708,12 @@ const startsWithIgnoringCase = (input: string, index: number, lowerCasePrefix: s
 // ----------------------------------------------------------
 
 // Flags of ASCII chars in asciiCharFlags
-const CHAR_FLAG_SPACE = 1;
-const CHAR_FLAG_HTML_NAME_END = 2;
-const CHAR_FLAG_HTML_ATTRIBUTE_NAME_END = 4;
-const CHAR_FLAG_UNQUOTED_ATTRIBUTE_VALUE_END = 8;
-const CHAR_FLAG_XML_NAME_START = 16;
-const CHAR_FLAG_XML_NAME = 32;
+const CHAR_FLAG_SPACE = 1 << 0;
+const CHAR_FLAG_HTML_NAME_END = 1 << 1;
+const CHAR_FLAG_HTML_ATTRIBUTE_NAME_END = 1 << 2;
+const CHAR_FLAG_UNQUOTED_ATTRIBUTE_VALUE_END = 1 << 3;
+const CHAR_FLAG_XML_NAME_START = 1 << 4;
+const CHAR_FLAG_XML_NAME = 1 << 5;
 
 // Flags by ASCII char code. A predicate that reads one flag fits into 30 bytes of bytecode, so V8 inlines it into
 // readTokens without spending the inlining budget. Other char codes, including -1, read undefined, which has no flags.
@@ -1775,10 +1758,10 @@ const isXMLNameStartChar = (charCode: number): boolean => {
   // Most names are ASCII, so other chars are checked in a separate function
   return charCode < 0x80
     ? (asciiCharFlags[charCode] & CHAR_FLAG_XML_NAME_START) !== 0
-    : isNonASCIIXMLNameStartChar(charCode);
+    : isXMLNameStartCharAboveASCII(charCode);
 };
 
-const isNonASCIIXMLNameStartChar = (charCode: number): boolean => {
+const isXMLNameStartCharAboveASCII = (charCode: number): boolean => {
   return (
     (charCode >= 0x000c0 && charCode <= 0x000d6) ||
     (charCode >= 0x000d8 && charCode <= 0x000f6) ||
@@ -1796,12 +1779,12 @@ const isNonASCIIXMLNameStartChar = (charCode: number): boolean => {
 };
 
 const isXMLNameChar = (charCode: number): boolean => {
-  return charCode < 0x80 ? (asciiCharFlags[charCode] & CHAR_FLAG_XML_NAME) !== 0 : isNonASCIIXMLNameChar(charCode);
+  return charCode < 0x80 ? (asciiCharFlags[charCode] & CHAR_FLAG_XML_NAME) !== 0 : isXMLNameCharAboveASCII(charCode);
 };
 
-const isNonASCIIXMLNameChar = (charCode: number): boolean => {
+const isXMLNameCharAboveASCII = (charCode: number): boolean => {
   return (
-    isNonASCIIXMLNameStartChar(charCode) ||
+    isXMLNameStartCharAboveASCII(charCode) ||
     charCode === 0xb7 ||
     (charCode >= 0x0300 && charCode <= 0x036f) ||
     (charCode >= 0x203f && charCode <= 0x2040)

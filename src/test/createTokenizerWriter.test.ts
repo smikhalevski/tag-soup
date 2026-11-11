@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+  createTagStack,
+  createTokenizerState,
+  createTokenizerWriter,
+  readTokens,
+} from '../main/createTokenizerWriter.ts';
 import type { TagParsingOptions, TokenHandler, TokenizerContextOptions, TokenizerOptions } from '../main/index.ts';
 import { MarkupSyntaxError } from '../main/MarkupSyntaxError.ts';
 import { resolveTokenizerOptions, type TokenizerConfig } from '../main/resolveTokenizerOptions.ts';
-import { createTagStack, createTokenizerState, createTokenizerWriter, readTokens } from '../main/tokenizeMarkup.ts';
 import { getCaseSensitiveHashCode } from '../main/utils.ts';
 
 const callbackMock = vi.fn();
@@ -2208,7 +2213,7 @@ describe('createTokenizerWriter', () => {
 
     writer.end();
 
-    expect(() => writer.write('aaa')).toThrow(new Error('The writer is ended.'));
+    expect(() => writer.write('aaa')).toThrow(new Error('The writer was ended.'));
   });
 
   test('throws if a chunk is written after an error', () => {
@@ -2216,6 +2221,6 @@ describe('createTokenizerWriter', () => {
     const writer = createTokenizerWriter(handler, config);
 
     expect(() => writer.write('</aaa>')).toThrow(MarkupSyntaxError);
-    expect(() => writer.write('bbb')).toThrow(new Error('The writer is ended.'));
+    expect(() => writer.write('bbb')).toThrow(new Error('The writer was ended.'));
   });
 });
