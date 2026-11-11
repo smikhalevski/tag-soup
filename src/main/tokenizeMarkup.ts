@@ -197,6 +197,7 @@ export function createTokenizerState(config: TokenizerConfig): TokenizerState {
  * Parameters have no default values, since then V8 creates an extra context for the variables that the closures
  * capture, which is slower to create.
  *
+ * @param handler The handler that receives tokens.
  * @param config The config from {@link resolveTokenizerOptions}.
  * @internal
  */
@@ -415,8 +416,11 @@ const getEnclosingTagIndex = (
  * Ends the outermost enclosing tag that a tag implicitly ends, and the tags inside it. Tags outside the nearest
  * implicit ending boundary aren't ended.
  *
+ * @param tagStack The stack of enclosing tags.
+ * @param handler The handler that receives the inserted end tags.
  * @param endingTagConfig The config of the tag that ends enclosing tags.
  * @param insertionIndex The index in the input that the inserted end tags point to.
+ * @param input The text that the insertion index points to.
  */
 const insertImplicitEndTags = (
   tagStack: TagStack,
@@ -454,7 +458,13 @@ const insertImplicitEndTags = (
  * Ends the enclosing tags that a start tag implicitly ends, and returns the config of the start tag in the context that
  * is current after that, since ending a foreign tag restores the outer context.
  *
+ * @param tagStack The stack of enclosing tags.
+ * @param handler The handler that receives the inserted end tags.
  * @param startTagConfig The config of the start tag in the context where it was read.
+ * @param input The text that indices point to.
+ * @param tagNameStartIndex The start index of the start tag name, inclusive.
+ * @param tagNameEndIndex The end index of the start tag name, exclusive.
+ * @param areHashedTagNamesEqual Compares tag names with equal hash codes.
  */
 const insertImplicitEndTagsBeforeStartTag = (
   tagStack: TagStack,
@@ -625,7 +635,12 @@ const isImplicitlyEndedBy = (tagConfig: TagParsingConfig | undefined, endingTagC
  * since they can continue in the next chunk. Read the unread text followed by the next chunk with the same state and
  * stack. Use {@link createTokenizerWriter}, which does that and ends tags at the end of the input.
  *
+ * @param input The text to read tokens from.
  * @param isInputEnded If `false` then more chunks can follow the input.
+ * @param handler The handler that receives tokens.
+ * @param config The config from {@link resolveTokenizerOptions}.
+ * @param state The state where reading resumes in the next chunk.
+ * @param tagStack The stack of enclosing tags.
  * @returns The index in the input where the unread text starts, or the input length if all of it was read.
  * @throws {@link MarkupSyntaxError} If {@link TokenizerConfig.isStrict} is `true` and input is malformed, or if
  *   options don't allow to balance tags.
@@ -700,7 +715,7 @@ export function readTokens(
     tokenStartIndex = index;
 
     if (tokenStartIndex >= inputLength) {
-      break outer;
+      break;
     }
 
     let charCode = input.charCodeAt(index);
@@ -721,7 +736,7 @@ export function readTokens(
           getCharCodeAt(input, index + 1) === /* < */ 60 ? index + 1 : getIndexOfOrLength(input, '<', index + 1);
 
         if (tokenStartIndex === inputLength) {
-          break outer;
+          break;
         }
       }
 
@@ -758,7 +773,7 @@ export function readTokens(
 
         // The name can continue in the next chunk
         if (index === openEndIndex) {
-          break outer;
+          break;
         }
 
         const tagNameEndIndex = index;
@@ -776,14 +791,14 @@ export function readTokens(
 
           // "</" is text inside raw text and at the end of the input
           if (enclosingRawTextTagCount !== 0 || index === inputLength) {
-            continue outer;
+            continue;
           }
 
           const commentEndIndex = skipUntilTagClosing(input, index);
 
           // ">" can be in the next chunk
           if (commentEndIndex === openEndIndex) {
-            break outer;
+            break;
           }
 
           if (textStartIndex !== tokenStartIndex) {
@@ -798,7 +813,7 @@ export function readTokens(
           // Skip ">"
           index = commentEndIndex + 1;
           textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
-          continue outer;
+          continue;
         }
 
         // Inside raw text only the end tag of the raw text tag counts. The end tag of script data was found in advance.
@@ -809,7 +824,7 @@ export function readTokens(
         ) {
           // Rescan the name as text, since it can contain the real end tag, like in "</a</script>"
           index = tagNameStartIndex;
-          continue outer;
+          continue;
         }
 
         // Any chars up to ">" are skipped, or only spaces if strict. Usually ">" follows the name, which saves a call.
@@ -818,7 +833,7 @@ export function readTokens(
 
         // ">" can be in the next chunk
         if (tagClosingIndex === openEndIndex) {
-          break outer;
+          break;
         }
 
         // An end tag ends the prologue
@@ -883,16 +898,16 @@ export function readTokens(
 
         // Skip ">"
         textStartIndex = index = tagClosingIndex + 1;
-        continue outer;
+        continue;
       }
 
       // Raw text has no tokens other than its end tag, which is read above
       if (enclosingRawTextTagCount !== 0) {
         // "<" at the end of the input can be followed by the end tag in the next chunk
         if (index === openEndIndex) {
-          break outer;
+          break;
         }
-        continue outer;
+        continue;
       }
 
       // ----------------------------------------------------------
@@ -910,7 +925,7 @@ export function readTokens(
 
         // "?>" can be in the next chunk
         if (dataEndIndex === openEndIndex) {
-          break outer;
+          break;
         }
 
         if (textStartIndex !== tokenStartIndex) {
@@ -941,7 +956,7 @@ export function readTokens(
         // Skip "?>"
         index = dataEndIndex + 2;
         textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
-        continue outer;
+        continue;
       }
 
       // ----------------------------------------------------------
@@ -958,14 +973,14 @@ export function readTokens(
 
         // ">" can be in the next chunk
         if (doctypeClosingIndex === openEndIndex) {
-          break outer;
+          break;
         }
 
         handler.onDoctypeName?.(doctypeNameStartIndex, doctypeNameEndIndex, input);
 
         // Skip ">"
         textStartIndex = index = skipSpaces(input, doctypeClosingIndex + 1);
-        continue outer;
+        continue;
       }
 
       // ----------------------------------------------------------
@@ -983,7 +998,7 @@ export function readTokens(
 
         // "]]>" can be in the next chunk
         if (cdataSectionEndIndex === openEndIndex) {
-          break outer;
+          break;
         }
 
         if (textStartIndex !== tokenStartIndex) {
@@ -1005,7 +1020,7 @@ export function readTokens(
 
         // Skip "]]>"
         textStartIndex = index = cdataSectionEndIndex + 3;
-        continue outer;
+        continue;
       }
 
       // ----------------------------------------------------------
@@ -1030,7 +1045,7 @@ export function readTokens(
 
         // The comment closing can be in the next chunk
         if (commentClosingIndex === openEndIndex) {
-          break outer;
+          break;
         }
 
         if (textStartIndex !== tokenStartIndex) {
@@ -1051,7 +1066,7 @@ export function readTokens(
         // Skip ">"
         index = commentClosingIndex + 1;
         textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
-        continue outer;
+        continue;
       }
 
       // ----------------------------------------------------------
@@ -1065,7 +1080,7 @@ export function readTokens(
 
         // ">" can be in the next chunk, and so can the rest of a comment, a CDATA section or a DOCTYPE opening
         if (commentEndIndex === openEndIndex) {
-          break outer;
+          break;
         }
 
         if (textStartIndex !== tokenStartIndex) {
@@ -1096,7 +1111,7 @@ export function readTokens(
         // Skip ">"
         index = commentEndIndex + 1;
         textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
-        continue outer;
+        continue;
       }
 
       // ----------------------------------------------------------
@@ -1152,7 +1167,7 @@ export function readTokens(
 
       // The name can continue in the next chunk
       if (index === openEndIndex) {
-        break outer;
+        break;
       }
 
       const tagNameEndIndex = index;
@@ -1170,7 +1185,7 @@ export function readTokens(
 
         // "<" is text, which ends the prologue
         scope = SCOPE_TEXT;
-        continue outer;
+        continue;
       }
 
       if (textStartIndex !== tokenStartIndex) {
@@ -1496,6 +1511,9 @@ export function readTokens(
  * Returns `true` if the name of a raw text tag starts at index and is followed by a space, `/` or `>`. Only such an end
  * tag ends raw text, so `</script` at the end of the input, or `</scripts>`, is text.
  *
+ * @param input The text to check.
+ * @param index The index in the input where the name is expected.
+ * @param tagName The name of the raw text tag.
  * @param areTagNamesEqual Compares all chars, since hash codes aren't known here.
  */
 const isRawTextTagNameAt = (
@@ -1519,7 +1537,10 @@ const isRawTextTagNameAt = (
  * After `<!--` script data is escaped, and a start tag with the script tag's name makes it double escaped. In double
  * escaped data an end tag of that name only returns to escaped, and `-->` ends escaping.
  *
+ * @param input The text to scan.
  * @param index The index in the input where script data starts.
+ * @param tagName The name of the script data tag.
+ * @param areTagNamesEqual Compares all chars, since hash codes aren't known here.
  * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
  */
 const getScriptDataEndIndex = (
@@ -1597,6 +1618,7 @@ const getScriptDataEndIndex = (
  * Returns the index where the content of an HTML comment ends. `-->` and `--!>` close a comment, and `<!-->` and
  * `<!--->` are empty. An unclosed comment ends with the input, except for a trailing `-`, `--` or `--!`.
  *
+ * @param input The text to scan.
  * @param index The index in the input where the content starts, after `<!--`.
  * @see [HTML Comment Start State](https://html.spec.whatwg.org/multipage/parsing.html#comment-start-state)
  */
