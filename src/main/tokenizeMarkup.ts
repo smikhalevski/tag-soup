@@ -238,7 +238,7 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
       copyChunkTagNames(tagStack, input);
 
       unreadInput = input.substring(unreadIndex);
-      state.inputOffset += unreadIndex;
+      writer.inputOffset = state.inputOffset += unreadIndex;
     } catch (error) {
       // Error indices point into the input, so add where the input starts in the stream
       if (error instanceof MarkupSyntaxError && error.input === input) {
@@ -251,19 +251,19 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
   }
 
   // write and end don't use `this`, so they can be called without the writer as `this`
-  return {
-    get inputOffset() {
-      return state.inputOffset;
-    },
+  const writer = {
+    inputOffset: 0,
 
-    write(chunk: string): void {
+    write(chunk) {
       read(chunk, false);
     },
 
-    end(chunk = ''): void {
+    end(chunk = '') {
       read(chunk, true);
     },
-  };
+  } satisfies TokenizerWriter;
+
+  return writer;
 }
 
 // Module-private helpers are `const` arrow functions: a function declaration is a mutable binding, so V8 checks it at
