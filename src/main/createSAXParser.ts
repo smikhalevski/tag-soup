@@ -1,6 +1,8 @@
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
-import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
+import type { TagParsingConfig } from './resolveTokenizerOptions.ts';
+import { createTokenizerWriter, type TokenHandler } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter } from './types.ts';
+import { keepHiddenClasses } from './utils.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
@@ -198,159 +200,179 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
 }
 
 /**
- * Creates a writer that parses chunks of text and calls {@link SAXHandler} methods when tokens are read.
+ * Creates a writer that parses chunks of text and calls {@link SAXHandler} methods.
  *
- * @param handler The token handler.
- * @param config The parser config.
  * @see {@link createTokenizerWriter}
- * @internal
  */
-export function createSAXParserWriter(handler: SAXHandler, config: ParserConfig): ParserWriter {
-  const { decodeText, decodeAttribute } = config;
-
-  const isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
-
-  const tokenizerState = createTokenizerState(config.initialContext);
-
-  const tagNameStack = ['', '', '', '', '', '', '', '', ''];
-
-  let tagNameStackCursor = -1;
-  let isRawText = false;
-  let attributeNameStartIndex = 0;
-  let attributeNameEndIndex = 0;
-  let piTargetStartIndex = 0;
-  let piTargetEndIndex = 0;
-  let attributes: Record<string, string> | undefined;
-
-  const tokenCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
-    switch (tokenKind) {
-      case 'text':
-        if (handler.onText !== undefined) {
-          const text = input.substring(startIndex, endIndex);
-
-          handler.onText(isRawText ? text : decodeText(text));
-        }
-        break;
-
-      case 'start_tag_name': {
-        const tagConfig = tokenizerState.tagConfig;
-
-        let tagName;
-
-        isRawText = tagConfig !== undefined && tagConfig.isRawText;
-
-        if (handler.onStartTagOpening !== undefined) {
-          tagName = input.substring(startIndex, endIndex);
-
-          handler.onStartTagOpening(tagName);
-        }
-
-        if (isTagNameStackUsed) {
-          tagNameStack[++tagNameStackCursor] = tagName !== undefined ? tagName : input.substring(startIndex, endIndex);
-        }
-
-        if (handler.onStartTag !== undefined) {
-          attributes = {};
-        }
-        break;
-      }
-
-      case 'start_tag_closing':
-        if (handler.onStartTagClosing !== undefined) {
-          handler.onStartTagClosing();
-        }
-
-        if (handler.onStartTag !== undefined) {
-          handler.onStartTag(tagNameStack[tagNameStackCursor], attributes!, false);
-          attributes = undefined;
-        }
-        break;
-
-      case 'end_tag_name':
-        isRawText = false;
-
-        if (handler.onEndTag !== undefined) {
-          handler.onEndTag(tagNameStack[tagNameStackCursor]);
-        }
-
-        --tagNameStackCursor;
-        break;
-
-      case 'attribute_name':
-        attributeNameStartIndex = startIndex;
-        attributeNameEndIndex = endIndex;
-        break;
-
-      case 'attribute_value': {
-        if (attributes === undefined && handler.onAttribute === undefined) {
-          break;
-        }
-
-        const name = input.substring(attributeNameStartIndex, attributeNameEndIndex);
-        const value = decodeAttribute(input.substring(startIndex, endIndex));
-
-        if (attributes !== undefined) {
-          if (name === '__proto__') {
-            Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
-          } else {
-            attributes[name] = value;
-          }
-        }
-
-        if (handler.onAttribute !== undefined) {
-          handler.onAttribute(name, value);
-        }
-        break;
-      }
-
-      case 'start_tag_self_closing':
-        isRawText = false;
-
-        if (handler.onStartTagSelfClosing !== undefined) {
-          handler.onStartTagSelfClosing();
-        }
-
-        if (handler.onStartTag !== undefined) {
-          handler.onStartTag(tagNameStack[tagNameStackCursor], attributes!, true);
-          attributes = undefined;
-        }
-
-        --tagNameStackCursor;
-        break;
-
-      case 'cdata_section':
-        if (handler.onCDATASection !== undefined) {
-          handler.onCDATASection(input.substring(startIndex, endIndex));
-        }
-        break;
-
-      case 'comment':
-        if (handler.onComment !== undefined) {
-          handler.onComment(input.substring(startIndex, endIndex));
-        }
-        break;
-
-      case 'doctype_name':
-        if (handler.onDoctype !== undefined) {
-          handler.onDoctype(input.substring(startIndex, endIndex));
-        }
-        break;
-
-      case 'processing_instruction_target':
-        piTargetStartIndex = startIndex;
-        piTargetEndIndex = endIndex;
-        break;
-
-      case 'processing_instruction_data':
-        if (handler.onProcessingInstruction !== undefined) {
-          handler.onProcessingInstruction(
-            input.substring(piTargetStartIndex, piTargetEndIndex),
-            input.substring(startIndex, endIndex)
-          );
-        }
-        break;
-    }
-  };
-
-  return createTokenizerWriter(tokenCallback, config, tokenizerState);
+function createSAXParserWriter(handler: SAXHandler, config: ParserConfig): ParserWriter {
+  return createTokenizerWriter(new SAXTokenHandler(handler, config), config);
 }
+
+/**
+ * Calls {@link SAXHandler} methods for tokens.
+ */
+class SAXTokenHandler implements TokenHandler {
+  handler: SAXHandler;
+  decodeText: (text: string) => string;
+  decodeAttribute: (value: string) => string;
+  isTagNameStackUsed: boolean;
+  tagNameStack = ['', '', '', '', '', '', '', '', ''];
+  tagNameStackCursor = -1;
+  isRawText = false;
+  attributeNameStartIndex = 0;
+  attributeNameEndIndex = 0;
+  piTargetStartIndex = 0;
+  piTargetEndIndex = 0;
+  attributes: Record<string, string> | undefined = undefined;
+
+  constructor(handler: SAXHandler, config: ParserConfig) {
+    this.handler = handler;
+    this.decodeText = config.decodeText;
+    this.decodeAttribute = config.decodeAttribute;
+    this.isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
+  }
+
+  text(startIndex: number, endIndex: number, input: string): void {
+    const handler = this.handler;
+
+    if (handler.onText !== undefined) {
+      const text = input.substring(startIndex, endIndex);
+
+      // Called through a local, so the decoder gets `this` undefined
+      const decodeText = this.decodeText;
+
+      handler.onText(this.isRawText ? text : decodeText(text));
+    }
+  }
+
+  startTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
+    const handler = this.handler;
+
+    let tagName;
+
+    this.isRawText = tagConfig !== undefined && tagConfig.isRawText;
+
+    if (handler.onStartTagOpening !== undefined) {
+      tagName = input.substring(startIndex, endIndex);
+
+      handler.onStartTagOpening(tagName);
+    }
+
+    if (this.isTagNameStackUsed) {
+      this.tagNameStack[++this.tagNameStackCursor] =
+        tagName !== undefined ? tagName : input.substring(startIndex, endIndex);
+    }
+
+    if (handler.onStartTag !== undefined) {
+      this.attributes = {};
+    }
+  }
+
+  startTagClosing(): void {
+    const handler = this.handler;
+
+    if (handler.onStartTagClosing !== undefined) {
+      handler.onStartTagClosing();
+    }
+
+    if (handler.onStartTag !== undefined) {
+      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, false);
+      this.attributes = undefined;
+    }
+  }
+
+  startTagSelfClosing(): void {
+    const handler = this.handler;
+
+    this.isRawText = false;
+
+    if (handler.onStartTagSelfClosing !== undefined) {
+      handler.onStartTagSelfClosing();
+    }
+
+    if (handler.onStartTag !== undefined) {
+      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, true);
+      this.attributes = undefined;
+    }
+
+    --this.tagNameStackCursor;
+  }
+
+  endTagName(): void {
+    const handler = this.handler;
+
+    this.isRawText = false;
+
+    if (handler.onEndTag !== undefined) {
+      handler.onEndTag(this.tagNameStack[this.tagNameStackCursor]);
+    }
+
+    --this.tagNameStackCursor;
+  }
+
+  attributeName(startIndex: number, endIndex: number): void {
+    this.attributeNameStartIndex = startIndex;
+    this.attributeNameEndIndex = endIndex;
+  }
+
+  attributeValue(startIndex: number, endIndex: number, input: string): void {
+    const handler = this.handler;
+    const attributes = this.attributes;
+
+    if (attributes === undefined && handler.onAttribute === undefined) {
+      return;
+    }
+
+    const name = input.substring(this.attributeNameStartIndex, this.attributeNameEndIndex);
+    // Called through a local, so the decoder gets `this` undefined
+    const decodeAttribute = this.decodeAttribute;
+    const value = decodeAttribute(input.substring(startIndex, endIndex));
+
+    if (attributes !== undefined) {
+      // Assigning __proto__ would set the prototype rather than add an attribute
+      if (name === '__proto__') {
+        Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
+      } else {
+        attributes[name] = value;
+      }
+    }
+
+    if (handler.onAttribute !== undefined) {
+      handler.onAttribute(name, value);
+    }
+  }
+
+  comment(startIndex: number, endIndex: number, input: string): void {
+    if (this.handler.onComment !== undefined) {
+      this.handler.onComment(input.substring(startIndex, endIndex));
+    }
+  }
+
+  processingInstructionTarget(startIndex: number, endIndex: number): void {
+    this.piTargetStartIndex = startIndex;
+    this.piTargetEndIndex = endIndex;
+  }
+
+  processingInstructionData(startIndex: number, endIndex: number, input: string): void {
+    if (this.handler.onProcessingInstruction !== undefined) {
+      this.handler.onProcessingInstruction(
+        input.substring(this.piTargetStartIndex, this.piTargetEndIndex),
+        input.substring(startIndex, endIndex)
+      );
+    }
+  }
+
+  cdataSection(startIndex: number, endIndex: number, input: string): void {
+    if (this.handler.onCDATASection !== undefined) {
+      this.handler.onCDATASection(input.substring(startIndex, endIndex));
+    }
+  }
+
+  doctypeName(startIndex: number, endIndex: number, input: string): void {
+    if (this.handler.onDoctype !== undefined) {
+      this.handler.onDoctype(input.substring(startIndex, endIndex));
+    }
+  }
+}
+
+keepHiddenClasses(new SAXTokenHandler({}, resolveParserOptions({})));

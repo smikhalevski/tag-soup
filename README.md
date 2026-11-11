@@ -300,8 +300,8 @@ inclusive and `endIndex` is exclusive.
 <dd>The name in a DOCTYPE declaration, <code>html</code> in <code>&lt;!DOCTYPE html&gt;</code>.</dd>
 </dl>
 
-Tokens are balanced: each start tag is followed by a matching end tag. End tags that the tokenizer inserts, for void
-tags and implicitly ended tags, have `startIndex` equal to `endIndex`.
+Tokens are balanced: each start tag is followed by a matching end tag, unless it's self-closing. End tags that the
+tokenizer inserts, for void tags and implicitly ended tags, have `startIndex` equal to `endIndex`.
 
 Use indices to read token values from the input:
 

@@ -1,8 +1,7 @@
 import { f } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
 import { expect, test } from 'vitest';
-import { createDOMParser, createDOMParserWriter } from '../main/createDOMParser.ts';
-import { resolveParserOptions } from '../main/resolveParserOptions.ts';
+import { createDOMParser } from '../main/createDOMParser.ts';
 
 test('parses text', () => {
   expect(createDOMParser().parseDocument('aaa')).toStrictEqual(f.doc('aaa'));
@@ -48,6 +47,26 @@ test('decodes attribute values with decodeAttribute', () => {
   );
 });
 
+test('calls decodeText and decodeAttribute with this undefined', () => {
+  const calls: unknown[][] = [];
+
+  createDOMParser({
+    decodeText(this: unknown, text: string) {
+      calls.push(['text', this]);
+      return text;
+    },
+    decodeAttribute(this: unknown, value: string) {
+      calls.push(['attribute', this]);
+      return value;
+    },
+  }).parseFragment('<aaa bbb="ccc">ddd</aaa>');
+
+  expect(calls).toStrictEqual([
+    ['attribute', undefined],
+    ['text', undefined],
+  ]);
+});
+
 test('parses comments in elements', () => {
   expect(createDOMParser().parseDocument('<aaa><!--xxx--></aaa>')).toEqual(f.doc(f.aaa(f.comment('xxx'))));
 });
@@ -64,20 +83,20 @@ test('parses DOCTYPE, processing instruction and text', () => {
   ).toEqual(f.doc(f.doctype('html'), f.pi('xxx', 'yyy'), 'vvv'));
 });
 
-test('parses DOCTYPE, text and quirky comment', () => {
+test('parses DOCTYPE, text and bogus comment', () => {
   expect(createDOMParser().parseDocument('   <!DOCTYPE html>   vvv   <?xxx yyy?>')).toEqual(
     f.doc(f.doctype('html'), 'vvv   ', f.comment('?xxx yyy?'))
   );
 });
 
-test('parses quirky comment, DOCTYPE and text', () => {
+test('parses bogus comment, DOCTYPE and text', () => {
   expect(createDOMParser().parseDocument('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ')).toEqual(
     f.doc(f.comment('?xxx yyy?'), f.doctype('html'), 'vvv   ')
   );
 });
 
 test('parses chunks', () => {
-  const writer = createDOMParserWriter(resolveParserOptions({}));
+  const writer = createDOMParser().createDocumentWriter();
 
   writer.write('<aaa>bb');
   writer.write('b</a');

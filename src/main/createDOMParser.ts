@@ -5,12 +5,15 @@ import {
   DocumentFragment,
   DocumentType,
   Element,
+  type ParentNode,
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
-import { type ParserOptions, type ParserWriter, type TokenCallback } from './types.ts';
+import type { TagParsingConfig } from './resolveTokenizerOptions.ts';
+import { ClosureWriter, createTokenizerWriter, type TokenHandler } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter } from './types.ts';
+import { keepHiddenClasses } from './utils.ts';
 
 /**
  * Parses text as a DOM.
@@ -107,93 +110,118 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 }
 
 /**
- * Creates a writer that parses chunks of text as a DOM.
+ * Creates a writer that parses chunks of text into a document, or into a fragment if {@link ParserConfig.isFragment} is
+ * `true`.
  *
- * @param config The parser config.
- * @returns The writer that returns the document node, or the document fragment node if
- * {@link ParserConfig.isFragment} is `true`.
  * @see {@link createTokenizerWriter}
- * @internal
  */
-export function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | DocumentFragment> {
-  const { isFragment, decodeText, decodeAttribute } = config;
+function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | DocumentFragment> {
+  const tokenHandler = new DOMTokenHandler(config);
 
-  const tokenizerState = createTokenizerState(config.initialContext);
+  const tokenizerWriter = createTokenizerWriter(tokenHandler, config);
 
-  const rootNode = isFragment ? new DocumentFragment() : new Document();
-
-  let parentNode = rootNode;
-  let isRawText = false;
-  let attributeName: string;
-  let piTarget: string;
-
-  const tokenCallback: TokenCallback = (tokenKind, startIndex, endIndex, input) => {
-    switch (tokenKind) {
-      case 'text': {
-        const text = input.substring(startIndex, endIndex);
-
-        parentNode.appendChild(new Text(isRawText ? text : decodeText(text)));
-        break;
-      }
-
-      case 'start_tag_name': {
-        const tagConfig = tokenizerState.tagConfig;
-
-        isRawText = tagConfig !== undefined && tagConfig.isRawText;
-
-        parentNode.appendChild((parentNode = new Element(input.substring(startIndex, endIndex))));
-        break;
-      }
-
-      case 'start_tag_closing':
-        break;
-
-      case 'end_tag_name':
-      case 'start_tag_self_closing':
-        isRawText = false;
-        parentNode = parentNode.parentNode!;
-        break;
-
-      case 'attribute_name':
-        attributeName = input.substring(startIndex, endIndex);
-        break;
-
-      case 'attribute_value':
-        (parentNode as Element).setAttribute(attributeName, decodeAttribute(input.substring(startIndex, endIndex)));
-        break;
-
-      case 'cdata_section':
-        parentNode.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
-        break;
-
-      case 'comment':
-        parentNode.appendChild(new Comment(input.substring(startIndex, endIndex)));
-        break;
-
-      case 'doctype_name':
-        parentNode.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
-        break;
-
-      case 'processing_instruction_target':
-        piTarget = input.substring(startIndex, endIndex);
-        break;
-
-      case 'processing_instruction_data':
-        parentNode.appendChild(new ProcessingInstruction(piTarget, input.substring(startIndex, endIndex)));
-        break;
-    }
-  };
-
-  const tokenizerWriter = createTokenizerWriter(tokenCallback, config, tokenizerState);
-
-  return {
-    write(chunk) {
+  return new ClosureWriter(
+    chunk => {
       tokenizerWriter.write(chunk);
     },
-
-    end(chunk) {
+    chunk => {
       tokenizerWriter.end(chunk);
-      return rootNode;
-    },
-  };
+      return tokenHandler.rootNode;
+    }
+  );
 }
+
+/**
+ * Builds a DOM from tokens.
+ */
+class DOMTokenHandler implements TokenHandler {
+  decodeText: (text: string) => string;
+  decodeAttribute: (value: string) => string;
+  rootNode: Document | DocumentFragment;
+  parentNode: ParentNode;
+  isRawText = false;
+  pendingAttributeName = '';
+  piTarget = '';
+
+  constructor(config: ParserConfig) {
+    this.decodeText = config.decodeText;
+    this.decodeAttribute = config.decodeAttribute;
+    this.rootNode = this.parentNode = config.isFragment ? new DocumentFragment() : new Document();
+  }
+
+  text(startIndex: number, endIndex: number, input: string): void {
+    const text = input.substring(startIndex, endIndex);
+
+    // Called through a local, so the decoder gets `this` undefined
+    const decodeText = this.decodeText;
+
+    this.parentNode.appendChild(new Text(this.isRawText ? text : decodeText(text)));
+  }
+
+  startTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
+    const element = new Element(input.substring(startIndex, endIndex));
+
+    this.isRawText = tagConfig !== undefined && tagConfig.isRawText;
+
+    this.parentNode.appendChild(element);
+    this.parentNode = element;
+  }
+
+  startTagClosing(): void {}
+
+  startTagSelfClosing(): void {
+    this.isRawText = false;
+    this.parentNode = this.parentNode.parentNode!;
+  }
+
+  endTagName(): void {
+    this.isRawText = false;
+    this.parentNode = this.parentNode.parentNode!;
+  }
+
+  attributeName(startIndex: number, endIndex: number, input: string): void {
+    this.pendingAttributeName = input.substring(startIndex, endIndex);
+  }
+
+  attributeValue(startIndex: number, endIndex: number, input: string): void {
+    // Called through a local, so the decoder gets `this` undefined
+    const decodeAttribute = this.decodeAttribute;
+
+    (this.parentNode as Element).setAttribute(
+      this.pendingAttributeName,
+      decodeAttribute(input.substring(startIndex, endIndex))
+    );
+  }
+
+  comment(startIndex: number, endIndex: number, input: string): void {
+    this.parentNode.appendChild(new Comment(input.substring(startIndex, endIndex)));
+  }
+
+  processingInstructionTarget(startIndex: number, endIndex: number, input: string): void {
+    this.piTarget = input.substring(startIndex, endIndex);
+  }
+
+  processingInstructionData(startIndex: number, endIndex: number, input: string): void {
+    this.parentNode.appendChild(new ProcessingInstruction(this.piTarget, input.substring(startIndex, endIndex)));
+  }
+
+  cdataSection(startIndex: number, endIndex: number, input: string): void {
+    this.parentNode.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
+  }
+
+  doctypeName(startIndex: number, endIndex: number, input: string): void {
+    this.parentNode.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
+  }
+}
+
+keepHiddenClasses(
+  new DOMTokenHandler(resolveParserOptions({})),
+  new Document(),
+  new DocumentFragment(),
+  new Element(''),
+  new Text(''),
+  new Comment(''),
+  new CDATASection(''),
+  new ProcessingInstruction('', ''),
+  new DocumentType('')
+);

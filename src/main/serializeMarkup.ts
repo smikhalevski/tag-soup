@@ -16,16 +16,12 @@ import { areCaseInsensitiveStringsEqual, getCaseInsensitiveHashCode, getCaseSens
 /**
  * Serializes a DOM node as an HTML/XML string.
  *
- * @param node The DOM node to serialize.
- * @param config The serializer config.
- * @returns The serialized node.
  * @internal
  */
 export function serializeMarkup(node: Node, config: SerializerConfig): string {
   const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = config;
 
-  // Text is the most common node, and comparing the node type is faster than instanceof checks that walk the prototype
-  // chain
+  // Text is the most common node, and a node type check is faster than instanceof, which walks the prototype chain
   if (node.nodeType === Node.TEXT_NODE) {
     return encodeText((node as Text).data);
   }
@@ -46,7 +42,7 @@ export function serializeMarkup(node: Node, config: SerializerConfig): string {
       const isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
-        // Text children are written here, rather than serialized recursively
+        // Text children are written here, which saves a recursive call
         if (child.nodeType === Node.TEXT_NODE) {
           output += isRawText ? (child as Text).data : encodeText((child as Text).data);
         } else {
@@ -96,7 +92,7 @@ export function serializeMarkup(node: Node, config: SerializerConfig): string {
 }
 
 /**
- * Returns the config of a tag, or `undefined` if options don't mention the tag.
+ * Returns the config of a tag, or `undefined` if it has none.
  */
 function getTagConfig(config: SerializerConfig, tagName: string): TagSerializationConfig | undefined {
   const { tagConfigsMap, areTagNamesCaseInsensitive } = config;

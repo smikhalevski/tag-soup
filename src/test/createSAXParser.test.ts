@@ -1,8 +1,7 @@
 import { decodeXML } from 'speedy-entities';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { createSAXParser, createSAXParserWriter } from '../main/createSAXParser.ts';
+import { createSAXParser } from '../main/createSAXParser.ts';
 import type { SAXHandler } from '../main/index.ts';
-import { resolveParserOptions } from '../main/resolveParserOptions.ts';
 
 const mockHandler = {
   onText: vi.fn(),
@@ -222,7 +221,7 @@ test('parses DOCTYPE, processing instruction and text', () => {
   expect(mockHandler.onProcessingInstruction).toHaveBeenNthCalledWith(1, 'xxx', 'yyy');
 });
 
-test('parses DOCTYPE, text and quirky comment', () => {
+test('parses DOCTYPE, text and bogus comment', () => {
   createSAXParser().parseDocument('   <!DOCTYPE html>   vvv   <?xxx yyy?>', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
@@ -245,7 +244,7 @@ test('parses DOCTYPE, text and quirky comment', () => {
   expect(mockHandler.onProcessingInstruction).not.toHaveBeenCalled();
 });
 
-test('parses quirky comment, DOCTYPE and text', () => {
+test('parses bogus comment, DOCTYPE and text', () => {
   createSAXParser().parseDocument('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
@@ -284,6 +283,26 @@ test('decodes attribute values with decodeAttribute', () => {
 
   expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'bbb', '<');
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
+});
+
+test('calls decodeText and decodeAttribute with this undefined', () => {
+  const calls: unknown[][] = [];
+
+  createSAXParser({
+    decodeText(this: unknown, text: string) {
+      calls.push(['text', this]);
+      return text;
+    },
+    decodeAttribute(this: unknown, value: string) {
+      calls.push(['attribute', this]);
+      return value;
+    },
+  }).parseDocument('<aaa bbb="ccc">ddd</aaa>', mockHandler);
+
+  expect(calls).toStrictEqual([
+    ['attribute', undefined],
+    ['text', undefined],
+  ]);
 });
 
 test('preserves __proto__ attribute', () => {
@@ -327,7 +346,7 @@ test('calls onEndTag if it is a single handler', () => {
 });
 
 test('parses chunks', () => {
-  const writer = createSAXParserWriter(mockHandler, resolveParserOptions({}));
+  const writer = createSAXParser().createDocumentWriter(mockHandler);
 
   writer.write('<aaa bbb="cc');
   writer.write('c">ddd</aaa>');

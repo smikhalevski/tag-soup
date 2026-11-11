@@ -1,5 +1,6 @@
+import { CallbackTokenHandler } from './CallbackTokenHandler.ts';
 import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenizerOptions.ts';
-import { createTokenizerState, createTokenizerWriter } from './tokenizeMarkup.ts';
+import { createTokenizerWriter } from './tokenizeMarkup.ts';
 import type { TokenCallback, TokenizerOptions, TokenizerWriter } from './types.ts';
 
 /**
@@ -65,8 +66,8 @@ export interface Tokenizer {
 /**
  * Creates a tokenizer that reads tokens from text and returns them by invoking a callback.
  *
- * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag. Missing tokens are inserted
- * if needed.
+ * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag, unless it's self-closing.
+ * Missing tokens are inserted if needed.
  *
  * @example
  * import { createTokenizer } from 'tag-soup';
@@ -95,19 +96,19 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
 
   return {
     tokenizeDocument(text, callback) {
-      createTokenizerWriter(callback, documentConfig, createTokenizerState(documentConfig.initialContext)).end(text);
+      createTokenizerWriter(new CallbackTokenHandler(callback), documentConfig).end(text);
     },
 
     tokenizeFragment(text, callback) {
-      createTokenizerWriter(callback, fragmentConfig, createTokenizerState(fragmentConfig.initialContext)).end(text);
+      createTokenizerWriter(new CallbackTokenHandler(callback), fragmentConfig).end(text);
     },
 
     createDocumentWriter(callback) {
-      return createTokenizerWriter(callback, documentConfig, createTokenizerState(documentConfig.initialContext));
+      return createTokenizerWriter(new CallbackTokenHandler(callback), documentConfig);
     },
 
     createFragmentWriter(callback) {
-      return createTokenizerWriter(callback, fragmentConfig, createTokenizerState(fragmentConfig.initialContext));
+      return createTokenizerWriter(new CallbackTokenHandler(callback), fragmentConfig);
     },
   };
 }

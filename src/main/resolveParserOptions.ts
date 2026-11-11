@@ -2,6 +2,9 @@ import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenize
 import type { ParserOptions } from './types.ts';
 import { identity } from './utils.ts';
 
+/**
+ * Resolved parser options: a tokenizer config with decoders.
+ */
 export interface ParserConfig extends TokenizerConfig {
   /**
    * @see {@link ParserOptions.decodeText}
@@ -15,7 +18,7 @@ export interface ParserConfig extends TokenizerConfig {
 }
 
 /**
- * Converts parser options into the config consumed by parsers.
+ * Converts parser options into a parser config.
  */
 export function resolveParserOptions(options: ParserOptions): ParserConfig {
   const { decodeText = identity, decodeAttribute = identity } = options;

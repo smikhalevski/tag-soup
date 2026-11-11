@@ -354,8 +354,9 @@ const htmlParserOptions: ParserOptions = {
   decodeAttribute: decodeHTMLAttribute,
 };
 
-// Inside SVG and MathML, svg and math don't switch options, and title is a tag rather than escapable raw text, since
-// SVG title is an integration point
+// Inside SVG and MathML, svg and math don't switch options again, and title is a normal tag rather than escapable raw
+// text, since SVG title is an HTML integration point, see
+// https://html.spec.whatwg.org/multipage/parsing.html#html-integration-point
 const foreignContentTags = {
   ...htmlParserOptions.tags,
 

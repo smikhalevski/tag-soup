@@ -1,17 +1,19 @@
 import type { SerializerOptions, TagKind } from './types.ts';
 import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, identity } from './utils.ts';
 
+/**
+ * Resolved serializer options.
+ */
 export interface SerializerConfig {
   /**
-   * The map from a hash code of a tag name to configs of tags with this hash code. Different names can have equal
-   * hash codes, so tags with the same hash code share an array, and their names are compared. Tags that are written
-   * the same way as tags that options don't mention aren't in the map.
+   * Tag configs by the hash code of the tag name, in arrays since names can share a hash code. Only `void`, `raw_text`
+   * and `script_data` tags are here, since other tags are written like tags that options don't mention. `undefined` if
+   * there are no such tags.
    */
   tagConfigsMap: Map<number, TagSerializationConfig[]> | undefined;
 
   /**
-   * If `true` then tag names are hashed with {@link getCaseInsensitiveHashCode} and compared with
-   * {@link areCaseInsensitiveStringsEqual}, otherwise with {@link getCaseSensitiveHashCode} and compared as is.
+   * If `true` then tag names are hashed and compared ignoring the case of ASCII letters.
    */
   areTagNamesCaseInsensitive: boolean;
 
@@ -31,9 +33,12 @@ export interface SerializerConfig {
   encodeAttribute: (value: string) => string;
 }
 
+/**
+ * Resolved serialization options of a tag.
+ */
 export interface TagSerializationConfig {
   /**
-   * The name of the tag, which is compared with names of elements that have the same hash code.
+   * The tag name, compared with names of elements that have the same hash code.
    */
   tagName: string;
 
@@ -49,7 +54,7 @@ export interface TagSerializationConfig {
 }
 
 /**
- * Converts serializer options into the config consumed by a serializer.
+ * Converts serializer options into a serializer config.
  */
 export function resolveSerializerOptions(options: SerializerOptions): SerializerConfig {
   const {
@@ -67,7 +72,7 @@ export function resolveSerializerOptions(options: SerializerOptions): Serializer
   for (const [tagName, tagOptions] of Object.entries(tags)) {
     const { kind = 'normal' } = tagOptions;
 
-    // Tags of these kinds are written the same way as tags that options don't mention
+    // Written like tags that options don't mention
     if (kind === 'normal' || kind === 'escapable_raw_text') {
       continue;
     }

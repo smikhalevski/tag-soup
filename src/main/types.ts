@@ -1,7 +1,7 @@
 /**
  * The kind of a tag, which defines what the tag can contain, and how parsers read it and serializers write it:
  *
- * - `'normal'`: tag can contain tags and text. Parsers decode this text {@link ParserOptions.decodeText}, and
+ * - `'normal'`: tag can contain tags and text. Parsers decode this text with {@link ParserOptions.decodeText}, and
  * serializers encode it with {@link SerializerOptions.encodeText}.
  * - `'void'`: tag can contain nothing. Parsers insert an end tag right after the start tag, and serializers write the
  * tag without an end tag and ignore its children.
@@ -197,7 +197,9 @@ export interface TagSerializationOptions {
  */
 export interface TokenizerContextOptions {
   /**
-   * The map from a tag name to options of the tag.
+   * The map from a tag name to options of the tag. If several keys differ only in case and
+   * {@link TokenizerOptions.areTagNamesCaseInsensitive tag names are case-insensitive}, the options of the last one are
+   * used.
    *
    * **Note:** These tags aren't applied to content of {@link TagParsingOptions.foreignContext foreign tags}, which is
    * read with tags of their own options.
