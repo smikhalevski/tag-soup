@@ -238,7 +238,6 @@ HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', {
   onText(startIndex, endIndex, input, isRawText) {
     // Handle text
   },
-  // ...other TokenHandler methods
 });
 ```
 
@@ -269,7 +268,7 @@ const myTokenizer = createTokenizer({
 myTokenizer.tokenizeFragment('<p><br></p>', tokenHandler);
 ```
 
-[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html) has a method per token. Indices
+[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html) has a method per token. All methods are optional, implement only the ones you need. Indices
 passed to a method point to the token's value in the input: start indices are inclusive and end indices are exclusive.
 
 <dl>
@@ -313,7 +312,6 @@ HTMLTokenizer.tokenizeFragment(input, {
     input.substring(valueStartIndex, valueEndIndex);
     // ⮕ 'x'
   },
-  // ...other TokenHandler methods
 });
 ```
 

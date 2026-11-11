@@ -52,19 +52,11 @@ test('passes tokens to the handler', () => {
 test('passes raw text to the handler', () => {
   const calls: unknown[][] = [];
 
+  // All other TokenHandler methods are optional
   const handler: TokenHandler = {
     onText(startIndex, endIndex, _input, isRawText) {
       calls.push(['onText', startIndex, endIndex, isRawText]);
     },
-    onStartTagName() {},
-    onStartTagClosing() {},
-    onStartTagSelfClosing() {},
-    onEndTagName() {},
-    onAttribute() {},
-    onComment() {},
-    onProcessingInstruction() {},
-    onCDATASection() {},
-    onDoctypeName() {},
   };
 
   const tokenizer = createTokenizer({ tags: { aaa: { kind: 'raw_text' } } });

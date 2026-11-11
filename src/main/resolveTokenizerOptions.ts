@@ -353,8 +353,8 @@ function resolveContextTags(
       foreignContext,
       isImplicitEndingBoundary,
       isImplicitlyStarted,
-      implicitlyEndedBy: group !== undefined ? group.implicitlyEndedBy : noTagNames,
-      groupBit: group !== undefined ? group.groupBit : 0,
+      implicitlyEndedBy: group?.implicitlyEndedBy ?? noTagNames,
+      groupBit: group?.groupBit ?? 0,
       endedGroupBits: endedGroupBitsMap.get(tagName) || 0,
       isRawText: kind === 'raw_text' || kind === 'script_data',
     };

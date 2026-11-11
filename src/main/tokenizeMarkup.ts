@@ -296,18 +296,18 @@ const endEnclosingTags = (
 
   // The input ended inside a start tag, so close it
   if (scope === SCOPE_START_TAG) {
-    handler.onStartTagClosing(inputLength, inputLength, input);
+    handler.onStartTagClosing?.(inputLength, inputLength, input);
 
     const tagConfig = tagStack.tagConfigs[tagStack.cursor];
 
-    if (tagConfig !== undefined && tagConfig.kind === 'void') {
-      handler.onEndTagName(inputLength, inputLength, input);
+    if (tagConfig?.kind === 'void') {
+      handler.onEndTagName?.(inputLength, inputLength, input);
       popTag(tagStack);
     }
   }
 
   while (tagStack.cursor !== -1) {
-    handler.onEndTagName(inputLength, inputLength, input);
+    handler.onEndTagName?.(inputLength, inputLength, input);
     popTag(tagStack);
   }
 };
@@ -333,7 +333,7 @@ const popTag = (tagStack: TagStack): void => {
 
   const tagConfig = tagStack.tagConfigs[cursor];
 
-  if (tagConfig !== undefined && tagConfig.foreignContext !== undefined) {
+  if (tagConfig?.foreignContext !== undefined) {
     tagStack.context = tagStack.outerContexts.pop()!;
   }
 };
@@ -455,7 +455,7 @@ const insertImplicitEndTags = (
   }
 
   while (index <= tagStack.cursor) {
-    handler.onEndTagName(insertionIndex, insertionIndex, input);
+    handler.onEndTagName?.(insertionIndex, insertionIndex, input);
     popTag(tagStack);
   }
 };
@@ -534,11 +534,11 @@ const balanceEndTag = (
 
     // End the tags inside the matching tag
     while (enclosingTagIndex < tagStack.cursor) {
-      handler.onEndTagName(endTagStartIndex, endTagStartIndex, input);
+      handler.onEndTagName?.(endTagStartIndex, endTagStartIndex, input);
       popTag(tagStack);
     }
 
-    handler.onEndTagName(endTagNameStartIndex, endTagNameEndIndex, input);
+    handler.onEndTagName?.(endTagNameStartIndex, endTagNameEndIndex, input);
     popTag(tagStack);
     return;
   }
@@ -564,9 +564,9 @@ const balanceEndTag = (
     insertImplicitEndTags(tagStack, handler, endTagConfig, endTagStartIndex, input);
   }
 
-  handler.onStartTagName(endTagNameStartIndex, endTagNameEndIndex, input);
-  handler.onStartTagClosing(endTagNameEndIndex, endTagNameEndIndex + 1, input);
-  handler.onEndTagName(endTagNameStartIndex, endTagNameEndIndex, input);
+  handler.onStartTagName?.(endTagNameStartIndex, endTagNameEndIndex, input);
+  handler.onStartTagClosing?.(endTagNameEndIndex, endTagNameEndIndex + 1, input);
+  handler.onEndTagName?.(endTagNameStartIndex, endTagNameEndIndex, input);
 };
 
 /**
@@ -678,8 +678,7 @@ export function readTokens(
   let enclosingRawTextTagCount: 0 | 1 = enclosingRawTextTagConfig !== undefined ? 1 : 0;
 
   // `true` while a void start tag is read, so its closing also ends it
-  let isStartTagVoid =
-    scope === SCOPE_START_TAG && innermostTagConfig !== undefined && innermostTagConfig.kind === 'void';
+  let isStartTagVoid = scope === SCOPE_START_TAG && innermostTagConfig?.kind === 'void';
 
   // Skip the pending text, scanned with the previous chunk
   let index = textStartIndex + state.pendingTextLength;
@@ -688,11 +687,7 @@ export function readTokens(
   let scriptDataEndIndex = -1;
 
   // Whether an end tag ends script data depends on all script data before it, so rescan it from the start
-  if (
-    scope !== SCOPE_START_TAG &&
-    enclosingRawTextTagConfig !== undefined &&
-    enclosingRawTextTagConfig.kind === 'script_data'
-  ) {
+  if (scope !== SCOPE_START_TAG && enclosingRawTextTagConfig?.kind === 'script_data') {
     index = scriptDataEndIndex = getScriptDataEndIndex(
       input,
       textStartIndex,
@@ -802,12 +797,12 @@ export function readTokens(
           }
 
           if (textStartIndex !== tokenStartIndex) {
-            handler.onText(textStartIndex, tokenStartIndex, input, false);
+            handler.onText?.(textStartIndex, tokenStartIndex, input, false);
           }
 
           // "</>" is ignored, and anything else is a bogus comment, like "#" in "</#>"
           if (commentEndIndex !== index) {
-            handler.onComment(index, commentEndIndex, input);
+            handler.onComment?.(index, commentEndIndex, input);
           }
 
           // Skip ">"
@@ -842,12 +837,7 @@ export function readTokens(
         if (textStartIndex !== tokenStartIndex) {
           // Only the end tag of the enclosing raw text tag gets here inside raw text, so the text before it is the
           // raw text content. isRawText excludes escapable_raw_text, since parsers decode its text.
-          handler.onText(
-            textStartIndex,
-            tokenStartIndex,
-            input,
-            enclosingRawTextTagCount !== 0 && enclosingRawTextTagConfig!.isRawText
-          );
+          handler.onText?.(textStartIndex, tokenStartIndex, input, enclosingRawTextTagConfig?.isRawText === true);
         }
 
         const tagStackCursor = tagStack.cursor;
@@ -866,7 +856,7 @@ export function readTokens(
             tagNameEndIndex
           )
         ) {
-          handler.onEndTagName(tagNameStartIndex, tagNameEndIndex, input);
+          handler.onEndTagName?.(tagNameStartIndex, tagNameEndIndex, input);
 
           // popTag written inline, since V8 doesn't inline it on this hot path. Other pops are rarer and stay calls.
           // The tag is from this chunk, so previousChunkTagCount stays.
@@ -881,7 +871,7 @@ export function readTokens(
 
           const tagConfig = tagStack.tagConfigs[tagStackCursor];
 
-          if (tagConfig !== undefined && tagConfig.foreignContext !== undefined) {
+          if (tagConfig?.foreignContext !== undefined) {
             tagStack.context = tagStack.outerContexts.pop()!;
           }
         } else {
@@ -934,7 +924,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input, false);
+          handler.onText?.(textStartIndex, tokenStartIndex, input, false);
         }
 
         // No target
@@ -956,7 +946,7 @@ export function readTokens(
           );
         }
 
-        handler.onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex, input);
+        handler.onProcessingInstruction?.(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex, input);
 
         // Skip "?>"
         index = dataEndIndex + 2;
@@ -981,7 +971,7 @@ export function readTokens(
           break outer;
         }
 
-        handler.onDoctypeName(doctypeNameStartIndex, doctypeNameEndIndex, input);
+        handler.onDoctypeName?.(doctypeNameStartIndex, doctypeNameEndIndex, input);
 
         // Skip ">"
         textStartIndex = index = skipSpaces(input, doctypeClosingIndex + 1);
@@ -1007,7 +997,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input, false);
+          handler.onText?.(textStartIndex, tokenStartIndex, input, false);
         }
 
         if (isStrict && cdataSectionEndIndex === inputLength) {
@@ -1019,7 +1009,7 @@ export function readTokens(
           );
         }
 
-        handler.onCDATASection(cdataSectionStartIndex, cdataSectionEndIndex, input);
+        handler.onCDATASection?.(cdataSectionStartIndex, cdataSectionEndIndex, input);
 
         scope = SCOPE_TEXT;
 
@@ -1054,7 +1044,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input, false);
+          handler.onText?.(textStartIndex, tokenStartIndex, input, false);
         }
 
         if (isStrict && commentEndIndex === inputLength) {
@@ -1066,7 +1056,7 @@ export function readTokens(
           );
         }
 
-        handler.onComment(commentStartIndex, commentEndIndex, input);
+        handler.onComment?.(commentStartIndex, commentEndIndex, input);
 
         // Skip ">"
         index = commentClosingIndex + 1;
@@ -1089,7 +1079,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input, false);
+          handler.onText?.(textStartIndex, tokenStartIndex, input, false);
         }
 
         if (isStrict) {
@@ -1111,7 +1101,7 @@ export function readTokens(
           ++index;
         }
 
-        handler.onComment(index, commentEndIndex, input);
+        handler.onComment?.(index, commentEndIndex, input);
 
         // Skip ">"
         index = commentEndIndex + 1;
@@ -1194,7 +1184,7 @@ export function readTokens(
       }
 
       if (textStartIndex !== tokenStartIndex) {
-        handler.onText(textStartIndex, tokenStartIndex, input, false);
+        handler.onText?.(textStartIndex, tokenStartIndex, input, false);
       }
 
       // getTagConfig written inline, since it doesn't fit into the inlining budget of readTokens. Keep them in sync.
@@ -1243,7 +1233,7 @@ export function readTokens(
         tagStack.isRootElementRead = true;
       }
 
-      handler.onStartTagName(tagNameStartIndex, tagNameEndIndex, input);
+      handler.onStartTagName?.(tagNameStartIndex, tagNameEndIndex, input);
 
       // Push written inline, since a push function would compete for the inlining budget of readTokens and stay a call
       const tagStackCursor = ++tagStack.cursor;
@@ -1307,7 +1297,7 @@ export function readTokens(
           // Skip "/>"
           index += 2;
 
-          handler.onStartTagSelfClosing(tokenStartIndex, index, input);
+          handler.onStartTagSelfClosing?.(tokenStartIndex, index, input);
 
           popTag(tagStack);
 
@@ -1334,11 +1324,11 @@ export function readTokens(
         // Skip ">"
         ++index;
 
-        handler.onStartTagClosing(tokenStartIndex, index, input);
+        handler.onStartTagClosing?.(tokenStartIndex, index, input);
 
         // A void tag is ended right after its start tag
         if (isStartTagVoid) {
-          handler.onEndTagName(index, index, input);
+          handler.onEndTagName?.(index, index, input);
           popTag(tagStack);
         }
 
@@ -1346,11 +1336,11 @@ export function readTokens(
         textStartIndex = index;
 
         // Script data can contain end tags that don't end it, so the one that does is found in advance
-        if (enclosingRawTextTagCount !== 0 && enclosingRawTextTagConfig!.kind === 'script_data') {
+        if (enclosingRawTextTagConfig?.kind === 'script_data') {
           index = scriptDataEndIndex = getScriptDataEndIndex(
             input,
             index,
-            enclosingRawTextTagConfig!.tagName,
+            enclosingRawTextTagConfig.tagName,
             areTagNamesEqual
           );
         }
@@ -1420,7 +1410,7 @@ export function readTokens(
           );
         }
 
-        handler.onAttribute(tokenStartIndex, attributeNameEndIndex, index, index, input);
+        handler.onAttribute?.(tokenStartIndex, attributeNameEndIndex, index, index, input);
         continue;
       }
 
@@ -1455,7 +1445,7 @@ export function readTokens(
           );
         }
 
-        handler.onAttribute(tokenStartIndex, attributeNameEndIndex, index, attributeValueEndIndex, input);
+        handler.onAttribute?.(tokenStartIndex, attributeNameEndIndex, index, attributeValueEndIndex, input);
 
         index = attributeValueEndIndex;
         charCode = getCharCodeAt(input, index);
@@ -1487,7 +1477,7 @@ export function readTokens(
         );
       }
 
-      handler.onAttribute(tokenStartIndex, attributeNameEndIndex, attributeValueStartIndex, index, input);
+      handler.onAttribute?.(tokenStartIndex, attributeNameEndIndex, attributeValueStartIndex, index, input);
 
       // Skip closing quote char
       charCode = getCharCodeAt(input, ++index);
@@ -1499,12 +1489,7 @@ export function readTokens(
   if (isInputEnded) {
     // Trailing text, unless the input ended inside a start tag. Inside a raw text tag it's the raw text content.
     if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
-      handler.onText(
-        textStartIndex,
-        inputLength,
-        input,
-        enclosingRawTextTagCount !== 0 && enclosingRawTextTagConfig!.isRawText
-      );
+      handler.onText?.(textStartIndex, inputLength, input, enclosingRawTextTagConfig?.isRawText === true);
     }
     return inputLength;
   }

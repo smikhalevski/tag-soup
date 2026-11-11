@@ -232,10 +232,7 @@ class SAXTokenHandler implements TokenHandler {
     if (handler.onText !== undefined) {
       const text = input.substring(startIndex, endIndex);
 
-      // Called through a local, so the decoder gets `this` undefined
-      const decodeText = this.decodeText;
-
-      handler.onText(isRawText ? text : decodeText(text));
+      handler.onText(isRawText ? text : (0, this.decodeText)(text));
     }
   }
 
@@ -251,8 +248,7 @@ class SAXTokenHandler implements TokenHandler {
     }
 
     if (this.isTagNameStackUsed) {
-      this.tagNameStack[++this.tagNameStackCursor] =
-        tagName !== undefined ? tagName : input.substring(startIndex, endIndex);
+      this.tagNameStack[++this.tagNameStackCursor] = tagName ?? input.substring(startIndex, endIndex);
     }
 
     if (handler.onStartTag !== undefined) {
@@ -263,9 +259,7 @@ class SAXTokenHandler implements TokenHandler {
   onStartTagClosing(): void {
     const handler = this.handler;
 
-    if (handler.onStartTagClosing !== undefined) {
-      handler.onStartTagClosing();
-    }
+    handler.onStartTagClosing?.();
 
     if (handler.onStartTag !== undefined) {
       handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, false);
@@ -276,9 +270,7 @@ class SAXTokenHandler implements TokenHandler {
   onStartTagSelfClosing(): void {
     const handler = this.handler;
 
-    if (handler.onStartTagSelfClosing !== undefined) {
-      handler.onStartTagSelfClosing();
-    }
+    handler.onStartTagSelfClosing?.();
 
     if (handler.onStartTag !== undefined) {
       handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, true);
@@ -289,11 +281,7 @@ class SAXTokenHandler implements TokenHandler {
   }
 
   onEndTagName(): void {
-    const handler = this.handler;
-
-    if (handler.onEndTag !== undefined) {
-      handler.onEndTag(this.tagNameStack[this.tagNameStackCursor]);
-    }
+    this.handler.onEndTag?.(this.tagNameStack[this.tagNameStackCursor]);
 
     --this.tagNameStackCursor;
   }
@@ -313,9 +301,7 @@ class SAXTokenHandler implements TokenHandler {
     }
 
     const name = input.substring(nameStartIndex, nameEndIndex);
-    // Called through a local, so the decoder gets `this` undefined
-    const decodeAttribute = this.decodeAttribute;
-    const value = decodeAttribute(input.substring(valueStartIndex, valueEndIndex));
+    const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
 
     if (attributes !== undefined) {
       // Assigning __proto__ would set the prototype rather than add an attribute
@@ -326,15 +312,11 @@ class SAXTokenHandler implements TokenHandler {
       }
     }
 
-    if (handler.onAttribute !== undefined) {
-      handler.onAttribute(name, value);
-    }
+    handler.onAttribute?.(name, value);
   }
 
   onComment(startIndex: number, endIndex: number, input: string): void {
-    if (this.handler.onComment !== undefined) {
-      this.handler.onComment(input.substring(startIndex, endIndex));
-    }
+    this.handler.onComment?.(input.substring(startIndex, endIndex));
   }
 
   onProcessingInstruction(
@@ -344,24 +326,18 @@ class SAXTokenHandler implements TokenHandler {
     dataEndIndex: number,
     input: string
   ): void {
-    if (this.handler.onProcessingInstruction !== undefined) {
-      this.handler.onProcessingInstruction(
-        input.substring(targetStartIndex, targetEndIndex),
-        input.substring(dataStartIndex, dataEndIndex)
-      );
-    }
+    this.handler.onProcessingInstruction?.(
+      input.substring(targetStartIndex, targetEndIndex),
+      input.substring(dataStartIndex, dataEndIndex)
+    );
   }
 
   onCDATASection(startIndex: number, endIndex: number, input: string): void {
-    if (this.handler.onCDATASection !== undefined) {
-      this.handler.onCDATASection(input.substring(startIndex, endIndex));
-    }
+    this.handler.onCDATASection?.(input.substring(startIndex, endIndex));
   }
 
   onDoctypeName(startIndex: number, endIndex: number, input: string): void {
-    if (this.handler.onDoctype !== undefined) {
-      this.handler.onDoctype(input.substring(startIndex, endIndex));
-    }
+    this.handler.onDoctype?.(input.substring(startIndex, endIndex));
   }
 }
 

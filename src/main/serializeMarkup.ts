@@ -39,7 +39,7 @@ export function serializeMarkup(node: Node, config: SerializerConfig): string {
       output += '>';
 
       // Text inside raw text tags isn't encoded
-      const isRawText = tagConfig !== undefined && tagConfig.isRawText;
+      const isRawText = tagConfig?.isRawText === true;
 
       for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
         // Text children are written here, which saves a recursive call
@@ -51,7 +51,7 @@ export function serializeMarkup(node: Node, config: SerializerConfig): string {
       }
 
       output += '</' + node.tagName + '>';
-    } else if (tagConfig !== undefined && tagConfig.kind === 'void') {
+    } else if (tagConfig?.kind === 'void') {
       output += '>';
     } else if (areSelfClosingTagsSupported) {
       output += '/>';

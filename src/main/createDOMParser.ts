@@ -158,8 +158,6 @@ class DOMTokenHandler implements TokenHandler {
     this.parentNode = element;
   }
 
-  onStartTagClosing(): void {}
-
   onStartTagSelfClosing(): void {
     this.parentNode = this.parentNode.parentNode!;
   }

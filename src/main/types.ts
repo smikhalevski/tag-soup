@@ -451,7 +451,6 @@ export interface TokenizerWriter extends ParserWriter {
    *     writer.inputOffset + startIndex;
    *     // ⮕ The index in the stream where the token starts
    *   },
-   *   // …other TokenHandler methods
    * });
    */
   readonly inputOffset: number;
@@ -459,7 +458,7 @@ export interface TokenizerWriter extends ParserWriter {
 
 /**
  * Receives tokens that are read from text, one method per token. Separate methods avoid a switch over a token kind,
- * and let the tokenizer inline small handlers.
+ * and let the tokenizer inline small handlers. All methods are optional, implement only the ones you need.
  *
  * Each method receives the start index of the first meaningful token char in the input (inclusive), the end index of
  * the last meaningful token char (exclusive), and the input that indices point to. A writer passes the part of the
@@ -478,7 +477,7 @@ export interface TokenHandler {
    * @param isRawText `true` if the text is the content of a `raw_text` or `script_data`
    * {@link TagParsingOptions.kind tag}, so parsers don't decode it.
    */
-  onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void;
+  onText?(startIndex: number, endIndex: number, input: string, isRawText: boolean): void;
 
   /**
    * Called when the tag name in a start tag is read, `p` in `<p>`.
@@ -487,7 +486,7 @@ export interface TokenHandler {
    * @param endIndex The end index of the tag name, exclusive.
    * @param input The text that indices point to.
    */
-  onStartTagName(startIndex: number, endIndex: number, input: string): void;
+  onStartTagName?(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * Called when the `>` that closes a start tag is read.
@@ -496,7 +495,7 @@ export interface TokenHandler {
    * @param endIndex The end index of the closing, exclusive.
    * @param input The text that indices point to.
    */
-  onStartTagClosing(startIndex: number, endIndex: number, input: string): void;
+  onStartTagClosing?(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * Called when the `/>` that closes a self-closing tag is read. Only called if
@@ -506,7 +505,7 @@ export interface TokenHandler {
    * @param endIndex The end index of the closing, exclusive.
    * @param input The text that indices point to.
    */
-  onStartTagSelfClosing(startIndex: number, endIndex: number, input: string): void;
+  onStartTagSelfClosing?(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * Called when the tag name in an end tag is read, `p` in `</p>`.
@@ -518,7 +517,7 @@ export interface TokenHandler {
    * @param endIndex The end index of the tag name, exclusive.
    * @param input The text that indices point to.
    */
-  onEndTagName(startIndex: number, endIndex: number, input: string): void;
+  onEndTagName?(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * Called when an attribute is read. Value indices point to the value without quotes, and are equal if the attribute
@@ -530,7 +529,7 @@ export interface TokenHandler {
    * @param valueEndIndex The end index of the attribute value, exclusive.
    * @param input The text that indices point to.
    */
-  onAttribute(
+  onAttribute?(
     nameStartIndex: number,
     nameEndIndex: number,
     valueStartIndex: number,
@@ -545,7 +544,7 @@ export interface TokenHandler {
    * @param endIndex The end index of the comment content, exclusive.
    * @param input The text that indices point to.
    */
-  onComment(startIndex: number, endIndex: number, input: string): void;
+  onComment?(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * Called when a processing instruction is read: in `<?xml version="1.0"?>` the target is `xml` and the data is
@@ -557,7 +556,7 @@ export interface TokenHandler {
    * @param dataEndIndex The end index of the data, exclusive.
    * @param input The text that indices point to.
    */
-  onProcessingInstruction(
+  onProcessingInstruction?(
     targetStartIndex: number,
     targetEndIndex: number,
     dataStartIndex: number,
@@ -572,7 +571,7 @@ export interface TokenHandler {
    * @param endIndex The end index of the content, exclusive.
    * @param input The text that indices point to.
    */
-  onCDATASection(startIndex: number, endIndex: number, input: string): void;
+  onCDATASection?(startIndex: number, endIndex: number, input: string): void;
 
   /**
    * Called when a DOCTYPE declaration is read. Indices point to the name, `html` in `<!DOCTYPE html>`.
@@ -581,5 +580,5 @@ export interface TokenHandler {
    * @param endIndex The end index of the name, exclusive.
    * @param input The text that indices point to.
    */
-  onDoctypeName(startIndex: number, endIndex: number, input: string): void;
+  onDoctypeName?(startIndex: number, endIndex: number, input: string): void;
 }

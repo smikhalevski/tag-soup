@@ -42,7 +42,6 @@ export interface Tokenizer {
    *     input.substring(startIndex, endIndex);
    *     // ⮕ The token text
    *   },
-   *   // …other TokenHandler methods
    * });
    *
    * writer.write('<p>Hello, ');
@@ -84,7 +83,6 @@ export interface Tokenizer {
  *   onStartTagName(startIndex, endIndex, input) {
  *     // Handle the start tag name here
  *   },
- *   // …other TokenHandler methods
  * });
  *
  * @param options Tokenizer options.
