@@ -1,6 +1,6 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type { TagParsingConfig, TokenizerConfig, TokenizerContext } from './resolveTokenizerOptions.ts';
-import type { ParserWriter, TokenHandler, TokenizerWriter } from './types.ts';
+import type { TokenHandler, TokenizerWriter } from './types.ts';
 import {
   type HashedTagNameEqualityComparer,
   type TagNameEqualityComparer,
@@ -240,39 +240,20 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
     isEnded = false;
   }
 
-  const writer = new ClosureTokenizerWriter(
-    chunk => {
+  // Methods don't use `this`, so they can be called without the writer as `this`
+  const writer = {
+    inputOffset: 0,
+
+    write(chunk: string): void {
       read(chunk, false);
     },
-    (chunk = '') => {
+
+    end(chunk = ''): void {
       read(chunk, true);
-    }
-  );
+    },
+  };
 
   return writer;
-}
-
-/**
- * A writer whose methods are closures, so they can be called without the writer as `this`.
- *
- * Writers aren't object literals: a writer outlives a scavenge, so V8 pretenures its literal once the function that
- * creates it is optimized. A dead writer in the old space keeps its closures, and the DOM that the handler built, alive
- * in scavenges until a major garbage collection, so every DOM is copied and promoted. Class instances aren't pretenured.
- *
- * @internal
- */
-export class ClosureWriter<TResult = void> implements ParserWriter<TResult> {
-  write: (chunk: string) => void;
-  end: (chunk?: string) => TResult;
-
-  constructor(write: (chunk: string) => void, end: (chunk?: string) => TResult) {
-    this.write = write;
-    this.end = end;
-  }
-}
-
-class ClosureTokenizerWriter extends ClosureWriter implements TokenizerWriter {
-  inputOffset = 0;
 }
 
 // Module-private helpers are `const` arrow functions: a function declaration is a mutable binding, so V8 checks it at

@@ -457,13 +457,7 @@ export interface TokenizerWriter extends ParserWriter {
 }
 
 /**
- * Receives tokens that are read from text, one method per token. Separate methods avoid a switch over a token kind,
- * and let the tokenizer inline small handlers. All methods are optional, implement only the ones you need.
- *
- * Each method receives the start index of the first meaningful token char in the input (inclusive), the end index of
- * the last meaningful token char (exclusive), and the input that indices point to. A writer passes the part of the
- * stream that it didn't read before, followed by the last written chunk, and this text starts at
- * {@link TokenizerWriter.inputOffset} in the stream.
+ * Receives tokens that are read from text, one method per token.
  *
  * @group Tokenizer
  */
@@ -498,8 +492,9 @@ export interface TokenHandler {
   onStartTagClosing?(startIndex: number, endIndex: number, input: string): void;
 
   /**
-   * Called when the `/>` that closes a self-closing tag is read. Only called if
-   * {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
+   * Called when the `/>` that closes a self-closing tag is read.
+   *
+   * Only called if {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
    *
    * @param startIndex The start index of the closing, inclusive.
    * @param endIndex The end index of the closing, exclusive.

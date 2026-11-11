@@ -10,7 +10,7 @@ import {
   Text,
 } from 'flyweight-dom';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import { ClosureWriter, createTokenizerWriter } from './tokenizeMarkup.ts';
+import { createTokenizerWriter } from './tokenizeMarkup.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
 import { retainHiddenClasses } from './utils.ts';
 
@@ -119,15 +119,16 @@ function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | Do
 
   const tokenizerWriter = createTokenizerWriter(tokenHandler, config);
 
-  return new ClosureWriter(
-    chunk => {
+  return {
+    write(chunk) {
       tokenizerWriter.write(chunk);
     },
-    chunk => {
+
+    end(chunk) {
       tokenizerWriter.end(chunk);
       return tokenHandler.rootNode;
-    }
-  );
+    },
+  };
 }
 
 /**
