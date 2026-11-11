@@ -41,6 +41,14 @@ export interface TokenizerState {
    * The length of text at the start of the input that was already scanned and has no tokens, so it isn't scanned again.
    */
   pendingTextLength: number;
+
+  /**
+   * The index in the stream where the input starts. The stream is all chunks that were written, and the input is the
+   * part of the stream that wasn't read before, followed by the last written chunk.
+   *
+   * @see {@link TokenizerWriter.inputOffset}
+   */
+  inputOffset: number;
 }
 
 /**
@@ -178,6 +186,7 @@ export function createTokenizerState(config: TokenizerConfig): TokenizerState {
   return {
     scope: config.isFragment ? SCOPE_TEXT : SCOPE_PROLOGUE,
     pendingTextLength: 0,
+    inputOffset: 0,
   };
 }
 
@@ -228,11 +237,11 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
       copyChunkTagNames(tagStack, input);
 
       unreadInput = input.substring(unreadIndex);
-      writer.inputOffset += unreadIndex;
+      state.inputOffset += unreadIndex;
     } catch (error) {
       // Error indices point into the input, so add where the input starts in the stream
       if (error instanceof MarkupSyntaxError && error.input === input) {
-        error.inputOffset = writer.inputOffset;
+        error.inputOffset = state.inputOffset;
       }
       throw error;
     }
@@ -240,9 +249,11 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
     isEnded = false;
   }
 
-  // Methods don't use `this`, so they can be called without the writer as `this`
-  const writer = {
-    inputOffset: 0,
+  // write and end don't use `this`, so they can be called without the writer as `this`
+  return {
+    get inputOffset() {
+      return state.inputOffset;
+    },
 
     write(chunk: string): void {
       read(chunk, false);
@@ -252,8 +263,6 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
       read(chunk, true);
     },
   };
-
-  return writer;
 }
 
 // Module-private helpers are `const` arrow functions: a function declaration is a mutable binding, so V8 checks it at
