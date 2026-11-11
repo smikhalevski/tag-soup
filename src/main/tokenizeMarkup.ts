@@ -1,11 +1,7 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type { TagParsingConfig, TokenizerConfig, TokenizerContext } from './resolveTokenizerOptions.ts';
 import type { TokenHandler, TokenizerWriter } from './types.ts';
-import {
-  type HashedTagNameEqualityComparer,
-  type TagNameEqualityComparer,
-  toLowerCaseCharCode as importedToLowerCaseCharCode,
-} from './utils.ts';
+import { type SubstringEqualityComparer, toLowerCaseCharCode as importedToLowerCaseCharCode } from './utils.ts';
 
 // Before the first tag or text of a document: spaces are skipped and DOCTYPE is recognized
 const SCOPE_PROLOGUE = 0;
@@ -351,14 +347,15 @@ const copyChunkTagNames = (tagStack: TagStack, input: string): void => {
 
 /**
  * Returns the index of the innermost tag with the name of the end tag, or -1 if there's none. Names are compared only
- * for tags with the hash code of the end tag, by `areHashedTagNamesEqual`, which relies on equal hash codes.
+ * for tags with the hash code of the end tag, and equal hash codes make the last chars equal, so comparisons skip them
+ * by passing end indices minus 1, see {@link getCaseInsensitiveHashCode}.
  *
  * First counts the tags pushed since the previous search, see {@link TagStack.countedTagCount}, so it updates the
  * stack.
  */
 const getEnclosingTagIndex = (
   tagStack: TagStack,
-  areHashedTagNamesEqual: HashedTagNameEqualityComparer,
+  areSubstringsEqual: SubstringEqualityComparer,
   endTagHashCode: number,
   input: string,
   endTagNameStartIndex: number,
@@ -384,13 +381,13 @@ const getEnclosingTagIndex = (
   for (; index >= previousChunkTagCount; --index) {
     if (
       tagHashCodes[index] === endTagHashCode &&
-      areHashedTagNamesEqual(
+      areSubstringsEqual(
         input,
         tagNameStartIndices[index],
-        tagNameEndIndices[index],
+        tagNameEndIndices[index] - 1,
         input,
         endTagNameStartIndex,
-        endTagNameEndIndex
+        endTagNameEndIndex - 1
       )
     ) {
       return index;
@@ -405,7 +402,7 @@ const getEnclosingTagIndex = (
 
     const tagName = previousChunkTagNames[index];
 
-    if (areHashedTagNamesEqual(tagName, 0, tagName.length, input, endTagNameStartIndex, endTagNameEndIndex)) {
+    if (areSubstringsEqual(tagName, 0, tagName.length - 1, input, endTagNameStartIndex, endTagNameEndIndex - 1)) {
       return index;
     }
   }
@@ -464,7 +461,7 @@ const insertImplicitEndTags = (
  * @param input The text that indices point to.
  * @param tagNameStartIndex The start index of the start tag name, inclusive.
  * @param tagNameEndIndex The end index of the start tag name, exclusive.
- * @param areHashedTagNamesEqual Compares tag names with equal hash codes.
+ * @param areSubstringsEqual Compares substrings.
  */
 const insertImplicitEndTagsBeforeStartTag = (
   tagStack: TagStack,
@@ -473,7 +470,7 @@ const insertImplicitEndTagsBeforeStartTag = (
   input: string,
   tagNameStartIndex: number,
   tagNameEndIndex: number,
-  areHashedTagNamesEqual: HashedTagNameEqualityComparer
+  areSubstringsEqual: SubstringEqualityComparer
 ): TagParsingConfig | undefined => {
   const context = tagStack.context;
 
@@ -492,7 +489,7 @@ const insertImplicitEndTagsBeforeStartTag = (
     input,
     tagNameStartIndex,
     tagNameEndIndex,
-    areHashedTagNamesEqual
+    areSubstringsEqual
   );
 };
 
@@ -509,7 +506,7 @@ const balanceEndTag = (
   endTagNameStartIndex: number,
   endTagNameEndIndex: number
 ): void => {
-  const { areHashedTagNamesEqual, getTagHashCode, areUnbalancedStartTagsImplicitlyEnded, areUnbalancedEndTagsIgnored } =
+  const { areSubstringsEqual, getTagHashCode, areUnbalancedStartTagsImplicitlyEnded, areUnbalancedEndTagsIgnored } =
     config;
 
   // The index of "</"
@@ -519,7 +516,7 @@ const balanceEndTag = (
 
   const enclosingTagIndex = getEnclosingTagIndex(
     tagStack,
-    areHashedTagNamesEqual,
+    areSubstringsEqual,
     endTagHashCode,
     input,
     endTagNameStartIndex,
@@ -550,7 +547,7 @@ const balanceEndTag = (
     input,
     endTagNameStartIndex,
     endTagNameEndIndex,
-    areHashedTagNamesEqual
+    areSubstringsEqual
   );
 
   if (endTagConfig === undefined || !endTagConfig.isImplicitlyStarted) {
@@ -571,7 +568,8 @@ const balanceEndTag = (
 
 /**
  * Returns the config of a tag in a context, or `undefined` if there's none. Names can share a hash code, so the name is
- * compared too.
+ * compared too, for equal hash codes, which make the last chars equal, so comparisons skip them by passing end indices
+ * minus 1, see {@link getCaseInsensitiveHashCode}.
  *
  * @see {@link createTagConfigTable}
  */
@@ -581,7 +579,7 @@ const getTagConfig = (
   input: string,
   tagNameStartIndex: number,
   tagNameEndIndex: number,
-  areHashedTagNamesEqual: HashedTagNameEqualityComparer
+  areSubstringsEqual: SubstringEqualityComparer
 ): TagParsingConfig | undefined => {
   // The same lookup is written in readTokens, keep them in sync
   let tagConfig: TagParsingConfig | undefined;
@@ -595,7 +593,14 @@ const getTagConfig = (
   while ((tagConfig = tagConfigTable[tagConfigIndex]) !== undefined) {
     if (
       tagConfig.tagHashCode === tagHashCode &&
-      areHashedTagNamesEqual(tagConfig.tagName, 0, tagConfig.tagName.length, input, tagNameStartIndex, tagNameEndIndex)
+      areSubstringsEqual(
+        tagConfig.tagName,
+        0,
+        tagConfig.tagName.length - 1,
+        input,
+        tagNameStartIndex,
+        tagNameEndIndex - 1
+      )
     ) {
       break;
     }
@@ -654,7 +659,7 @@ export function readTokens(
   state: TokenizerState,
   tagStack: TagStack
 ): number {
-  const { areTagNamesCaseInsensitive, areTagNamesEqual, areHashedTagNamesEqual, isFragment, isStrict } = config;
+  const { areTagNamesCaseInsensitive, areSubstringsEqual, isFragment, isStrict } = config;
 
   const inputLength = input.length;
 
@@ -697,7 +702,7 @@ export function readTokens(
       input,
       textStartIndex,
       enclosingRawTextTagConfig.tagName,
-      areTagNamesEqual
+      areSubstringsEqual
     );
   }
 
@@ -820,7 +825,7 @@ export function readTokens(
         if (
           enclosingRawTextTagCount !== 0 &&
           tokenStartIndex !== scriptDataEndIndex &&
-          !isRawTextTagNameAt(input, tagNameStartIndex, enclosingRawTextTagConfig!.tagName, areTagNamesEqual)
+          !isRawTextTagNameAt(input, tagNameStartIndex, enclosingRawTextTagConfig!.tagName, areSubstringsEqual)
         ) {
           // Rescan the name as text, since it can contain the real end tag, like in "</a</script>"
           index = tagNameStartIndex;
@@ -852,7 +857,7 @@ export function readTokens(
         // are compared.
         if (
           tagStackCursor >= tagStack.previousChunkTagCount &&
-          areTagNamesEqual(
+          areSubstringsEqual(
             input,
             tagStack.tagNameStartIndices[tagStackCursor],
             tagStack.tagNameEndIndices[tagStackCursor],
@@ -1204,13 +1209,13 @@ export function readTokens(
       while ((startTagConfig = tagConfigTable[tagConfigIndex]) !== undefined) {
         if (
           startTagConfig.tagHashCode === startTagHashCode &&
-          areHashedTagNamesEqual(
+          areSubstringsEqual(
             startTagConfig.tagName,
             0,
-            startTagConfig.tagName.length,
+            startTagConfig.tagName.length - 1,
             input,
             tagNameStartIndex,
-            tagNameEndIndex
+            tagNameEndIndex - 1
           )
         ) {
           break;
@@ -1227,7 +1232,7 @@ export function readTokens(
           input,
           tagNameStartIndex,
           tagNameEndIndex,
-          areHashedTagNamesEqual
+          areSubstringsEqual
         );
       }
 
@@ -1346,7 +1351,7 @@ export function readTokens(
             input,
             index,
             enclosingRawTextTagConfig.tagName,
-            areTagNamesEqual
+            areSubstringsEqual
           );
         }
         continue outer;
@@ -1514,20 +1519,20 @@ export function readTokens(
  * @param input The text to check.
  * @param index The index in the input where the name is expected.
  * @param tagName The name of the raw text tag.
- * @param areTagNamesEqual Compares all chars, since hash codes aren't known here.
+ * @param areSubstringsEqual Compares all chars, since hash codes aren't known here.
  */
 const isRawTextTagNameAt = (
   input: string,
   index: number,
   tagName: string,
-  areTagNamesEqual: TagNameEqualityComparer
+  areSubstringsEqual: SubstringEqualityComparer
 ): boolean => {
   const endIndex = index + tagName.length;
   const charCode = getCharCodeAt(input, endIndex);
 
   return (
     (isSpaceChar(charCode) || charCode === /* / */ 47 || charCode === /* > */ 62) &&
-    areTagNamesEqual(tagName, 0, tagName.length, input, index, endIndex)
+    areSubstringsEqual(tagName, 0, tagName.length, input, index, endIndex)
   );
 };
 
@@ -1540,14 +1545,14 @@ const isRawTextTagNameAt = (
  * @param input The text to scan.
  * @param index The index in the input where script data starts.
  * @param tagName The name of the script data tag.
- * @param areTagNamesEqual Compares all chars, since hash codes aren't known here.
+ * @param areSubstringsEqual Compares all chars, since hash codes aren't known here.
  * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
  */
 const getScriptDataEndIndex = (
   input: string,
   index: number,
   tagName: string,
-  areTagNamesEqual: TagNameEqualityComparer
+  areSubstringsEqual: SubstringEqualityComparer
 ): number => {
   // Most "<" in script data aren't followed by the tag name, so its first char is compared before the whole name.
   // Ignoring case here also works for case-sensitive names, since this only filters.
@@ -1580,7 +1585,7 @@ const getScriptDataEndIndex = (
       if (
         index + 1 < input.length &&
         toLowerCaseCharCode(input.charCodeAt(index + 1)) === tagNameCharCode &&
-        isRawTextTagNameAt(input, index + 1, tagName, areTagNamesEqual)
+        isRawTextTagNameAt(input, index + 1, tagName, areSubstringsEqual)
       ) {
         if (!isDoubleEscaped) {
           return tagOpeningIndex;
@@ -1607,7 +1612,7 @@ const getScriptDataEndIndex = (
 
     if (
       toLowerCaseCharCode(input.charCodeAt(index)) === tagNameCharCode &&
-      isRawTextTagNameAt(input, index, tagName, areTagNamesEqual)
+      isRawTextTagNameAt(input, index, tagName, areSubstringsEqual)
     ) {
       isDoubleEscaped = true;
     }

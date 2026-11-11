@@ -1,14 +1,11 @@
 import type { TagKind, TagParsingOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
 import {
-  areCaseInsensitiveHashedSubstringsEqual,
   areCaseInsensitiveSubstringsEqual,
-  areCaseSensitiveHashedSubstringsEqual,
   areCaseSensitiveSubstringsEqual,
   getCaseInsensitiveHashCode,
   getCaseSensitiveHashCode,
-  type HashedTagNameEqualityComparer,
   identity,
-  type TagNameEqualityComparer,
+  type SubstringEqualityComparer,
   type TagNameHashFunction,
   toASCIILowerCase,
 } from './utils.ts';
@@ -141,14 +138,10 @@ export interface TokenizerConfig {
   areTagNamesCaseInsensitive: boolean;
 
   /**
-   * Compares tag names, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`.
+   * Compares substrings, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`. Comparisons of names with
+   * equal hash codes pass end indices minus 1 to skip the last char, see {@link getCaseInsensitiveHashCode}.
    */
-  areTagNamesEqual: TagNameEqualityComparer;
-
-  /**
-   * Like {@link areTagNamesEqual}, but only for names with equal hash codes, since it skips the last char.
-   */
-  areHashedTagNamesEqual: HashedTagNameEqualityComparer;
+  areSubstringsEqual: SubstringEqualityComparer;
 
   /**
    * Returns the hash code of a tag name, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`.
@@ -181,12 +174,9 @@ export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerCon
   // Functions that depend on whether tag names are case-insensitive
   const normalizeTagName = areTagNamesCaseInsensitive ? toASCIILowerCase : identity;
   const getTagHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-  const areTagNamesEqual = areTagNamesCaseInsensitive
+  const areSubstringsEqual = areTagNamesCaseInsensitive
     ? areCaseInsensitiveSubstringsEqual
     : areCaseSensitiveSubstringsEqual;
-  const areHashedTagNamesEqual = areTagNamesCaseInsensitive
-    ? areCaseInsensitiveHashedSubstringsEqual
-    : areCaseSensitiveHashedSubstringsEqual;
 
   const contextMap = new Map<TokenizerContextOptions, TokenizerContext>();
 
@@ -199,8 +189,7 @@ export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerCon
     areUnbalancedStartTagsImplicitlyEnded,
     areUnbalancedEndTagsIgnored,
     areTagNamesCaseInsensitive,
-    areTagNamesEqual,
-    areHashedTagNamesEqual,
+    areSubstringsEqual,
     getTagHashCode,
     isStrict,
     isFragment: false,
