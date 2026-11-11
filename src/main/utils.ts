@@ -11,7 +11,7 @@ const keptInstances: object[] = [];
  * `readTokens` code that inlines methods or constructors of the class, so the next few parses are slow. A kept instance
  * keeps the hidden class.
  */
-export function keepHiddenClasses(...instances: object[]): void {
+export function retainHiddenClasses(...instances: object[]): void {
   keptInstances.push(...instances);
 }
 

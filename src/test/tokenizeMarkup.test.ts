@@ -1,23 +1,48 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { CallbackTokenHandler } from '../main/CallbackTokenHandler.ts';
-import type { TagParsingOptions, TokenCallback, TokenizerContextOptions, TokenizerOptions } from '../main/index.ts';
+import type { TagParsingOptions, TokenHandler, TokenizerContextOptions, TokenizerOptions } from '../main/index.ts';
 import { MarkupSyntaxError } from '../main/MarkupSyntaxError.ts';
 import { resolveTokenizerOptions, type TokenizerConfig } from '../main/resolveTokenizerOptions.ts';
-import {
-  createTagStack,
-  createTokenizerState,
-  createTokenizerWriter,
-  readTokens,
-  type TokenHandler,
-} from '../main/tokenizeMarkup.ts';
+import { createTagStack, createTokenizerState, createTokenizerWriter, readTokens } from '../main/tokenizeMarkup.ts';
 import { getCaseSensitiveHashCode } from '../main/utils.ts';
 
 const callbackMock = vi.fn();
 
-// Tokens are checked by indices, so the input isn't passed to the mock
-const callback: TokenCallback = (tokenKind, startIndex, endIndex) => callbackMock(tokenKind, startIndex, endIndex);
-
-const handler = new CallbackTokenHandler(callback);
+// Tokens are checked by indices, so the input isn't passed to the mock. Attributes and processing instructions are
+// split into name and value calls, so assertions can check their indices separately.
+const handler: TokenHandler = {
+  onText(startIndex, endIndex) {
+    callbackMock('text', startIndex, endIndex);
+  },
+  onStartTagName(startIndex, endIndex) {
+    callbackMock('start_tag_name', startIndex, endIndex);
+  },
+  onStartTagClosing(startIndex, endIndex) {
+    callbackMock('start_tag_closing', startIndex, endIndex);
+  },
+  onStartTagSelfClosing(startIndex, endIndex) {
+    callbackMock('start_tag_self_closing', startIndex, endIndex);
+  },
+  onEndTagName(startIndex, endIndex) {
+    callbackMock('end_tag_name', startIndex, endIndex);
+  },
+  onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
+    callbackMock('attribute_name', nameStartIndex, nameEndIndex);
+    callbackMock('attribute_value', valueStartIndex, valueEndIndex);
+  },
+  onComment(startIndex, endIndex) {
+    callbackMock('comment', startIndex, endIndex);
+  },
+  onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
+    callbackMock('processing_instruction_target', targetStartIndex, targetEndIndex);
+    callbackMock('processing_instruction_data', dataStartIndex, dataEndIndex);
+  },
+  onCDATASection(startIndex, endIndex) {
+    callbackMock('cdata_section', startIndex, endIndex);
+  },
+  onDoctypeName(startIndex, endIndex) {
+    callbackMock('doctype_name', startIndex, endIndex);
+  },
+};
 
 const defaultConfig = resolveTokenizerOptions({});
 const strictConfig = resolveTokenizerOptions({ isStrict: true });
@@ -32,10 +57,45 @@ function readInput(input: string, config: TokenizerConfig, isInputEnded = true):
 function readChunks(chunks: string[], config: TokenizerConfig): string[] {
   const tokens: string[] = [];
 
+  const pushToken = (tokenName: string, startIndex: number, endIndex: number, input: string): void => {
+    tokens.push(tokenName + ' ' + (writer.inputOffset + startIndex) + ' ' + input.substring(startIndex, endIndex));
+  };
+
   const writer = createTokenizerWriter(
-    new CallbackTokenHandler((tokenKind, startIndex, endIndex, input) => {
-      tokens.push(tokenKind + ' ' + (writer.inputOffset + startIndex) + ' ' + input.substring(startIndex, endIndex));
-    }),
+    {
+      onText(startIndex, endIndex, input) {
+        pushToken('text', startIndex, endIndex, input);
+      },
+      onStartTagName(startIndex, endIndex, input) {
+        pushToken('start_tag_name', startIndex, endIndex, input);
+      },
+      onStartTagClosing(startIndex, endIndex, input) {
+        pushToken('start_tag_closing', startIndex, endIndex, input);
+      },
+      onStartTagSelfClosing(startIndex, endIndex, input) {
+        pushToken('start_tag_self_closing', startIndex, endIndex, input);
+      },
+      onEndTagName(startIndex, endIndex, input) {
+        pushToken('end_tag_name', startIndex, endIndex, input);
+      },
+      onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex, input) {
+        pushToken('attribute_name', nameStartIndex, nameEndIndex, input);
+        pushToken('attribute_value', valueStartIndex, valueEndIndex, input);
+      },
+      onComment(startIndex, endIndex, input) {
+        pushToken('comment', startIndex, endIndex, input);
+      },
+      onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex, input) {
+        pushToken('processing_instruction_target', targetStartIndex, targetEndIndex, input);
+        pushToken('processing_instruction_data', dataStartIndex, dataEndIndex, input);
+      },
+      onCDATASection(startIndex, endIndex, input) {
+        pushToken('cdata_section', startIndex, endIndex, input);
+      },
+      onDoctypeName(startIndex, endIndex, input) {
+        pushToken('doctype_name', startIndex, endIndex, input);
+      },
+    },
     config
   );
 
@@ -1991,18 +2051,31 @@ describe('createTokenizerWriter', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(8, 'end_tag_name', 16, 16);
   });
 
-  test('passes the tag config to the handler along with the start tag name, also of an implicitly started tag', () => {
-    const config = resolveTokenizerOptions({ tags: { aaa: { kind: 'void' }, ccc: { isImplicitlyStarted: true } } });
-    const tagConfigHandler: TokenHandler = new CallbackTokenHandler(() => {});
-    const startTagNameSpy = vi.spyOn(tagConfigHandler, 'onStartTagName');
+  test('passes isRawText to the handler along with text', () => {
+    const config = resolveTokenizerOptions({
+      tags: { aaa: { kind: 'raw_text' }, bbb: { kind: 'escapable_raw_text' } },
+    });
+    const textSpy = vi.spyOn(handler, 'onText');
 
-    createTokenizerWriter(tagConfigHandler, config).end('<aaa><bbb></bbb></ccc>');
+    createTokenizerWriter(handler, config).end('xxx<aaa>yyy</aaa><bbb>zzz</bbb>');
 
-    expect(startTagNameSpy.mock.calls.map(args => args[3])).toEqual([
-      expect.objectContaining({ kind: 'void' }),
-      undefined,
-      expect.objectContaining({ isImplicitlyStarted: true }),
-    ]);
+    expect(textSpy.mock.calls.map(args => args[3])).toEqual([false, true, false]);
+
+    textSpy.mockRestore();
+  });
+
+  test('passes isRawText to the handler for trailing raw text', () => {
+    const config = resolveTokenizerOptions({
+      tags: { aaa: { kind: 'raw_text' } },
+      areUnbalancedStartTagsImplicitlyEnded: true,
+    });
+    const textSpy = vi.spyOn(handler, 'onText');
+
+    createTokenizerWriter(handler, config).end('<aaa>yyy');
+
+    expect(textSpy.mock.calls.map(args => args[3])).toEqual([true]);
+
+    textSpy.mockRestore();
   });
 
   test('closes the start tag at the end of the input', () => {

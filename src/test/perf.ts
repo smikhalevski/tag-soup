@@ -24,12 +24,25 @@ const chunkSize = 65_536;
 
 const noop = () => {};
 
+const noopTokenHandler: tagSoup.TokenHandler = {
+  onText: noop,
+  onStartTagName: noop,
+  onStartTagClosing: noop,
+  onStartTagSelfClosing: noop,
+  onEndTagName: noop,
+  onAttribute: noop,
+  onComment: noop,
+  onProcessingInstruction: noop,
+  onCDATASection: noop,
+  onDoctypeName: noop,
+};
+
 beforeBatch(collectGarbage);
 
 describe('HTML tokenizer (large source)', () => {
   test('tag-soup', () => {
     measure(() => {
-      tagSoup.HTMLTokenizer.tokenizeDocument(largeHtmlSource, noop);
+      tagSoup.HTMLTokenizer.tokenizeDocument(largeHtmlSource, noopTokenHandler);
     });
   });
 

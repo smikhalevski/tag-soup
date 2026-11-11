@@ -1,8 +1,7 @@
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import type { TagParsingConfig } from './resolveTokenizerOptions.ts';
-import { createTokenizerWriter, type TokenHandler } from './tokenizeMarkup.ts';
-import { type ParserOptions, type ParserWriter } from './types.ts';
-import { keepHiddenClasses } from './utils.ts';
+import { createTokenizerWriter } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
+import { retainHiddenClasses } from './utils.ts';
 
 /**
  * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
@@ -218,11 +217,6 @@ class SAXTokenHandler implements TokenHandler {
   isTagNameStackUsed: boolean;
   tagNameStack = ['', '', '', '', '', '', '', '', ''];
   tagNameStackCursor = -1;
-  isRawText = false;
-  attributeNameStartIndex = 0;
-  attributeNameEndIndex = 0;
-  piTargetStartIndex = 0;
-  piTargetEndIndex = 0;
   attributes: Record<string, string> | undefined = undefined;
 
   constructor(handler: SAXHandler, config: ParserConfig) {
@@ -232,7 +226,7 @@ class SAXTokenHandler implements TokenHandler {
     this.isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
   }
 
-  onText(startIndex: number, endIndex: number, input: string): void {
+  onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void {
     const handler = this.handler;
 
     if (handler.onText !== undefined) {
@@ -241,16 +235,14 @@ class SAXTokenHandler implements TokenHandler {
       // Called through a local, so the decoder gets `this` undefined
       const decodeText = this.decodeText;
 
-      handler.onText(this.isRawText ? text : decodeText(text));
+      handler.onText(isRawText ? text : decodeText(text));
     }
   }
 
-  onStartTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
+  onStartTagName(startIndex: number, endIndex: number, input: string): void {
     const handler = this.handler;
 
     let tagName;
-
-    this.isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
     if (handler.onStartTagOpening !== undefined) {
       tagName = input.substring(startIndex, endIndex);
@@ -284,8 +276,6 @@ class SAXTokenHandler implements TokenHandler {
   onStartTagSelfClosing(): void {
     const handler = this.handler;
 
-    this.isRawText = false;
-
     if (handler.onStartTagSelfClosing !== undefined) {
       handler.onStartTagSelfClosing();
     }
@@ -301,8 +291,6 @@ class SAXTokenHandler implements TokenHandler {
   onEndTagName(): void {
     const handler = this.handler;
 
-    this.isRawText = false;
-
     if (handler.onEndTag !== undefined) {
       handler.onEndTag(this.tagNameStack[this.tagNameStackCursor]);
     }
@@ -310,12 +298,13 @@ class SAXTokenHandler implements TokenHandler {
     --this.tagNameStackCursor;
   }
 
-  onAttributeName(startIndex: number, endIndex: number): void {
-    this.attributeNameStartIndex = startIndex;
-    this.attributeNameEndIndex = endIndex;
-  }
-
-  onAttributeValue(startIndex: number, endIndex: number, input: string): void {
+  onAttribute(
+    nameStartIndex: number,
+    nameEndIndex: number,
+    valueStartIndex: number,
+    valueEndIndex: number,
+    input: string
+  ): void {
     const handler = this.handler;
     const attributes = this.attributes;
 
@@ -323,10 +312,10 @@ class SAXTokenHandler implements TokenHandler {
       return;
     }
 
-    const name = input.substring(this.attributeNameStartIndex, this.attributeNameEndIndex);
+    const name = input.substring(nameStartIndex, nameEndIndex);
     // Called through a local, so the decoder gets `this` undefined
     const decodeAttribute = this.decodeAttribute;
-    const value = decodeAttribute(input.substring(startIndex, endIndex));
+    const value = decodeAttribute(input.substring(valueStartIndex, valueEndIndex));
 
     if (attributes !== undefined) {
       // Assigning __proto__ would set the prototype rather than add an attribute
@@ -348,16 +337,17 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  onProcessingInstructionTarget(startIndex: number, endIndex: number): void {
-    this.piTargetStartIndex = startIndex;
-    this.piTargetEndIndex = endIndex;
-  }
-
-  onProcessingInstructionData(startIndex: number, endIndex: number, input: string): void {
+  onProcessingInstruction(
+    targetStartIndex: number,
+    targetEndIndex: number,
+    dataStartIndex: number,
+    dataEndIndex: number,
+    input: string
+  ): void {
     if (this.handler.onProcessingInstruction !== undefined) {
       this.handler.onProcessingInstruction(
-        input.substring(this.piTargetStartIndex, this.piTargetEndIndex),
-        input.substring(startIndex, endIndex)
+        input.substring(targetStartIndex, targetEndIndex),
+        input.substring(dataStartIndex, dataEndIndex)
       );
     }
   }
@@ -375,4 +365,4 @@ class SAXTokenHandler implements TokenHandler {
   }
 }
 
-keepHiddenClasses(new SAXTokenHandler({}, resolveParserOptions({})));
+retainHiddenClasses(new SAXTokenHandler({}, resolveParserOptions({})));

@@ -434,7 +434,7 @@ export interface ParserWriter<TResult = void> {
 }
 
 /**
- * Reads tokens from text that is written in chunks, and returns them by invoking a callback.
+ * Reads tokens from text that is written in chunks, and passes them to a {@link TokenHandler}.
  *
  * @see {@link Tokenizer.createDocumentWriter}
  * @see {@link Tokenizer.createFragmentWriter}
@@ -442,61 +442,144 @@ export interface ParserWriter<TResult = void> {
  */
 export interface TokenizerWriter extends ParserWriter {
   /**
-   * The index in the stream where the input that is passed to the callback starts. The stream is all chunks that were
+   * The index in the stream where the input that is passed to the handler starts. The stream is all chunks that were
    * written, and the input is the part of the stream that wasn't read before, followed by the last written chunk.
    *
    * @example
-   * const writer = HTMLTokenizer.createDocumentWriter((tokenKind, startIndex, endIndex, input) => {
-   *   writer.inputOffset + startIndex;
-   *   // ⮕ The index in the stream where the token starts
+   * const writer = HTMLTokenizer.createDocumentWriter({
+   *   onText(startIndex, endIndex, input, isRawText) {
+   *     writer.inputOffset + startIndex;
+   *     // ⮕ The index in the stream where the token starts
+   *   },
+   *   // …other TokenHandler methods
    * });
    */
   readonly inputOffset: number;
 }
 
 /**
- * The kind of a token that can be read from text. Indices passed to {@link TokenCallback} with the kind point to:
+ * Receives tokens that are read from text, one method per token. Separate methods avoid a switch over a token kind,
+ * and let the tokenizer inline small handlers.
  *
- * - `text`: text between tags.
- * - `start_tag_name`: the tag name in a start tag, `p` in `<p>`.
- * - `start_tag_closing`: the `>` that closes a start tag.
- * - `start_tag_self_closing`: the `/>` that closes a self-closing tag.
- * - `end_tag_name`: the tag name in an end tag, `p` in `</p>`.
- * - `attribute_name`: an attribute name.
- * - `attribute_value`: an attribute value without quotes. Entities aren't decoded.
- * - `comment`: comment content between `<!--` and `-->`.
- * - `processing_instruction_target`: the target of a processing instruction, `xml` in `<?xml version="1.0"?>`.
- * - `processing_instruction_data`: the data of a processing instruction, `version="1.0"` in `<?xml version="1.0"?>`.
- * - `cdata_section`: CDATA section content between `<![CDATA[` and `]]>`.
- * - `doctype_name`: the name in a DOCTYPE declaration, `html` in `<!DOCTYPE html>`.
- *
- * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
- * indices.
+ * Each method receives the start index of the first meaningful token char in the input (inclusive), the end index of
+ * the last meaningful token char (exclusive), and the input that indices point to. A writer passes the part of the
+ * stream that it didn't read before, followed by the last written chunk, and this text starts at
+ * {@link TokenizerWriter.inputOffset} in the stream.
  *
  * @group Tokenizer
  */
-export type TokenKind =
-  | 'text'
-  | 'start_tag_name'
-  | 'start_tag_closing'
-  | 'start_tag_self_closing'
-  | 'end_tag_name'
-  | 'attribute_name'
-  | 'attribute_value'
-  | 'comment'
-  | 'processing_instruction_target'
-  | 'processing_instruction_data'
-  | 'cdata_section'
-  | 'doctype_name';
+export interface TokenHandler {
+  /**
+   * Called when text between tags is read.
+   *
+   * @param startIndex The start index of the text, inclusive.
+   * @param endIndex The end index of the text, exclusive.
+   * @param input The text that indices point to.
+   * @param isRawText `true` if the text is the content of a `raw_text` or `script_data`
+   * {@link TagParsingOptions.kind tag}, so parsers don't decode it.
+   */
+  onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void;
 
-/**
- * A callback that is invoked when a token is read from text.
- *
- * @param tokenKind The kind of the token that was read.
- * @param startIndex The start index of the first meaningful token char in the input, inclusive.
- * @param endIndex The end index of the last meaningful token char in the input, exclusive.
- * @param input The text that indices point to. A writer passes the part of the stream that it didn't read before,
- * followed by the last written chunk, and this text starts at {@link TokenizerWriter.inputOffset} in the stream.
- * @group Tokenizer
- */
-export type TokenCallback = (tokenKind: TokenKind, startIndex: number, endIndex: number, input: string) => void;
+  /**
+   * Called when the tag name in a start tag is read, `p` in `<p>`.
+   *
+   * @param startIndex The start index of the tag name, inclusive.
+   * @param endIndex The end index of the tag name, exclusive.
+   * @param input The text that indices point to.
+   */
+  onStartTagName(startIndex: number, endIndex: number, input: string): void;
+
+  /**
+   * Called when the `>` that closes a start tag is read.
+   *
+   * @param startIndex The start index of the closing, inclusive.
+   * @param endIndex The end index of the closing, exclusive.
+   * @param input The text that indices point to.
+   */
+  onStartTagClosing(startIndex: number, endIndex: number, input: string): void;
+
+  /**
+   * Called when the `/>` that closes a self-closing tag is read. Only called if
+   * {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
+   *
+   * @param startIndex The start index of the closing, inclusive.
+   * @param endIndex The end index of the closing, exclusive.
+   * @param input The text that indices point to.
+   */
+  onStartTagSelfClosing(startIndex: number, endIndex: number, input: string): void;
+
+  /**
+   * Called when the tag name in an end tag is read, `p` in `</p>`.
+   *
+   * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
+   * indices.
+   *
+   * @param startIndex The start index of the tag name, inclusive.
+   * @param endIndex The end index of the tag name, exclusive.
+   * @param input The text that indices point to.
+   */
+  onEndTagName(startIndex: number, endIndex: number, input: string): void;
+
+  /**
+   * Called when an attribute is read. Value indices point to the value without quotes, and are equal if the attribute
+   * has no value. Entities aren't decoded.
+   *
+   * @param nameStartIndex The start index of the attribute name, inclusive.
+   * @param nameEndIndex The end index of the attribute name, exclusive.
+   * @param valueStartIndex The start index of the attribute value, inclusive.
+   * @param valueEndIndex The end index of the attribute value, exclusive.
+   * @param input The text that indices point to.
+   */
+  onAttribute(
+    nameStartIndex: number,
+    nameEndIndex: number,
+    valueStartIndex: number,
+    valueEndIndex: number,
+    input: string
+  ): void;
+
+  /**
+   * Called when a comment is read. Indices point to the comment content between `<!--` and `-->`.
+   *
+   * @param startIndex The start index of the comment content, inclusive.
+   * @param endIndex The end index of the comment content, exclusive.
+   * @param input The text that indices point to.
+   */
+  onComment(startIndex: number, endIndex: number, input: string): void;
+
+  /**
+   * Called when a processing instruction is read: in `<?xml version="1.0"?>` the target is `xml` and the data is
+   * `version="1.0"`.
+   *
+   * @param targetStartIndex The start index of the target, inclusive.
+   * @param targetEndIndex The end index of the target, exclusive.
+   * @param dataStartIndex The start index of the data, inclusive.
+   * @param dataEndIndex The end index of the data, exclusive.
+   * @param input The text that indices point to.
+   */
+  onProcessingInstruction(
+    targetStartIndex: number,
+    targetEndIndex: number,
+    dataStartIndex: number,
+    dataEndIndex: number,
+    input: string
+  ): void;
+
+  /**
+   * Called when a CDATA section is read. Indices point to the content between `<![CDATA[` and `]]>`.
+   *
+   * @param startIndex The start index of the content, inclusive.
+   * @param endIndex The end index of the content, exclusive.
+   * @param input The text that indices point to.
+   */
+  onCDATASection(startIndex: number, endIndex: number, input: string): void;
+
+  /**
+   * Called when a DOCTYPE declaration is read. Indices point to the name, `html` in `<!DOCTYPE html>`.
+   *
+   * @param startIndex The start index of the name, inclusive.
+   * @param endIndex The end index of the name, exclusive.
+   * @param input The text that indices point to.
+   */
+  onDoctypeName(startIndex: number, endIndex: number, input: string): void;
+}

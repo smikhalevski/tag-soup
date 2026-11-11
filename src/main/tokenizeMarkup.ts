@@ -1,6 +1,6 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type { TagParsingConfig, TokenizerConfig, TokenizerContext } from './resolveTokenizerOptions.ts';
-import type { ParserWriter, TokenizerWriter } from './types.ts';
+import type { ParserWriter, TokenHandler, TokenizerWriter } from './types.ts';
 import {
   type HashedTagNameEqualityComparer,
   type TagNameEqualityComparer,
@@ -24,32 +24,6 @@ const ENCLOSING_TAG_HASH_CODE_MASK = 15;
 
 // V8 checks an imported function at every call, but inlines a local constant without a check
 const toLowerCaseCharCode = importedToLowerCaseCharCode;
-
-/**
- * Receives tokens, one method per {@link TokenKind}, with the arguments of {@link TokenCallback}. Separate methods
- * avoid a switch over the kind and let V8 inline small handlers into {@link readTokens}.
- *
- * @internal
- */
-export interface TokenHandler {
-  onText(startIndex: number, endIndex: number, input: string): void;
-
-  /**
-   * @param tagConfig The tag config, or `undefined` if the context has none. Passed so the handler doesn't look it up.
-   */
-  onStartTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void;
-
-  onStartTagClosing(startIndex: number, endIndex: number, input: string): void;
-  onStartTagSelfClosing(startIndex: number, endIndex: number, input: string): void;
-  onEndTagName(startIndex: number, endIndex: number, input: string): void;
-  onAttributeName(startIndex: number, endIndex: number, input: string): void;
-  onAttributeValue(startIndex: number, endIndex: number, input: string): void;
-  onComment(startIndex: number, endIndex: number, input: string): void;
-  onProcessingInstructionTarget(startIndex: number, endIndex: number, input: string): void;
-  onProcessingInstructionData(startIndex: number, endIndex: number, input: string): void;
-  onCDATASection(startIndex: number, endIndex: number, input: string): void;
-  onDoctypeName(startIndex: number, endIndex: number, input: string): void;
-}
 
 /**
  * Where reading resumes in the next chunk. The {@link TagStack} holds the rest of what reading needs to resume.
@@ -590,7 +564,7 @@ const balanceEndTag = (
     insertImplicitEndTags(tagStack, handler, endTagConfig, endTagStartIndex, input);
   }
 
-  handler.onStartTagName(endTagNameStartIndex, endTagNameEndIndex, input, endTagConfig);
+  handler.onStartTagName(endTagNameStartIndex, endTagNameEndIndex, input);
   handler.onStartTagClosing(endTagNameEndIndex, endTagNameEndIndex + 1, input);
   handler.onEndTagName(endTagNameStartIndex, endTagNameEndIndex, input);
 };
@@ -828,7 +802,7 @@ export function readTokens(
           }
 
           if (textStartIndex !== tokenStartIndex) {
-            handler.onText(textStartIndex, tokenStartIndex, input);
+            handler.onText(textStartIndex, tokenStartIndex, input, false);
           }
 
           // "</>" is ignored, and anything else is a bogus comment, like "#" in "</#>"
@@ -866,7 +840,14 @@ export function readTokens(
         scope = SCOPE_TEXT;
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input);
+          // Only the end tag of the enclosing raw text tag gets here inside raw text, so the text before it is the
+          // raw text content. isRawText excludes escapable_raw_text, since parsers decode its text.
+          handler.onText(
+            textStartIndex,
+            tokenStartIndex,
+            input,
+            enclosingRawTextTagCount !== 0 && enclosingRawTextTagConfig!.isRawText
+          );
         }
 
         const tagStackCursor = tagStack.cursor;
@@ -953,7 +934,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input, false);
         }
 
         // No target
@@ -966,8 +947,6 @@ export function readTokens(
           );
         }
 
-        handler.onProcessingInstructionTarget(targetStartIndex, targetEndIndex, input);
-
         if (isStrict && dataEndIndex === inputLength) {
           throw new MarkupSyntaxError(
             "Expected the processing instruction to be closed with '?>'.",
@@ -977,7 +956,7 @@ export function readTokens(
           );
         }
 
-        handler.onProcessingInstructionData(dataStartIndex, dataEndIndex, input);
+        handler.onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex, input);
 
         // Skip "?>"
         index = dataEndIndex + 2;
@@ -1028,7 +1007,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input, false);
         }
 
         if (isStrict && cdataSectionEndIndex === inputLength) {
@@ -1075,7 +1054,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input, false);
         }
 
         if (isStrict && commentEndIndex === inputLength) {
@@ -1110,7 +1089,7 @@ export function readTokens(
         }
 
         if (textStartIndex !== tokenStartIndex) {
-          handler.onText(textStartIndex, tokenStartIndex, input);
+          handler.onText(textStartIndex, tokenStartIndex, input, false);
         }
 
         if (isStrict) {
@@ -1215,7 +1194,7 @@ export function readTokens(
       }
 
       if (textStartIndex !== tokenStartIndex) {
-        handler.onText(textStartIndex, tokenStartIndex, input);
+        handler.onText(textStartIndex, tokenStartIndex, input, false);
       }
 
       // getTagConfig written inline, since it doesn't fit into the inlining budget of readTokens. Keep them in sync.
@@ -1264,7 +1243,7 @@ export function readTokens(
         tagStack.isRootElementRead = true;
       }
 
-      handler.onStartTagName(tagNameStartIndex, tagNameEndIndex, input, startTagConfig);
+      handler.onStartTagName(tagNameStartIndex, tagNameEndIndex, input);
 
       // Push written inline, since a push function would compete for the inlining budget of readTokens and stay a call
       const tagStackCursor = ++tagStack.cursor;
@@ -1432,19 +1411,17 @@ export function readTokens(
           break outer;
         }
 
-        handler.onAttributeName(tokenStartIndex, attributeNameEndIndex, input);
-
-        if (!isStrict) {
-          handler.onAttributeValue(index, index, input);
-          continue;
+        if (isStrict) {
+          throw new MarkupSyntaxError(
+            "Expected an attribute value separated by an equals sign ('=').",
+            input,
+            index,
+            index + 1
+          );
         }
 
-        throw new MarkupSyntaxError(
-          "Expected an attribute value separated by an equals sign ('=').",
-          input,
-          index,
-          index + 1
-        );
+        handler.onAttribute(tokenStartIndex, attributeNameEndIndex, index, index, input);
+        continue;
       }
 
       // Skip "="
@@ -1469,8 +1446,6 @@ export function readTokens(
           break outer;
         }
 
-        handler.onAttributeName(tokenStartIndex, attributeNameEndIndex, input);
-
         if (isStrict) {
           throw new MarkupSyntaxError(
             'Expected a double-quoted (\'"\') or a single-quoted ("\'") attribute value.',
@@ -1480,8 +1455,9 @@ export function readTokens(
           );
         }
 
-        handler.onAttributeValue(index, (index = attributeValueEndIndex), input);
+        handler.onAttribute(tokenStartIndex, attributeNameEndIndex, index, attributeValueEndIndex, input);
 
+        index = attributeValueEndIndex;
         charCode = getCharCodeAt(input, index);
         continue;
       }
@@ -1500,8 +1476,6 @@ export function readTokens(
         break outer;
       }
 
-      handler.onAttributeName(tokenStartIndex, attributeNameEndIndex, input);
-
       if (isStrict && index === inputLength) {
         throw new MarkupSyntaxError(
           quoteCharCode === /* " */ 34
@@ -1513,7 +1487,7 @@ export function readTokens(
         );
       }
 
-      handler.onAttributeValue(attributeValueStartIndex, index, input);
+      handler.onAttribute(tokenStartIndex, attributeNameEndIndex, attributeValueStartIndex, index, input);
 
       // Skip closing quote char
       charCode = getCharCodeAt(input, ++index);
@@ -1523,9 +1497,14 @@ export function readTokens(
   state.scope = scope;
 
   if (isInputEnded) {
-    // Trailing text, unless the input ended inside a start tag
+    // Trailing text, unless the input ended inside a start tag. Inside a raw text tag it's the raw text content.
     if (scope !== SCOPE_START_TAG && textStartIndex < inputLength) {
-      handler.onText(textStartIndex, inputLength, input);
+      handler.onText(
+        textStartIndex,
+        inputLength,
+        input,
+        enclosingRawTextTagCount !== 0 && enclosingRawTextTagConfig!.isRawText
+      );
     }
     return inputLength;
   }

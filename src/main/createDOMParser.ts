@@ -10,10 +10,9 @@ import {
   Text,
 } from 'flyweight-dom';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import type { TagParsingConfig } from './resolveTokenizerOptions.ts';
-import { ClosureWriter, createTokenizerWriter, type TokenHandler } from './tokenizeMarkup.ts';
-import { type ParserOptions, type ParserWriter } from './types.ts';
-import { keepHiddenClasses } from './utils.ts';
+import { ClosureWriter, createTokenizerWriter } from './tokenizeMarkup.ts';
+import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
+import { retainHiddenClasses } from './utils.ts';
 
 /**
  * Parses text as a DOM.
@@ -139,9 +138,6 @@ class DOMTokenHandler implements TokenHandler {
   decodeAttribute: (value: string) => string;
   rootNode: Document | DocumentFragment;
   parentNode: ParentNode;
-  isRawText = false;
-  pendingAttributeName = '';
-  piTarget = '';
 
   constructor(config: ParserConfig) {
     this.decodeText = config.decodeText;
@@ -149,19 +145,14 @@ class DOMTokenHandler implements TokenHandler {
     this.rootNode = this.parentNode = config.isFragment ? new DocumentFragment() : new Document();
   }
 
-  onText(startIndex: number, endIndex: number, input: string): void {
+  onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void {
     const text = input.substring(startIndex, endIndex);
 
-    // Called through a local, so the decoder gets `this` undefined
-    const decodeText = this.decodeText;
-
-    this.parentNode.appendChild(new Text(this.isRawText ? text : decodeText(text)));
+    this.parentNode.appendChild(new Text(isRawText ? text : (0, this.decodeText)(text)));
   }
 
-  onStartTagName(startIndex: number, endIndex: number, input: string, tagConfig: TagParsingConfig | undefined): void {
+  onStartTagName(startIndex: number, endIndex: number, input: string): void {
     const element = new Element(input.substring(startIndex, endIndex));
-
-    this.isRawText = tagConfig !== undefined && tagConfig.isRawText;
 
     this.parentNode.appendChild(element);
     this.parentNode = element;
@@ -170,26 +161,23 @@ class DOMTokenHandler implements TokenHandler {
   onStartTagClosing(): void {}
 
   onStartTagSelfClosing(): void {
-    this.isRawText = false;
     this.parentNode = this.parentNode.parentNode!;
   }
 
   onEndTagName(): void {
-    this.isRawText = false;
     this.parentNode = this.parentNode.parentNode!;
   }
 
-  onAttributeName(startIndex: number, endIndex: number, input: string): void {
-    this.pendingAttributeName = input.substring(startIndex, endIndex);
-  }
-
-  onAttributeValue(startIndex: number, endIndex: number, input: string): void {
-    // Called through a local, so the decoder gets `this` undefined
-    const decodeAttribute = this.decodeAttribute;
-
+  onAttribute(
+    nameStartIndex: number,
+    nameEndIndex: number,
+    valueStartIndex: number,
+    valueEndIndex: number,
+    input: string
+  ): void {
     (this.parentNode as Element).setAttribute(
-      this.pendingAttributeName,
-      decodeAttribute(input.substring(startIndex, endIndex))
+      input.substring(nameStartIndex, nameEndIndex),
+      (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex))
     );
   }
 
@@ -197,12 +185,19 @@ class DOMTokenHandler implements TokenHandler {
     this.parentNode.appendChild(new Comment(input.substring(startIndex, endIndex)));
   }
 
-  onProcessingInstructionTarget(startIndex: number, endIndex: number, input: string): void {
-    this.piTarget = input.substring(startIndex, endIndex);
-  }
-
-  onProcessingInstructionData(startIndex: number, endIndex: number, input: string): void {
-    this.parentNode.appendChild(new ProcessingInstruction(this.piTarget, input.substring(startIndex, endIndex)));
+  onProcessingInstruction(
+    targetStartIndex: number,
+    targetEndIndex: number,
+    dataStartIndex: number,
+    dataEndIndex: number,
+    input: string
+  ): void {
+    this.parentNode.appendChild(
+      new ProcessingInstruction(
+        input.substring(targetStartIndex, targetEndIndex),
+        input.substring(dataStartIndex, dataEndIndex)
+      )
+    );
   }
 
   onCDATASection(startIndex: number, endIndex: number, input: string): void {
@@ -214,7 +209,7 @@ class DOMTokenHandler implements TokenHandler {
   }
 }
 
-keepHiddenClasses(
+retainHiddenClasses(
   new DOMTokenHandler(resolveParserOptions({})),
   new Document(),
   new DocumentFragment(),

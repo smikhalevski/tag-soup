@@ -1,10 +1,9 @@
-import { CallbackTokenHandler } from './CallbackTokenHandler.ts';
 import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenizerOptions.ts';
 import { createTokenizerWriter } from './tokenizeMarkup.ts';
-import type { TokenCallback, TokenizerOptions, TokenizerWriter } from './types.ts';
+import type { TokenHandler, TokenizerOptions, TokenizerWriter } from './types.ts';
 
 /**
- * Reads tokens from text and returns them by invoking a callback.
+ * Reads tokens from text and passes them to a {@link TokenHandler}.
  *
  * @see {@link createTokenizer}
  * @group Tokenizer
@@ -16,10 +15,10 @@ export interface Tokenizer {
    * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @param text The text to read tokens from.
-   * @param callback The callback that is invoked when a token is read.
+   * @param handler The handler that receives tokens.
    * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
    */
-  tokenizeDocument(text: string, callback: TokenCallback): void;
+  tokenizeDocument(text: string, handler: TokenHandler): void;
 
   /**
    * Reads tokens from a document fragment.
@@ -27,10 +26,10 @@ export interface Tokenizer {
    * DOCTYPE isn't recognized.
    *
    * @param text The text to read tokens from.
-   * @param callback The callback that is invoked when a token is read.
+   * @param handler The handler that receives tokens.
    * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
    */
-  tokenizeFragment(text: string, callback: TokenCallback): void;
+  tokenizeFragment(text: string, handler: TokenHandler): void;
 
   /**
    * Creates a writer that reads tokens from a document written in chunks.
@@ -38,33 +37,36 @@ export interface Tokenizer {
    * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
    *
    * @example
-   * const writer = HTMLTokenizer.createDocumentWriter((tokenKind, startIndex, endIndex, input) => {
-   *   input.substring(startIndex, endIndex);
-   *   // ⮕ The token text
+   * const writer = HTMLTokenizer.createDocumentWriter({
+   *   onText(startIndex, endIndex, input, isRawText) {
+   *     input.substring(startIndex, endIndex);
+   *     // ⮕ The token text
+   *   },
+   *   // …other TokenHandler methods
    * });
    *
    * writer.write('<p>Hello, ');
    * writer.write('Bob!');
    * writer.end();
    *
-   * @param callback The callback that is invoked when a token is read.
+   * @param handler The handler that receives tokens.
    * @returns The new writer.
    */
-  createDocumentWriter(callback: TokenCallback): TokenizerWriter;
+  createDocumentWriter(handler: TokenHandler): TokenizerWriter;
 
   /**
    * Creates a writer that reads tokens from a document fragment written in chunks.
    *
    * DOCTYPE isn't recognized.
    *
-   * @param callback The callback that is invoked when a token is read.
+   * @param handler The handler that receives tokens.
    * @returns The new writer.
    */
-  createFragmentWriter(callback: TokenCallback): TokenizerWriter;
+  createFragmentWriter(handler: TokenHandler): TokenizerWriter;
 }
 
 /**
- * Creates a tokenizer that reads tokens from text and returns them by invoking a callback.
+ * Creates a tokenizer that reads tokens from text and passes them to a {@link TokenHandler}.
  *
  * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag, unless it's self-closing.
  * Missing tokens are inserted if needed.
@@ -78,12 +80,12 @@ export interface Tokenizer {
  *   },
  * });
  *
- * tokenizer.tokenizeFragment(
- *   'Hello, <b>Bob</b>!',
- *   (tokenKind, startIndex, endIndex) => {
- *     // Handle token here
+ * tokenizer.tokenizeFragment('Hello, <b>Bob</b>!', {
+ *   onStartTagName(startIndex, endIndex, input) {
+ *     // Handle the start tag name here
  *   },
- * );
+ *   // …other TokenHandler methods
+ * });
  *
  * @param options Tokenizer options.
  * @returns The new tokenizer.
@@ -95,20 +97,20 @@ export function createTokenizer(options: TokenizerOptions = {}): Tokenizer {
   const fragmentConfig: TokenizerConfig = { ...documentConfig, isFragment: true };
 
   return {
-    tokenizeDocument(text, callback) {
-      createTokenizerWriter(new CallbackTokenHandler(callback), documentConfig).end(text);
+    tokenizeDocument(text, handler) {
+      createTokenizerWriter(handler, documentConfig).end(text);
     },
 
-    tokenizeFragment(text, callback) {
-      createTokenizerWriter(new CallbackTokenHandler(callback), fragmentConfig).end(text);
+    tokenizeFragment(text, handler) {
+      createTokenizerWriter(handler, fragmentConfig).end(text);
     },
 
-    createDocumentWriter(callback) {
-      return createTokenizerWriter(new CallbackTokenHandler(callback), documentConfig);
+    createDocumentWriter(handler) {
+      return createTokenizerWriter(handler, documentConfig);
     },
 
-    createFragmentWriter(callback) {
-      return createTokenizerWriter(new CallbackTokenHandler(callback), fragmentConfig);
+    createFragmentWriter(handler) {
+      return createTokenizerWriter(handler, fragmentConfig);
     },
   };
 }

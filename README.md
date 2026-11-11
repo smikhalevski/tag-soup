@@ -227,31 +227,33 @@ HTMLSAXParser.parseFragment('<!-- greeting --><p class="x">hello</p>', {
 # Tokenization
 
 TagSoup exports preconfigured [`HTMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/HTMLTokenizer.html)
-which parses HTML markup and invokes a callback when a token is read. This tokenizer never throws errors during
-tokenization and forgives malformed markup:
+which parses HTML markup and passes tokens to a
+[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html). This tokenizer never throws
+errors during tokenization and forgives malformed markup:
 
 ```ts
 import { HTMLTokenizer } from 'tag-soup';
 
-HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', (tokenKind, startIndex, endIndex) => {
-  // Handle token
+HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', {
+  onText(startIndex, endIndex, input, isRawText) {
+    // Handle text
+  },
+  // ...other TokenHandler methods
 });
 ```
 
-[`XMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html) parses XML markup and invokes a
-callback when a token is read. It throws
+[`XMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html) parses XML markup and passes
+tokens to a handler the same way. It throws
 [`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup doesn't satisfy
 XML spec:
 
 ```ts
 import { XMLTokenizer } from 'tag-soup';
 
-XMLTokenizer.tokenizeFragment('<p>hello</br>', (tokenKind, startIndex, endIndex) => {});
+XMLTokenizer.tokenizeFragment('<p>hello</br>', tokenHandler);
 // ❌ MarkupSyntaxError: Unexpected end tag.
 
-XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', (tokenKind, startIndex, endIndex) => {
-  // Handle token
-});
+XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', tokenHandler);
 ```
 
 Create a custom tokenizer using
@@ -264,44 +266,40 @@ const myTokenizer = createTokenizer({
   tags: { br: { kind: 'void' } },
 });
 
-myTokenizer.tokenizeFragment('<p><br></p>', (tokenKind, startIndex, endIndex) => {
-  // Handle token
-});
+myTokenizer.tokenizeFragment('<p><br></p>', tokenHandler);
 ```
 
-The [`TokenKind`](https://smikhalevski.github.io/tag-soup/types/TokenKind.html) passed to the callback is one of the
-following string literals. `startIndex` and `endIndex` point to the token's value in the input: `startIndex` is
-inclusive and `endIndex` is exclusive.
+[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html) has a method per token. Indices
+passed to a method point to the token's value in the input: start indices are inclusive and end indices are exclusive.
 
 <dl>
-<dt><code>"text"</code></dt>
-<dd>Text between tags.</dd>
-<dt><code>"start_tag_name"</code></dt>
+<dt><code>onText</code></dt>
+<dd>Text between tags. <code>isRawText</code> is <code>true</code> for the content of <code>raw_text</code> and
+<code>script_data</code> tags, which parsers don't decode.</dd>
+<dt><code>onStartTagName</code></dt>
 <dd>The tag name in a start tag, <code>p</code> in <code>&lt;p&gt;</code>.</dd>
-<dt><code>"start_tag_closing"</code></dt>
+<dt><code>onStartTagClosing</code></dt>
 <dd>The <code>&gt;</code> that closes a start tag.</dd>
-<dt><code>"start_tag_self_closing"</code></dt>
+<dt><code>onStartTagSelfClosing</code></dt>
 <dd>The <code>/&gt;</code> that closes a self-closing tag.</dd>
-<dt><code>"end_tag_name"</code></dt>
+<dt><code>onEndTagName</code></dt>
 <dd>The tag name in an end tag, <code>p</code> in <code>&lt;/p&gt;</code>.</dd>
-<dt><code>"attribute_name"</code></dt>
-<dd>An attribute name.</dd>
-<dt><code>"attribute_value"</code></dt>
-<dd>An attribute value without quotes. Tokenizers don't decode entities.</dd>
-<dt><code>"comment"</code></dt>
+<dt><code>onAttribute</code></dt>
+<dd>An attribute name and its value without quotes. Value indices are equal if the attribute has no value. Tokenizers
+don't decode entities.</dd>
+<dt><code>onComment</code></dt>
 <dd>Comment content between <code>&lt;!--</code> and <code>--&gt;</code>.</dd>
-<dt><code>"processing_instruction_target"</code></dt>
-<dd>The target of a processing instruction, <code>xml</code> in <code>&lt;?xml version="1.0"?&gt;</code>.</dd>
-<dt><code>"processing_instruction_data"</code></dt>
-<dd>The data of a processing instruction, <code>version="1.0"</code> in <code>&lt;?xml version="1.0"?&gt;</code>.</dd>
-<dt><code>"cdata_section"</code></dt>
+<dt><code>onProcessingInstruction</code></dt>
+<dd>The target and the data of a processing instruction: <code>xml</code> and <code>version="1.0"</code> in
+<code>&lt;?xml version="1.0"?&gt;</code>.</dd>
+<dt><code>onCDATASection</code></dt>
 <dd>CDATA section content between <code>&lt;![CDATA[</code> and <code>]]&gt;</code>.</dd>
-<dt><code>"doctype_name"</code></dt>
+<dt><code>onDoctypeName</code></dt>
 <dd>The name in a DOCTYPE declaration, <code>html</code> in <code>&lt;!DOCTYPE html&gt;</code>.</dd>
 </dl>
 
 Tokens are balanced: each start tag is followed by a matching end tag, unless it's self-closing. End tags that the
-tokenizer inserts, for void tags and implicitly ended tags, have `startIndex` equal to `endIndex`.
+tokenizer inserts, for void tags and implicitly ended tags, have the start index equal to the end index.
 
 Use indices to read token values from the input:
 
@@ -310,11 +308,12 @@ import { HTMLTokenizer } from 'tag-soup';
 
 const input = '<p class="x">hello</p>';
 
-HTMLTokenizer.tokenizeFragment(input, (tokenKind, startIndex, endIndex) => {
-  if (tokenKind === 'attribute_value') {
-    input.substring(startIndex, endIndex);
+HTMLTokenizer.tokenizeFragment(input, {
+  onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex, input) {
+    input.substring(valueStartIndex, valueEndIndex);
     // ⮕ 'x'
-  }
+  },
+  // ...other TokenHandler methods
 });
 ```
 
