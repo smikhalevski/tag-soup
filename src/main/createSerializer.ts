@@ -2,8 +2,6 @@ import {
   CDATASection,
   ChildNode,
   Comment,
-  Document,
-  DocumentFragment,
   DocumentType,
   Element,
   Node,
@@ -45,15 +43,17 @@ export function createSerializer(options: SerializerOptions = {}): (node: Node) 
   return node => serializeMarkup(node, config);
 }
 
-function serializeMarkup(node: Node, config: SerializerConfig): string {
+function serializeMarkup(anyNode: Node, config: SerializerConfig): string {
   const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = config;
 
   // Text is the most common node, and a node type check is faster than instanceof, which walks the prototype chain
-  if (node.nodeType === Node.TEXT_NODE) {
-    return encodeText((node as Text).data);
+  if (anyNode.nodeType === Node.TEXT_NODE) {
+    return encodeText((anyNode as Text).data);
   }
 
-  if (node instanceof Element) {
+  if (anyNode.nodeType === Node.ELEMENT_NODE) {
+    const node = anyNode as Element;
+
     let output = '<' + node.tagName;
 
     for (const name in node.attributes) {
@@ -89,29 +89,31 @@ function serializeMarkup(node: Node, config: SerializerConfig): string {
     return output;
   }
 
-  if (node instanceof CDATASection) {
-    return '<![CDATA[' + node.data + ']]>';
+  if (anyNode.nodeType === Node.CDATA_SECTION_NODE) {
+    return '<![CDATA[' + (anyNode as CDATASection).data + ']]>';
   }
 
-  if (node instanceof Document || node instanceof DocumentFragment) {
+  if (anyNode.nodeType === Node.DOCUMENT_NODE || anyNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
     let output = '';
 
-    for (let child = node.firstChild; child !== null; child = child.nextSibling) {
+    for (let child = anyNode.firstChild; child !== null; child = child.nextSibling) {
       output += serializeMarkup(child, config);
     }
 
     return output;
   }
 
-  if (node instanceof Comment) {
-    return '<!--' + node.data + '-->';
+  if (anyNode.nodeType === Node.COMMENT_NODE) {
+    return '<!--' + (anyNode as Comment).data + '-->';
   }
 
-  if (node instanceof DocumentType) {
-    return '<!DOCTYPE ' + node.name + '>';
+  if (anyNode.nodeType === Node.DOCUMENT_TYPE_NODE) {
+    return '<!DOCTYPE ' + (anyNode as DocumentType).name + '>';
   }
 
-  if (node instanceof ProcessingInstruction) {
+  if (anyNode.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+    const node = anyNode as ProcessingInstruction;
+
     return '<?' + node.target + (node.data.length !== 0 ? ' ' + node.data : '') + '?>';
   }
 
