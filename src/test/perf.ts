@@ -9,7 +9,7 @@ import * as saxWasm from 'sax-wasm';
 import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
 // @ts-ignore
 import * as tagSoup from '../../lib/index.js';
-import { collectGarbage } from './test-utils.ts';
+import { collectGarbage } from './perf-utils.ts';
 
 const filesDir = new URL('../../node_modules/htmlparser-benchmark/files/', import.meta.url);
 
@@ -22,7 +22,8 @@ const xmlSource = fs.readFileSync(new URL('test.xml', import.meta.url), 'utf8');
 // The size of chunks that streams usually emit, in bytes
 const chunkSize = 65_536;
 
-const noop = () => {};
+const noop = () => {
+};
 
 const noopTokenHandler: tagSoup.TokenHandler = {
   onText: noop,
@@ -85,7 +86,7 @@ describe('HTML SAX (large source)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        }
+        },
       );
     });
 
@@ -147,7 +148,7 @@ describe('HTML SAX with handlers (large source)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        }
+        },
       );
     });
 
@@ -178,7 +179,7 @@ describe('HTML SAX with handlers (large source)', () => {
 
   test('sax-wasm', async () => {
     const parser = await createSAXWasmParser(
-      saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text
+      saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text,
     );
     const chunks = splitIntoByteChunks(largeHtmlSource);
 
@@ -235,7 +236,7 @@ describe('HTML SAX (large source in chunks)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        }
+        },
       );
     });
 
@@ -384,7 +385,7 @@ describe('HTML SAX (small sources)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        }
+        },
       );
     });
 

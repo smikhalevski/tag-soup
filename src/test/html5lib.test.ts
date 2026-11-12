@@ -11,11 +11,11 @@ import {
 } from 'flyweight-dom';
 import { describe, expect, test } from 'vitest';
 import { HTMLDOMParser } from '../main/index.ts';
-import { html5libTestFileNames, html5libTestsDir } from './html5lib-tests.ts';
+import { html5libTestFileNames, html5libTestsDir } from './html5lib-utils.ts';
 
 // Indices of tests in each file that the HTML parser doesn't pass. If a test starts to pass, remove it from this list.
 const incompatibleTestIndicesMap = new Map<string, number[]>(
-  Object.entries(JSON.parse(fs.readFileSync(new URL('./html5lib-incompatible.json', import.meta.url), 'utf8')))
+  Object.entries(JSON.parse(fs.readFileSync(new URL('./html5lib-incompatible.json', import.meta.url), 'utf8'))),
 );
 
 interface Html5libTest {
@@ -42,7 +42,7 @@ for (const fileName of html5libTestFileNames) {
           : readNodes(HTMLDOMParser.parseDocument(html5libTest.data));
 
         expect(stringifyNodes(normalizeNodes(actualNodes))).toBe(
-          stringifyNodes(normalizeNodes(parseExpectedNodes(html5libTest.document)))
+          stringifyNodes(normalizeNodes(parseExpectedNodes(html5libTest.document))),
         );
       });
     });
