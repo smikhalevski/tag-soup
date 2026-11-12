@@ -16,7 +16,7 @@
     "test": "vitest run",
     "typecheck": "tsc",
     "lint": "oxlint --tsconfig tsconfig.json src/main",
-    "format": "oxfmt 'src/**/*.{ts,js}'",
+    "format": "oxfmt 'src/**/*.ts'",
     "perf": "npm run build && toofast",
     "docs": "typedoc"
   },

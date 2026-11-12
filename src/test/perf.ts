@@ -22,8 +22,7 @@ const xmlSource = fs.readFileSync(new URL('test.xml', import.meta.url), 'utf8');
 // The size of chunks that streams usually emit, in bytes
 const chunkSize = 65_536;
 
-const noop = () => {
-};
+const noop = () => {};
 
 const noopTokenHandler: tagSoup.TokenHandler = {
   onText: noop,
@@ -68,7 +67,7 @@ describe('HTML tokenizer (large source)', () => {
   });
 });
 
-describe('HTML SAX (large source)', () => {
+describe('HTML SAX (large source, no handlers)', () => {
   test('tag-soup', () => {
     const saxHandler: tagSoup.SAXHandler = {};
 
@@ -86,7 +85,7 @@ describe('HTML SAX (large source)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        },
+        }
       );
     });
 
@@ -122,7 +121,7 @@ describe('HTML SAX (large source)', () => {
   });
 });
 
-describe('HTML SAX with handlers (large source)', () => {
+describe('HTML SAX (large source, handlers)', () => {
   test('tag-soup', () => {
     const saxHandler: tagSoup.SAXHandler = {
       onStartTag: noop,
@@ -148,7 +147,7 @@ describe('HTML SAX with handlers (large source)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        },
+        }
       );
     });
 
@@ -179,7 +178,7 @@ describe('HTML SAX with handlers (large source)', () => {
 
   test('sax-wasm', async () => {
     const parser = await createSAXWasmParser(
-      saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text,
+      saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text
     );
     const chunks = splitIntoByteChunks(largeHtmlSource);
 
@@ -211,7 +210,7 @@ describe('HTML SAX with handlers (large source)', () => {
   });
 });
 
-describe('HTML SAX (large source in chunks)', () => {
+describe('HTML SAX (large source, chunks)', () => {
   test('tag-soup', () => {
     const saxHandler: tagSoup.SAXHandler = {};
     const chunks = splitIntoTextChunks(largeHtmlSource);
@@ -236,7 +235,7 @@ describe('HTML SAX (large source in chunks)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        },
+        }
       );
     });
 
@@ -301,7 +300,7 @@ describe('HTML DOM (large source)', () => {
   });
 });
 
-describe('HTML DOM (large source in chunks)', () => {
+describe('HTML DOM (large source, chunks)', () => {
   test('tag-soup', () => {
     const chunks = splitIntoTextChunks(largeHtmlSource);
 
@@ -339,7 +338,7 @@ describe('HTML DOM (large source in chunks)', () => {
   });
 });
 
-describe('HTML serialization (large source)', () => {
+describe('HTML serializer (large source)', () => {
   test('tag-soup', () => {
     const document = tagSoup.HTMLDOMParser.parseDocument(largeHtmlSource);
 
@@ -365,7 +364,7 @@ describe('HTML serialization (large source)', () => {
   });
 });
 
-describe('HTML SAX (small sources)', () => {
+describe('HTML SAX (small sources)', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
   test('tag-soup', () => {
     const saxHandler = {};
 
@@ -385,7 +384,7 @@ describe('HTML SAX (small sources)', () => {
         {
           lowerCaseTags: false,
           lowerCaseAttributeNames: false,
-        },
+        }
       );
     });
 
@@ -413,7 +412,7 @@ describe('HTML SAX (small sources)', () => {
   });
 });
 
-describe('HTML DOM (small sources)', () => {
+describe('HTML DOM (small sources)', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
   test('tag-soup', () => {
     for (const smallSource of smallHtmlSources) {
       measure(() => {
@@ -495,7 +494,7 @@ describe('XML DOM', () => {
   });
 });
 
-describe('XML serialization', () => {
+describe('XML serializer', () => {
   test('tag-soup', () => {
     const document = tagSoup.XMLDOMParser.parseDocument(xmlSource);
 
