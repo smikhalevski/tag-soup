@@ -135,12 +135,16 @@ function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | Do
  * Builds a DOM from tokens.
  */
 class DOMTokenHandler implements TokenHandler {
+  renameTag: (name: string) => string;
+  renameAttribute: (name: string) => string;
   decodeText: (text: string) => string;
   decodeAttribute: (value: string) => string;
   rootNode: Document | DocumentFragment;
   parentNode: ParentNode;
 
   constructor(config: ParserConfig) {
+    this.renameTag = config.renameTag;
+    this.renameAttribute = config.renameAttribute;
     this.decodeText = config.decodeText;
     this.decodeAttribute = config.decodeAttribute;
     this.rootNode = this.parentNode = config.isFragment ? new DocumentFragment() : new Document();
@@ -153,7 +157,7 @@ class DOMTokenHandler implements TokenHandler {
   }
 
   onStartTagName(startIndex: number, endIndex: number, input: string): void {
-    const element = new Element(input.substring(startIndex, endIndex));
+    const element = new Element((0, this.renameTag)(input.substring(startIndex, endIndex)));
 
     this.parentNode.appendChild(element);
     this.parentNode = element;
@@ -175,7 +179,7 @@ class DOMTokenHandler implements TokenHandler {
     input: string
   ): void {
     (this.parentNode as Element).setAttribute(
-      input.substring(nameStartIndex, nameEndIndex),
+      (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex)),
       (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex))
     );
   }

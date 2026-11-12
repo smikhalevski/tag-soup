@@ -17,7 +17,7 @@ test('parses HTML DOM from chunks', () => {
 
 test('serializes HTML', () => {
   expect(toHTML(HTMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<p>bbb</BR>'))).toBe(
-    '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<BR></p>'
+    '<!DOCTYPE html><p>aaa&gt;&lt;</p><p>bbb<br></p>'
   );
 });
 
@@ -89,7 +89,7 @@ test('parses title as escapable raw text', () => {
 
 test('does not switch options for math inside SVG', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<svg><math><foreignObject><b/>aaa'))).toBe(
-    '<svg><math><foreignObject><b>aaa</b></foreignObject></math></svg>'
+    '<svg><math><foreignobject><b>aaa</b></foreignobject></math></svg>'
   );
 });
 
@@ -113,7 +113,7 @@ test('round-trips escaped script data', () => {
 
 test('parses tags after foreignObject', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<svg><foreignObject></foreignObject></svg><p/>aaa'))).toBe(
-    '<svg><foreignObject></foreignObject></svg><p>aaa</p>'
+    '<svg><foreignobject></foreignobject></svg><p>aaa</p>'
   );
 });
 
@@ -123,7 +123,7 @@ test('parses tags after self-closing svg', () => {
 
 test('parses foreign tags', () => {
   expect(toHTML(HTMLDOMParser.parseFragment('<body><div><svg><path/><foreignObject><em></div><i></body>'))).toBe(
-    '<body><div><svg><path></path><foreignObject><em></em></foreignObject></svg></div><i></i></body>'
+    '<body><div><svg><path></path><foreignobject><em></em></foreignobject></svg></div><i></i></body>'
   );
 });
 

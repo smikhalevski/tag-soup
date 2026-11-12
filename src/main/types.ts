@@ -300,6 +300,10 @@ export interface TokenizerOptions extends TokenizerContextOptions {
  * @group Parser
  */
 export interface ParserOptions extends TokenizerOptions {
+  renameTag?: (name: string) => string;
+
+  renameAttribute?: (name: string) => string;
+
   /**
    * Decodes text content. Use this method to decode HTML/XML entities.
    *

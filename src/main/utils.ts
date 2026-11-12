@@ -23,6 +23,28 @@ export function toLowerCaseCharCode(charCode: number): number {
   return charCode > /* Z */ 90 || charCode < /* A */ 65 ? charCode : charCode + 32;
 }
 
+const asciiChars: string[] = [];
+
+for (let charCode = /* a */ 97; charCode <= /* z */ 122; ++charCode) {
+  asciiChars.push(String.fromCharCode(charCode));
+}
+
+export function toLowerCase(str: string): string {
+  let lowerCaseStr = '';
+  let startIndex = 0;
+
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+
+    if (charCode >= /* A */ 65 && charCode <= /* Z */ 90) {
+      lowerCaseStr += str.slice(startIndex, i) + asciiChars[charCode - /* A */ 65];
+      startIndex = i + 1;
+    }
+  }
+
+  return startIndex === 0 ? str : lowerCaseStr + str.slice(startIndex);
+}
+
 // ----------------------------------------------------------
 // String equality
 // ----------------------------------------------------------

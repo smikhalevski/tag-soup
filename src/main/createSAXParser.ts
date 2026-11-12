@@ -212,6 +212,8 @@ function createSAXParserWriter(handler: SAXHandler, config: ParserConfig): Parse
  */
 class SAXTokenHandler implements TokenHandler {
   handler: SAXHandler;
+  renameTag: (name: string) => string;
+  renameAttribute: (name: string) => string;
   decodeText: (text: string) => string;
   decodeAttribute: (value: string) => string;
   isTagNameStackUsed: boolean;
@@ -221,6 +223,8 @@ class SAXTokenHandler implements TokenHandler {
 
   constructor(handler: SAXHandler, config: ParserConfig) {
     this.handler = handler;
+    this.renameTag = config.renameTag;
+    this.renameAttribute = config.renameAttribute;
     this.decodeText = config.decodeText;
     this.decodeAttribute = config.decodeAttribute;
     this.isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
@@ -242,13 +246,14 @@ class SAXTokenHandler implements TokenHandler {
     let tagName;
 
     if (handler.onStartTagOpening !== undefined) {
-      tagName = input.substring(startIndex, endIndex);
+      tagName = (0, this.renameTag)(input.substring(startIndex, endIndex));
 
       handler.onStartTagOpening(tagName);
     }
 
     if (this.isTagNameStackUsed) {
-      this.tagNameStack[++this.tagNameStackCursor] = tagName ?? input.substring(startIndex, endIndex);
+      this.tagNameStack[++this.tagNameStackCursor] =
+        tagName ?? (0, this.renameTag)(input.substring(startIndex, endIndex));
     }
 
     if (handler.onStartTag !== undefined) {
@@ -300,7 +305,7 @@ class SAXTokenHandler implements TokenHandler {
       return;
     }
 
-    const name = input.substring(nameStartIndex, nameEndIndex);
+    const name = (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex));
     const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
 
     if (attributes !== undefined) {

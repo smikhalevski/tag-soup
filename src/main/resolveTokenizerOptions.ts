@@ -7,6 +7,7 @@ import {
   identity,
   type SubstringComparer,
   type SubstringHasher,
+  toLowerCase,
 } from './utils.ts';
 
 /**
@@ -457,11 +458,4 @@ function getOrCreateContext(
   contextMap.set(contextOptions, context);
 
   return context;
-}
-
-/**
- * Converts ASCII letters to lower case.
- */
-function toLowerCase(str: string): string {
-  return str.replace(/[A-Z]+/g, str => str.toLowerCase());
 }

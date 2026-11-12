@@ -4,6 +4,7 @@ import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
 import type { ParserOptions, SerializerOptions, TokenizerContextOptions } from './types.ts';
+import { toLowerCase } from './utils.ts';
 
 // Tags that implicitly end form controls
 const formTagNames = ['button', 'datalist', 'input', 'output', 'select', 'textarea'];
@@ -352,6 +353,8 @@ const htmlParserOptions: ParserOptions = {
   areUnbalancedEndTagsIgnored: true,
   decodeText: decodeHTML,
   decodeAttribute: decodeHTMLAttribute,
+  renameTag: toLowerCase,
+  renameAttribute: toLowerCase,
 };
 
 // Inside SVG and MathML, svg and math don't switch options again, and title is a normal tag rather than escapable raw
