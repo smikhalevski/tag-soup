@@ -1,15 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { f } from 'flyweight-dom/dsl';
+import { h } from 'flyweight-dom/dsl';
 import { expect, test } from 'vitest';
 import { toXML, XMLDOMParser } from '../main/xml.ts';
 
 test('parses XML DOM', () => {
-  expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
+  expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(
+    h.fragment(h('p', 'aaa'), h('p', 'bbb', h('br')))
+  );
 });
 
 test('decodes attribute values', () => {
-  expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(f.f(f.aaa({ bbb: '<' })));
+  expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(h.fragment(h('aaa', { bbb: '<' })));
 });
 
 test('resolves namespaces', () => {

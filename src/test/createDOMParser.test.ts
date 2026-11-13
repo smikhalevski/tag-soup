@@ -1,5 +1,5 @@
 import { type Document, type Element, XML_NAMESPACE } from 'flyweight-dom';
-import { f } from 'flyweight-dom/dsl';
+import { h } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
 import { expect, test } from 'vitest';
 import { createDOMParser } from '../main/createDOMParser.ts';
@@ -22,48 +22,50 @@ function getNamespaceURIs(document: Document): Record<string, string | null> {
 }
 
 test('parses text', () => {
-  expect(createDOMParser().parseDocument('aaa')).toStrictEqual(f.doc('aaa'));
+  expect(createDOMParser().parseDocument('aaa')).toStrictEqual(h.document('aaa'));
 });
 
 test('parses element', () => {
-  expect(createDOMParser().parseDocument('<aaa>bbb</aaa>')).toStrictEqual(f.doc(f.aaa('bbb')));
+  expect(createDOMParser().parseDocument('<aaa>bbb</aaa>')).toStrictEqual(h.document(h('aaa', 'bbb')));
 });
 
 test('parses attributes', () => {
   expect(createDOMParser().parseDocument('<aaa xxx="yyy" zzz="vvv">bbb</aaa>')).toEqual(
-    f.doc(f.aaa({ xxx: 'yyy', zzz: 'vvv' }, 'bbb'))
+    h.document(h('aaa', { xxx: 'yyy', zzz: 'vvv' }, 'bbb'))
   );
 });
 
 test('parses nested elements', () => {
-  expect(createDOMParser().parseDocument('<aaa><bbb></bbb></aaa>')).toEqual(f.doc(f.aaa(f.bbb())));
+  expect(createDOMParser().parseDocument('<aaa><bbb></bbb></aaa>')).toEqual(h.document(h('aaa', h('bbb'))));
 });
 
 test('parses self-closing tags elements', () => {
   const tokenizer = createTokenizer({ areSelfClosingTagsRecognized: true });
 
-  expect(createDOMParser({ tokenizer }).parseDocument('<aaa><bbb/></aaa>')).toEqual(f.doc(f.aaa(f.bbb())));
+  expect(createDOMParser({ tokenizer }).parseDocument('<aaa><bbb/></aaa>')).toEqual(h.document(h('aaa', h('bbb'))));
 });
 
 test('parses comments', () => {
-  expect(createDOMParser().parseDocument('<!--xxx-->')).toEqual(f.doc(f.comment('xxx')));
+  expect(createDOMParser().parseDocument('<!--xxx-->')).toEqual(h.document(h.comment('xxx')));
 });
 
 test('does not decode comments', () => {
-  expect(createDOMParser({ decodeText: decodeXML }).parseDocument('<!--&amp;-->')).toEqual(f.doc(f.comment('&amp;')));
+  expect(createDOMParser({ decodeText: decodeXML }).parseDocument('<!--&amp;-->')).toEqual(
+    h.document(h.comment('&amp;'))
+  );
 });
 
 test('does not decode text in raw text tags', () => {
   const tokenizer = createTokenizer({ tags: { aaa: { kind: 'raw_text' } } });
 
   expect(createDOMParser({ tokenizer, decodeText: decodeXML }).parseDocument('<aaa>&lt;</aaa>')).toEqual(
-    f.doc(f.aaa('&lt;'))
+    h.document(h('aaa', '&lt;'))
   );
 });
 
 test('decodes attribute values with decodeAttribute', () => {
   expect(createDOMParser({ decodeAttribute: decodeXML }).parseDocument('<aaa bbb="&lt;">&lt;</aaa>')).toEqual(
-    f.doc(f.aaa({ bbb: '<' }, '&lt;'))
+    h.document(h('aaa', { bbb: '<' }, '&lt;'))
   );
 });
 
@@ -88,14 +90,14 @@ test('calls decodeText and decodeAttribute with this undefined', () => {
 });
 
 test('parses comments in elements', () => {
-  expect(createDOMParser().parseDocument('<aaa><!--xxx--></aaa>')).toEqual(f.doc(f.aaa(f.comment('xxx'))));
+  expect(createDOMParser().parseDocument('<aaa><!--xxx--></aaa>')).toEqual(h.document(h('aaa', h.comment('xxx'))));
 });
 
 test('parses processing instructions in elements', () => {
   const tokenizer = createTokenizer({ areProcessingInstructionsRecognized: true });
 
   expect(createDOMParser({ tokenizer }).parseDocument('<aaa><?xxx yyy?></aaa>')).toEqual(
-    f.doc(f.aaa(f.pi('xxx', 'yyy')))
+    h.document(h('aaa', h.processingInstruction('xxx', 'yyy')))
   );
 });
 
@@ -103,19 +105,19 @@ test('parses DOCTYPE, processing instruction and text', () => {
   const tokenizer = createTokenizer({ areProcessingInstructionsRecognized: true });
 
   expect(createDOMParser({ tokenizer }).parseDocument('   <!DOCTYPE html>  <?xxx yyy?>  vvv')).toEqual(
-    f.doc(f.doctype('html'), f.pi('xxx', 'yyy'), 'vvv')
+    h.document(h.doctype('html'), h.processingInstruction('xxx', 'yyy'), 'vvv')
   );
 });
 
 test('parses DOCTYPE, text and bogus comment', () => {
   expect(createDOMParser().parseDocument('   <!DOCTYPE html>   vvv   <?xxx yyy?>')).toEqual(
-    f.doc(f.doctype('html'), 'vvv   ', f.comment('?xxx yyy?'))
+    h.document(h.doctype('html'), 'vvv   ', h.comment('?xxx yyy?'))
   );
 });
 
 test('parses bogus comment, DOCTYPE and text', () => {
   expect(createDOMParser().parseDocument('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ')).toEqual(
-    f.doc(f.comment('?xxx yyy?'), f.doctype('html'), 'vvv   ')
+    h.document(h.comment('?xxx yyy?'), h.doctype('html'), 'vvv   ')
   );
 });
 
@@ -125,13 +127,13 @@ test('parses chunks', () => {
   writer.write('<aaa>bb');
   writer.write('b</a');
 
-  expect(writer.end('aa>')).toEqual(f.doc(f.aaa('bbb')));
+  expect(writer.end('aa>')).toEqual(h.document(h('aaa', 'bbb')));
 });
 
 test('parses a fragment with the tokenizer', () => {
   const tokenizer = createTokenizer({ tags: { aaa: { kind: 'void' } } });
 
-  expect(createDOMParser({ tokenizer }).parseFragment(' <aaa>bbb')).toStrictEqual(f.f(' ', f.aaa(), 'bbb'));
+  expect(createDOMParser({ tokenizer }).parseFragment(' <aaa>bbb')).toStrictEqual(h.fragment(' ', h('aaa'), 'bbb'));
 });
 
 test('parses document chunks with the tokenizer', () => {
@@ -141,7 +143,7 @@ test('parses document chunks with the tokenizer', () => {
 
   writer.write(' <aa');
 
-  expect(writer.end('a>bbb')).toStrictEqual(f.doc(f.aaa(), 'bbb'));
+  expect(writer.end('a>bbb')).toStrictEqual(h.document(h('aaa'), 'bbb'));
 });
 
 test('parses fragment chunks with the tokenizer', () => {
@@ -151,7 +153,7 @@ test('parses fragment chunks with the tokenizer', () => {
 
   writer.write(' <aa');
 
-  expect(writer.end('a>bbb')).toStrictEqual(f.f(' ', f.aaa(), 'bbb'));
+  expect(writer.end('a>bbb')).toStrictEqual(h.fragment(' ', h('aaa'), 'bbb'));
 });
 
 test('does not recognize namespaces by default', () => {

@@ -1,9 +1,11 @@
-import { f } from 'flyweight-dom/dsl';
+import { h } from 'flyweight-dom/dsl';
 import { expect, test } from 'vitest';
 import { HTMLDOMParser, toHTML } from '../main/html.ts';
 
 test('parses HTML DOM', () => {
-  expect(HTMLDOMParser.parseFragment('<p>aaa<p>bbb</br>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
+  expect(HTMLDOMParser.parseFragment('<p>aaa<p>bbb</br>')).toStrictEqual(
+    h.fragment(h('p', 'aaa'), h('p', 'bbb', h('br')))
+  );
 });
 
 test('parses HTML DOM from chunks', () => {
@@ -12,7 +14,7 @@ test('parses HTML DOM from chunks', () => {
   writer.write('<p>aaa<p>b');
   writer.write('bb</b');
 
-  expect(writer.end('r>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
+  expect(writer.end('r>')).toStrictEqual(h.fragment(h('p', 'aaa'), h('p', 'bbb', h('br'))));
 });
 
 test('serializes HTML', () => {
@@ -27,7 +29,7 @@ test('encodes attribute values', () => {
 
 test('decodes attribute values differently from text', () => {
   expect(HTMLDOMParser.parseFragment('<a href="?aaa=111&amp;bbb=222&copy=333">&copy=333</a>')).toStrictEqual(
-    f.f(f.a({ href: '?aaa=111&bbb=222&copy=333' }, '©=333'))
+    h.fragment(h('a', { href: '?aaa=111&bbb=222&copy=333' }, '©=333'))
   );
 });
 
@@ -80,11 +82,13 @@ test('parses command and isindex as normal tags', () => {
 });
 
 test('parses xmp as raw text that ends a paragraph', () => {
-  expect(HTMLDOMParser.parseFragment('<p>aaa<xmp><p>&amp;</xmp>')).toStrictEqual(f.f(f.p('aaa'), f.xmp('<p>&amp;')));
+  expect(HTMLDOMParser.parseFragment('<p>aaa<xmp><p>&amp;</xmp>')).toStrictEqual(
+    h.fragment(h('p', 'aaa'), h('xmp', '<p>&amp;'))
+  );
 });
 
 test('parses title as escapable raw text', () => {
-  expect(HTMLDOMParser.parseFragment('<title><b>&amp;</b></title>')).toStrictEqual(f.f(f.title('<b>&</b>')));
+  expect(HTMLDOMParser.parseFragment('<title><b>&amp;</b></title>')).toStrictEqual(h.fragment(h('title', '<b>&</b>')));
 });
 
 test('does not switch options for math inside SVG', () => {
