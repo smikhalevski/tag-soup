@@ -133,8 +133,8 @@ document.getElementsByTagNameNS('http://www.w3.org/1999/xlink', 'a');
 ```
 
 An element whose prefix isn't declared has no namespace. Attributes that declare namespaces are kept, so
-[`getAttributeNS`](https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Element.html#getattributens)
-and other namespace-aware methods of an element look up namespaces of attributes.
+[`getAttributeNS`](https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Element.html#getattributens) and
+other namespace-aware methods of an element look up namespaces of attributes.
 
 `HTMLDOMParser` doesn't recognize namespaces. To recognize them in a custom DOM parser, enable
 [`areNamespacesRecognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized):
@@ -645,7 +645,7 @@ is measured in bytes, the lower number is better.
 
 </table>
 
-Performance was measured when parsing [the 3.64 MB HTML file](./src/test/test.html).
+Performance was measured when parsing [the 3.64 MB HTML file](src/test/test_large.html).
 
 Tests were conducted using [TooFast](https://github.com/smikhalevski/toofast#readme) on Apple M1 with Node.js v25.6.0.
 

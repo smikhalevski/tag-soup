@@ -33,7 +33,7 @@ test('serializes processing instruction without data', () => {
 });
 
 test('parses large XML', () => {
-  const testXml = fs.readFileSync(path.resolve(import.meta.dirname, './test.xml'), 'utf-8');
+  const testXml = fs.readFileSync(path.resolve(import.meta.dirname, './test_small.xml'), 'utf-8');
 
   expect(() => XMLDOMParser.parseDocument(testXml)).not.toThrow();
 });

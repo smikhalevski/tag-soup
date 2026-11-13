@@ -15,9 +15,11 @@ const filesDir = new URL('../../node_modules/htmlparser-benchmark/files/', impor
 
 const smallHtmlSources = fs.readdirSync(filesDir).map(fileName => fs.readFileSync(new URL(fileName, filesDir), 'utf8'));
 
-const largeHtmlSource = fs.readFileSync(new URL('test.html', import.meta.url), 'utf8');
+const largeHtmlSource = fs.readFileSync(new URL('test_large.html', import.meta.url), 'utf8');
 
-const xmlSource = fs.readFileSync(new URL('test.xml', import.meta.url), 'utf8');
+const largeXmlSource = fs.readFileSync(new URL('test_large.xml', import.meta.url), 'utf8');
+
+const smallXmlSource = fs.readFileSync(new URL('test_small.xml', import.meta.url), 'utf8');
 
 // The size of chunks that streams usually emit, in bytes
 const chunkSize = 65_536;
@@ -468,7 +470,7 @@ describe('XML SAX (with handlers)', () => {
     };
 
     measure(() => {
-      tagSoup.XMLSAXParser.parseDocument(xmlSource, saxHandler);
+      tagSoup.XMLSAXParser.parseDocument(smallXmlSource, saxHandler);
     });
   });
 
@@ -493,13 +495,13 @@ describe('XML SAX (with handlers)', () => {
     });
 
     measure(() => {
-      parser.end(xmlSource);
+      parser.end(smallXmlSource);
     });
   });
 
   test('sax-wasm', async () => {
     const parser = await createSAXWasmParser(0);
-    const chunks = splitIntoByteChunks(xmlSource);
+    const chunks = splitIntoByteChunks(smallXmlSource);
 
     measure(() => {
       writeSAXWasmChunks(parser, chunks);
@@ -507,10 +509,10 @@ describe('XML SAX (with handlers)', () => {
   });
 });
 
-describe('XML DOM', () => {
+describe('XML DOM (large source)', () => {
   test('tag-soup', () => {
     measure(() => {
-      tagSoup.XMLDOMParser.parseDocument(xmlSource);
+      tagSoup.XMLDOMParser.parseDocument(largeXmlSource);
     });
   });
 
@@ -528,7 +530,7 @@ describe('XML DOM', () => {
     });
 
     measure(() => {
-      parser.end(xmlSource);
+      parser.end(largeXmlSource);
     });
   });
 
@@ -536,14 +538,48 @@ describe('XML DOM', () => {
     const parser = new fastXmlParser.XMLParser();
 
     measure(() => {
-      parser.parse(xmlSource);
+      parser.parse(largeXmlSource);
+    });
+  });
+});
+
+describe('XML DOM (small source)', () => {
+  test('tag-soup', () => {
+    measure(() => {
+      tagSoup.XMLDOMParser.parseDocument(smallXmlSource);
+    });
+  });
+
+  test('htmlparser2', () => {
+    let parser: htmlparser2.Parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+        xmlMode: true,
+      });
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      parser.end(smallXmlSource);
+    });
+  });
+
+  test('fast-xml-parser', () => {
+    const parser = new fastXmlParser.XMLParser();
+
+    measure(() => {
+      parser.parse(smallXmlSource);
     });
   });
 });
 
 describe('XML serializer', () => {
   test('tag-soup', () => {
-    const document = tagSoup.XMLDOMParser.parseDocument(xmlSource);
+    const document = tagSoup.XMLDOMParser.parseDocument(smallXmlSource);
 
     measure(() => {
       tagSoup.toXML(document);
@@ -552,7 +588,7 @@ describe('XML serializer', () => {
 
   test('fast-xml-parser', () => {
     const builder = new fastXmlParser.XMLBuilder();
-    const document = new fastXmlParser.XMLParser().parse(xmlSource);
+    const document = new fastXmlParser.XMLParser().parse(smallXmlSource);
 
     measure(() => {
       builder.build(document);
