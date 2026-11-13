@@ -3,7 +3,7 @@ import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import type { ParserOptions, SerializerOptions, TokenizerContextOptions } from './types.ts';
+import type { ParserOptions, SerializerOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
 import { toLowerCase } from './utils.ts';
 
 // Tags that implicitly end form controls
@@ -75,7 +75,7 @@ const mathmlOptions: TokenizerContextOptions = {
   areSelfClosingTagsRecognized: true,
 };
 
-const htmlParserOptions: ParserOptions = {
+const htmlTokenizerOptions: TokenizerOptions = {
   // Implicit ending boundaries follow https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
   tags: {
     a: {
@@ -351,17 +351,13 @@ const htmlParserOptions: ParserOptions = {
   areTagNamesCaseInsensitive: true,
   areUnbalancedStartTagsImplicitlyEnded: true,
   areUnbalancedEndTagsIgnored: true,
-  decodeText: decodeHTML,
-  decodeAttribute: decodeHTMLAttribute,
-  renameTag: toLowerCase,
-  renameAttribute: toLowerCase,
 };
 
 // Inside SVG and MathML, svg and math don't switch options again, and title is a normal tag rather than escapable raw
 // text, since SVG title is an HTML integration point, see
 // https://html.spec.whatwg.org/multipage/parsing.html#html-integration-point
 const foreignContentTags = {
-  ...htmlParserOptions.tags,
+  ...htmlTokenizerOptions.tags,
 
   math: {
     implicitEndingTagNames: breakoutTagNames,
@@ -384,12 +380,12 @@ svgOptions.tags = {
   // Content of foreignObject is read as HTML
   foreignObject: {
     isImplicitEndingBoundary: true,
-    foreignContext: htmlParserOptions,
+    foreignContext: htmlTokenizerOptions,
   },
 };
 
 const htmlSerializerOptions: SerializerOptions = {
-  tags: htmlParserOptions.tags,
+  tags: htmlTokenizerOptions.tags,
   areTagNamesCaseInsensitive: true,
   areSelfClosingTagsSupported: false,
   encodeText: escapeXML,
@@ -402,7 +398,15 @@ const htmlSerializerOptions: SerializerOptions = {
  *
  * @group Tokenizer
  */
-export const HTMLTokenizer = createTokenizer(htmlParserOptions);
+export const HTMLTokenizer = createTokenizer(htmlTokenizerOptions);
+
+const htmlParserOptions: ParserOptions = {
+  tokenizer: HTMLTokenizer,
+  decodeText: decodeHTML,
+  decodeAttribute: decodeHTMLAttribute,
+  renameTag: toLowerCase,
+  renameAttribute: toLowerCase,
+};
 
 /**
  * Parses HTML markup as a DOM. Decodes HTML entities in text with

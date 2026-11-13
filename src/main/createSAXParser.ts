@@ -1,4 +1,3 @@
-import { createTokenizerWriter } from './createTokenizerWriter.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
 import { retainHiddenClasses } from './utils.ts';
@@ -175,36 +174,27 @@ export interface SAXParser {
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
-  const documentConfig: ParserConfig = resolveParserOptions(options);
+  const config = resolveParserOptions(options);
 
-  const fragmentConfig: ParserConfig = { ...documentConfig, isFragment: true };
+  const { tokenizer } = config;
 
   return {
     parseDocument(input, handler) {
-      createSAXParserWriter(handler, documentConfig).end(input);
+      tokenizer.tokenizeDocument(input, new SAXTokenHandler(handler, config));
     },
 
     parseFragment(input, handler) {
-      createSAXParserWriter(handler, fragmentConfig).end(input);
+      tokenizer.tokenizeFragment(input, new SAXTokenHandler(handler, config));
     },
 
     createDocumentWriter(handler) {
-      return createSAXParserWriter(handler, documentConfig);
+      return tokenizer.createDocumentWriter(new SAXTokenHandler(handler, config));
     },
 
     createFragmentWriter(handler) {
-      return createSAXParserWriter(handler, fragmentConfig);
+      return tokenizer.createFragmentWriter(new SAXTokenHandler(handler, config));
     },
   };
-}
-
-/**
- * Creates a writer that parses chunks of text and calls {@link SAXHandler} methods.
- *
- * @see {@link createTokenizerWriter}
- */
-function createSAXParserWriter(handler: SAXHandler, config: ParserConfig): ParserWriter {
-  return createTokenizerWriter(new SAXTokenHandler(handler, config), config);
 }
 
 /**

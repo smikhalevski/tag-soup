@@ -1,3 +1,5 @@
+import type { Tokenizer } from './createTokenizer.ts';
+
 /**
  * The kind of a tag, which defines what the tag can contain, and how parsers read it and serializers write it:
  *
@@ -299,7 +301,20 @@ export interface TokenizerOptions extends TokenizerContextOptions {
  *
  * @group Parser
  */
-export interface ParserOptions extends TokenizerOptions {
+export interface ParserOptions {
+  /**
+   * The tokenizer that reads tokens for the parser. Parsers that share a tokenizer share its resolved options, so
+   * create a tokenizer once and pass it to every parser that reads the same markup.
+   *
+   * @example
+   * import { createDOMParser, HTMLTokenizer } from 'tag-soup';
+   *
+   * createDOMParser({ tokenizer: HTMLTokenizer });
+   *
+   * @default createTokenizer()
+   */
+  tokenizer?: Tokenizer;
+
   renameTag?: (name: string) => string;
 
   renameAttribute?: (name: string) => string;

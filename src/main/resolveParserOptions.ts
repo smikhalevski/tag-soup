@@ -1,11 +1,16 @@
-import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenizerOptions.ts';
+import { createTokenizer, type Tokenizer } from './createTokenizer.ts';
 import type { ParserOptions } from './types.ts';
 import { identity } from './utils.ts';
 
 /**
- * Resolved parser options: a tokenizer config with decoders.
+ * Resolved parser options.
  */
-export interface ParserConfig extends TokenizerConfig {
+export interface ParserConfig {
+  /**
+   * @see {@link ParserOptions.tokenizer}
+   */
+  tokenizer: Tokenizer;
+
   renameTag: (name: string) => string;
 
   renameAttribute: (name: string) => string;
@@ -26,6 +31,7 @@ export interface ParserConfig extends TokenizerConfig {
  */
 export function resolveParserOptions(options: ParserOptions): ParserConfig {
   const {
+    tokenizer = createTokenizer(),
     renameTag = identity,
     renameAttribute = identity,
     decodeText = identity,
@@ -33,7 +39,7 @@ export function resolveParserOptions(options: ParserOptions): ParserConfig {
   } = options;
 
   return {
-    ...resolveTokenizerOptions(options),
+    tokenizer,
     renameTag,
     renameAttribute,
     decodeText,

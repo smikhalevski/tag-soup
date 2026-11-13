@@ -100,10 +100,14 @@ Create a custom DOM parser using
 [`createDOMParser`](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html):
 
 ```ts
-import { createDOMParser } from 'tag-soup';
+import { createDOMParser, createTokenizer } from 'tag-soup';
 
 const myParser = createDOMParser({
-  tags: { br: { kind: 'void' } },
+  tokenizer: createTokenizer({
+    tags: {
+      br: { kind: 'void' },
+    },
+  }),
 });
 
 myParser.parseFragment('<p><br></p>');
@@ -151,10 +155,14 @@ Create a custom SAX parser using
 [`createSAXParser`](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html):
 
 ```ts
-import { createSAXParser } from 'tag-soup';
+import { createSAXParser, createTokenizer } from 'tag-soup';
 
 const myParser = createSAXParser({
-  tags: { br: { kind: 'void' } },
+  tokenizer: createTokenizer({
+    tags: {
+      br: { kind: 'void' },
+    },
+  }),
 });
 
 myParser.parseFragment('<p><br></p>', {
@@ -268,8 +276,9 @@ const myTokenizer = createTokenizer({
 myTokenizer.tokenizeFragment('<p><br></p>', tokenHandler);
 ```
 
-[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html) has a method per token. All methods are optional, implement only the ones you need. Indices
-passed to a method point to the token's value in the input: start indices are inclusive and end indices are exclusive.
+[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html) has a method per token. All
+methods are optional, implement only the ones you need. Indices passed to a method point to the token's value in the
+input: start indices are inclusive and end indices are exclusive.
 
 <dl>
 <dt><code>onText</code></dt>
@@ -385,37 +394,57 @@ toXMLEncoded(fragment);
 
 [`createDOMParser`](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html) and
 [`createSAXParser`](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html) accept
-[`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html).
-[`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html) accepts
-[`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html), which are the same
-options except `decodeText` and `decodeAttribute`.
+[`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html):
 
 <dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tags"><code>tags</code></a></dt>
-<dd>The map from a tag name to <a href="#tag-options">tag options</a>, which describe what the tag can contain, and how it is implicitly ended and started.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tokenizer"><code>tokenizer</code></a></dt>
+<dd>The tokenizer that reads tokens for the parser, for example <code>HTMLTokenizer</code>. By default, a tokenizer with default <a href="#tokenizer-options">tokenizer options</a> is created. Parsers can share a tokenizer.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext"><code>decodeText</code></a></dt>
 <dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
+</dl>
+
+```ts
+import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
+import { createDOMParser, HTMLTokenizer } from 'tag-soup';
+
+const myParser = createDOMParser({
+  tokenizer: HTMLTokenizer,
+  decodeText: decodeHTML,
+  decodeAttribute: decodeHTMLAttribute,
+});
+```
+
+## Tokenizer options
+
+[`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html) accepts
+[`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html), which describe the
+markup that the tokenizer reads:
+
+<dl>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#tags"><code>tags</code></a></dt>
+<dd>The map from a tag name to <a href="#tag-options">tag options</a>, which describe what the tag can contain, and how it is implicitly ended and started.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
 <dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
 <dd>If <code>true</code>, CDATA sections (<code>&lt;![CDATA[…]]&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areprocessinginstructionsrecognized"><code>areProcessingInstructionsRecognized</code></a></dt>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areprocessinginstructionsrecognized"><code>areProcessingInstructionsRecognized</code></a></dt>
 <dd>If <code>true</code>, processing instructions (<code>&lt;?target data?&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
 <dd>If <code>true</code>, ASCII letters in tag names are compared ignoring case.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedstarttagsimplicitlyended"><code>areUnbalancedStartTagsImplicitlyEnded</code></a></dt>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areunbalancedstarttagsimplicitlyended"><code>areUnbalancedStartTagsImplicitlyEnded</code></a></dt>
 <dd>If <code>true</code>, tags that aren't ended before the end tag of an ancestor, or before the end of the input, are implicitly ended. Otherwise, <code>MarkupSyntaxError</code> is thrown.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#areunbalancedendtagsignored"><code>areUnbalancedEndTagsIgnored</code></a></dt>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areunbalancedendtagsignored"><code>areUnbalancedEndTagsIgnored</code></a></dt>
 <dd>If <code>true</code>, end tags without a matching start tag are ignored. Otherwise, <code>MarkupSyntaxError</code> is thrown.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#isstrict"><code>isStrict</code></a></dt>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#isstrict"><code>isStrict</code></a></dt>
 <dd>If <code>true</code>, input must satisfy XML constraints, otherwise <code>MarkupSyntaxError</code> is thrown: tag names, attribute names and processing instruction targets must be valid XML names, attribute values must be in double or single quotes, comments, CDATA sections and processing instructions must be terminated, and a document must have a single root element.</dd>
 </dl>
 
 ## Tag options
 
-[`TagParsingOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html) describe how a tag is read:
+[`TagParsingOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html) describe how a tag is
+read:
 
 <dl>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#kind"><code>kind</code></a></dt>
@@ -441,7 +470,7 @@ A parser that mimics browser HTML behavior:
 
 ```ts
 import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
-import { createDOMParser, type ParserOptions, type TokenizerContextOptions } from 'tag-soup';
+import { createDOMParser, createTokenizer, type TokenizerContextOptions, type TokenizerOptions } from 'tag-soup';
 
 // SVG and MathML content doesn't inherit HTML tags
 const svgOptions: TokenizerContextOptions = {
@@ -456,7 +485,7 @@ const mathOptions: TokenizerContextOptions = {
   areSelfClosingTagsRecognized: true,
 };
 
-const htmlOptions: ParserOptions = {
+const htmlOptions: TokenizerOptions = {
   tags: {
     area: { kind: 'void' },
     base: { kind: 'void' },
@@ -487,8 +516,6 @@ const htmlOptions: ParserOptions = {
     ul: { isImplicitEndingBoundary: true },
     wbr: { kind: 'void' },
   },
-  decodeText: decodeHTML,
-  decodeAttribute: decodeHTMLAttribute,
   areTagNamesCaseInsensitive: true,
   areUnbalancedEndTagsIgnored: true,
   areUnbalancedStartTagsImplicitlyEnded: true,
@@ -497,7 +524,11 @@ const htmlOptions: ParserOptions = {
 // Content of foreignObject is read as HTML again
 svgOptions.tags = { foreignObject: { foreignContext: htmlOptions } };
 
-const myParser = createDOMParser(htmlOptions);
+const myParser = createDOMParser({
+  tokenizer: createTokenizer(htmlOptions),
+  decodeText: decodeHTML,
+  decodeAttribute: decodeHTMLAttribute,
+});
 ```
 
 # Error handling

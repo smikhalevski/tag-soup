@@ -3,15 +3,13 @@ import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
 import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import { type ParserOptions, type SerializerOptions } from './types.ts';
+import { type ParserOptions, type SerializerOptions, type TokenizerOptions } from './types.ts';
 
-const xmlParserOptions: ParserOptions = {
+const xmlTokenizerOptions: TokenizerOptions = {
   areSelfClosingTagsRecognized: true,
   areProcessingInstructionsRecognized: true,
   areCDATASectionsRecognized: true,
   isStrict: true,
-  decodeText: decodeXML,
-  decodeAttribute: decodeXML,
 };
 
 const xmlSerializerOptions: SerializerOptions = {
@@ -26,7 +24,13 @@ const xmlSerializerOptions: SerializerOptions = {
  * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group Tokenizer
  */
-export const XMLTokenizer = createTokenizer(xmlParserOptions);
+export const XMLTokenizer = createTokenizer(xmlTokenizerOptions);
+
+const xmlParserOptions: ParserOptions = {
+  tokenizer: XMLTokenizer,
+  decodeText: decodeXML,
+  decodeAttribute: decodeXML,
+};
 
 /**
  * Parses XML markup as a DOM. Decodes XML entities with

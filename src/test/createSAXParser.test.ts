@@ -1,6 +1,7 @@
 import { decodeXML } from 'speedy-entities';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { createSAXParser } from '../main/createSAXParser.ts';
+import { createTokenizer } from '../main/createTokenizer.ts';
 import type { SAXHandler } from '../main/index.ts';
 
 const mockHandler = {
@@ -40,10 +41,10 @@ test('parses text', () => {
 });
 
 test('parses element', () => {
-  createSAXParser({ areTagNamesCaseInsensitive: true, decodeText: decodeXML }).parseDocument(
-    '<aaa>bbb</AAA>',
-    mockHandler
-  );
+  createSAXParser({
+    tokenizer: createTokenizer({ areTagNamesCaseInsensitive: true }),
+    decodeText: decodeXML,
+  }).parseDocument('<aaa>bbb</AAA>', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'bbb');
@@ -69,10 +70,10 @@ test('parses element', () => {
 });
 
 test('parses element with implicitly inserted end tag', () => {
-  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true, decodeText: decodeXML }).parseDocument(
-    '<aaa>bbb',
-    mockHandler
-  );
+  createSAXParser({
+    tokenizer: createTokenizer({ areUnbalancedStartTagsImplicitlyEnded: true }),
+    decodeText: decodeXML,
+  }).parseDocument('<aaa>bbb', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'bbb');
@@ -127,10 +128,10 @@ test('parses attributes', () => {
 });
 
 test('parses self-closing tags elements', () => {
-  createSAXParser({ areSelfClosingTagsRecognized: true, decodeText: decodeXML }).parseDocument(
-    '<aaa><bbb/></aaa>',
-    mockHandler
-  );
+  createSAXParser({
+    tokenizer: createTokenizer({ areSelfClosingTagsRecognized: true }),
+    decodeText: decodeXML,
+  }).parseDocument('<aaa><bbb/></aaa>', mockHandler);
 
   expect(mockHandler.onText).not.toHaveBeenCalled();
 
@@ -176,7 +177,10 @@ test('parses comments', () => {
 });
 
 test('parses processing instructions in elements', () => {
-  createSAXParser({ areProcessingInstructionsRecognized: true }).parseDocument('<aaa><?xxx yyy?></aaa>', mockHandler);
+  createSAXParser({ tokenizer: createTokenizer({ areProcessingInstructionsRecognized: true }) }).parseDocument(
+    '<aaa><?xxx yyy?></aaa>',
+    mockHandler
+  );
 
   expect(mockHandler.onText).not.toHaveBeenCalled();
   expect(mockHandler.onStartTagOpening).toHaveBeenCalledTimes(1);
@@ -197,7 +201,7 @@ test('parses processing instructions in elements', () => {
 });
 
 test('parses DOCTYPE, processing instruction and text', () => {
-  createSAXParser({ areProcessingInstructionsRecognized: true }).parseDocument(
+  createSAXParser({ tokenizer: createTokenizer({ areProcessingInstructionsRecognized: true }) }).parseDocument(
     '   <!DOCTYPE html>  <?xxx yyy?>  vvv',
     mockHandler
   );
@@ -268,10 +272,10 @@ test('parses bogus comment, DOCTYPE and text', () => {
 });
 
 test('does not decode text in raw text tags', () => {
-  createSAXParser({ tags: { aaa: { kind: 'raw_text' } }, decodeText: decodeXML }).parseDocument(
-    '<aaa>&lt;</aaa>&lt;',
-    mockHandler
-  );
+  createSAXParser({
+    tokenizer: createTokenizer({ tags: { aaa: { kind: 'raw_text' } } }),
+    decodeText: decodeXML,
+  }).parseDocument('<aaa>&lt;</aaa>&lt;', mockHandler);
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(2);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, '&lt;');
@@ -312,7 +316,10 @@ test('preserves __proto__ attribute', () => {
 });
 
 test('calls onStartTag for a start tag that is not closed at the end of the input', () => {
-  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true }).parseDocument('<aaa', mockHandler);
+  createSAXParser({ tokenizer: createTokenizer({ areUnbalancedStartTagsImplicitlyEnded: true }) }).parseDocument(
+    '<aaa',
+    mockHandler
+  );
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
@@ -323,7 +330,7 @@ test('calls onStartTag if it is a single handler', () => {
     onStartTag: vi.fn(),
   } satisfies SAXHandler;
 
-  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true }).parseDocument(
+  createSAXParser({ tokenizer: createTokenizer({ areUnbalancedStartTagsImplicitlyEnded: true }) }).parseDocument(
     '<aaa xxx="yyy"><bbb zzz="vvv">',
     mockHandler
   );
@@ -338,7 +345,10 @@ test('calls onEndTag if it is a single handler', () => {
     onEndTag: vi.fn(),
   } satisfies SAXHandler;
 
-  createSAXParser({ areUnbalancedStartTagsImplicitlyEnded: true }).parseDocument('<aaa><bbb>', mockHandler);
+  createSAXParser({ tokenizer: createTokenizer({ areUnbalancedStartTagsImplicitlyEnded: true }) }).parseDocument(
+    '<aaa><bbb>',
+    mockHandler
+  );
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
   expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');
@@ -357,4 +367,45 @@ test('parses chunks', () => {
 
   expect(mockHandler.onText).toHaveBeenCalledTimes(1);
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, 'ddd');
+});
+
+test('parses a fragment with the tokenizer', () => {
+  const tokenizer = createTokenizer({ tags: { aaa: { kind: 'void' } } });
+
+  createSAXParser({ tokenizer }).parseFragment(' <aaa>', mockHandler);
+
+  expect(mockHandler.onText).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, ' ');
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+});
+
+test('parses document chunks with the tokenizer', () => {
+  const tokenizer = createTokenizer({ tags: { aaa: { kind: 'void' } } });
+
+  const writer = createSAXParser({ tokenizer }).createDocumentWriter(mockHandler);
+
+  writer.write(' <aa');
+  writer.end('a>');
+
+  expect(mockHandler.onText).not.toHaveBeenCalled();
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+});
+
+test('parses fragment chunks with the tokenizer', () => {
+  const tokenizer = createTokenizer({ tags: { aaa: { kind: 'void' } } });
+
+  const writer = createSAXParser({ tokenizer }).createFragmentWriter(mockHandler);
+
+  writer.write(' <aa');
+  writer.end('a>');
+
+  expect(mockHandler.onText).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onText).toHaveBeenNthCalledWith(1, ' ');
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
 });

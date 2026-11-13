@@ -9,9 +9,8 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
-import { createTokenizerWriter } from './createTokenizerWriter.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
-import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
+import { type ParserOptions, type ParserWriter, type TokenHandler, type TokenizerWriter } from './types.ts';
 import { retainHiddenClasses } from './utils.ts';
 
 /**
@@ -85,40 +84,52 @@ export interface DOMParser {
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
-  const documentConfig: ParserConfig = resolveParserOptions(options);
+  const config = resolveParserOptions(options);
 
-  const fragmentConfig: ParserConfig = { ...documentConfig, isFragment: true };
+  const { tokenizer } = config;
 
   return {
     parseDocument(input) {
-      return createDOMParserWriter(documentConfig).end(input) as Document;
+      const tokenHandler = new DOMTokenHandler(new Document(), config);
+
+      tokenizer.tokenizeDocument(input, tokenHandler);
+
+      return tokenHandler.rootNode;
     },
 
     parseFragment(input) {
-      return createDOMParserWriter(fragmentConfig).end(input) as DocumentFragment;
+      const tokenHandler = new DOMTokenHandler(new DocumentFragment(), config);
+
+      tokenizer.tokenizeFragment(input, tokenHandler);
+
+      return tokenHandler.rootNode;
     },
 
     createDocumentWriter() {
-      return createDOMParserWriter(documentConfig) as ParserWriter<Document>;
+      const tokenHandler = new DOMTokenHandler(new Document(), config);
+
+      return createDOMParserWriter(tokenHandler, tokenizer.createDocumentWriter(tokenHandler));
     },
 
     createFragmentWriter() {
-      return createDOMParserWriter(fragmentConfig) as ParserWriter<DocumentFragment>;
+      const tokenHandler = new DOMTokenHandler(new DocumentFragment(), config);
+
+      return createDOMParserWriter(tokenHandler, tokenizer.createFragmentWriter(tokenHandler));
     },
   };
 }
 
 /**
- * Creates a writer that parses chunks of text into a document, or into a fragment if {@link ParserConfig.isFragment} is
- * `true`.
+ * Creates a writer that passes chunks of text to a tokenizer writer, and returns the root node that the token handler
+ * has built.
  *
- * @see {@link createTokenizerWriter}
+ * @param tokenHandler The handler that the tokenizer writer passes tokens to.
+ * @param tokenizerWriter The writer that reads tokens from chunks.
  */
-function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | DocumentFragment> {
-  const tokenHandler = new DOMTokenHandler(config);
-
-  const tokenizerWriter = createTokenizerWriter(tokenHandler, config);
-
+function createDOMParserWriter<TRootNode extends Document | DocumentFragment>(
+  tokenHandler: DOMTokenHandler<TRootNode>,
+  tokenizerWriter: TokenizerWriter
+): ParserWriter<TRootNode> {
   return {
     write(chunk) {
       tokenizerWriter.write(chunk);
@@ -134,20 +145,21 @@ function createDOMParserWriter(config: ParserConfig): ParserWriter<Document | Do
 /**
  * Builds a DOM from tokens.
  */
-class DOMTokenHandler implements TokenHandler {
+class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements TokenHandler {
   renameTag: (name: string) => string;
   renameAttribute: (name: string) => string;
   decodeText: (text: string) => string;
   decodeAttribute: (value: string) => string;
-  rootNode: Document | DocumentFragment;
+  rootNode: TRootNode;
   parentNode: ParentNode;
 
-  constructor(config: ParserConfig) {
+  constructor(rootNode: TRootNode, config: ParserConfig) {
     this.renameTag = config.renameTag;
     this.renameAttribute = config.renameAttribute;
     this.decodeText = config.decodeText;
     this.decodeAttribute = config.decodeAttribute;
-    this.rootNode = this.parentNode = config.isFragment ? new DocumentFragment() : new Document();
+    this.parentNode = rootNode;
+    this.rootNode = rootNode;
   }
 
   onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void {
@@ -213,8 +225,7 @@ class DOMTokenHandler implements TokenHandler {
 }
 
 retainHiddenClasses(
-  new DOMTokenHandler(resolveParserOptions({})),
-  new Document(),
+  new DOMTokenHandler(new Document(), resolveParserOptions({})),
   new DocumentFragment(),
   new Element(''),
   new Text(''),
