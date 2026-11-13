@@ -220,7 +220,7 @@ class SAXTokenHandler implements TokenHandler {
     this.isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
   }
 
-  onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void {
+  onText(input: string, startIndex: number, endIndex: number, isRawText: boolean): void {
     const handler = this.handler;
 
     if (handler.onText !== undefined) {
@@ -230,7 +230,7 @@ class SAXTokenHandler implements TokenHandler {
     }
   }
 
-  onStartTagName(startIndex: number, endIndex: number, input: string): void {
+  onStartTagName(input: string, startIndex: number, endIndex: number): void {
     const handler = this.handler;
 
     let tagName;
@@ -282,11 +282,11 @@ class SAXTokenHandler implements TokenHandler {
   }
 
   onAttribute(
+    input: string,
     nameStartIndex: number,
     nameEndIndex: number,
     valueStartIndex: number,
-    valueEndIndex: number,
-    input: string
+    valueEndIndex: number
   ): void {
     const handler = this.handler;
     const attributes = this.attributes;
@@ -310,16 +310,16 @@ class SAXTokenHandler implements TokenHandler {
     handler.onAttribute?.(name, value);
   }
 
-  onComment(startIndex: number, endIndex: number, input: string): void {
+  onComment(input: string, startIndex: number, endIndex: number): void {
     this.handler.onComment?.(input.substring(startIndex, endIndex));
   }
 
   onProcessingInstruction(
+    input: string,
     targetStartIndex: number,
     targetEndIndex: number,
     dataStartIndex: number,
-    dataEndIndex: number,
-    input: string
+    dataEndIndex: number
   ): void {
     this.handler.onProcessingInstruction?.(
       input.substring(targetStartIndex, targetEndIndex),
@@ -327,11 +327,11 @@ class SAXTokenHandler implements TokenHandler {
     );
   }
 
-  onCDATASection(startIndex: number, endIndex: number, input: string): void {
+  onCDATASection(input: string, startIndex: number, endIndex: number): void {
     this.handler.onCDATASection?.(input.substring(startIndex, endIndex));
   }
 
-  onDoctypeName(startIndex: number, endIndex: number, input: string): void {
+  onDoctypeName(input: string, startIndex: number, endIndex: number): void {
     this.handler.onDoctype?.(input.substring(startIndex, endIndex));
   }
 }

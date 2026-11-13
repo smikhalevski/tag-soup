@@ -162,13 +162,13 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
     this.rootNode = rootNode;
   }
 
-  onText(startIndex: number, endIndex: number, input: string, isRawText: boolean): void {
+  onText(input: string, startIndex: number, endIndex: number, isRawText: boolean): void {
     const text = input.substring(startIndex, endIndex);
 
     this.parentNode.appendChild(new Text(isRawText ? text : (0, this.decodeText)(text)));
   }
 
-  onStartTagName(startIndex: number, endIndex: number, input: string): void {
+  onStartTagName(input: string, startIndex: number, endIndex: number): void {
     const element = new Element((0, this.renameTag)(input.substring(startIndex, endIndex)));
 
     this.parentNode.appendChild(element);
@@ -184,11 +184,11 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
   }
 
   onAttribute(
+    input: string,
     nameStartIndex: number,
     nameEndIndex: number,
     valueStartIndex: number,
-    valueEndIndex: number,
-    input: string
+    valueEndIndex: number
   ): void {
     (this.parentNode as Element).setAttribute(
       (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex)),
@@ -196,16 +196,16 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
     );
   }
 
-  onComment(startIndex: number, endIndex: number, input: string): void {
+  onComment(input: string, startIndex: number, endIndex: number): void {
     this.parentNode.appendChild(new Comment(input.substring(startIndex, endIndex)));
   }
 
   onProcessingInstruction(
+    input: string,
     targetStartIndex: number,
     targetEndIndex: number,
     dataStartIndex: number,
-    dataEndIndex: number,
-    input: string
+    dataEndIndex: number
   ): void {
     this.parentNode.appendChild(
       new ProcessingInstruction(
@@ -215,11 +215,11 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
     );
   }
 
-  onCDATASection(startIndex: number, endIndex: number, input: string): void {
+  onCDATASection(input: string, startIndex: number, endIndex: number): void {
     this.parentNode.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
   }
 
-  onDoctypeName(startIndex: number, endIndex: number, input: string): void {
+  onDoctypeName(input: string, startIndex: number, endIndex: number): void {
     this.parentNode.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
   }
 }

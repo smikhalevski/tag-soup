@@ -6,34 +6,34 @@ test('passes tokens to the handler', () => {
   const calls: unknown[][] = [];
 
   const handler: TokenHandler = {
-    onText(startIndex, endIndex, _input, isRawText) {
+    onText(_input, startIndex, endIndex, isRawText) {
       calls.push(['onText', startIndex, endIndex, isRawText]);
     },
-    onStartTagName(startIndex, endIndex) {
+    onStartTagName(_input, startIndex, endIndex) {
       calls.push(['onStartTagName', startIndex, endIndex]);
     },
-    onStartTagClosing(startIndex, endIndex) {
+    onStartTagClosing(_input, startIndex, endIndex) {
       calls.push(['onStartTagClosing', startIndex, endIndex]);
     },
-    onStartTagSelfClosing(startIndex, endIndex) {
+    onStartTagSelfClosing(_input, startIndex, endIndex) {
       calls.push(['onStartTagSelfClosing', startIndex, endIndex]);
     },
-    onEndTagName(startIndex, endIndex) {
+    onEndTagName(_input, startIndex, endIndex) {
       calls.push(['onEndTagName', startIndex, endIndex]);
     },
-    onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
+    onAttribute(_input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
       calls.push(['onAttribute', nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex]);
     },
-    onComment(startIndex, endIndex) {
+    onComment(_input, startIndex, endIndex) {
       calls.push(['onComment', startIndex, endIndex]);
     },
-    onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
+    onProcessingInstruction(_input, targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
       calls.push(['onProcessingInstruction', targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex]);
     },
-    onCDATASection(startIndex, endIndex) {
+    onCDATASection(_input, startIndex, endIndex) {
       calls.push(['onCDATASection', startIndex, endIndex]);
     },
-    onDoctypeName(startIndex, endIndex) {
+    onDoctypeName(_input, startIndex, endIndex) {
       calls.push(['onDoctypeName', startIndex, endIndex]);
     },
   };
@@ -54,7 +54,7 @@ test('passes raw text to the handler', () => {
 
   // All other TokenHandler methods are optional
   const handler: TokenHandler = {
-    onText(startIndex, endIndex, _input, isRawText) {
+    onText(_input, startIndex, endIndex, isRawText) {
       calls.push(['onText', startIndex, endIndex, isRawText]);
     },
   };

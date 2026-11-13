@@ -11,8 +11,14 @@ export interface ParserConfig {
    */
   tokenizer: Tokenizer;
 
+  /**
+   * @see {@link ParserOptions.renameTag}
+   */
   renameTag: (name: string) => string;
 
+  /**
+   * @see {@link ParserOptions.renameAttribute}
+   */
   renameAttribute: (name: string) => string;
 
   /**

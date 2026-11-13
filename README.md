@@ -243,7 +243,7 @@ errors during tokenization and forgives malformed markup:
 import { HTMLTokenizer } from 'tag-soup';
 
 HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', {
-  onText(startIndex, endIndex, input, isRawText) {
+  onText(input, startIndex, endIndex, isRawText) {
     // Handle text
   },
 });
@@ -317,7 +317,7 @@ import { HTMLTokenizer } from 'tag-soup';
 const input = '<p class="x">hello</p>';
 
 HTMLTokenizer.tokenizeFragment(input, {
-  onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex, input) {
+  onAttribute(input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
     input.substring(valueStartIndex, valueEndIndex);
     // ⮕ 'x'
   },

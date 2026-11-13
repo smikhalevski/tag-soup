@@ -315,8 +315,35 @@ export interface ParserOptions {
    */
   tokenizer?: Tokenizer;
 
+  /**
+   * Renames tags. Use this method to normalize tag names, for example to lower case in HTML.
+   *
+   * Called once for each start tag name read from the input. End tags get the name of the start tag that they end, so
+   * the tokenizer matches tags by the names as they appear in the input, regardless of renaming.
+   *
+   * By default, tags aren't renamed.
+   *
+   * @example
+   * createDOMParser({ renameTag: name => name.toLowerCase() });
+   *
+   * @param name The tag name as it appears in the input.
+   * @returns The tag name that the parser uses.
+   */
   renameTag?: (name: string) => string;
 
+  /**
+   * Renames attributes. Use this method to normalize attribute names, for example to lower case in HTML.
+   *
+   * Called for each attribute name read from the input, before its value is decoded with {@link decodeAttribute}.
+   *
+   * By default, attributes aren't renamed.
+   *
+   * @example
+   * createDOMParser({ renameAttribute: name => name.toLowerCase() });
+   *
+   * @param name The attribute name as it appears in the input.
+   * @returns The attribute name that the parser uses.
+   */
   renameAttribute?: (name: string) => string;
 
   /**
@@ -465,7 +492,7 @@ export interface TokenizerWriter extends ParserWriter {
    *
    * @example
    * const writer = HTMLTokenizer.createDocumentWriter({
-   *   onText(startIndex, endIndex, input, isRawText) {
+   *   onText(input, startIndex, endIndex, isRawText) {
    *     writer.inputOffset + startIndex;
    *     // ⮕ The index in the stream where the token starts
    *   },
@@ -483,42 +510,42 @@ export interface TokenHandler {
   /**
    * Called when text between tags is read.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the text, inclusive.
    * @param endIndex The end index of the text, exclusive.
-   * @param input The text that indices point to.
    * @param isRawText `true` if the text is the content of a `raw_text` or `script_data`
    * {@link TagParsingOptions.kind tag}, so parsers don't decode it.
    */
-  onText?(startIndex: number, endIndex: number, input: string, isRawText: boolean): void;
+  onText?(input: string, startIndex: number, endIndex: number, isRawText: boolean): void;
 
   /**
    * Called when the tag name in a start tag is read, `p` in `<p>`.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the tag name, inclusive.
    * @param endIndex The end index of the tag name, exclusive.
-   * @param input The text that indices point to.
    */
-  onStartTagName?(startIndex: number, endIndex: number, input: string): void;
+  onStartTagName?(input: string, startIndex: number, endIndex: number): void;
 
   /**
    * Called when the `>` that closes a start tag is read.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the closing, inclusive.
    * @param endIndex The end index of the closing, exclusive.
-   * @param input The text that indices point to.
    */
-  onStartTagClosing?(startIndex: number, endIndex: number, input: string): void;
+  onStartTagClosing?(input: string, startIndex: number, endIndex: number): void;
 
   /**
    * Called when the `/>` that closes a self-closing tag is read.
    *
    * Only called if {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the closing, inclusive.
    * @param endIndex The end index of the closing, exclusive.
-   * @param input The text that indices point to.
    */
-  onStartTagSelfClosing?(startIndex: number, endIndex: number, input: string): void;
+  onStartTagSelfClosing?(input: string, startIndex: number, endIndex: number): void;
 
   /**
    * Called when the tag name in an end tag is read, `p` in `</p>`.
@@ -526,72 +553,72 @@ export interface TokenHandler {
    * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
    * indices.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the tag name, inclusive.
    * @param endIndex The end index of the tag name, exclusive.
-   * @param input The text that indices point to.
    */
-  onEndTagName?(startIndex: number, endIndex: number, input: string): void;
+  onEndTagName?(input: string, startIndex: number, endIndex: number): void;
 
   /**
    * Called when an attribute is read. Value indices point to the value without quotes, and are equal if the attribute
    * has no value. Entities aren't decoded.
    *
+   * @param input The text that indices point to.
    * @param nameStartIndex The start index of the attribute name, inclusive.
    * @param nameEndIndex The end index of the attribute name, exclusive.
    * @param valueStartIndex The start index of the attribute value, inclusive.
    * @param valueEndIndex The end index of the attribute value, exclusive.
-   * @param input The text that indices point to.
    */
   onAttribute?(
+    input: string,
     nameStartIndex: number,
     nameEndIndex: number,
     valueStartIndex: number,
-    valueEndIndex: number,
-    input: string
+    valueEndIndex: number
   ): void;
 
   /**
    * Called when a comment is read. Indices point to the comment content between `<!--` and `-->`.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the comment content, inclusive.
    * @param endIndex The end index of the comment content, exclusive.
-   * @param input The text that indices point to.
    */
-  onComment?(startIndex: number, endIndex: number, input: string): void;
+  onComment?(input: string, startIndex: number, endIndex: number): void;
 
   /**
    * Called when a processing instruction is read: in `<?xml version="1.0"?>` the target is `xml` and the data is
    * `version="1.0"`.
    *
+   * @param input The text that indices point to.
    * @param targetStartIndex The start index of the target, inclusive.
    * @param targetEndIndex The end index of the target, exclusive.
    * @param dataStartIndex The start index of the data, inclusive.
    * @param dataEndIndex The end index of the data, exclusive.
-   * @param input The text that indices point to.
    */
   onProcessingInstruction?(
+    input: string,
     targetStartIndex: number,
     targetEndIndex: number,
     dataStartIndex: number,
-    dataEndIndex: number,
-    input: string
+    dataEndIndex: number
   ): void;
 
   /**
    * Called when a CDATA section is read. Indices point to the content between `<![CDATA[` and `]]>`.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the content, inclusive.
    * @param endIndex The end index of the content, exclusive.
-   * @param input The text that indices point to.
    */
-  onCDATASection?(startIndex: number, endIndex: number, input: string): void;
+  onCDATASection?(input: string, startIndex: number, endIndex: number): void;
 
   /**
    * Called when a DOCTYPE declaration is read. Indices point to the name, `html` in `<!DOCTYPE html>`.
    *
+   * @param input The text that indices point to.
    * @param startIndex The start index of the name, inclusive.
    * @param endIndex The end index of the name, exclusive.
-   * @param input The text that indices point to.
    */
-  onDoctypeName?(startIndex: number, endIndex: number, input: string): void;
+  onDoctypeName?(input: string, startIndex: number, endIndex: number): void;
 }

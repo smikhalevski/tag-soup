@@ -38,7 +38,7 @@ export interface Tokenizer {
    *
    * @example
    * const writer = HTMLTokenizer.createDocumentWriter({
-   *   onText(startIndex, endIndex, input, isRawText) {
+   *   onText(input, startIndex, endIndex, isRawText) {
    *     input.substring(startIndex, endIndex);
    *     // ⮕ The token text
    *   },
@@ -80,7 +80,7 @@ export interface Tokenizer {
  * });
  *
  * tokenizer.tokenizeFragment('Hello, <b>Bob</b>!', {
- *   onStartTagName(startIndex, endIndex, input) {
+ *   onStartTagName(input, startIndex, endIndex) {
  *     // Handle the start tag name here
  *   },
  * });

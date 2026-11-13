@@ -15,36 +15,36 @@ const callbackMock = vi.fn();
 // Tokens are checked by indices, so the input isn't passed to the mock. Attributes and processing instructions are
 // split into name and value calls, so assertions can check their indices separately.
 const handler: TokenHandler = {
-  onText(startIndex, endIndex) {
+  onText(_input, startIndex, endIndex) {
     callbackMock('text', startIndex, endIndex);
   },
-  onStartTagName(startIndex, endIndex) {
+  onStartTagName(_input, startIndex, endIndex) {
     callbackMock('start_tag_name', startIndex, endIndex);
   },
-  onStartTagClosing(startIndex, endIndex) {
+  onStartTagClosing(_input, startIndex, endIndex) {
     callbackMock('start_tag_closing', startIndex, endIndex);
   },
-  onStartTagSelfClosing(startIndex, endIndex) {
+  onStartTagSelfClosing(_input, startIndex, endIndex) {
     callbackMock('start_tag_self_closing', startIndex, endIndex);
   },
-  onEndTagName(startIndex, endIndex) {
+  onEndTagName(_input, startIndex, endIndex) {
     callbackMock('end_tag_name', startIndex, endIndex);
   },
-  onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
+  onAttribute(_input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
     callbackMock('attribute_name', nameStartIndex, nameEndIndex);
     callbackMock('attribute_value', valueStartIndex, valueEndIndex);
   },
-  onComment(startIndex, endIndex) {
+  onComment(_input, startIndex, endIndex) {
     callbackMock('comment', startIndex, endIndex);
   },
-  onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
+  onProcessingInstruction(_input, targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
     callbackMock('processing_instruction_target', targetStartIndex, targetEndIndex);
     callbackMock('processing_instruction_data', dataStartIndex, dataEndIndex);
   },
-  onCDATASection(startIndex, endIndex) {
+  onCDATASection(_input, startIndex, endIndex) {
     callbackMock('cdata_section', startIndex, endIndex);
   },
-  onDoctypeName(startIndex, endIndex) {
+  onDoctypeName(_input, startIndex, endIndex) {
     callbackMock('doctype_name', startIndex, endIndex);
   },
 };
@@ -68,36 +68,36 @@ function readChunks(chunks: string[], config: TokenizerConfig): string[] {
 
   const writer = createTokenizerWriter(
     {
-      onText(startIndex, endIndex, input) {
+      onText(input, startIndex, endIndex) {
         pushToken('text', startIndex, endIndex, input);
       },
-      onStartTagName(startIndex, endIndex, input) {
+      onStartTagName(input, startIndex, endIndex) {
         pushToken('start_tag_name', startIndex, endIndex, input);
       },
-      onStartTagClosing(startIndex, endIndex, input) {
+      onStartTagClosing(input, startIndex, endIndex) {
         pushToken('start_tag_closing', startIndex, endIndex, input);
       },
-      onStartTagSelfClosing(startIndex, endIndex, input) {
+      onStartTagSelfClosing(input, startIndex, endIndex) {
         pushToken('start_tag_self_closing', startIndex, endIndex, input);
       },
-      onEndTagName(startIndex, endIndex, input) {
+      onEndTagName(input, startIndex, endIndex) {
         pushToken('end_tag_name', startIndex, endIndex, input);
       },
-      onAttribute(nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex, input) {
+      onAttribute(input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
         pushToken('attribute_name', nameStartIndex, nameEndIndex, input);
         pushToken('attribute_value', valueStartIndex, valueEndIndex, input);
       },
-      onComment(startIndex, endIndex, input) {
+      onComment(input, startIndex, endIndex) {
         pushToken('comment', startIndex, endIndex, input);
       },
-      onProcessingInstruction(targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex, input) {
+      onProcessingInstruction(input, targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
         pushToken('processing_instruction_target', targetStartIndex, targetEndIndex, input);
         pushToken('processing_instruction_data', dataStartIndex, dataEndIndex, input);
       },
-      onCDATASection(startIndex, endIndex, input) {
+      onCDATASection(input, startIndex, endIndex) {
         pushToken('cdata_section', startIndex, endIndex, input);
       },
-      onDoctypeName(startIndex, endIndex, input) {
+      onDoctypeName(input, startIndex, endIndex) {
         pushToken('doctype_name', startIndex, endIndex, input);
       },
     },
