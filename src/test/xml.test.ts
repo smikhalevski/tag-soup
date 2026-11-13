@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { h } from 'flyweight-dom/dsl';
-import { expect, test } from 'vitest';
-import { toXML, XMLDOMParser } from '../main/xml.ts';
+import { expect, test, vi } from 'vitest';
+import { toXML, XMLDOMParser, XMLSAXParser } from '../main/xml.ts';
 
 test('parses XML DOM', () => {
   expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(
@@ -16,6 +16,14 @@ test('decodes attribute values', () => {
 
 test('resolves namespaces', () => {
   expect(XMLDOMParser.parseDocument('<aaa xmlns="xxx"/>').documentElement!.namespaceURI).toBe('xxx');
+});
+
+test('resolves namespaces of tags', () => {
+  const onStartTagMock = vi.fn();
+
+  XMLSAXParser.parseDocument('<aaa xmlns="xxx"/>', { onStartTag: onStartTagMock });
+
+  expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx' }, true, 'xxx');
 });
 
 test('serializes XML', () => {

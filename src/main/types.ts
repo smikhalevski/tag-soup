@@ -395,14 +395,13 @@ export interface ParserOptions {
    * `http://www.w3.org/1999/xlink`.
    *
    * An element can declare the namespace of its own tag name. An element whose prefix isn't bound has no namespace.
-   * Attributes that declare namespaces are kept, and namespaces of other attributes aren't resolved by the parser:
+   * Attributes that declare namespaces are kept, and namespaces of other attributes aren't resolved by parsers. In a
+   * DOM,
    * [`Element.getAttributeNS`](https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Element.html#getattributens)
    * looks them up.
    *
    * Namespaces are recognized after tags and attributes are {@link renameTag renamed}, and attribute values are
    * {@link decodeAttribute decoded}.
-   *
-   * **Note:** Only {@link createDOMParser} recognizes namespaces, {@link createSAXParser} ignores this option.
    *
    * @default false
    */

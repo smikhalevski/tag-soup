@@ -18,6 +18,11 @@ const mockHandler = {
   onProcessingInstruction: vi.fn(),
 } satisfies SAXHandler;
 
+const namespaceParser = createSAXParser({
+  tokenizer: createTokenizer({ areSelfClosingTagsRecognized: true }),
+  areNamespacesRecognized: true,
+});
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -57,10 +62,10 @@ test('parses element', () => {
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false, null);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
 
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -86,10 +91,10 @@ test('parses element with implicitly inserted end tag', () => {
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false, null);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
 
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -112,10 +117,10 @@ test('parses attributes', () => {
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xxx: 'yyy', zzz: 'vvv' }, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xxx: 'yyy', zzz: 'vvv' }, false, null);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
 
   expect(mockHandler.onAttribute).toHaveBeenCalledTimes(2);
   expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'xxx', 'yyy');
@@ -144,11 +149,11 @@ test('parses self-closing tags elements', () => {
   expect(mockHandler.onStartTagSelfClosing).toHaveBeenCalledTimes(1);
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', {}, true);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false, null);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', {}, true, null);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
 
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
   expect(mockHandler.onCDATASection).not.toHaveBeenCalled();
@@ -188,7 +193,7 @@ test('parses processing instructions in elements', () => {
   expect(mockHandler.onStartTagSelfClosing).not.toHaveBeenCalled();
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false, null);
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
   expect(mockHandler.onAttribute).not.toHaveBeenCalled();
@@ -322,7 +327,7 @@ test('calls onStartTag for a start tag that is not closed at the end of the inpu
   );
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', {}, false, null);
 });
 
 test('calls onStartTag if it is a single handler', () => {
@@ -336,8 +341,8 @@ test('calls onStartTag if it is a single handler', () => {
   );
 
   expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xxx: 'yyy' }, false);
-  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', { zzz: 'vvv' }, false);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xxx: 'yyy' }, false, null);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', { zzz: 'vvv' }, false, null);
 });
 
 test('calls onEndTag if it is a single handler', () => {
@@ -351,8 +356,8 @@ test('calls onEndTag if it is a single handler', () => {
   );
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb');
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb', null);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'aaa', null);
 });
 
 test('parses chunks', () => {
@@ -378,7 +383,7 @@ test('parses a fragment with the tokenizer', () => {
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, ' ');
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
 });
 
 test('parses document chunks with the tokenizer', () => {
@@ -392,7 +397,7 @@ test('parses document chunks with the tokenizer', () => {
   expect(mockHandler.onText).not.toHaveBeenCalled();
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
 });
 
 test('parses fragment chunks with the tokenizer', () => {
@@ -407,5 +412,123 @@ test('parses fragment chunks with the tokenizer', () => {
   expect(mockHandler.onText).toHaveBeenNthCalledWith(1, ' ');
 
   expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
-  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
+});
+
+test('does not recognize namespaces by default', () => {
+  createSAXParser().parseDocument('<aaa xmlns="xxx"></aaa>', mockHandler);
+
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx' }, false, null);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
+});
+
+test('calls onStartTag and onEndTag with the default namespace of a tag and its descendants', () => {
+  namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb></bbb></aaa>', mockHandler);
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx' }, false, 'xxx');
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', {}, false, 'xxx');
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb', 'xxx');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'aaa', 'xxx');
+});
+
+test('calls onStartTag and onEndTag with the namespace of a prefix declared by the same tag', () => {
+  namespaceParser.parseDocument('<aaa:bbb xmlns:aaa="xxx"></aaa:bbb>', mockHandler);
+
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa:bbb', { 'xmlns:aaa': 'xxx' }, false, 'xxx');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa:bbb', 'xxx');
+});
+
+test('removes namespaces declared by a tag when it is ended', () => {
+  namespaceParser.parseDocument('<aaa><bbb xmlns="xxx"></bbb><ccc></ccc></aaa>', mockHandler);
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(3);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(3, 'ccc', {}, false, null);
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(3);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'bbb', 'xxx');
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(2, 'ccc', null);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(3, 'aaa', null);
+});
+
+test('removes namespaces declared by a self-closing tag', () => {
+  namespaceParser.parseDocument('<aaa><bbb xmlns="xxx"/><ccc/></aaa>', mockHandler);
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(3);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(2, 'bbb', { xmlns: 'xxx' }, true, 'xxx');
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(3, 'ccc', {}, true, null);
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', null);
+});
+
+test('calls onStartTag with a namespace if it is a single handler', () => {
+  const mockHandler = {
+    onStartTag: vi.fn(),
+  } satisfies SAXHandler;
+
+  namespaceParser.parseDocument('<aaa xmlns="xxx"></aaa>', mockHandler);
+
+  expect(mockHandler.onStartTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx' }, false, 'xxx');
+});
+
+test('calls onEndTag with a namespace if it is a single handler', () => {
+  const mockHandler = {
+    onEndTag: vi.fn(),
+  } satisfies SAXHandler;
+
+  namespaceParser.parseDocument('<aaa xmlns="xxx"></aaa>', mockHandler);
+
+  expect(mockHandler.onEndTag).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', 'xxx');
+});
+
+test('calls start tag callbacks when namespaces are recognized', () => {
+  namespaceParser.parseDocument('<aaa xmlns="xxx" bbb="ccc"><ddd/></aaa>', mockHandler);
+
+  expect(mockHandler.onStartTagOpening).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onStartTagOpening).toHaveBeenNthCalledWith(1, 'aaa');
+  expect(mockHandler.onStartTagOpening).toHaveBeenNthCalledWith(2, 'ddd');
+
+  expect(mockHandler.onAttribute).toHaveBeenCalledTimes(2);
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(1, 'xmlns', 'xxx');
+  expect(mockHandler.onAttribute).toHaveBeenNthCalledWith(2, 'bbb', 'ccc');
+
+  expect(mockHandler.onStartTagClosing).toHaveBeenCalledTimes(1);
+  expect(mockHandler.onStartTagSelfClosing).toHaveBeenCalledTimes(1);
+
+  expect(mockHandler.onStartTag).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx', bbb: 'ccc' }, false, 'xxx');
+});
+
+test('preserves __proto__ attribute when namespaces are recognized', () => {
+  namespaceParser.parseDocument('<aaa __proto__="bbb"></aaa>', mockHandler);
+
+  expect(Object.entries(mockHandler.onStartTag.mock.calls[0][1])).toEqual([['__proto__', 'bbb']]);
+});
+
+test('resolves namespaces of a fragment', () => {
+  namespaceParser.parseFragment('<aaa xmlns="xxx"></aaa>', mockHandler);
+
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', 'xxx');
+});
+
+test('resolves namespaces of document chunks', () => {
+  const writer = namespaceParser.createDocumentWriter(mockHandler);
+
+  writer.write('<aaa:bbb xmlns:aaa="xx');
+  writer.end('x"></aaa:bbb>');
+
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa:bbb', 'xxx');
+});
+
+test('resolves namespaces of fragment chunks', () => {
+  const writer = namespaceParser.createFragmentWriter(mockHandler);
+
+  writer.write('<aaa xmlns="xx');
+  writer.end('x"></aaa>');
+
+  expect(mockHandler.onEndTag).toHaveBeenNthCalledWith(1, 'aaa', 'xxx');
 });

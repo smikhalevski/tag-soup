@@ -325,9 +325,12 @@ class NamespaceDOMTokenHandler<TRootNode extends Document | DocumentFragment> ex
   }
 }
 
+// Options of the token handlers that are kept only to retain their hidden classes
+const retainedParserOptions = resolveParserOptions({});
+
 retainHiddenClasses(
-  new DOMTokenHandler(new Document(), resolveParserOptions({})),
-  new NamespaceDOMTokenHandler(new Document(), resolveParserOptions({})),
+  new DOMTokenHandler(new Document(), retainedParserOptions),
+  new NamespaceDOMTokenHandler(new Document(), retainedParserOptions),
   new DocumentFragment(),
   new Element(''),
   new Text(''),

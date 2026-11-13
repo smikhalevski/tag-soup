@@ -1,3 +1,4 @@
+import { NamespaceStack } from './NamespaceStack.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
 import { retainHiddenClasses } from './utils.ts';
@@ -25,7 +26,10 @@ export interface SAXHandler {
   /**
    * Called when a start tag name is read.
    *
-   * @param tagName The start tag name.
+   * Attributes of the tag aren't read yet, and they can declare the namespace of the tag, so the namespace is passed
+   * to {@link onStartTag}.
+   *
+   * @param tagName The start tag name, with its prefix if there's one.
    */
   onStartTagOpening?(tagName: string): void;
 
@@ -43,25 +47,36 @@ export interface SAXHandler {
   /**
    * Called when a start tag and all its attributes are read.
    *
-   * @param tagName The start tag name.
-   * @param attributes The decoded attribute values by attribute name.
+   * @param tagName The start tag name, with its prefix if there's one.
+   * @param attributes The decoded attribute values by attribute name, including attributes that declare namespaces.
    * @param isSelfClosing `true` if the tag is self-closing. {@link onEndTag} isn't called for self-closing tags.
+   * @param namespaceURI The namespace that the prefix of the tag name is bound to, or the default namespace if the tag
+   * name has no prefix. `null` if the tag has no namespace, or if
+   * {@link ParserOptions.areNamespacesRecognized namespaces aren't recognized}.
    */
-  onStartTag?(tagName: string, attributes: Record<string, string>, isSelfClosing: boolean): void;
+  onStartTag?(
+    tagName: string,
+    attributes: Record<string, string>,
+    isSelfClosing: boolean,
+    namespaceURI: string | null
+  ): void;
 
   /**
    * Called when a tag is ended: by its end tag, implicitly, or right after the start tag of a void tag.
    *
    * **Note:** Not called for self-closing tags.
    *
-   * @param tagName The name of the tag that is ended.
+   * @param tagName The name of the tag that is ended, with its prefix if there's one.
+   * @param namespaceURI The namespace of the tag that is ended, the same that was passed to {@link onStartTag}.
    */
-  onEndTag?(tagName: string): void;
+  onEndTag?(tagName: string, namespaceURI: string | null): void;
 
   /**
    * Called when an attribute and its value are read.
    *
-   * @param name The attribute name.
+   * Attributes that follow can declare the namespace of this attribute, so namespaces of attributes aren't resolved.
+   *
+   * @param name The attribute name, with its prefix if there's one.
    * @param value The decoded attribute value. An empty string if the attribute has no value.
    */
   onAttribute?(name: string, value: string): void;
@@ -180,25 +195,39 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
 
   return {
     parseDocument(input, handler) {
-      tokenizer.tokenizeDocument(input, new SAXTokenHandler(handler, config));
+      tokenizer.tokenizeDocument(input, createSAXTokenHandler(handler, config));
     },
 
     parseFragment(input, handler) {
-      tokenizer.tokenizeFragment(input, new SAXTokenHandler(handler, config));
+      tokenizer.tokenizeFragment(input, createSAXTokenHandler(handler, config));
     },
 
     createDocumentWriter(handler) {
-      return tokenizer.createDocumentWriter(new SAXTokenHandler(handler, config));
+      return tokenizer.createDocumentWriter(createSAXTokenHandler(handler, config));
     },
 
     createFragmentWriter(handler) {
-      return tokenizer.createFragmentWriter(new SAXTokenHandler(handler, config));
+      return tokenizer.createFragmentWriter(createSAXTokenHandler(handler, config));
     },
   };
 }
 
 /**
- * Calls {@link SAXHandler} methods for tokens.
+ * Creates a handler that calls {@link SAXHandler} methods for tokens, and resolves namespaces if
+ * {@link ParserConfig.areNamespacesRecognized} is `true`.
+ *
+ * @param handler The handler whose methods are called.
+ * @param config The config from {@link resolveParserOptions}.
+ */
+function createSAXTokenHandler(handler: SAXHandler, config: ParserConfig): SAXTokenHandler {
+  // Namespaces are passed to onStartTag and onEndTag only, so they aren't resolved for a handler that has neither
+  return config.areNamespacesRecognized && (handler.onStartTag !== undefined || handler.onEndTag !== undefined)
+    ? new NamespaceSAXTokenHandler(handler, config)
+    : new SAXTokenHandler(handler, config);
+}
+
+/**
+ * Calls {@link SAXHandler} methods for tokens. Tags have no namespace.
  */
 class SAXTokenHandler implements TokenHandler {
   handler: SAXHandler;
@@ -257,7 +286,7 @@ class SAXTokenHandler implements TokenHandler {
     handler.onStartTagClosing?.();
 
     if (handler.onStartTag !== undefined) {
-      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, false);
+      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, false, null);
       this.attributes = undefined;
     }
   }
@@ -268,7 +297,7 @@ class SAXTokenHandler implements TokenHandler {
     handler.onStartTagSelfClosing?.();
 
     if (handler.onStartTag !== undefined) {
-      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, true);
+      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, true, null);
       this.attributes = undefined;
     }
 
@@ -276,7 +305,7 @@ class SAXTokenHandler implements TokenHandler {
   }
 
   onEndTagName(): void {
-    this.handler.onEndTag?.(this.tagNameStack[this.tagNameStackCursor]);
+    this.handler.onEndTag?.(this.tagNameStack[this.tagNameStackCursor], null);
 
     --this.tagNameStackCursor;
   }
@@ -336,4 +365,99 @@ class SAXTokenHandler implements TokenHandler {
   }
 }
 
-retainHiddenClasses(new SAXTokenHandler({}, resolveParserOptions({})));
+/**
+ * Calls {@link SAXHandler} methods for tokens, and resolves namespaces of tags from `xmlns` and `xmlns:*` attributes.
+ *
+ * A tag can declare the namespace of its own name, so the namespace is resolved when the start tag is closed, after
+ * all attributes are read.
+ *
+ * It's a separate class, so {@link SAXTokenHandler} doesn't read attributes that the handler doesn't need.
+ */
+class NamespaceSAXTokenHandler extends SAXTokenHandler {
+  namespaceStack = new NamespaceStack();
+
+  /**
+   * Namespaces of enclosing tags, by the index of the tag in {@link tagNameStack}. They are kept for end tags, since
+   * resolving a namespace again is slower.
+   */
+  namespaceURIStack: Array<string | null> = [null, null, null, null, null, null, null, null, null];
+
+  onStartTagClosing(): void {
+    const handler = this.handler;
+
+    handler.onStartTagClosing?.();
+
+    const tagNameStackCursor = this.tagNameStackCursor;
+    const tagName = this.tagNameStack[tagNameStackCursor];
+    const namespaceURI = this.namespaceStack.getNamespaceURI(tagName);
+
+    this.namespaceURIStack[tagNameStackCursor] = namespaceURI;
+
+    if (handler.onStartTag !== undefined) {
+      handler.onStartTag(tagName, this.attributes!, false, namespaceURI);
+      this.attributes = undefined;
+    }
+
+    this.namespaceStack.startElement();
+  }
+
+  onStartTagSelfClosing(): void {
+    const handler = this.handler;
+
+    handler.onStartTagSelfClosing?.();
+
+    const tagName = this.tagNameStack[this.tagNameStackCursor--];
+
+    if (handler.onStartTag !== undefined) {
+      handler.onStartTag(tagName, this.attributes!, true, this.namespaceStack.getNamespaceURI(tagName));
+      this.attributes = undefined;
+    }
+
+    // Removes namespaces that the tag has declared
+    this.namespaceStack.startElement();
+    this.namespaceStack.endElement();
+  }
+
+  onEndTagName(): void {
+    const tagNameStackCursor = this.tagNameStackCursor--;
+
+    this.handler.onEndTag?.(this.tagNameStack[tagNameStackCursor], this.namespaceURIStack[tagNameStackCursor]);
+    this.namespaceStack.endElement();
+  }
+
+  onAttribute(
+    input: string,
+    nameStartIndex: number,
+    nameEndIndex: number,
+    valueStartIndex: number,
+    valueEndIndex: number
+  ): void {
+    const handler = this.handler;
+    const attributes = this.attributes;
+
+    // Each attribute is read, since it can declare a namespace
+    const name = (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex));
+    const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
+
+    if (attributes !== undefined) {
+      // Assigning __proto__ would set the prototype rather than add an attribute
+      if (name === '__proto__') {
+        Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
+      } else {
+        attributes[name] = value;
+      }
+    }
+
+    this.namespaceStack.declareNamespace(name, value);
+
+    handler.onAttribute?.(name, value);
+  }
+}
+
+// Options of the token handlers that are kept only to retain their hidden classes
+const retainedParserOptions = resolveParserOptions({});
+
+retainHiddenClasses(
+  new SAXTokenHandler({}, retainedParserOptions),
+  new NamespaceSAXTokenHandler({}, retainedParserOptions)
+);

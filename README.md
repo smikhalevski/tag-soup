@@ -201,6 +201,21 @@ myParser.parseFragment('<p><br></p>', {
 });
 ```
 
+`XMLSAXParser` resolves namespaces of tags from `xmlns` and `xmlns:*` attributes, and passes them to `onStartTag` and
+`onEndTag`:
+
+```ts
+XMLSAXParser.parseFragment('<svg xmlns="http://www.w3.org/2000/svg"><circle/></svg>', {
+  onStartTag(tagName, attributes, isSelfClosing, namespaceURI) {
+    // Called with 'svg' and 'circle', both have the namespace 'http://www.w3.org/2000/svg'
+  },
+});
+```
+
+`HTMLSAXParser` doesn't recognize namespaces, and passes `null` instead. To recognize them in a custom SAX parser,
+enable
+[`areNamespacesRecognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized).
+
 ## SAX handler callbacks
 
 The [`SAXHandler`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html) defines the following optional
@@ -215,10 +230,10 @@ callbacks. Implement only the ones you need. Callbacks for a tag are called in t
 <dd>A start tag is closed with <code>&gt;</code>.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagselfclosing"><code>onStartTagSelfClosing()</code></a></dt>
 <dd>A start tag is closed with <code>/&gt;</code>. Only called if self-closing tags are recognized.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag"><code>onStartTag(tagName, attributes, isSelfClosing)</code></a></dt>
-<dd>A start tag and all its attributes are read.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag"><code>onEndTag(tagName)</code></a></dt>
-<dd>A tag is ended: by its end tag, implicitly, or right after the start tag of a void tag. Not called for self-closing tags.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag"><code>onStartTag(tagName, attributes, isSelfClosing, namespaceURI)</code></a></dt>
+<dd>A start tag and all its attributes are read. The namespace is <code>null</code> if the tag has none, or if namespaces aren't recognized.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag"><code>onEndTag(tagName, namespaceURI)</code></a></dt>
+<dd>A tag is ended: by its end tag, implicitly, or right after the start tag of a void tag. Not called for self-closing tags. The namespace is the same that was passed to <code>onStartTag</code>.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ontext"><code>onText(text)</code></a></dt>
 <dd>A text is read. The text is decoded, except inside raw text tags.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncomment"><code>onComment(data)</code></a></dt>
@@ -433,7 +448,7 @@ toXMLEncoded(fragment);
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized"><code>areNamespacesRecognized</code></a></dt>
-<dd>If <code>true</code>, <code>xmlns</code> and <code>xmlns:*</code> attributes declare namespaces, and the DOM parser sets the namespace of each element. Otherwise, elements have no namespace. See <a href="#namespaces">Namespaces</a>.</dd>
+<dd>If <code>true</code>, <code>xmlns</code> and <code>xmlns:*</code> attributes declare namespaces: a DOM parser sets the namespace of each element, and a SAX parser passes the namespace of a tag to <code>onStartTag</code> and <code>onEndTag</code>. Otherwise, elements have no namespace. See <a href="#namespaces">Namespaces</a>.</dd>
 </dl>
 
 ```ts

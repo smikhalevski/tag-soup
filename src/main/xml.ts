@@ -45,7 +45,8 @@ export const XMLDOMParser = createDOMParser(xmlParserOptions);
 
 /**
  * Parses XML markup and calls {@link SAXHandler} methods when tokens are read. Decodes XML entities with
- * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
+ * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html), and resolves namespaces of
+ * tags from `xmlns` attributes.
  *
  * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group SAX
