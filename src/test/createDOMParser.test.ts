@@ -1,8 +1,25 @@
+import { type Document, type Element, XML_NAMESPACE } from 'flyweight-dom';
 import { f } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
 import { expect, test } from 'vitest';
 import { createDOMParser } from '../main/createDOMParser.ts';
+import { createSerializer } from '../main/createSerializer.ts';
 import { createTokenizer } from '../main/createTokenizer.ts';
+
+const namespaceParser = createDOMParser({
+  tokenizer: createTokenizer({ areSelfClosingTagsRecognized: true }),
+  areNamespacesRecognized: true,
+});
+
+// Returns namespaces of elements by tag name
+function getNamespaceURIs(document: Document): Record<string, string | null> {
+  const namespaceURIs: Record<string, string | null> = {};
+
+  for (const element of document.getElementsByTagName('*')) {
+    namespaceURIs[element.tagName] = element.namespaceURI;
+  }
+  return namespaceURIs;
+}
 
 test('parses text', () => {
   expect(createDOMParser().parseDocument('aaa')).toStrictEqual(f.doc('aaa'));
@@ -135,4 +152,136 @@ test('parses fragment chunks with the tokenizer', () => {
   writer.write(' <aa');
 
   expect(writer.end('a>bbb')).toStrictEqual(f.f(' ', f.aaa(), 'bbb'));
+});
+
+test('does not recognize namespaces by default', () => {
+  expect(getNamespaceURIs(createDOMParser().parseDocument('<aaa xmlns="xxx"></aaa>'))).toStrictEqual({ aaa: null });
+});
+
+test('resolves the default namespace of an element and its descendants', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb></bbb></aaa>'))).toStrictEqual({
+    aaa: 'xxx',
+    bbb: 'xxx',
+  });
+});
+
+test('resolves the namespace of a prefix declared by the same element', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa:bbb xmlns:aaa="xxx"></aaa:bbb>'))).toStrictEqual({
+    'aaa:bbb': 'xxx',
+  });
+});
+
+test('resolves the namespace of a prefix declared by an enclosing element', () => {
+  expect(
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bbb="xxx"><bbb:ccc></bbb:ccc></aaa>'))
+  ).toStrictEqual({ aaa: null, 'bbb:ccc': 'xxx' });
+});
+
+test('resolves the namespace of a prefix declared by the innermost element', () => {
+  expect(
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bbb="xxx"><ccc xmlns:bbb="yyy"><bbb:ddd/></ccc></aaa>'))
+  ).toStrictEqual({ aaa: null, ccc: null, 'bbb:ddd': 'yyy' });
+});
+
+test('does not resolve the namespace of a prefix that is not declared', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa:bbb></aaa:bbb>'))).toStrictEqual({ 'aaa:bbb': null });
+});
+
+test('resolves the namespace of the xml prefix', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<xml:aaa></xml:aaa>'))).toStrictEqual({
+    'xml:aaa': XML_NAMESPACE,
+  });
+});
+
+test('removes namespaces declared by an element when it is ended', () => {
+  expect(
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb xmlns="yyy"></bbb><ccc></ccc></aaa>'))
+  ).toStrictEqual({ aaa: 'xxx', bbb: 'yyy', ccc: 'xxx' });
+});
+
+test('removes all namespaces declared by an element when it is ended', () => {
+  expect(
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa><bbb xmlns="xxx" xmlns:ccc="yyy"></bbb><ddd></ddd></aaa>'))
+  ).toStrictEqual({ aaa: null, bbb: 'xxx', ddd: null });
+});
+
+test('removes namespaces declared by nested elements when they are ended', () => {
+  expect(
+    getNamespaceURIs(
+      namespaceParser.parseDocument('<aaa><bbb xmlns="xxx"><ccc xmlns="yyy"></ccc></bbb><ddd></ddd></aaa>')
+    )
+  ).toStrictEqual({ aaa: null, bbb: 'xxx', ccc: 'yyy', ddd: null });
+});
+
+test('removes namespaces declared by a self-closing element', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa><bbb xmlns:ccc="xxx"/><ccc:ddd/></aaa>'))).toStrictEqual({
+    aaa: null,
+    bbb: null,
+    'ccc:ddd': null,
+  });
+});
+
+test('removes the default namespace declared with an empty value', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb xmlns=""></bbb></aaa>'))).toStrictEqual({
+    aaa: 'xxx',
+    bbb: null,
+  });
+});
+
+test('does not recognize a namespace declared by an attribute that only starts with xmlns', () => {
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlnsbbb="xxx"></aaa>'))).toStrictEqual({ aaa: null });
+});
+
+test('recognizes a namespace declared by a renamed attribute', () => {
+  const parser = createDOMParser({ renameAttribute: name => name.toLowerCase(), areNamespacesRecognized: true });
+
+  expect(getNamespaceURIs(parser.parseDocument('<aaa XMLNS="xxx"></aaa>'))).toStrictEqual({ aaa: 'xxx' });
+});
+
+test('recognizes a namespace declared by a decoded attribute value', () => {
+  const parser = createDOMParser({ decodeAttribute: decodeXML, areNamespacesRecognized: true });
+
+  expect(getNamespaceURIs(parser.parseDocument('<aaa xmlns="&lt;"></aaa>'))).toStrictEqual({ aaa: '<' });
+});
+
+test('keeps attributes of an element when namespaces are recognized', () => {
+  const document = namespaceParser.parseDocument('<aaa xmlns="xxx" bbb="ccc"></aaa>');
+
+  expect(document.documentElement!.attributes).toStrictEqual({ xmlns: 'xxx', bbb: 'ccc' });
+});
+
+test('preserves __proto__ attribute when namespaces are recognized', () => {
+  const document = namespaceParser.parseDocument('<aaa __proto__="bbb"></aaa>');
+
+  expect(Object.entries(document.documentElement!.attributes)).toStrictEqual([['__proto__', 'bbb']]);
+});
+
+test('parses nested nodes when namespaces are recognized', () => {
+  const serialize = createSerializer({ areSelfClosingTagsSupported: true });
+
+  expect(serialize(namespaceParser.parseDocument('<aaa xxx="yyy">bbb<ccc/>ddd<eee>fff</eee>ggg</aaa>'))).toBe(
+    '<aaa xxx="yyy">bbb<ccc/>ddd<eee>fff</eee>ggg</aaa>'
+  );
+});
+
+test('resolves namespaces of a fragment', () => {
+  const fragment = namespaceParser.parseFragment('<aaa xmlns="xxx"></aaa>');
+
+  expect((fragment.firstChild as Element).namespaceURI).toBe('xxx');
+});
+
+test('resolves namespaces of document chunks', () => {
+  const writer = namespaceParser.createDocumentWriter();
+
+  writer.write('<aaa:bbb xmlns:aaa="xx');
+
+  expect(getNamespaceURIs(writer.end('x"></aaa:bbb>'))).toStrictEqual({ 'aaa:bbb': 'xxx' });
+});
+
+test('resolves namespaces of fragment chunks', () => {
+  const writer = namespaceParser.createFragmentWriter();
+
+  writer.write('<aaa xmlns="xx');
+
+  expect((writer.end('x"></aaa>').firstChild as Element).namespaceURI).toBe('xxx');
 });

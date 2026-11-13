@@ -9,6 +9,7 @@ import {
   ProcessingInstruction,
   Text,
 } from 'flyweight-dom';
+import { NamespaceStack } from './NamespaceStack.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler, type TokenizerWriter } from './types.ts';
 import { retainHiddenClasses } from './utils.ts';
@@ -90,7 +91,7 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 
   return {
     parseDocument(input) {
-      const tokenHandler = new DOMTokenHandler(new Document(), config);
+      const tokenHandler = createDOMTokenHandler(new Document(), config);
 
       tokenizer.tokenizeDocument(input, tokenHandler);
 
@@ -98,7 +99,7 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
     },
 
     parseFragment(input) {
-      const tokenHandler = new DOMTokenHandler(new DocumentFragment(), config);
+      const tokenHandler = createDOMTokenHandler(new DocumentFragment(), config);
 
       tokenizer.tokenizeFragment(input, tokenHandler);
 
@@ -106,13 +107,13 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
     },
 
     createDocumentWriter() {
-      const tokenHandler = new DOMTokenHandler(new Document(), config);
+      const tokenHandler = createDOMTokenHandler(new Document(), config);
 
       return createDOMParserWriter(tokenHandler, tokenizer.createDocumentWriter(tokenHandler));
     },
 
     createFragmentWriter() {
-      const tokenHandler = new DOMTokenHandler(new DocumentFragment(), config);
+      const tokenHandler = createDOMTokenHandler(new DocumentFragment(), config);
 
       return createDOMParserWriter(tokenHandler, tokenizer.createFragmentWriter(tokenHandler));
     },
@@ -143,7 +144,23 @@ function createDOMParserWriter<TRootNode extends Document | DocumentFragment>(
 }
 
 /**
- * Builds a DOM from tokens.
+ * Creates a handler that builds a DOM from tokens, and resolves namespaces if
+ * {@link ParserConfig.areNamespacesRecognized} is `true`.
+ *
+ * @param rootNode The node that top-level nodes are appended to.
+ * @param config The config from {@link resolveParserOptions}.
+ */
+function createDOMTokenHandler<TRootNode extends Document | DocumentFragment>(
+  rootNode: TRootNode,
+  config: ParserConfig
+): DOMTokenHandler<TRootNode> {
+  return config.areNamespacesRecognized
+    ? new NamespaceDOMTokenHandler(rootNode, config)
+    : new DOMTokenHandler(rootNode, config);
+}
+
+/**
+ * Builds a DOM from tokens. Elements have no namespace.
  */
 class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements TokenHandler {
   renameTag: (name: string) => string;
@@ -224,8 +241,93 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
   }
 }
 
+/**
+ * Builds a DOM from tokens, and resolves namespaces of elements from `xmlns` and `xmlns:*` attributes.
+ *
+ * An element can declare the namespace of its own tag name, and the namespace of an element can't be changed. So the
+ * tag name and attributes are kept until the start tag is closed, and the element is created then.
+ *
+ * It's a separate class, so {@link DOMTokenHandler} doesn't get a callback per start tag closing.
+ */
+class NamespaceDOMTokenHandler<TRootNode extends Document | DocumentFragment> extends DOMTokenHandler<TRootNode> {
+  namespaceStack = new NamespaceStack();
+
+  /**
+   * The renamed tag name of the start tag being read.
+   */
+  tagName = '';
+
+  /**
+   * Attributes of the start tag being read, or `undefined` if no attributes were read yet. Chunks can end inside a
+   * start tag, so values are kept instead of indices, which point to the input of one chunk.
+   */
+  attributes: Record<string, string> | undefined = undefined;
+
+  onStartTagName(input: string, startIndex: number, endIndex: number): void {
+    this.tagName = (0, this.renameTag)(input.substring(startIndex, endIndex));
+  }
+
+  onStartTagClosing(): void {
+    this.parentNode = this.appendElement();
+    this.namespaceStack.startElement();
+  }
+
+  onStartTagSelfClosing(): void {
+    this.appendElement();
+
+    // Removes namespaces that the element has declared
+    this.namespaceStack.startElement();
+    this.namespaceStack.endElement();
+  }
+
+  onEndTagName(): void {
+    this.parentNode = this.parentNode.parentNode!;
+    this.namespaceStack.endElement();
+  }
+
+  onAttribute(
+    input: string,
+    nameStartIndex: number,
+    nameEndIndex: number,
+    valueStartIndex: number,
+    valueEndIndex: number
+  ): void {
+    const name = (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex));
+    const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
+
+    let attributes = this.attributes;
+
+    if (attributes === undefined) {
+      attributes = this.attributes = {};
+    }
+
+    // Assigning __proto__ would set the prototype rather than add an attribute
+    if (name === '__proto__') {
+      Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
+    } else {
+      attributes[name] = value;
+    }
+
+    this.namespaceStack.declareNamespace(name, value);
+  }
+
+  /**
+   * Creates the element of the start tag being read, and appends it to the parent node. The element owns the
+   * attributes object, so the next start tag gets a new one.
+   */
+  appendElement(): Element {
+    const element = new Element(this.tagName, this.attributes, this.namespaceStack.getNamespaceURI(this.tagName));
+
+    this.attributes = undefined;
+    this.parentNode.appendChild(element);
+
+    return element;
+  }
+}
+
 retainHiddenClasses(
   new DOMTokenHandler(new Document(), resolveParserOptions({})),
+  new NamespaceDOMTokenHandler(new Document(), resolveParserOptions({})),
   new DocumentFragment(),
   new Element(''),
   new Text(''),

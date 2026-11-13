@@ -12,6 +12,10 @@ test('decodes attribute values', () => {
   expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(f.f(f.aaa({ bbb: '<' })));
 });
 
+test('resolves namespaces', () => {
+  expect(XMLDOMParser.parseDocument('<aaa xmlns="xxx"/>').documentElement!.namespaceURI).toBe('xxx');
+});
+
 test('serializes XML', () => {
   expect(toXML(XMLDOMParser.parseDocument('<!DOCTYPEhtml><p>aaa&gt;&lt;<br/></p>'))).toBe(
     '<!DOCTYPE html><p>aaa&gt;&lt;<br/></p>'

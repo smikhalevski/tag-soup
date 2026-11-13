@@ -379,6 +379,34 @@ export interface ParserOptions {
    * @param value The attribute value to decode.
    */
   decodeAttribute?: (value: string) => string;
+
+  /**
+   * If `true` then `xmlns` and `xmlns:*` attributes declare namespaces, and an element gets the namespace that the
+   * prefix of its tag name is bound to, or the default namespace if the tag name has no prefix. Otherwise, elements
+   * have no namespace.
+   *
+   * ```html
+   * <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+   *   <xlink:a/>
+   * </svg>
+   * ```
+   *
+   * Here `svg` has the namespace `http://www.w3.org/2000/svg`, and `xlink:a` has the namespace
+   * `http://www.w3.org/1999/xlink`.
+   *
+   * An element can declare the namespace of its own tag name. An element whose prefix isn't bound has no namespace.
+   * Attributes that declare namespaces are kept, and namespaces of other attributes aren't resolved by the parser:
+   * [`Element.getAttributeNS`](https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Element.html#getattributens)
+   * looks them up.
+   *
+   * Namespaces are recognized after tags and attributes are {@link renameTag renamed}, and attribute values are
+   * {@link decodeAttribute decoded}.
+   *
+   * **Note:** Only {@link createDOMParser} recognizes namespaces, {@link createSAXParser} ignores this option.
+   *
+   * @default false
+   */
+  areNamespacesRecognized?: boolean;
 }
 
 /**

@@ -30,6 +30,11 @@ export interface ParserConfig {
    * @see {@link ParserOptions.decodeAttribute}
    */
   decodeAttribute: (value: string) => string;
+
+  /**
+   * @see {@link ParserOptions.areNamespacesRecognized}
+   */
+  areNamespacesRecognized: boolean;
 }
 
 /**
@@ -42,6 +47,7 @@ export function resolveParserOptions(options: ParserOptions): ParserConfig {
     renameAttribute = identity,
     decodeText = identity,
     decodeAttribute = identity,
+    areNamespacesRecognized = false,
   } = options;
 
   return {
@@ -50,5 +56,6 @@ export function resolveParserOptions(options: ParserOptions): ParserConfig {
     renameAttribute,
     decodeText,
     decodeAttribute,
+    areNamespacesRecognized,
   };
 }

@@ -67,7 +67,7 @@ describe('HTML tokenizer (large source)', () => {
   });
 });
 
-describe('HTML SAX (large source, no handlers)', () => {
+describe('HTML SAX (large source, without handlers)', () => {
   test('tag-soup', () => {
     const saxHandler: tagSoup.SAXHandler = {};
 
@@ -121,7 +121,7 @@ describe('HTML SAX (large source, no handlers)', () => {
   });
 });
 
-describe('HTML SAX (large source, handlers)', () => {
+describe('HTML SAX (large source, with handlers)', () => {
   test('tag-soup', () => {
     const saxHandler: tagSoup.SAXHandler = {
       onStartTag: noop,
@@ -459,12 +459,41 @@ describe('HTML DOM (small sources)', { measureTimeout: 1_500, batchTimeout: 300 
   });
 });
 
-describe('XML SAX', () => {
+describe('XML SAX (with handlers)', () => {
   test('tag-soup', () => {
-    const saxHandler = {};
+    const saxHandler: tagSoup.SAXHandler = {
+      onStartTag: noop,
+      onEndTag: noop,
+      onText: noop,
+    };
 
     measure(() => {
       tagSoup.XMLSAXParser.parseDocument(xmlSource, saxHandler);
+    });
+  });
+
+  test('htmlparser2', () => {
+    let parser: htmlparser2.Parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(
+        {
+          onopentag: noop,
+          onclosetag: noop,
+          ontext: noop,
+        },
+        {
+          xmlMode: true,
+        }
+      );
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      parser.end(xmlSource);
     });
   });
 
@@ -482,6 +511,24 @@ describe('XML DOM', () => {
   test('tag-soup', () => {
     measure(() => {
       tagSoup.XMLDOMParser.parseDocument(xmlSource);
+    });
+  });
+
+  test('htmlparser2', () => {
+    let parser: htmlparser2.Parser;
+
+    beforeBatch(() => {
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+        xmlMode: true,
+      });
+    });
+
+    afterIteration(() => {
+      parser.reset();
+    });
+
+    measure(() => {
+      parser.end(xmlSource);
     });
   });
 

@@ -30,11 +30,13 @@ const xmlParserOptions: ParserOptions = {
   tokenizer: XMLTokenizer,
   decodeText: decodeXML,
   decodeAttribute: decodeXML,
+  areNamespacesRecognized: true,
 };
 
 /**
  * Parses XML markup as a DOM. Decodes XML entities with
- * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
+ * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html), and resolves namespaces of
+ * elements from `xmlns` attributes.
  *
  * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group DOM

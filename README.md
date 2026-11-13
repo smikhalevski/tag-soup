@@ -114,6 +114,35 @@ myParser.parseFragment('<p><br></p>');
 // ⮕ DocumentFragment
 ```
 
+## Namespaces
+
+`XMLDOMParser` resolves namespaces of elements from `xmlns` and `xmlns:*` attributes:
+
+```ts
+import { XMLDOMParser } from 'tag-soup';
+
+const document = XMLDOMParser.parseDocument(
+  '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><xlink:a/></svg>'
+);
+
+document.getElementsByTagNameNS('http://www.w3.org/2000/svg', 'svg');
+// ⮕ [Element { 'svg' }]
+
+document.getElementsByTagNameNS('http://www.w3.org/1999/xlink', 'a');
+// ⮕ [Element { 'xlink:a' }]
+```
+
+An element whose prefix isn't declared has no namespace. Attributes that declare namespaces are kept, so
+[`getAttributeNS`](https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Element.html#getattributens)
+and other namespace-aware methods of an element look up namespaces of attributes.
+
+`HTMLDOMParser` doesn't recognize namespaces. To recognize them in a custom DOM parser, enable
+[`areNamespacesRecognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized):
+
+```ts
+const myParser = createDOMParser({ areNamespacesRecognized: true });
+```
+
 # SAX parsing
 
 TagSoup exports preconfigured [`HTMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html)
@@ -403,6 +432,8 @@ toXMLEncoded(fragment);
 <dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
 <dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
 <dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
+<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized"><code>areNamespacesRecognized</code></a></dt>
+<dd>If <code>true</code>, <code>xmlns</code> and <code>xmlns:*</code> attributes declare namespaces, and the DOM parser sets the namespace of each element. Otherwise, elements have no namespace. See <a href="#namespaces">Namespaces</a>.</dd>
 </dl>
 
 ```ts
