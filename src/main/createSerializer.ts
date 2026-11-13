@@ -1,56 +1,17 @@
-import { Node } from 'flyweight-dom';
-import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './tokenizeMarkup.ts';
-
-/**
- * Options of {@link createSerializer}.
- *
- * @group Serializer
- */
-export interface SerializerOptions {
-  /**
-   * The list of tags that can't have content. Void tags are written without an end tag, and their children are ignored.
-   *
-   * @example
-   * ['link', 'meta']
-   * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
-   */
-  voidTags?: string[];
-
-  /**
-   * The list of tags whose text content is written as is, without {@link encodeText}.
-   *
-   * @example
-   * ['script', 'style']
-   * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
-   */
-  rawTextTags?: string[];
-
-  /**
-   * If `true` then ASCII alpha characters are case-insensitive in tag names.
-   *
-   * @default false
-   */
-  areTagNamesCaseInsensitive?: boolean;
-
-  /**
-   * If `true` then elements without children are written as self-closing tags (`<a/>`), otherwise as a start tag
-   * followed by an end tag (`<a></a>`). Void tags are always written without an end tag.
-   *
-   * @default false
-   */
-  areSelfClosingTagsSupported?: boolean;
-
-  /**
-   * Encodes text content and attribute values. Use this method to encode HTML/XML entities. Comments, CDATA sections
-   * and processing instructions are written as is.
-   *
-   * By default, text content and attribute values aren't encoded.
-   *
-   * @param text The text to encode.
-   */
-  encodeText?: (text: string) => string;
-}
+import {
+  CDATASection,
+  ChildNode,
+  Comment,
+  DocumentType,
+  Element,
+  Node,
+  ProcessingInstruction,
+  Text,
+} from 'flyweight-dom';
+import type { SerializerConfig, TagSerializationConfig } from './resolveSerializerOptions.ts';
+import { resolveSerializerOptions } from './resolveSerializerOptions.ts';
+import type { SerializerOptions } from './types.ts';
+import { areCaseInsensitiveStringsEqual, getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
 
 /**
  * Creates a serializer that converts a DOM node to an HTML/XML string.
@@ -60,8 +21,11 @@ export interface SerializerOptions {
  * import { escapeXML } from 'speedy-entities';
  *
  * const serialize = createSerializer({
- *   voidTags: ['br'],
+ *   tags: {
+ *     br: { kind: 'void' },
+ *   },
  *   encodeText: escapeXML,
+ *   encodeAttribute: escapeXML,
  * });
  *
  * serialize(HTMLDOMParser.parseFragment('<p>hello<br></p>'));
@@ -74,29 +38,115 @@ export interface SerializerOptions {
  * @group Serializer
  */
 export function createSerializer(options: SerializerOptions = {}): (node: Node) => string {
-  const resolvedOptions = resolveSerializerOptions(options);
+  const config = resolveSerializerOptions(options);
 
-  return node => serializeMarkup(node, resolvedOptions);
+  return node => serializeMarkup(node, config);
+}
+
+function serializeMarkup(anyNode: Node, config: SerializerConfig): string {
+  const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = config;
+
+  // Text is the most common node, and a node type check is faster than instanceof, which walks the prototype chain
+  if (anyNode.nodeType === Node.TEXT_NODE) {
+    return encodeText((anyNode as Text).data);
+  }
+
+  if (anyNode.nodeType === Node.ELEMENT_NODE) {
+    const node = anyNode as Element;
+
+    let output = '<' + node.tagName;
+
+    for (const name in node.attributes) {
+      output += ' ' + name + '="' + encodeAttribute(node.attributes[name]) + '"';
+    }
+
+    const tagConfig = getTagConfig(config, node.tagName);
+
+    if (node.firstChild !== null) {
+      output += '>';
+
+      // Text inside raw text tags isn't encoded
+      const isRawText = tagConfig?.isRawText === true;
+
+      for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
+        // Text children are written here, which saves a recursive call
+        if (child.nodeType === Node.TEXT_NODE) {
+          output += isRawText ? (child as Text).data : encodeText((child as Text).data);
+        } else {
+          output += serializeMarkup(child, config);
+        }
+      }
+
+      output += '</' + node.tagName + '>';
+    } else if (tagConfig?.kind === 'void') {
+      output += '>';
+    } else if (areSelfClosingTagsSupported) {
+      output += '/>';
+    } else {
+      output += '></' + node.tagName + '>';
+    }
+
+    return output;
+  }
+
+  if (anyNode.nodeType === Node.CDATA_SECTION_NODE) {
+    return '<![CDATA[' + (anyNode as CDATASection).data + ']]>';
+  }
+
+  if (anyNode.nodeType === Node.DOCUMENT_NODE || anyNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+    let output = '';
+
+    for (let child = anyNode.firstChild; child !== null; child = child.nextSibling) {
+      output += serializeMarkup(child, config);
+    }
+
+    return output;
+  }
+
+  if (anyNode.nodeType === Node.COMMENT_NODE) {
+    return '<!--' + (anyNode as Comment).data + '-->';
+  }
+
+  if (anyNode.nodeType === Node.DOCUMENT_TYPE_NODE) {
+    return '<!DOCTYPE ' + (anyNode as DocumentType).name + '>';
+  }
+
+  if (anyNode.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+    const node = anyNode as ProcessingInstruction;
+
+    return '<?' + node.target + (node.data.length !== 0 ? ' ' + node.data : '') + '?>';
+  }
+
+  return '';
 }
 
 /**
- * Converts human-readable serializer options into options consumed by {@link serializeMarkup}.
- *
- * @param options Serializer options.
- * @internal
+ * Returns the config of a tag, or `undefined` if it has none.
  */
-export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
-  const { voidTags, rawTextTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
+function getTagConfig(config: SerializerConfig, tagName: string): TagSerializationConfig | undefined {
+  const { tagConfigsMap, areTagNamesCaseInsensitive } = config;
 
-  const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+  if (tagConfigsMap === undefined) {
+    return;
+  }
 
-  const toHashCode = (str: string) => getHashCode(str, 0, str.length);
+  const tagConfigs = tagConfigsMap.get(
+    areTagNamesCaseInsensitive
+      ? getCaseInsensitiveHashCode(tagName, 0, tagName.length)
+      : getCaseSensitiveHashCode(tagName, 0, tagName.length)
+  );
 
-  return {
-    toHashCode,
-    voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
-    rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
-    areSelfClosingTagsSupported,
-    encodeText,
-  };
+  if (tagConfigs === undefined) {
+    return;
+  }
+
+  for (const tagConfig of tagConfigs) {
+    if (
+      areTagNamesCaseInsensitive
+        ? areCaseInsensitiveStringsEqual(tagConfig.tagName, tagName)
+        : tagConfig.tagName === tagName
+    ) {
+      return tagConfig;
+    }
+  }
 }

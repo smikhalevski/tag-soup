@@ -1,142 +1,395 @@
 import { decodeHTML, decodeHTMLAttribute, escapeXML } from 'speedy-entities';
 import { createDOMParser } from './createDOMParser.ts';
 import { createSAXParser } from './createSAXParser.ts';
-import { createSerializer, type SerializerOptions } from './createSerializer.ts';
+import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import type { ParserOptions } from './types.ts';
+import type { ParserOptions, SerializerOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
+import { toLowerCase } from './utils.ts';
 
-const formTags = ['input', 'option', 'optgroup', 'select', 'button', 'datalist', 'textarea'];
+// Tags that implicitly end form controls
+const formTagNames = ['button', 'datalist', 'input', 'output', 'select', 'textarea'];
 
-const pTag = ['p'];
+const headingTagNames = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
-const headingTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p'];
+const ddtTagNames = ['dd', 'dt'];
 
-const ddtTags = ['dd', 'dt'];
+// Tags inside ruby that implicitly end each other
+const rubyTagNames = ['rb', 'rp', 'rt', 'rtc'];
 
-const rtpTags = ['rt', 'rp'];
+const tableSectionTagNames = ['tbody', 'tfoot'];
 
-const tableSectionTags = ['thead', 'tbody', 'tr', 'th', 'td'];
+// Tags that implicitly end SVG and MathML, other tags inside them don't end outer tags, see
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign
+const breakoutTagNames = [
+  ...headingTagNames,
+  'b',
+  'big',
+  'blockquote',
+  'body',
+  'br',
+  'center',
+  'code',
+  'dd',
+  'div',
+  'dl',
+  'dt',
+  'em',
+  'embed',
+  'head',
+  'hr',
+  'i',
+  'img',
+  'li',
+  'listing',
+  'menu',
+  'meta',
+  'nobr',
+  'ol',
+  'p',
+  'pre',
+  'ruby',
+  's',
+  'small',
+  'span',
+  'strong',
+  'strike',
+  'sub',
+  'sup',
+  'table',
+  'tt',
+  'u',
+  'ul',
+  'var',
+];
 
-const htmlParserOptions: ParserOptions = {
-  voidTags: [
-    'area',
-    'base',
-    'basefont',
-    'br',
-    'col',
-    'command',
-    'embed',
-    'frame',
-    'hr',
-    'img',
-    'input',
-    'isindex',
-    'keygen',
-    'link',
-    'meta',
-    'param',
-    'source',
-    'track',
-    'wbr',
-  ],
-  rawTextTags: ['script', 'style', 'iframe', 'noembed', 'noframes', 'plaintext'],
-  escapableRawTextTags: ['textarea'],
-  implicitlyClosedTags: {
-    tr: ['tr', 'th', 'td'],
-    th: ['th', 'td'],
-    td: ['th', 'td'],
-    body: ['head', 'link', 'script'],
-    a: ['a'],
-    li: ['li'],
-    p: pTag,
-    h1: headingTags,
-    h2: headingTags,
-    h3: headingTags,
-    h4: headingTags,
-    h5: headingTags,
-    h6: headingTags,
-    select: formTags,
-    input: formTags,
-    output: formTags,
-    button: formTags,
-    datalist: formTags,
-    textarea: formTags,
-    option: ['option'],
-    optgroup: ['optgroup', 'option'],
-    dd: ddtTags,
-    dt: ddtTags,
-    address: pTag,
-    article: pTag,
-    aside: pTag,
-    blockquote: pTag,
-    details: pTag,
-    div: pTag,
-    dl: pTag,
-    fieldset: pTag,
-    figcaption: pTag,
-    figure: pTag,
-    footer: pTag,
-    form: pTag,
-    header: pTag,
-    hr: pTag,
-    main: pTag,
-    nav: pTag,
-    ol: pTag,
-    pre: pTag,
-    section: pTag,
-    table: pTag,
-    ul: pTag,
-    rt: rtpTags,
-    rp: rtpTags,
-    tbody: tableSectionTags,
-    tfoot: tableSectionTags,
-  },
-  // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
-  implicitClosingBoundaryTags: [
-    'applet',
-    'button',
-    'caption',
-    'dl',
-    'html',
-    'marquee',
-    'object',
-    'ol',
-    'table',
-    'td',
-    'template',
-    'th',
-    'ul',
-  ],
-  implicitlyOpenedTags: ['p', 'br'],
-  areTagNamesCaseInsensitive: true,
-  areUnbalancedStartTagsImplicitlyClosed: true,
-  areUnbalancedEndTagsIgnored: true,
-  decodeText: decodeHTML,
-  decodeAttribute: decodeHTMLAttribute,
+// Options of SVG and MathML content, their tags are assigned after HTML options
+const svgOptions: TokenizerContextOptions = {
+  areCDATASectionsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
 };
 
-htmlParserOptions.foreignTags = {
-  svg: {
-    areCDATASectionsRecognized: true,
-    areProcessingInstructionsRecognized: true,
-    areSelfClosingTagsRecognized: true,
-    foreignTags: {
-      foreignObject: htmlParserOptions,
+const mathmlOptions: TokenizerContextOptions = {
+  areCDATASectionsRecognized: true,
+  areProcessingInstructionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
+};
+
+const htmlTokenizerOptions: TokenizerOptions = {
+  // Implicit ending boundaries follow https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope
+  tags: {
+    a: {
+      implicitEndingTagNames: ['a'],
+    },
+    'annotation-xml': {
+      isImplicitEndingBoundary: true,
+    },
+    applet: {
+      isImplicitEndingBoundary: true,
+    },
+    area: {
+      kind: 'void',
+    },
+    base: {
+      kind: 'void',
+    },
+    basefont: {
+      kind: 'void',
+    },
+    bgsound: {
+      kind: 'void',
+    },
+    br: {
+      kind: 'void',
+      isImplicitlyStarted: true,
+    },
+    button: {
+      implicitEndingTagNames: formTagNames,
+      isImplicitEndingBoundary: true,
+    },
+    caption: {
+      isImplicitEndingBoundary: true,
+    },
+    col: {
+      kind: 'void',
+    },
+    datalist: {
+      implicitEndingTagNames: formTagNames,
+    },
+    dd: {
+      implicitEndingTagNames: ddtTagNames,
+    },
+    desc: {
+      isImplicitEndingBoundary: true,
+    },
+    dl: {
+      isImplicitEndingBoundary: true,
+    },
+    dt: {
+      implicitEndingTagNames: ddtTagNames,
+    },
+    embed: {
+      kind: 'void',
+    },
+    foreignObject: {
+      isImplicitEndingBoundary: true,
+    },
+    frame: {
+      kind: 'void',
+    },
+    h1: {
+      implicitEndingTagNames: headingTagNames,
+    },
+    h2: {
+      implicitEndingTagNames: headingTagNames,
+    },
+    h3: {
+      implicitEndingTagNames: headingTagNames,
+    },
+    h4: {
+      implicitEndingTagNames: headingTagNames,
+    },
+    h5: {
+      implicitEndingTagNames: headingTagNames,
+    },
+    h6: {
+      implicitEndingTagNames: headingTagNames,
+    },
+    head: {
+      implicitEndingTagNames: ['body'],
+    },
+    hr: {
+      kind: 'void',
+    },
+    html: {
+      isImplicitEndingBoundary: true,
+    },
+    iframe: {
+      kind: 'raw_text',
+    },
+    img: {
+      kind: 'void',
+    },
+    input: {
+      kind: 'void',
+      implicitEndingTagNames: formTagNames,
+    },
+    keygen: {
+      kind: 'void',
+    },
+    li: {
+      implicitEndingTagNames: ['li'],
+    },
+    link: {
+      kind: 'void',
+      implicitEndingTagNames: ['body'],
+    },
+    marquee: {
+      isImplicitEndingBoundary: true,
+    },
+    math: {
+      implicitEndingTagNames: breakoutTagNames,
+      isImplicitEndingBoundary: true,
+      foreignContext: mathmlOptions,
+    },
+    meta: {
+      kind: 'void',
+    },
+    mi: {
+      isImplicitEndingBoundary: true,
+    },
+    mn: {
+      isImplicitEndingBoundary: true,
+    },
+    mo: {
+      isImplicitEndingBoundary: true,
+    },
+    ms: {
+      isImplicitEndingBoundary: true,
+    },
+    mtext: {
+      isImplicitEndingBoundary: true,
+    },
+    noembed: {
+      kind: 'raw_text',
+    },
+    noframes: {
+      kind: 'raw_text',
+    },
+    object: {
+      isImplicitEndingBoundary: true,
+    },
+    ol: {
+      isImplicitEndingBoundary: true,
+    },
+    optgroup: {
+      implicitEndingTagNames: [...formTagNames, 'optgroup'],
+    },
+    option: {
+      implicitEndingTagNames: [...formTagNames, 'optgroup', 'option'],
+    },
+    p: {
+      implicitEndingTagNames: [
+        ...headingTagNames,
+        'address',
+        'article',
+        'aside',
+        'blockquote',
+        'center',
+        'dd',
+        'details',
+        'dialog',
+        'dir',
+        'div',
+        'dl',
+        'dt',
+        'fieldset',
+        'figcaption',
+        'figure',
+        'footer',
+        'form',
+        'header',
+        'hgroup',
+        'hr',
+        'li',
+        'listing',
+        'main',
+        'menu',
+        'nav',
+        'ol',
+        'p',
+        'plaintext',
+        'pre',
+        'search',
+        'section',
+        'summary',
+        'table',
+        'ul',
+        'xmp',
+      ],
+      isImplicitlyStarted: true,
+    },
+    param: {
+      kind: 'void',
+    },
+    plaintext: {
+      kind: 'raw_text',
+    },
+    rb: {
+      implicitEndingTagNames: rubyTagNames,
+    },
+    rp: {
+      implicitEndingTagNames: rubyTagNames,
+    },
+    rt: {
+      implicitEndingTagNames: rubyTagNames,
+    },
+    rtc: {
+      implicitEndingTagNames: ['rb', 'rtc'],
+    },
+    script: {
+      kind: 'script_data',
+      implicitEndingTagNames: ['body'],
+    },
+    select: {
+      implicitEndingTagNames: formTagNames,
+    },
+    source: {
+      kind: 'void',
+    },
+    style: {
+      kind: 'raw_text',
+    },
+    svg: {
+      implicitEndingTagNames: breakoutTagNames,
+      isImplicitEndingBoundary: true,
+      foreignContext: svgOptions,
+    },
+    table: {
+      isImplicitEndingBoundary: true,
+    },
+    tbody: {
+      implicitEndingTagNames: tableSectionTagNames,
+    },
+    td: {
+      implicitEndingTagNames: ['tr', 'th', 'td', ...tableSectionTagNames],
+      isImplicitEndingBoundary: true,
+    },
+    template: {
+      isImplicitEndingBoundary: true,
+    },
+    textarea: {
+      kind: 'escapable_raw_text',
+      implicitEndingTagNames: formTagNames,
+    },
+    th: {
+      implicitEndingTagNames: ['tr', 'th', 'td', ...tableSectionTagNames],
+      isImplicitEndingBoundary: true,
+    },
+    thead: {
+      implicitEndingTagNames: tableSectionTagNames,
+    },
+    title: {
+      kind: 'escapable_raw_text',
+    },
+    tr: {
+      implicitEndingTagNames: ['tr', ...tableSectionTagNames],
+    },
+    track: {
+      kind: 'void',
+    },
+    ul: {
+      isImplicitEndingBoundary: true,
+    },
+    wbr: {
+      kind: 'void',
+    },
+    xmp: {
+      kind: 'raw_text',
     },
   },
+  areTagNamesCaseInsensitive: true,
+  areUnbalancedStartTagsImplicitlyEnded: true,
+  areUnbalancedEndTagsIgnored: true,
+};
+
+// Inside SVG and MathML, svg and math don't switch options again, and title is a normal tag rather than escapable raw
+// text, since SVG title is an HTML integration point, see
+// https://html.spec.whatwg.org/multipage/parsing.html#html-integration-point
+const foreignContentTags = {
+  ...htmlTokenizerOptions.tags,
+
   math: {
-    areCDATASectionsRecognized: true,
-    areProcessingInstructionsRecognized: true,
-    areSelfClosingTagsRecognized: true,
+    implicitEndingTagNames: breakoutTagNames,
+    isImplicitEndingBoundary: true,
+  },
+  svg: {
+    implicitEndingTagNames: breakoutTagNames,
+    isImplicitEndingBoundary: true,
+  },
+  title: {
+    isImplicitEndingBoundary: true,
+  },
+};
+
+mathmlOptions.tags = foreignContentTags;
+
+svgOptions.tags = {
+  ...foreignContentTags,
+
+  // Content of foreignObject is read as HTML
+  foreignObject: {
+    isImplicitEndingBoundary: true,
+    foreignContext: htmlTokenizerOptions,
   },
 };
 
 const htmlSerializerOptions: SerializerOptions = {
-  voidTags: htmlParserOptions.voidTags,
-  rawTextTags: htmlParserOptions.rawTextTags,
+  tags: htmlTokenizerOptions.tags,
   areTagNamesCaseInsensitive: true,
   areSelfClosingTagsSupported: false,
   encodeText: escapeXML,
+  encodeAttribute: escapeXML,
 };
 
 /**
@@ -145,7 +398,15 @@ const htmlSerializerOptions: SerializerOptions = {
  *
  * @group Tokenizer
  */
-export const HTMLTokenizer = createTokenizer(htmlParserOptions);
+export const HTMLTokenizer = createTokenizer(htmlTokenizerOptions);
+
+const htmlParserOptions: ParserOptions = {
+  tokenizer: HTMLTokenizer,
+  decodeText: decodeHTML,
+  decodeAttribute: decodeHTMLAttribute,
+  renameTag: toLowerCase,
+  renameAttribute: toLowerCase,
+};
 
 /**
  * Parses HTML markup as a DOM. Decodes HTML entities in text with
@@ -168,7 +429,7 @@ export const HTMLDOMParser = createDOMParser(htmlParserOptions);
 export const HTMLSAXParser = createSAXParser(htmlParserOptions);
 
 /**
- * Serializes a DOM node as an HTML string. Encodes text with
+ * Serializes a DOM node as an HTML string. Encodes text and attribute values with
  * [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html), except for the content of
  * raw text tags, like `script` and `style`.
  *

@@ -1,0 +1,182 @@
+export function identity(str: string): string {
+  return str;
+}
+
+const retainedInstances: object[] = [];
+
+/**
+ * Keeps instances alive while the module is loaded, one per class that token handlers use.
+ *
+ * A major garbage collection that finds no instance of a class drops its hidden class, which discards optimized code
+ * that inlines methods or constructors of the class, so the next few parses are slow. A kept instance keeps the hidden
+ * class.
+ */
+export function retainHiddenClasses(...instances: object[]): void {
+  retainedInstances.push(...instances);
+}
+
+/**
+ * Returns the lower case char code of an ASCII letter, and any other char code as is.
+ */
+export function toLowerCaseCharCode(charCode: number): number {
+  // Lower case letters are the most common, and they're above "Z", so the first comparison passes them
+  return charCode > /* Z */ 90 || charCode < /* A */ 65 ? charCode : charCode + 32;
+}
+
+const asciiChars: string[] = [];
+
+for (let charCode = /* a */ 97; charCode <= /* z */ 122; ++charCode) {
+  asciiChars.push(String.fromCharCode(charCode));
+}
+
+export function toLowerCase(str: string): string {
+  let lowerCaseStr = '';
+  let startIndex = 0;
+
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+
+    if (charCode >= /* A */ 65 && charCode <= /* Z */ 90) {
+      lowerCaseStr += str.slice(startIndex, i) + asciiChars[charCode - /* A */ 65];
+      startIndex = i + 1;
+    }
+  }
+
+  return startIndex === 0 ? str : lowerCaseStr + str.slice(startIndex);
+}
+
+// ----------------------------------------------------------
+// String equality
+// ----------------------------------------------------------
+
+// Substrings are compared by two functions, case-sensitive or not. Each has its own loop, since a flag or a callback
+// would be checked at every char of a hot loop.
+
+/**
+ * Returns `true` if two substrings are equal. Substrings can be in different strings, since an enclosing tag can be
+ * started in a previous chunk.
+ */
+export type SubstringComparer = (
+  str1: string,
+  startIndex1: number,
+  endIndex1: number,
+  str2: string,
+  startIndex2: number,
+  endIndex2: number
+) => boolean;
+
+/**
+ * Returns `true` if two strings are equal, ignoring the case of ASCII letters.
+ */
+export function areCaseInsensitiveStringsEqual(str1: string, str2: string): boolean {
+  if (str1.length !== str2.length) {
+    return false;
+  }
+
+  for (let i = 0; i < str1.length; ++i) {
+    const charCode1 = str1.charCodeAt(i);
+    const charCode2 = str2.charCodeAt(i);
+
+    if (charCode1 !== charCode2 && toLowerCaseCharCode(charCode1) !== toLowerCaseCharCode(charCode2)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Returns `true` if two substrings are equal.
+ */
+export function areCaseSensitiveSubstringsEqual(
+  str1: string,
+  startIndex1: number,
+  endIndex1: number,
+  str2: string,
+  startIndex2: number,
+  endIndex2: number
+): boolean {
+  if (endIndex1 - startIndex1 !== endIndex2 - startIndex2) {
+    return false;
+  }
+
+  for (let i = startIndex1, j = startIndex2; i < endIndex1; ++i, ++j) {
+    if (str1.charCodeAt(i) !== str2.charCodeAt(j)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Returns `true` if two substrings are equal, ignoring the case of ASCII letters.
+ */
+export function areCaseInsensitiveSubstringsEqual(
+  str1: string,
+  startIndex1: number,
+  endIndex1: number,
+  str2: string,
+  startIndex2: number,
+  endIndex2: number
+): boolean {
+  if (endIndex1 - startIndex1 !== endIndex2 - startIndex2) {
+    return false;
+  }
+
+  for (let i = startIndex1, j = startIndex2; i < endIndex1; ++i, ++j) {
+    const charCode1 = str1.charCodeAt(i);
+    const charCode2 = str2.charCodeAt(j);
+
+    if (charCode1 !== charCode2 && toLowerCaseCharCode(charCode1) !== toLowerCaseCharCode(charCode2)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// ----------------------------------------------------------
+// String hash code
+// ----------------------------------------------------------
+
+/**
+ * Returns the hash code of a tag name.
+ */
+export type SubstringHasher = (str: string, startIndex: number, endIndex: number) => number;
+
+/**
+ * Returns the case-insensitive djb2 hash code of a substring: start with 5381, then for each char multiply by 33 and
+ * add the lower case char code. It's cut to 30 bits, so V8 keeps it as a small integer, which isn't allocated.
+ *
+ * A hash code is the hash of the chars before the last one, times 33, plus the last char, modulo 2^30. Char codes are
+ * below 2^30, so substrings with equal hash codes, equal lengths and equal preceding chars have equal last chars.
+ * Comparisons of names with equal hash codes rely on this, and skip the last char by passing end indices minus 1 to a
+ * {@link SubstringComparer}.
+ *
+ * {@link readTokens} hashes start tag names inline with the same formula, keep them in sync.
+ */
+export function getCaseInsensitiveHashCode(str: string, startIndex: number, endIndex: number): number {
+  let hashCode = 5_381;
+
+  for (let i = startIndex; i < endIndex; ++i) {
+    hashCode = ((hashCode << 5) + hashCode + toLowerCaseCharCode(str.charCodeAt(i))) | 0;
+  }
+
+  return hashCode & 0x3fffffff;
+}
+
+/**
+ * Returns the case-sensitive djb2 hash code of a substring, see {@link getCaseInsensitiveHashCode}.
+ *
+ * {@link readTokens} hashes start tag names inline with the same formula, keep them in sync.
+ */
+export function getCaseSensitiveHashCode(str: string, startIndex: number, endIndex: number): number {
+  let hashCode = 5_381;
+
+  for (let i = startIndex; i < endIndex; ++i) {
+    hashCode = ((hashCode << 5) + hashCode + str.charCodeAt(i)) | 0;
+  }
+
+  return hashCode & 0x3fffffff;
+}

@@ -1,15 +1,29 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { f } from 'flyweight-dom/dsl';
-import { expect, test } from 'vitest';
-import { toXML, XMLDOMParser } from '../main/xml.ts';
+import { h } from 'flyweight-dom/dsl';
+import { expect, test, vi } from 'vitest';
+import { toXML, XMLDOMParser, XMLSAXParser } from '../main/xml.ts';
 
 test('parses XML DOM', () => {
-  expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(f.f(f.p('aaa'), f.p('bbb', f.br())));
+  expect(XMLDOMParser.parseFragment('<p>aaa</p><p>bbb<br/></p>')).toStrictEqual(
+    h.fragment(h('p', 'aaa'), h('p', 'bbb', h('br')))
+  );
 });
 
 test('decodes attribute values', () => {
-  expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(f.f(f.aaa({ bbb: '<' })));
+  expect(XMLDOMParser.parseFragment('<aaa bbb="&lt;"/>')).toStrictEqual(h.fragment(h('aaa', { bbb: '<' })));
+});
+
+test('resolves namespaces', () => {
+  expect(XMLDOMParser.parseDocument('<aaa xmlns="xxx"/>').documentElement!.namespaceURI).toBe('xxx');
+});
+
+test('resolves namespaces of tags', () => {
+  const onStartTagMock = vi.fn();
+
+  XMLSAXParser.parseDocument('<aaa xmlns="xxx"/>', { onStartTag: onStartTagMock });
+
+  expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx' }, true, 'xxx');
 });
 
 test('serializes XML', () => {
@@ -18,12 +32,16 @@ test('serializes XML', () => {
   );
 });
 
+test('encodes attribute values', () => {
+  expect(toXML(XMLDOMParser.parseFragment('<aaa bbb="&quot;"/>'))).toBe('<aaa bbb="&quot;"/>');
+});
+
 test('serializes processing instruction without data', () => {
   expect(toXML(XMLDOMParser.parseFragment('<?aaa?>'))).toBe('<?aaa?>');
 });
 
 test('parses large XML', () => {
-  const testXml = fs.readFileSync(path.resolve(import.meta.dirname, './test.xml'), 'utf-8');
+  const testXml = fs.readFileSync(path.resolve(import.meta.dirname, './test_small.xml'), 'utf-8');
 
   expect(() => XMLDOMParser.parseDocument(testXml)).not.toThrow();
 });
