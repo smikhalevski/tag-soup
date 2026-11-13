@@ -62,7 +62,7 @@
     "vitest": "^5.1.0"
   },
   "dependencies": {
-    "flyweight-dom": "^3.0.0",
+    "flyweight-dom": "3.0.1-next.45bde93",
     "speedy-entities": "^4.0.1"
   }
 }
