@@ -7,7 +7,6 @@ import * as parse5 from 'parse5';
 import * as parse5SAXParser from 'parse5-sax-parser';
 import * as saxWasm from 'sax-wasm';
 import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
-// @ts-ignore
 import * as tagSoup from '../../lib/index.js';
 import { collectGarbage } from './perf-utils.ts';
 
