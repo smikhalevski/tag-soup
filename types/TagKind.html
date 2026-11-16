@@ -1,0 +1,63 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>TagKind | TagSoup - v4.0.0</title><meta name="description" content="Documentation for TagSoup"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">TagSoup - v4.0.0</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<ul class="tsd-breadcrumb" aria-label="Breadcrumb">
+<li><a href="" aria-current="page">TagKind</a></li></ul>
+<h1>Type Alias TagKind</h1></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">TagKind</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;normal&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;void&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;raw_text&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;escapable_raw_text&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;script_data&quot;</span></div>
+<div class="tsd-comment tsd-typography"><p>The kind of a tag, which defines what the tag can contain, and how parsers read it and serializers write it:</p>
+<dl>
+<dt><code>normal</code></dt>
+<dd>Tag can contain tags and text. Parsers decode this text with <a href="../interfaces/ParserOptions.html#decodetext" class="tsd-kind-property">ParserOptions.decodeText</a>, and serializers
+encode it with <a href="../interfaces/SerializerOptions.html#encodetext" class="tsd-kind-property">SerializerOptions.encodeText</a>.</dd>
+<dt><code>void</code></dt>
+<dd>Tag can contain nothing. Tokenizers insert an end tag right after the start tag, and serializers write an element
+without children as a start tag only.</dd>
+<dt><code>raw_text</code></dt>
+<dd>Tag can contain text up to the matching end tag. Parsers don't decode this text, and serializers write it as
+is.</dd>
+<dt><code>escapable_raw_text</code></dt>
+<dd>Same as <code>raw_text</code>, but parsers decode the text, and serializers encode it.</dd>
+<dt><code>script_data</code></dt>
+<dd>Same as <code>raw_text</code>, but after <code>&lt;!--</code> a start tag of the same name hides end tags until
+its own end tag or <code>--&gt;</code>. Browsers read <code>script</code> this way for compatibility with old scripts
+wrapped in comments:</dd>
+</dl>
+<pre><code class="html"><span class="hl-9">&lt;</span><span class="hl-10">script</span><span class="hl-9">&gt;</span><span class="hl-1">&lt;!--&lt;</span><span class="hl-2">script</span><span class="hl-1">&gt;</span><span class="hl-9">&lt;/</span><span class="hl-10">script</span><span class="hl-9">&gt;&lt;/</span><span class="hl-13">script</span><span class="hl-9">&gt;</span><br/><span class="hl-1">                             ▔▔▔▔▔▔▔▔▔ Ends the script</span>
+</code><button type="button">Copy</button></pre>
+
+<p>In raw text of any kind, an end tag must be followed by a space, <code>/</code> or <code>&gt;</code>, so <code>&lt;/script</code> at the end of the input is
+text.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-see">
+<h4 class="tsd-anchor-link" id="see">See<a href="#see" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><ul>
+<li><a href="https://html.spec.whatwg.org/multipage/syntax.html#normal-elements">HTML Normal Elements</a></li>
+<li><a href="https://html.spec.whatwg.org/multipage/syntax.html#void-elements">HTML Void Elements</a></li>
+<li><a href="https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements">HTML Raw Text Elements</a></li>
+<li><a href="https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements">HTML Escapable Raw Text Elements</a></li>
+<li><a href="https://html.spec.whatwg.org/multipage/parsing.html#script-data-state">HTML Script Data State</a></li>
+</ul>
+</div></div></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="../index.html">TagSoup - v4.0.0</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer></footer>
+<div class="overlay"></div></body></html>
