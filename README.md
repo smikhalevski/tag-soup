@@ -10,7 +10,7 @@ TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser and seria
 - Streaming support.
 - Recognizes CDATA sections, processing instructions, and DOCTYPE declarations.
 - Supports foreign content: SVG and MathML inside HTML.
-- Tree-shakeable, [29 kB gzipped](https://bundlephobia.com/result?p=tag-soup) including dependencies.
+- Tree-shakeable, [29&#x202F;kB gzipped](https://bundlephobia.com/result?p=tag-soup) including dependencies.
 - Built on [Speedy Entities](https://github.com/smikhalevski/speedy-entities#readme) and
   [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme).
 
@@ -544,72 +544,184 @@ const document = writer.end();
 
 # Performance
 
-Execution performance is measured in operations per second (±&#x202F;5%), the higher number is better. Memory
-consumption (RAM) is measured in bytes, the lower number is better.
+TagSoup is up to 5× faster than [htmlparser2](https://github.com/fb55/htmlparser2) and up to 17× faster than
+[parse5](https://github.com/inikulin/parse5).
+
+Speed is measured in operations per second (Hz), the higher number is better. The best result of each test is in bold.
 
 <table>
 <tr>
-<th align="right" valign="top" rowspan="2">Library</th>
-<th align="right" valign="top" rowspan="2">Library size</th>
-<th align="center" colspan="2">DOM parsing</th>
-<th align="center" colspan="2">SAX parsing</th>
+<th align="left">Test</th>
+<th align="right">tag&#x2011;soup<br>@4.0.0</th>
+<th align="right"><a href="https://github.com/fb55/htmlparser2">htmlparser2</a><br>@12.0.0</th>
+<th align="right"><a href="https://github.com/inikulin/parse5">parse5</a><br>@8.1.1</th>
+<th align="right"><a href="https://github.com/justinwilaby/sax-wasm">sax&#x2011;wasm</a><br>@3.3.0</th>
+<th align="right"><a href="https://github.com/taoqf/node-fast-html-parser">node&#x2011;html&#x2011;parser</a><br>@9.0.7</th>
+<th align="right"><a href="https://github.com/NaturalIntelligence/fast-xml-parser">fast&#x2011;xml&#x2011;parser</a><br>@5.12.0</th>
+<th align="right"><a href="https://github.com/mykolaharmash/hyntax">hyntax</a><br>@1.1.9</th>
 </tr>
-
 <tr>
-<td align="right">Ops/sec</td>
-<td align="right">RAM</td>
-<td align="right">Ops/sec</td>
-<td align="right">RAM</td>
+<th colspan="8" align="left">Tokenizer</th>
 </tr>
-
 <tr>
-<td align="right">tag-soup&#x200B;@3.2.0</td>
-<td align="right">
-<a href="https://bundlephobia.com/package/tag-soup@3.2.0">30&#x202F;kB</a>
-</td>
-<td align="right"><strong>35&#x202F;Hz</strong></td>
-<td align="right"><strong>22&#x202F;MB</strong></td>
-<td align="right"><strong>44&#x202F;Hz</strong></td>
-<td align="right"><strong>22&#x202F;kB</strong></td>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹</td>
+<td align="right"><strong>171</strong></td>
+<td align="right">67</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td align="right">5</td>
 </tr>
-
 <tr>
-<td align="right">
-<a href="https://github.com/fb55/htmlparser2">htmlparser2</a>&#x200B;@12.0.0
-</td>
-<td align="right">
-<a href="https://bundlephobia.com/package/htmlparser2@12.0.0">34&#x202F;kB</a>
-</td>
-<td align="right">15&#x202F;Hz</td>
-<td align="right">35&#x202F;MB</td>
-<td align="right">24&#x202F;Hz</td>
-<td align="right">6&#x202F;MB</td>
+<th colspan="8" align="left">DOM</th>
 </tr>
-
 <tr>
-<td align="right">
-<a href="https://github.com/inikulin/parse5">parse5</a>&#x200B;@8.0.0
-</td>
-<td align="right">
-<a href="https://bundlephobia.com/package/parse5@8.0.0">45&#x202F;kB</a>
-</td>
-<td align="right">7&#x202F;Hz</td>
-<td align="right">105&#x202F;MB</td>
-<td align="right">11&#x202F;Hz</td>
-<td align="right">10&#x202F;MB</td>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹</td>
+<td align="right"><strong>65</strong></td>
+<td align="right">15</td>
+<td align="right">8</td>
+<td></td>
+<td align="right">14</td>
+<td></td>
+<td></td>
 </tr>
-
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹&nbsp;in&nbsp;chunks&#x202F;⁶</td>
+<td align="right"><strong>69</strong></td>
+<td align="right">15</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;small&nbsp;inputs&#x202F;²</td>
+<td align="right"><strong>2,730</strong></td>
+<td align="right">821</td>
+<td align="right">158</td>
+<td></td>
+<td align="right">698</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;XML,&nbsp;large&nbsp;input&#x202F;³</td>
+<td align="right"><strong>99</strong></td>
+<td align="right">34</td>
+<td></td>
+<td></td>
+<td></td>
+<td align="right">8</td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;XML,&nbsp;small&nbsp;input&#x202F;⁴</td>
+<td align="right"><strong>14,870</strong></td>
+<td align="right">3,880</td>
+<td></td>
+<td></td>
+<td></td>
+<td align="right">1,650</td>
+<td></td>
+</tr>
+<tr>
+<th colspan="8" align="left">SAX</th>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹&nbsp;without&nbsp;handlers</td>
+<td align="right"><strong>168</strong></td>
+<td align="right">24</td>
+<td align="right">10&#x202F;⁵</td>
+<td align="right">88</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹</td>
+<td align="right"><strong>83</strong></td>
+<td align="right">22</td>
+<td align="right">10&#x202F;⁵</td>
+<td align="right">12</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹&nbsp;in&nbsp;chunks&#x202F;⁶</td>
+<td align="right"><strong>80</strong></td>
+<td align="right">24</td>
+<td></td>
+<td align="right">11</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;small&nbsp;inputs&#x202F;²</td>
+<td align="right"><strong>3,040</strong></td>
+<td align="right">1,040</td>
+<td></td>
+<td align="right">512</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;XML,&nbsp;small&nbsp;input&#x202F;⁴</td>
+<td align="right"><strong>17,070</strong></td>
+<td align="right">5,960</td>
+<td></td>
+<td align="right">2,890</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<th colspan="8" align="left">Serializer</th>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;HTML,&nbsp;large&nbsp;input&#x202F;¹</td>
+<td align="right"><strong>78</strong></td>
+<td></td>
+<td align="right">60</td>
+<td></td>
+<td align="right">62</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2007;&#x2007;XML,&nbsp;small&nbsp;input&#x202F;⁴</td>
+<td align="right"><strong>34,020</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td align="right">6,730</td>
+<td></td>
+</tr>
 </table>
 
-Performance was measured when parsing [the 3.64&#x202F;MB HTML file](src/test/test_large.html).
+¹ [The 3.64&#x202F;MB HTML file.](src/test/test_large.html)
 
-Tests were conducted using [TooFast](https://github.com/smikhalevski/toofast#readme) on Apple M1 with Node.js v25.6.0.
+² 258 pages of [htmlparser-benchmark](https://github.com/AndreasMadsen/htmlparser-benchmark), parsed one by one.
+
+³ [The 2.89&#x202F;MB XML file.](src/test/test_large.xml)
+
+⁴ [The 17.4&#x202F;kB XML file.](src/test/test_small.xml)
+
+⁵ Measured with [parse5-sax-parser](https://github.com/inikulin/parse5/tree/master/packages/parse5-sax-parser)@8.0.1.
+
+⁶ Input is written in chunks of 64&#x202F;kB.
+
+Tests were conducted using [TooFast](https://github.com/smikhalevski/toofast#readme) on Apple M1 with Node.js v26.11.1.
 
 To reproduce [the performance test suite](src/test/perf.ts) results, clone this repo and run:
 
 ```shell
 npm ci
-npm run build
 npm run perf
 ```
 
