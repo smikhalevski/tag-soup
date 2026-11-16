@@ -40,477 +40,485 @@ const noopTokenHandler: tagSoup.TokenHandler = {
 
 beforeBatch(collectGarbage);
 
-describe('HTML tokenizer (large source)', () => {
-  test('tag-soup', () => {
-    measure(() => {
-      tagSoup.HTMLTokenizer.tokenizeDocument(largeHtmlSource, noopTokenHandler);
-    });
-  });
-
-  test('htmlparser2', () => {
-    // Entities aren't decoded, since tag-soup tokenizer doesn't decode them either
-    const tokenizer = new htmlparser2.Tokenizer({ decodeEntities: false }, createTokenizerCallbacks());
-
-    measure(() => {
-      tokenizer.reset();
-      tokenizer.write(largeHtmlSource);
-      tokenizer.end();
-    });
-  });
-
-  test('hyntax', () => {
-    measure(() => {
-      hyntax.tokenize(largeHtmlSource);
-    });
-  });
-});
-
-describe('HTML SAX (large source, without handlers)', () => {
-  test('tag-soup', () => {
-    const saxHandler: tagSoup.SAXHandler = {};
-
-    measure(() => {
-      tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser({});
-    });
-
-    measure(() => {
-      parser.reset();
-      parser.end(largeHtmlSource);
-    });
-  });
-
-  test('parse5', () => {
-    const transformCallback = () => undefined;
-
-    measure(() => {
-      const parser = new parse5SAXParser.SAXParser();
-
-      parser._transform(largeHtmlSource, 'utf8', transformCallback);
-    });
-  });
-
-  test('sax-wasm', async () => {
-    const parser = await createSAXWasmParser(0);
-    const chunks = splitIntoByteChunks(largeHtmlSource);
-
-    measure(() => {
-      writeSAXWasmChunks(parser, chunks);
-    });
-  });
-});
-
-describe('HTML SAX (large source, with handlers)', () => {
-  test('tag-soup', () => {
-    const saxHandler: tagSoup.SAXHandler = {
-      onStartTag: noop,
-      onEndTag: noop,
-      onText: noop,
-    };
-
-    measure(() => {
-      tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser({
-        onopentag: noop,
-        onclosetag: noop,
-        ontext: noop,
-      });
-    });
-
-    measure(() => {
-      parser.reset();
-      parser.end(largeHtmlSource);
-    });
-  });
-
-  test('parse5', () => {
-    const transformCallback = () => undefined;
-
-    measure(() => {
-      const parser = new parse5SAXParser.SAXParser();
-
-      parser.on('startTag', noop);
-      parser.on('endTag', noop);
-      parser.on('text', noop);
-      parser._transform(largeHtmlSource, 'utf8', transformCallback);
-    });
-  });
-
-  test('sax-wasm', async () => {
-    const parser = await createSAXWasmParserWithHandlers();
-    const chunks = splitIntoByteChunks(largeHtmlSource);
-
-    measure(() => {
-      writeSAXWasmChunks(parser, chunks);
-    });
-  });
-});
-
-describe('HTML SAX (large source, chunks, with handlers)', () => {
-  test('tag-soup', () => {
-    const saxHandler: tagSoup.SAXHandler = {
-      onStartTag: noop,
-      onEndTag: noop,
-      onText: noop,
-    };
-    const chunks = splitIntoTextChunks(largeHtmlSource);
-
-    measure(() => {
-      const writer = tagSoup.HTMLSAXParser.createDocumentWriter(saxHandler);
-
-      for (const chunk of chunks) {
-        writer.write(chunk);
-      }
-      writer.end();
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-    const chunks = splitIntoTextChunks(largeHtmlSource);
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser({
-        onopentag: noop,
-        onclosetag: noop,
-        ontext: noop,
-      });
-    });
-
-    measure(() => {
-      parser.reset();
-      for (const chunk of chunks) {
-        parser.write(chunk);
-      }
-      parser.end();
-    });
-  });
-
-  test('sax-wasm', async () => {
-    const parser = await createSAXWasmParserWithHandlers();
-    const chunks = splitIntoByteChunks(largeHtmlSource);
-
-    measure(() => {
-      writeSAXWasmChunks(parser, chunks);
-    });
-  });
-});
-
-describe('HTML DOM (large source)', () => {
-  test('tag-soup', () => {
-    measure(() => {
-      tagSoup.HTMLDOMParser.parseDocument(largeHtmlSource);
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-    });
-
-    measure(() => {
-      parser.reset();
-      parser.end(largeHtmlSource);
-    });
-  });
-
-  test('parse5', () => {
-    measure(() => {
-      parse5.parse(largeHtmlSource);
-    });
-  });
-
-  test('node-html-parser', () => {
-    measure(() => {
-      nodeHTMLParser.parse(largeHtmlSource);
-    });
-  });
-});
-
-describe('HTML DOM (large source, chunks)', () => {
-  test('tag-soup', () => {
-    const chunks = splitIntoTextChunks(largeHtmlSource);
-
-    measure(() => {
-      const writer = tagSoup.HTMLDOMParser.createDocumentWriter();
-
-      for (const chunk of chunks) {
-        writer.write(chunk);
-      }
-      writer.end();
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-    const chunks = splitIntoTextChunks(largeHtmlSource);
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-    });
-
-    measure(() => {
-      parser.reset();
-      for (const chunk of chunks) {
-        parser.write(chunk);
-      }
-      parser.end();
-    });
-  });
-});
-
-describe('HTML serializer (large source)', () => {
-  test('tag-soup', () => {
-    const document = tagSoup.HTMLDOMParser.parseDocument(largeHtmlSource);
-
-    measure(() => {
-      tagSoup.toHTML(document);
-    });
-  });
-
-  test('parse5', () => {
-    const document = parse5.parse(largeHtmlSource);
-
-    measure(() => {
-      parse5.serialize(document);
-    });
-  });
-
-  test('node-html-parser', () => {
-    const root = nodeHTMLParser.parse(largeHtmlSource);
-
-    measure(() => {
-      root.toString();
-    });
-  });
-});
-
-describe('HTML SAX (small sources, with handlers)', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
-  test('tag-soup', () => {
-    const saxHandler: tagSoup.SAXHandler = {
-      onStartTag: noop,
-      onEndTag: noop,
-      onText: noop,
-    };
-
-    for (const smallSource of smallHtmlSources) {
+describe('Tokenizer', () => {
+  describe('HTML, large input', () => {
+    test('tag-soup', () => {
       measure(() => {
-        tagSoup.HTMLSAXParser.parseDocument(smallSource, saxHandler);
-      });
-    }
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser({
-        onopentag: noop,
-        onclosetag: noop,
-        ontext: noop,
+        tagSoup.HTMLTokenizer.tokenizeDocument(largeHtmlSource, noopTokenHandler);
       });
     });
 
-    for (const smallSource of smallHtmlSources) {
+    test('htmlparser2', () => {
+      // Entities aren't decoded, since tag-soup tokenizer doesn't decode them either
+      const tokenizer = new htmlparser2.Tokenizer({ decodeEntities: false }, createTokenizerCallbacks());
+
+      measure(() => {
+        tokenizer.reset();
+        tokenizer.write(largeHtmlSource);
+        tokenizer.end();
+      });
+    });
+
+    test('hyntax', () => {
+      measure(() => {
+        hyntax.tokenize(largeHtmlSource);
+      });
+    });
+  });
+});
+
+describe('DOM', () => {
+  describe('HTML, large input', () => {
+    test('tag-soup', () => {
+      measure(() => {
+        tagSoup.HTMLDOMParser.parseDocument(largeHtmlSource);
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+      });
+
       measure(() => {
         parser.reset();
-        parser.end(smallSource);
+        parser.end(largeHtmlSource);
       });
-    }
+    });
+
+    test('parse5', () => {
+      measure(() => {
+        parse5.parse(largeHtmlSource);
+      });
+    });
+
+    test('node-html-parser', () => {
+      measure(() => {
+        nodeHTMLParser.parse(largeHtmlSource);
+      });
+    });
   });
 
-  test('sax-wasm', async () => {
-    const parser = await createSAXWasmParserWithHandlers();
+  describe('HTML, large input in chunks', () => {
+    test('tag-soup', () => {
+      const chunks = splitIntoTextChunks(largeHtmlSource);
 
-    for (const smallSource of smallHtmlSources) {
-      const chunks = splitIntoByteChunks(smallSource);
+      measure(() => {
+        const writer = tagSoup.HTMLDOMParser.createDocumentWriter();
+
+        for (const chunk of chunks) {
+          writer.write(chunk);
+        }
+        writer.end();
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+      const chunks = splitIntoTextChunks(largeHtmlSource);
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+      });
+
+      measure(() => {
+        parser.reset();
+        for (const chunk of chunks) {
+          parser.write(chunk);
+        }
+        parser.end();
+      });
+    });
+  });
+
+  describe('HTML, small inputs', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
+    test('tag-soup', () => {
+      for (const smallSource of smallHtmlSources) {
+        measure(() => {
+          tagSoup.HTMLDOMParser.parseDocument(smallSource);
+        });
+      }
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
+      });
+
+      for (const smallSource of smallHtmlSources) {
+        measure(() => {
+          parser.reset();
+          parser.end(smallSource);
+        });
+      }
+    });
+
+    test('parse5', () => {
+      for (const smallSource of smallHtmlSources) {
+        measure(() => {
+          parse5.parse(smallSource);
+        });
+      }
+    });
+
+    test('node-html-parser', () => {
+      for (const smallSource of smallHtmlSources) {
+        measure(() => {
+          nodeHTMLParser.parse(smallSource);
+        });
+      }
+    });
+  });
+
+  describe('XML, large input', () => {
+    test('tag-soup', () => {
+      measure(() => {
+        tagSoup.XMLDOMParser.parseDocument(largeXmlSource);
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+          xmlMode: true,
+        });
+      });
+
+      measure(() => {
+        parser.reset();
+        parser.end(largeXmlSource);
+      });
+    });
+
+    test('fast-xml-parser', () => {
+      const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
+
+      measure(() => {
+        parser.parse(largeXmlSource);
+      });
+    });
+  });
+
+  describe('XML, small input', () => {
+    test('tag-soup', () => {
+      measure(() => {
+        tagSoup.XMLDOMParser.parseDocument(smallXmlSource);
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
+          xmlMode: true,
+        });
+      });
+
+      measure(() => {
+        parser.reset();
+        parser.end(smallXmlSource);
+      });
+    });
+
+    test('fast-xml-parser', () => {
+      const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
+
+      measure(() => {
+        parser.parse(smallXmlSource);
+      });
+    });
+  });
+});
+
+describe('SAX', () => {
+  describe('HTML, large input without handlers', () => {
+    test('tag-soup', () => {
+      const saxHandler: tagSoup.SAXHandler = {};
+
+      measure(() => {
+        tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser({});
+      });
+
+      measure(() => {
+        parser.reset();
+        parser.end(largeHtmlSource);
+      });
+    });
+
+    test('parse5', () => {
+      const transformCallback = () => undefined;
+
+      measure(() => {
+        const parser = new parse5SAXParser.SAXParser();
+
+        parser._transform(largeHtmlSource, 'utf8', transformCallback);
+      });
+    });
+
+    test('sax-wasm', async () => {
+      const parser = await createSAXWasmParser(0);
+      const chunks = splitIntoByteChunks(largeHtmlSource);
 
       measure(() => {
         writeSAXWasmChunks(parser, chunks);
       });
-    }
-  });
-});
-
-describe('HTML DOM (small sources)', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
-  test('tag-soup', () => {
-    for (const smallSource of smallHtmlSources) {
-      measure(() => {
-        tagSoup.HTMLDOMParser.parseDocument(smallSource);
-      });
-    }
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
-    });
-
-    for (const smallSource of smallHtmlSources) {
-      measure(() => {
-        parser.reset();
-        parser.end(smallSource);
-      });
-    }
-  });
-
-  test('parse5', () => {
-    for (const smallSource of smallHtmlSources) {
-      measure(() => {
-        parse5.parse(smallSource);
-      });
-    }
-  });
-
-  test('node-html-parser', () => {
-    for (const smallSource of smallHtmlSources) {
-      measure(() => {
-        nodeHTMLParser.parse(smallSource);
-      });
-    }
-  });
-});
-
-describe('XML SAX (with handlers)', () => {
-  test('tag-soup', () => {
-    const saxHandler: tagSoup.SAXHandler = {
-      onStartTag: noop,
-      onEndTag: noop,
-      onText: noop,
-    };
-
-    measure(() => {
-      tagSoup.XMLSAXParser.parseDocument(smallXmlSource, saxHandler);
     });
   });
 
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
+  describe('HTML, large input', () => {
+    test('tag-soup', () => {
+      const saxHandler: tagSoup.SAXHandler = {
+        onStartTag: noop,
+        onEndTag: noop,
+        onText: noop,
+      };
 
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser(
-        {
+      measure(() => {
+        tagSoup.HTMLSAXParser.parseDocument(largeHtmlSource, saxHandler);
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser({
           onopentag: noop,
           onclosetag: noop,
           ontext: noop,
-        },
-        {
-          xmlMode: true,
+        });
+      });
+
+      measure(() => {
+        parser.reset();
+        parser.end(largeHtmlSource);
+      });
+    });
+
+    test('parse5', () => {
+      const transformCallback = () => undefined;
+
+      measure(() => {
+        const parser = new parse5SAXParser.SAXParser();
+
+        parser.on('startTag', noop);
+        parser.on('endTag', noop);
+        parser.on('text', noop);
+        parser._transform(largeHtmlSource, 'utf8', transformCallback);
+      });
+    });
+
+    test('sax-wasm', async () => {
+      const parser = await createSAXWasmParserWithHandlers();
+      const chunks = splitIntoByteChunks(largeHtmlSource);
+
+      measure(() => {
+        writeSAXWasmChunks(parser, chunks);
+      });
+    });
+  });
+
+  describe('HTML, large input in chunks', () => {
+    test('tag-soup', () => {
+      const saxHandler: tagSoup.SAXHandler = {
+        onStartTag: noop,
+        onEndTag: noop,
+        onText: noop,
+      };
+      const chunks = splitIntoTextChunks(largeHtmlSource);
+
+      measure(() => {
+        const writer = tagSoup.HTMLSAXParser.createDocumentWriter(saxHandler);
+
+        for (const chunk of chunks) {
+          writer.write(chunk);
         }
-      );
-    });
-
-    measure(() => {
-      parser.reset();
-      parser.end(smallXmlSource);
-    });
-  });
-
-  test('sax-wasm', async () => {
-    const parser = await createSAXWasmParserWithHandlers();
-    const chunks = splitIntoByteChunks(smallXmlSource);
-
-    measure(() => {
-      writeSAXWasmChunks(parser, chunks);
-    });
-  });
-});
-
-describe('XML DOM (large source)', () => {
-  test('tag-soup', () => {
-    measure(() => {
-      tagSoup.XMLDOMParser.parseDocument(largeXmlSource);
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
-        xmlMode: true,
+        writer.end();
       });
     });
 
-    measure(() => {
-      parser.reset();
-      parser.end(largeXmlSource);
-    });
-  });
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+      const chunks = splitIntoTextChunks(largeHtmlSource);
 
-  test('fast-xml-parser', () => {
-    const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser({
+          onopentag: noop,
+          onclosetag: noop,
+          ontext: noop,
+        });
+      });
 
-    measure(() => {
-      parser.parse(largeXmlSource);
-    });
-  });
-});
-
-describe('XML DOM (small source)', () => {
-  test('tag-soup', () => {
-    measure(() => {
-      tagSoup.XMLDOMParser.parseDocument(smallXmlSource);
-    });
-  });
-
-  test('htmlparser2', () => {
-    let parser: htmlparser2.Parser;
-
-    beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
-        xmlMode: true,
+      measure(() => {
+        parser.reset();
+        for (const chunk of chunks) {
+          parser.write(chunk);
+        }
+        parser.end();
       });
     });
 
-    measure(() => {
-      parser.reset();
-      parser.end(smallXmlSource);
+    test('sax-wasm', async () => {
+      const parser = await createSAXWasmParserWithHandlers();
+      const chunks = splitIntoByteChunks(largeHtmlSource);
+
+      measure(() => {
+        writeSAXWasmChunks(parser, chunks);
+      });
     });
   });
 
-  test('fast-xml-parser', () => {
-    const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
+  describe('HTML, small inputs', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
+    test('tag-soup', () => {
+      const saxHandler: tagSoup.SAXHandler = {
+        onStartTag: noop,
+        onEndTag: noop,
+        onText: noop,
+      };
 
-    measure(() => {
-      parser.parse(smallXmlSource);
+      for (const smallSource of smallHtmlSources) {
+        measure(() => {
+          tagSoup.HTMLSAXParser.parseDocument(smallSource, saxHandler);
+        });
+      }
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser({
+          onopentag: noop,
+          onclosetag: noop,
+          ontext: noop,
+        });
+      });
+
+      for (const smallSource of smallHtmlSources) {
+        measure(() => {
+          parser.reset();
+          parser.end(smallSource);
+        });
+      }
+    });
+
+    test('sax-wasm', async () => {
+      const parser = await createSAXWasmParserWithHandlers();
+
+      for (const smallSource of smallHtmlSources) {
+        const chunks = splitIntoByteChunks(smallSource);
+
+        measure(() => {
+          writeSAXWasmChunks(parser, chunks);
+        });
+      }
+    });
+  });
+
+  describe('XML, small input', () => {
+    test('tag-soup', () => {
+      const saxHandler: tagSoup.SAXHandler = {
+        onStartTag: noop,
+        onEndTag: noop,
+        onText: noop,
+      };
+
+      measure(() => {
+        tagSoup.XMLSAXParser.parseDocument(smallXmlSource, saxHandler);
+      });
+    });
+
+    test('htmlparser2', () => {
+      let parser: htmlparser2.Parser;
+
+      beforeBatch(() => {
+        parser = new htmlparser2.Parser(
+          {
+            onopentag: noop,
+            onclosetag: noop,
+            ontext: noop,
+          },
+          {
+            xmlMode: true,
+          }
+        );
+      });
+
+      measure(() => {
+        parser.reset();
+        parser.end(smallXmlSource);
+      });
+    });
+
+    test('sax-wasm', async () => {
+      const parser = await createSAXWasmParserWithHandlers();
+      const chunks = splitIntoByteChunks(smallXmlSource);
+
+      measure(() => {
+        writeSAXWasmChunks(parser, chunks);
+      });
     });
   });
 });
 
-describe('XML serializer', () => {
-  test('tag-soup', () => {
-    const document = tagSoup.XMLDOMParser.parseDocument(smallXmlSource);
+describe('Serializer', () => {
+  describe('HTML, large input', () => {
+    test('tag-soup', () => {
+      const document = tagSoup.HTMLDOMParser.parseDocument(largeHtmlSource);
 
-    measure(() => {
-      tagSoup.toXML(document);
+      measure(() => {
+        tagSoup.toHTML(document);
+      });
+    });
+
+    test('parse5', () => {
+      const document = parse5.parse(largeHtmlSource);
+
+      measure(() => {
+        parse5.serialize(document);
+      });
+    });
+
+    test('node-html-parser', () => {
+      const root = nodeHTMLParser.parse(largeHtmlSource);
+
+      measure(() => {
+        root.toString();
+      });
     });
   });
 
-  test('fast-xml-parser', () => {
-    const builder = new fastXmlParser.XMLBuilder({ ignoreAttributes: false });
-    const document = new fastXmlParser.XMLParser({ ignoreAttributes: false }).parse(smallXmlSource);
+  describe('XML, small input', () => {
+    test('tag-soup', () => {
+      const document = tagSoup.XMLDOMParser.parseDocument(smallXmlSource);
 
-    measure(() => {
-      builder.build(document);
+      measure(() => {
+        tagSoup.toXML(document);
+      });
+    });
+
+    test('fast-xml-parser', () => {
+      const builder = new fastXmlParser.XMLBuilder({ ignoreAttributes: false });
+      const document = new fastXmlParser.XMLParser({ ignoreAttributes: false }).parse(smallXmlSource);
+
+      measure(() => {
+        builder.build(document);
+      });
     });
   });
 });
