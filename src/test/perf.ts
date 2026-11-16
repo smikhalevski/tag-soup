@@ -6,7 +6,7 @@ import * as nodeHTMLParser from 'node-html-parser';
 import * as parse5 from 'parse5';
 import * as parse5SAXParser from 'parse5-sax-parser';
 import * as saxWasm from 'sax-wasm';
-import { afterIteration, beforeBatch, beforeIteration, describe, measure, test } from 'toofast';
+import { beforeBatch, describe, measure, test } from 'toofast';
 import * as tagSoup from '../../lib/index.js';
 import { collectGarbage } from './perf-utils.ts';
 
@@ -51,11 +51,8 @@ describe('HTML tokenizer (large source)', () => {
     // Entities aren't decoded, since tag-soup tokenizer doesn't decode them either
     const tokenizer = new htmlparser2.Tokenizer({ decodeEntities: false }, createTokenizerCallbacks());
 
-    afterIteration(() => {
-      tokenizer.reset();
-    });
-
     measure(() => {
+      tokenizer.reset();
       tokenizer.write(largeHtmlSource);
       tokenizer.end();
     });
@@ -81,33 +78,21 @@ describe('HTML SAX (large source, without handlers)', () => {
     let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(
-        {},
-        {
-          lowerCaseTags: false,
-          lowerCaseAttributeNames: false,
-        }
-      );
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser({});
     });
 
     measure(() => {
+      parser.reset();
       parser.end(largeHtmlSource);
     });
   });
 
   test('parse5', () => {
-    let parser: parse5SAXParser.SAXParser;
-    let transformCallback = () => undefined;
-
-    beforeIteration(() => {
-      parser = new parse5SAXParser.SAXParser();
-    });
+    const transformCallback = () => undefined;
 
     measure(() => {
+      const parser = new parse5SAXParser.SAXParser();
+
       parser._transform(largeHtmlSource, 'utf8', transformCallback);
     });
   });
@@ -139,71 +124,35 @@ describe('HTML SAX (large source, with handlers)', () => {
     let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(
-        {
-          onopentag: noop,
-          onclosetag: noop,
-          ontext: noop,
-        },
-        {
-          lowerCaseTags: false,
-          lowerCaseAttributeNames: false,
-        }
-      );
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser({
+        onopentag: noop,
+        onclosetag: noop,
+        ontext: noop,
+      });
     });
 
     measure(() => {
+      parser.reset();
       parser.end(largeHtmlSource);
     });
   });
 
   test('parse5', () => {
-    let parser: parse5SAXParser.SAXParser;
-    let transformCallback = () => undefined;
+    const transformCallback = () => undefined;
 
-    beforeIteration(() => {
-      parser = new parse5SAXParser.SAXParser();
+    measure(() => {
+      const parser = new parse5SAXParser.SAXParser();
+
       parser.on('startTag', noop);
       parser.on('endTag', noop);
       parser.on('text', noop);
-    });
-
-    measure(() => {
       parser._transform(largeHtmlSource, 'utf8', transformCallback);
     });
   });
 
   test('sax-wasm', async () => {
-    const parser = await createSAXWasmParser(
-      saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text
-    );
+    const parser = await createSAXWasmParserWithHandlers();
     const chunks = splitIntoByteChunks(largeHtmlSource);
-
-    // sax-wasm decodes names and values when they are read, while other parsers pass them to handlers as strings
-    parser.eventHandler = (event, detail) => {
-      if (event === saxWasm.SaxEventType.OpenTag) {
-        const tag = detail as saxWasm.Tag;
-
-        tag.name;
-
-        for (const attribute of tag.attributes) {
-          attribute.name.value;
-          attribute.value.value;
-        }
-        return;
-      }
-
-      if (event === saxWasm.SaxEventType.CloseTag) {
-        (detail as saxWasm.Tag).name;
-        return;
-      }
-
-      (detail as saxWasm.Text).value;
-    };
 
     measure(() => {
       writeSAXWasmChunks(parser, chunks);
@@ -211,9 +160,13 @@ describe('HTML SAX (large source, with handlers)', () => {
   });
 });
 
-describe('HTML SAX (large source, chunks)', () => {
+describe('HTML SAX (large source, chunks, with handlers)', () => {
   test('tag-soup', () => {
-    const saxHandler: tagSoup.SAXHandler = {};
+    const saxHandler: tagSoup.SAXHandler = {
+      onStartTag: noop,
+      onEndTag: noop,
+      onText: noop,
+    };
     const chunks = splitIntoTextChunks(largeHtmlSource);
 
     measure(() => {
@@ -231,20 +184,15 @@ describe('HTML SAX (large source, chunks)', () => {
     const chunks = splitIntoTextChunks(largeHtmlSource);
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(
-        {},
-        {
-          lowerCaseTags: false,
-          lowerCaseAttributeNames: false,
-        }
-      );
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser({
+        onopentag: noop,
+        onclosetag: noop,
+        ontext: noop,
+      });
     });
 
     measure(() => {
+      parser.reset();
       for (const chunk of chunks) {
         parser.write(chunk);
       }
@@ -253,7 +201,7 @@ describe('HTML SAX (large source, chunks)', () => {
   });
 
   test('sax-wasm', async () => {
-    const parser = await createSAXWasmParser(0);
+    const parser = await createSAXWasmParserWithHandlers();
     const chunks = splitIntoByteChunks(largeHtmlSource);
 
     measure(() => {
@@ -273,17 +221,11 @@ describe('HTML DOM (large source)', () => {
     let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
-        lowerCaseTags: false,
-        lowerCaseAttributeNames: false,
-      });
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
     });
 
     measure(() => {
+      parser.reset();
       parser.end(largeHtmlSource);
     });
   });
@@ -320,17 +262,11 @@ describe('HTML DOM (large source, chunks)', () => {
     const chunks = splitIntoTextChunks(largeHtmlSource);
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
-        lowerCaseTags: false,
-        lowerCaseAttributeNames: false,
-      });
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
     });
 
     measure(() => {
+      parser.reset();
       for (const chunk of chunks) {
         parser.write(chunk);
       }
@@ -365,9 +301,13 @@ describe('HTML serializer (large source)', () => {
   });
 });
 
-describe('HTML SAX (small sources)', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
+describe('HTML SAX (small sources, with handlers)', { measureTimeout: 1_500, batchTimeout: 300 }, () => {
   test('tag-soup', () => {
-    const saxHandler = {};
+    const saxHandler: tagSoup.SAXHandler = {
+      onStartTag: noop,
+      onEndTag: noop,
+      onText: noop,
+    };
 
     for (const smallSource of smallHtmlSources) {
       measure(() => {
@@ -380,28 +320,23 @@ describe('HTML SAX (small sources)', { measureTimeout: 1_500, batchTimeout: 300 
     let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(
-        {},
-        {
-          lowerCaseTags: false,
-          lowerCaseAttributeNames: false,
-        }
-      );
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser({
+        onopentag: noop,
+        onclosetag: noop,
+        ontext: noop,
+      });
     });
 
     for (const smallSource of smallHtmlSources) {
       measure(() => {
+        parser.reset();
         parser.end(smallSource);
       });
     }
   });
 
   test('sax-wasm', async () => {
-    const parser = await createSAXWasmParser(0);
+    const parser = await createSAXWasmParserWithHandlers();
 
     for (const smallSource of smallHtmlSources) {
       const chunks = splitIntoByteChunks(smallSource);
@@ -426,18 +361,12 @@ describe('HTML DOM (small sources)', { measureTimeout: 1_500, batchTimeout: 300 
     let parser: htmlparser2.Parser;
 
     beforeBatch(() => {
-      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null), {
-        lowerCaseTags: false,
-        lowerCaseAttributeNames: false,
-      });
-    });
-
-    afterIteration(() => {
-      parser.reset();
+      parser = new htmlparser2.Parser(new htmlparser2.DomHandler(() => null));
     });
 
     for (const smallSource of smallHtmlSources) {
       measure(() => {
+        parser.reset();
         parser.end(smallSource);
       });
     }
@@ -489,17 +418,14 @@ describe('XML SAX (with handlers)', () => {
       );
     });
 
-    afterIteration(() => {
-      parser.reset();
-    });
-
     measure(() => {
+      parser.reset();
       parser.end(smallXmlSource);
     });
   });
 
   test('sax-wasm', async () => {
-    const parser = await createSAXWasmParser(0);
+    const parser = await createSAXWasmParserWithHandlers();
     const chunks = splitIntoByteChunks(smallXmlSource);
 
     measure(() => {
@@ -524,17 +450,14 @@ describe('XML DOM (large source)', () => {
       });
     });
 
-    afterIteration(() => {
-      parser.reset();
-    });
-
     measure(() => {
+      parser.reset();
       parser.end(largeXmlSource);
     });
   });
 
   test('fast-xml-parser', () => {
-    const parser = new fastXmlParser.XMLParser();
+    const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
 
     measure(() => {
       parser.parse(largeXmlSource);
@@ -558,17 +481,14 @@ describe('XML DOM (small source)', () => {
       });
     });
 
-    afterIteration(() => {
-      parser.reset();
-    });
-
     measure(() => {
+      parser.reset();
       parser.end(smallXmlSource);
     });
   });
 
   test('fast-xml-parser', () => {
-    const parser = new fastXmlParser.XMLParser();
+    const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
 
     measure(() => {
       parser.parse(smallXmlSource);
@@ -586,8 +506,8 @@ describe('XML serializer', () => {
   });
 
   test('fast-xml-parser', () => {
-    const builder = new fastXmlParser.XMLBuilder();
-    const document = new fastXmlParser.XMLParser().parse(smallXmlSource);
+    const builder = new fastXmlParser.XMLBuilder({ ignoreAttributes: false });
+    const document = new fastXmlParser.XMLParser({ ignoreAttributes: false }).parse(smallXmlSource);
 
     measure(() => {
       builder.build(document);
@@ -621,6 +541,37 @@ async function createSAXWasmParser(events: number): Promise<saxWasm.SAXParser> {
   const parser = new saxWasm.SAXParser(events);
 
   await parser.prepareWasm(fs.readFileSync(new URL(import.meta.resolve('sax-wasm/lib/sax-wasm.wasm'))));
+
+  return parser;
+}
+
+// Receives the same events as SAX handlers of other parsers: start tags with attributes, end tags and text
+async function createSAXWasmParserWithHandlers(): Promise<saxWasm.SAXParser> {
+  const parser = await createSAXWasmParser(
+    saxWasm.SaxEventType.OpenTag | saxWasm.SaxEventType.CloseTag | saxWasm.SaxEventType.Text
+  );
+
+  // sax-wasm decodes names and values when they are read, while other parsers pass them to handlers as strings
+  parser.eventHandler = (event, detail) => {
+    if (event === saxWasm.SaxEventType.OpenTag) {
+      const tag = detail as saxWasm.Tag;
+
+      tag.name;
+
+      for (const attribute of tag.attributes) {
+        attribute.name.value;
+        attribute.value.value;
+      }
+      return;
+    }
+
+    if (event === saxWasm.SaxEventType.CloseTag) {
+      (detail as saxWasm.Tag).name;
+      return;
+    }
+
+    (detail as saxWasm.Text).value;
+  };
 
   return parser;
 }
