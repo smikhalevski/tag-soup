@@ -1,10 +1,12 @@
 import { NamespaceStack } from './NamespaceStack.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler } from './types.ts';
-import { retainHiddenClasses } from './utils.ts';
+import { assignAttribute as importedAssignAttribute, retainHiddenClasses } from './utils.ts';
+
+const assignAttribute = importedAssignAttribute;
 
 /**
- * Handler whose methods are called during parsing. All methods are optional, implement only the ones you need.
+ * Handler whose methods are called during parsing. All methods are optional.
  *
  * Callbacks for a tag are called in this order:
  * 1. {@link onStartTagOpening},
@@ -19,7 +21,8 @@ export interface SAXHandler {
   /**
    * Called when text is read.
    *
-   * @param text The decoded text. Text inside {@link TagParsingOptions.kind raw text tags} isn't decoded.
+   * @param text The decoded text. Text of `raw_text` and `script_data` {@link TagParsingOptions.kind tags} isn't
+   * decoded.
    */
   onText?(text: string): void;
 
@@ -99,51 +102,53 @@ export interface SAXHandler {
    * Called when a DOCTYPE is read.
    *
    * @param name The DOCTYPE name.
+   * @param publicId The public identifier, or an empty string if there's none.
+   * @param systemId The system identifier, or an empty string if there's none.
    */
-  onDoctype?(name: string): void;
+  onDoctype?(name: string, publicId: string, systemId: string): void;
 
   /**
    * Called when a processing instruction is read.
    *
    * @param target The processing instruction target.
-   * @param data The processing instruction content.
+   * @param data The processing instruction data.
    */
   onProcessingInstruction?(target: string, data: string): void;
 }
 
 /**
- * Parses text and calls {@link SAXHandler} methods when tokens are read.
+ * Parses an input and calls {@link SAXHandler} methods when tokens are read.
  *
  * @see {@link createSAXParser}
  * @group SAX
  */
 export interface SAXParser {
   /**
-   * Parses text as a document.
+   * Parses an input as a document.
    *
-   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Before the first tag or text, spaces are skipped and DOCTYPE is read.
    *
-   * @param input The text to parse.
-   * @param handler The token handler.
-   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
+   * @param input The input to parse.
+   * @param handler The handler whose methods are called.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   parseDocument(input: string, handler: SAXHandler): void;
 
   /**
-   * Parses text as a document fragment.
+   * Parses an input as a document fragment.
    *
-   * DOCTYPE isn't recognized.
+   * DOCTYPE isn't read.
    *
-   * @param input The text to parse.
-   * @param handler The token handler.
-   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
+   * @param input The input to parse.
+   * @param handler The handler whose methods are called.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   parseFragment(input: string, handler: SAXHandler): void;
 
   /**
    * Creates a writer that parses a document written in chunks.
    *
-   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Before the first tag or text, spaces are skipped and DOCTYPE is read.
    *
    * @example
    * const writer = HTMLSAXParser.createDocumentWriter({
@@ -156,7 +161,7 @@ export interface SAXParser {
    * writer.write('Bob!');
    * writer.end();
    *
-   * @param handler The token handler.
+   * @param handler The handler whose methods are called.
    * @returns The new writer.
    */
   createDocumentWriter(handler: SAXHandler): ParserWriter;
@@ -164,23 +169,25 @@ export interface SAXParser {
   /**
    * Creates a writer that parses a document fragment written in chunks.
    *
-   * DOCTYPE isn't recognized.
+   * DOCTYPE isn't read.
    *
-   * @param handler The token handler.
+   * @param handler The handler whose methods are called.
    * @returns The new writer.
    */
   createFragmentWriter(handler: SAXHandler): ParserWriter;
 }
 
 /**
- * Creates a parser that parses text and calls {@link SAXHandler} methods when tokens are read.
+ * Creates a parser that parses an input and calls {@link SAXHandler} methods when tokens are read.
  *
  * @example
- * import { HTMLSAXParser } from 'tag-soup';
+ * import { createSAXParser, HTMLTokenizer } from 'tag-soup';
  *
- * HTMLSAXParser.parseFragment('Hello, <b>Bob</b>!', {
+ * const parser = createSAXParser({ tokenizer: HTMLTokenizer });
+ *
+ * parser.parseFragment('Hello, <b>Bob</b>!', {
  *   onStartTagOpening(tagName) {
- *     // Handle <b> tag
+ *     // Handle the start tag
  *   },
  * });
  *
@@ -189,8 +196,16 @@ export interface SAXParser {
  * @group SAX
  */
 export function createSAXParser(options: ParserOptions = {}): SAXParser {
-  const config = resolveParserOptions(options);
+  return createSAXParserFromConfig(resolveParserOptions(options));
+}
 
+/**
+ * Creates a SAX parser from a config. Built-in parsers use it to set config properties that have no option.
+ *
+ * @param config The config from {@link resolveParserOptions}.
+ * @internal
+ */
+export function createSAXParserFromConfig(config: ParserConfig): SAXParser {
   const { tokenizer } = config;
 
   return {
@@ -203,11 +218,15 @@ export function createSAXParser(options: ParserOptions = {}): SAXParser {
     },
 
     createDocumentWriter(handler) {
-      return tokenizer.createDocumentWriter(createSAXTokenHandler(handler, config));
+      const tokenHandler = createSAXTokenHandler(handler, config);
+
+      return tokenizer.createDocumentWriter(tokenHandler);
     },
 
     createFragmentWriter(handler) {
-      return tokenizer.createFragmentWriter(createSAXTokenHandler(handler, config));
+      const tokenHandler = createSAXTokenHandler(handler, config);
+
+      return tokenizer.createFragmentWriter(tokenHandler);
     },
   };
 }
@@ -235,9 +254,9 @@ class SAXTokenHandler implements TokenHandler {
   renameAttribute: (name: string) => string;
   decodeText: (text: string) => string;
   decodeAttribute: (value: string) => string;
-  isTagNameStackUsed: boolean;
-  tagNameStack = ['', '', '', '', '', '', '', '', ''];
-  tagNameStackCursor = -1;
+  areTagNamesKept: boolean;
+  tagNames = ['', '', '', '', '', '', '', '', ''];
+  lastTagNameIndex = -1;
   attributes: Record<string, string> | undefined = undefined;
 
   constructor(handler: SAXHandler, config: ParserConfig) {
@@ -246,7 +265,7 @@ class SAXTokenHandler implements TokenHandler {
     this.renameAttribute = config.renameAttribute;
     this.decodeText = config.decodeText;
     this.decodeAttribute = config.decodeAttribute;
-    this.isTagNameStackUsed = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
+    this.areTagNamesKept = handler.onStartTag !== undefined || handler.onEndTag !== undefined;
   }
 
   onText(input: string, startIndex: number, endIndex: number, isRawText: boolean): void {
@@ -270,9 +289,8 @@ class SAXTokenHandler implements TokenHandler {
       handler.onStartTagOpening(tagName);
     }
 
-    if (this.isTagNameStackUsed) {
-      this.tagNameStack[++this.tagNameStackCursor] =
-        tagName ?? (0, this.renameTag)(input.substring(startIndex, endIndex));
+    if (this.areTagNamesKept) {
+      this.tagNames[++this.lastTagNameIndex] = tagName ?? (0, this.renameTag)(input.substring(startIndex, endIndex));
     }
 
     if (handler.onStartTag !== undefined) {
@@ -286,7 +304,7 @@ class SAXTokenHandler implements TokenHandler {
     handler.onStartTagClosing?.();
 
     if (handler.onStartTag !== undefined) {
-      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, false, null);
+      handler.onStartTag(this.tagNames[this.lastTagNameIndex], this.attributes!, false, null);
       this.attributes = undefined;
     }
   }
@@ -297,17 +315,17 @@ class SAXTokenHandler implements TokenHandler {
     handler.onStartTagSelfClosing?.();
 
     if (handler.onStartTag !== undefined) {
-      handler.onStartTag(this.tagNameStack[this.tagNameStackCursor], this.attributes!, true, null);
+      handler.onStartTag(this.tagNames[this.lastTagNameIndex], this.attributes!, true, null);
       this.attributes = undefined;
     }
 
-    --this.tagNameStackCursor;
+    --this.lastTagNameIndex;
   }
 
   onEndTagName(): void {
-    this.handler.onEndTag?.(this.tagNameStack[this.tagNameStackCursor], null);
+    this.handler.onEndTag?.(this.tagNames[this.lastTagNameIndex], null);
 
-    --this.tagNameStackCursor;
+    --this.lastTagNameIndex;
   }
 
   onAttribute(
@@ -328,12 +346,7 @@ class SAXTokenHandler implements TokenHandler {
     const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
 
     if (attributes !== undefined) {
-      // Assigning __proto__ would set the prototype rather than add an attribute
-      if (name === '__proto__') {
-        Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
-      } else {
-        attributes[name] = value;
-      }
+      assignAttribute(attributes, name, value);
     }
 
     handler.onAttribute?.(name, value);
@@ -360,8 +373,20 @@ class SAXTokenHandler implements TokenHandler {
     this.handler.onCDATASection?.(input.substring(startIndex, endIndex));
   }
 
-  onDoctypeName(input: string, startIndex: number, endIndex: number): void {
-    this.handler.onDoctype?.(input.substring(startIndex, endIndex));
+  onDoctype(
+    input: string,
+    nameStartIndex: number,
+    nameEndIndex: number,
+    publicIdStartIndex: number,
+    publicIdEndIndex: number,
+    systemIdStartIndex: number,
+    systemIdEndIndex: number
+  ): void {
+    this.handler.onDoctype?.(
+      input.substring(nameStartIndex, nameEndIndex),
+      input.substring(publicIdStartIndex, publicIdEndIndex),
+      input.substring(systemIdStartIndex, systemIdEndIndex)
+    );
   }
 }
 
@@ -377,21 +402,21 @@ class NamespaceSAXTokenHandler extends SAXTokenHandler {
   namespaceStack = new NamespaceStack();
 
   /**
-   * Namespaces of enclosing tags, by the index of the tag in {@link tagNameStack}. They are kept for end tags, since
+   * Namespaces of enclosing tags, by the index of the tag in {@link tagNames}. They are kept for end tags, since
    * resolving a namespace again is slower.
    */
-  namespaceURIStack: Array<string | null> = [null, null, null, null, null, null, null, null, null];
+  namespaceURIs: Array<string | null> = [null, null, null, null, null, null, null, null, null];
 
   onStartTagClosing(): void {
     const handler = this.handler;
 
     handler.onStartTagClosing?.();
 
-    const tagNameStackCursor = this.tagNameStackCursor;
-    const tagName = this.tagNameStack[tagNameStackCursor];
+    const lastTagNameIndex = this.lastTagNameIndex;
+    const tagName = this.tagNames[lastTagNameIndex];
     const namespaceURI = this.namespaceStack.getNamespaceURI(tagName);
 
-    this.namespaceURIStack[tagNameStackCursor] = namespaceURI;
+    this.namespaceURIs[lastTagNameIndex] = namespaceURI;
 
     if (handler.onStartTag !== undefined) {
       handler.onStartTag(tagName, this.attributes!, false, namespaceURI);
@@ -406,7 +431,7 @@ class NamespaceSAXTokenHandler extends SAXTokenHandler {
 
     handler.onStartTagSelfClosing?.();
 
-    const tagName = this.tagNameStack[this.tagNameStackCursor--];
+    const tagName = this.tagNames[this.lastTagNameIndex--];
 
     if (handler.onStartTag !== undefined) {
       handler.onStartTag(tagName, this.attributes!, true, this.namespaceStack.getNamespaceURI(tagName));
@@ -419,9 +444,9 @@ class NamespaceSAXTokenHandler extends SAXTokenHandler {
   }
 
   onEndTagName(): void {
-    const tagNameStackCursor = this.tagNameStackCursor--;
+    const lastTagNameIndex = this.lastTagNameIndex--;
 
-    this.handler.onEndTag?.(this.tagNameStack[tagNameStackCursor], this.namespaceURIStack[tagNameStackCursor]);
+    this.handler.onEndTag?.(this.tagNames[lastTagNameIndex], this.namespaceURIs[lastTagNameIndex]);
     this.namespaceStack.endElement();
   }
 
@@ -440,12 +465,7 @@ class NamespaceSAXTokenHandler extends SAXTokenHandler {
     const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
 
     if (attributes !== undefined) {
-      // Assigning __proto__ would set the prototype rather than add an attribute
-      if (name === '__proto__') {
-        Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
-      } else {
-        attributes[name] = value;
-      }
+      assignAttribute(attributes, name, value);
     }
 
     this.namespaceStack.declareNamespace(name, value);
@@ -454,10 +474,10 @@ class NamespaceSAXTokenHandler extends SAXTokenHandler {
   }
 }
 
-// Options of the token handlers that are kept only to retain their hidden classes
-const retainedParserOptions = resolveParserOptions({});
+// The config of the token handlers that are kept only to retain their hidden classes
+const retainedParserConfig = resolveParserOptions({});
 
 retainHiddenClasses(
-  new SAXTokenHandler({}, retainedParserOptions),
-  new NamespaceSAXTokenHandler({}, retainedParserOptions)
+  new SAXTokenHandler({}, retainedParserConfig),
+  new NamespaceSAXTokenHandler({}, retainedParserConfig)
 );

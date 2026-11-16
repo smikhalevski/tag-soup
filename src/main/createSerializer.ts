@@ -1,17 +1,15 @@
 import {
-  CDATASection,
-  ChildNode,
-  Comment,
-  DocumentType,
-  Element,
+  type CDATASection,
+  type Comment,
+  type DocumentType,
+  type Element,
   Node,
-  ProcessingInstruction,
-  Text,
+  type ProcessingInstruction,
+  type Text,
 } from 'flyweight-dom';
-import type { SerializerConfig, TagSerializationConfig } from './resolveSerializerOptions.ts';
-import { resolveSerializerOptions } from './resolveSerializerOptions.ts';
+import { resolveSerializerOptions, type SerializerConfig } from './resolveSerializerOptions.ts';
 import type { SerializerOptions } from './types.ts';
-import { areCaseInsensitiveStringsEqual, getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './utils.ts';
+import { toLowerCase } from './utils.ts';
 
 /**
  * Creates a serializer that converts a DOM node to an HTML/XML string.
@@ -40,113 +38,129 @@ import { areCaseInsensitiveStringsEqual, getCaseInsensitiveHashCode, getCaseSens
 export function createSerializer(options: SerializerOptions = {}): (node: Node) => string {
   const config = resolveSerializerOptions(options);
 
-  return node => serializeMarkup(node, config);
-}
-
-function serializeMarkup(anyNode: Node, config: SerializerConfig): string {
-  const { areSelfClosingTagsSupported, encodeText, encodeAttribute } = config;
-
-  // Text is the most common node, and a node type check is faster than instanceof, which walks the prototype chain
-  if (anyNode.nodeType === Node.TEXT_NODE) {
-    return encodeText((anyNode as Text).data);
-  }
-
-  if (anyNode.nodeType === Node.ELEMENT_NODE) {
-    const node = anyNode as Element;
-
-    let output = '<' + node.tagName;
-
-    for (const name in node.attributes) {
-      output += ' ' + name + '="' + encodeAttribute(node.attributes[name]) + '"';
-    }
-
-    const tagConfig = getTagConfig(config, node.tagName);
-
-    if (node.firstChild !== null) {
-      output += '>';
-
-      // Text inside raw text tags isn't encoded
-      const isRawText = tagConfig?.isRawText === true;
-
-      for (let child: ChildNode | null = node.firstChild; child !== null; child = child.nextSibling) {
-        // Text children are written here, which saves a recursive call
-        if (child.nodeType === Node.TEXT_NODE) {
-          output += isRawText ? (child as Text).data : encodeText((child as Text).data);
-        } else {
-          output += serializeMarkup(child, config);
-        }
-      }
-
-      output += '</' + node.tagName + '>';
-    } else if (tagConfig?.kind === 'void') {
-      output += '>';
-    } else if (areSelfClosingTagsSupported) {
-      output += '/>';
-    } else {
-      output += '></' + node.tagName + '>';
-    }
-
-    return output;
-  }
-
-  if (anyNode.nodeType === Node.CDATA_SECTION_NODE) {
-    return '<![CDATA[' + (anyNode as CDATASection).data + ']]>';
-  }
-
-  if (anyNode.nodeType === Node.DOCUMENT_NODE || anyNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-    let output = '';
-
-    for (let child = anyNode.firstChild; child !== null; child = child.nextSibling) {
-      output += serializeMarkup(child, config);
-    }
-
-    return output;
-  }
-
-  if (anyNode.nodeType === Node.COMMENT_NODE) {
-    return '<!--' + (anyNode as Comment).data + '-->';
-  }
-
-  if (anyNode.nodeType === Node.DOCUMENT_TYPE_NODE) {
-    return '<!DOCTYPE ' + (anyNode as DocumentType).name + '>';
-  }
-
-  if (anyNode.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
-    const node = anyNode as ProcessingInstruction;
-
-    return '<?' + node.target + (node.data.length !== 0 ? ' ' + node.data : '') + '?>';
-  }
-
-  return '';
+  return node => serializeNode(config, node);
 }
 
 /**
- * Returns the config of a tag, or `undefined` if it has none.
+ * Serializes a node. Functions append markup to the output and return it, so the output is concatenated in document
+ * order once, rather than each element building its own string that its parent appends.
  */
-function getTagConfig(config: SerializerConfig, tagName: string): TagSerializationConfig | undefined {
-  const { tagConfigsMap, areTagNamesCaseInsensitive } = config;
+const serializeNode = (config: SerializerConfig, node: Node): string => {
+  switch (node.nodeType) {
+    case Node.TEXT_NODE:
+      return config.encodeText((node as Text).data);
 
-  if (tagConfigsMap === undefined) {
-    return;
+    case Node.ELEMENT_NODE:
+      return writeElement(config, node as Element, '');
+
+    default:
+      return writeLeaf(config, node, '');
   }
+};
 
-  const tagConfigs = tagConfigsMap.get(
-    areTagNamesCaseInsensitive
-      ? getCaseInsensitiveHashCode(tagName, 0, tagName.length)
-      : getCaseSensitiveHashCode(tagName, 0, tagName.length)
-  );
+/**
+ * Writes children of a node to the output, and returns the output.
+ *
+ * @param config The serializer config.
+ * @param parentNode The node whose children are written.
+ * @param isRawText If `true` then text children aren't encoded.
+ * @param output The output written so far.
+ */
+const writeChildren = (config: SerializerConfig, parentNode: Node, isRawText: boolean, output: string): string => {
+  const { encodeText } = config;
 
-  if (tagConfigs === undefined) {
-    return;
-  }
+  for (let child = parentNode.firstChild; child !== null; child = child.nextSibling) {
+    switch (child.nodeType) {
+      // Text is the most common child, so it's written here, without a call
+      case Node.TEXT_NODE:
+        output += isRawText ? (child as Text).data : encodeText((child as Text).data);
+        break;
 
-  for (const tagConfig of tagConfigs) {
-    if (
-      areTagNamesCaseInsensitive
-        ? areCaseInsensitiveStringsEqual(tagConfig.tagName, tagName)
-        : tagConfig.tagName === tagName
-    ) {
-      return tagConfig;
+      case Node.ELEMENT_NODE:
+        output = writeElement(config, child as Element, output);
+        break;
+
+      default:
+        output = writeLeaf(config, child, output);
+        break;
     }
   }
-}
+
+  return output;
+};
+
+/**
+ * Writes an element and its descendants to the output, and returns the output.
+ */
+const writeElement = (config: SerializerConfig, element: Element, output: string): string => {
+  const { encodeAttribute } = config;
+  const { tagName, attributes } = element;
+
+  output += '<' + tagName;
+
+  for (const name in attributes) {
+    output += ' ' + name + '="' + encodeAttribute(attributes[name]) + '"';
+  }
+
+  const normalizedTagName = config.areTagNamesCaseInsensitive ? toLowerCase(tagName) : tagName;
+
+  if (element.firstChild === null) {
+    if (config.voidTagNameSet.has(normalizedTagName)) {
+      return output + '>';
+    }
+    return output + (config.areSelfClosingTagsSupported ? '/>' : '></' + tagName + '>');
+  }
+
+  output += '>';
+
+  return writeChildren(config, element, config.rawTextTagNameSet.has(normalizedTagName), output) + '</' + tagName + '>';
+};
+
+/**
+ * Writes a node that isn't an element or a text node to the output, and returns the output.
+ */
+const writeLeaf = (config: SerializerConfig, node: Node, output: string): string => {
+  switch (node.nodeType) {
+    case Node.COMMENT_NODE:
+      return output + '<!--' + (node as Comment).data + '-->';
+
+    case Node.CDATA_SECTION_NODE:
+      return output + '<![CDATA[' + (node as CDATASection).data + ']]>';
+
+    case Node.DOCUMENT_TYPE_NODE:
+      return writeDoctype(node as DocumentType, output);
+
+    case Node.PROCESSING_INSTRUCTION_NODE: {
+      const { target, data } = node as ProcessingInstruction;
+
+      return output + '<?' + target + (data.length !== 0 ? ' ' + data : '') + '?>';
+    }
+
+    case Node.DOCUMENT_NODE:
+    case Node.DOCUMENT_FRAGMENT_NODE:
+      return writeChildren(config, node, false, output);
+  }
+  return output;
+};
+
+/**
+ * Writes a DOCTYPE to the output, and returns the output. The system identifier follows `SYSTEM` only if there's no
+ * public identifier.
+ */
+const writeDoctype = (doctype: DocumentType, output: string): string => {
+  const { name, publicId, systemId } = doctype;
+
+  output += '<!DOCTYPE ' + name;
+
+  if (publicId.length !== 0) {
+    output += ' PUBLIC "' + publicId + '"';
+  } else if (systemId.length !== 0) {
+    output += ' SYSTEM';
+  }
+
+  if (systemId.length !== 0) {
+    output += ' "' + systemId + '"';
+  }
+
+  return output + '>';
+};

@@ -1,19 +1,23 @@
-import type { SerializerOptions, TagKind } from './types.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, identity } from './utils.ts';
+import type { SerializerOptions } from './types.ts';
+import { identity, toLowerCase } from './utils.ts';
 
 /**
  * Resolved serializer options.
  */
 export interface SerializerConfig {
   /**
-   * Tag configs by the hash code of the tag name, in arrays since names can share a hash code. Only `void`, `raw_text`
-   * and `script_data` tags are here, since other tags are written like tags that options don't mention. `undefined` if
-   * there are no such tags.
+   * Names of `void` tags, in lower case if {@link areTagNamesCaseInsensitive tag names are case-insensitive}.
    */
-  tagConfigsMap: Map<number, TagSerializationConfig[]> | undefined;
+  voidTagNameSet: Set<string>;
 
   /**
-   * If `true` then tag names are hashed and compared ignoring the case of ASCII letters.
+   * Names of `raw_text` and `script_data` tags, whose text isn't encoded, in lower case if
+   * {@link areTagNamesCaseInsensitive tag names are case-insensitive}.
+   */
+  rawTextTagNameSet: Set<string>;
+
+  /**
+   * If `true` then tag names are compared ignoring the case of ASCII letters.
    */
   areTagNamesCaseInsensitive: boolean;
 
@@ -34,26 +38,6 @@ export interface SerializerConfig {
 }
 
 /**
- * Resolved serialization options of a tag.
- */
-export interface TagSerializationConfig {
-  /**
-   * The tag name, compared with names of elements that have the same hash code.
-   */
-  tagName: string;
-
-  /**
-   * @see {@link TagSerializationOptions.kind}
-   */
-  kind: TagKind;
-
-  /**
-   * `true` if the tag is `raw_text` or `script_data`, so its text isn't encoded.
-   */
-  isRawText: boolean;
-}
-
-/**
  * Converts serializer options into a serializer config.
  */
 export function resolveSerializerOptions(options: SerializerOptions): SerializerConfig {
@@ -65,38 +49,34 @@ export function resolveSerializerOptions(options: SerializerOptions): Serializer
     encodeAttribute = identity,
   } = options;
 
-  const getSubstringHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-
-  const tagConfigsMap = new Map<number, TagSerializationConfig[]>();
+  const voidTagNameSet = new Set<string>();
+  const rawTextTagNameSet = new Set<string>();
 
   for (const [tagName, tagOptions] of Object.entries(tags)) {
     const { kind = 'normal' } = tagOptions;
 
-    // Written like tags that options don't mention
-    if (kind === 'normal' || kind === 'escapable_raw_text') {
+    // Other tags are written like tags that options don't mention
+    if (kind !== 'void' && kind !== 'raw_text' && kind !== 'script_data') {
       continue;
     }
 
-    const tagConfig = {
-      tagName,
-      kind,
-      isRawText: kind === 'raw_text' || kind === 'script_data',
-    };
+    const name = areTagNamesCaseInsensitive ? toLowerCase(tagName) : tagName;
 
-    const tagHashCode = getSubstringHashCode(tagName, 0, tagName.length);
+    // Of the names that differ only in case, the first void or raw text one defines the tag
+    if (voidTagNameSet.has(name) || rawTextTagNameSet.has(name)) {
+      continue;
+    }
 
-    const tagConfigs = tagConfigsMap.get(tagHashCode);
-
-    if (tagConfigs !== undefined) {
-      tagConfigs.push(tagConfig);
+    if (kind === 'void') {
+      voidTagNameSet.add(name);
     } else {
-      tagConfigsMap.set(tagHashCode, [tagConfig]);
+      rawTextTagNameSet.add(name);
     }
   }
 
   return {
-    // Tag names aren't hashed if there are no tags to look up
-    tagConfigsMap: tagConfigsMap.size !== 0 ? tagConfigsMap : undefined,
+    voidTagNameSet,
+    rawTextTagNameSet,
     areTagNamesCaseInsensitive,
     areSelfClosingTagsSupported,
     encodeText,

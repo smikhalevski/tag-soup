@@ -12,41 +12,43 @@ import {
 import { NamespaceStack } from './NamespaceStack.ts';
 import { type ParserConfig, resolveParserOptions } from './resolveParserOptions.ts';
 import { type ParserOptions, type ParserWriter, type TokenHandler, type TokenizerWriter } from './types.ts';
-import { retainHiddenClasses } from './utils.ts';
+import { assignAttribute as importedAssignAttribute, retainHiddenClasses } from './utils.ts';
+
+const assignAttribute = importedAssignAttribute;
 
 /**
- * Parses text as a DOM.
+ * Parses an input as a DOM.
  *
  * @see {@link createDOMParser}
  * @group DOM
  */
 export interface DOMParser {
   /**
-   * Parses text as a document.
+   * Parses an input as a document.
    *
-   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Before the first tag or text, spaces are skipped and DOCTYPE is read.
    *
-   * @param input The text to parse.
+   * @param input The input to parse.
    * @returns The document node.
-   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   parseDocument(input: string): Document;
 
   /**
-   * Parses text as a document fragment.
+   * Parses an input as a document fragment.
    *
-   * DOCTYPE isn't recognized.
+   * DOCTYPE isn't read.
    *
-   * @param input The text to parse.
+   * @param input The input to parse.
    * @returns The document fragment node.
-   * @throws {@link MarkupSyntaxError} If input is malformed and parser options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   parseFragment(input: string): DocumentFragment;
 
   /**
    * Creates a writer that parses a document written in chunks.
    *
-   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Before the first tag or text, spaces are skipped and DOCTYPE is read.
    *
    * @example
    * const writer = HTMLDOMParser.createDocumentWriter();
@@ -64,7 +66,7 @@ export interface DOMParser {
   /**
    * Creates a writer that parses a document fragment written in chunks.
    *
-   * DOCTYPE isn't recognized.
+   * DOCTYPE isn't read.
    *
    * @returns The new writer.
    */
@@ -72,12 +74,14 @@ export interface DOMParser {
 }
 
 /**
- * Creates a parser that parses text as a DOM.
+ * Creates a parser that parses an input as a DOM.
  *
  * @example
- * import { HTMLDOMParser } from 'tag-soup';
+ * import { createDOMParser, HTMLTokenizer } from 'tag-soup';
  *
- * HTMLDOMParser.parseFragment('Hello, <b>Bob</b>!');
+ * const parser = createDOMParser({ tokenizer: HTMLTokenizer });
+ *
+ * parser.parseFragment('Hello, <b>Bob</b>!');
  * // ⮕ DocumentFragment
  *
  * @param options Parser options.
@@ -85,8 +89,16 @@ export interface DOMParser {
  * @group DOM
  */
 export function createDOMParser(options: ParserOptions = {}): DOMParser {
-  const config = resolveParserOptions(options);
+  return createDOMParserFromConfig(resolveParserOptions(options));
+}
 
+/**
+ * Creates a DOM parser from a config. Built-in parsers use it to set config properties that have no option.
+ *
+ * @param config The config from {@link resolveParserOptions}.
+ * @internal
+ */
+export function createDOMParserFromConfig(config: ParserConfig): DOMParser {
   const { tokenizer } = config;
 
   return {
@@ -121,8 +133,8 @@ export function createDOMParser(options: ParserOptions = {}): DOMParser {
 }
 
 /**
- * Creates a writer that passes chunks of text to a tokenizer writer, and returns the root node that the token handler
- * has built.
+ * Creates a writer that passes chunks to a tokenizer writer, and returns the root node that the token handler has
+ * built.
  *
  * @param tokenHandler The handler that the tokenizer writer passes tokens to.
  * @param tokenizerWriter The writer that reads tokens from chunks.
@@ -207,10 +219,11 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
     valueStartIndex: number,
     valueEndIndex: number
   ): void {
-    (this.parentNode as Element).setAttribute(
-      (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex)),
-      (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex))
-    );
+    const name = (0, this.renameAttribute)(input.substring(nameStartIndex, nameEndIndex));
+    const value = (0, this.decodeAttribute)(input.substring(valueStartIndex, valueEndIndex));
+
+    // Stored directly rather than with Element.setAttribute, which converts the value to a string, and it already is
+    assignAttribute((this.parentNode as Element).attributes, name, value);
   }
 
   onComment(input: string, startIndex: number, endIndex: number): void {
@@ -236,8 +249,22 @@ class DOMTokenHandler<TRootNode extends Document | DocumentFragment> implements 
     this.parentNode.appendChild(new CDATASection(input.substring(startIndex, endIndex)));
   }
 
-  onDoctypeName(input: string, startIndex: number, endIndex: number): void {
-    this.parentNode.appendChild(new DocumentType(input.substring(startIndex, endIndex)));
+  onDoctype(
+    input: string,
+    nameStartIndex: number,
+    nameEndIndex: number,
+    publicIdStartIndex: number,
+    publicIdEndIndex: number,
+    systemIdStartIndex: number,
+    systemIdEndIndex: number
+  ): void {
+    this.parentNode.appendChild(
+      new DocumentType(
+        input.substring(nameStartIndex, nameEndIndex),
+        input.substring(publicIdStartIndex, publicIdEndIndex),
+        input.substring(systemIdStartIndex, systemIdEndIndex)
+      )
+    );
   }
 }
 
@@ -258,8 +285,8 @@ class NamespaceDOMTokenHandler<TRootNode extends Document | DocumentFragment> ex
   tagName = '';
 
   /**
-   * Attributes of the start tag being read, or `undefined` if no attributes were read yet. Chunks can end inside a
-   * start tag, so values are kept instead of indices, which point to the input of one chunk.
+   * Attributes of the start tag being read, or `undefined` if no attributes were read yet. A chunk can end inside a
+   * start tag, so values are kept rather than indexes, which point to the input of one chunk.
    */
   attributes: Record<string, string> | undefined = undefined;
 
@@ -301,12 +328,7 @@ class NamespaceDOMTokenHandler<TRootNode extends Document | DocumentFragment> ex
       attributes = this.attributes = {};
     }
 
-    // Assigning __proto__ would set the prototype rather than add an attribute
-    if (name === '__proto__') {
-      Object.defineProperty(attributes, name, { value, writable: true, enumerable: true, configurable: true });
-    } else {
-      attributes[name] = value;
-    }
+    assignAttribute(attributes, name, value);
 
     this.namespaceStack.declareNamespace(name, value);
   }
@@ -326,16 +348,9 @@ class NamespaceDOMTokenHandler<TRootNode extends Document | DocumentFragment> ex
 }
 
 // Options of the token handlers that are kept only to retain their hidden classes
-const retainedParserOptions = resolveParserOptions({});
+const retainedParserConfig = resolveParserOptions({});
 
 retainHiddenClasses(
-  new DOMTokenHandler(new Document(), retainedParserOptions),
-  new NamespaceDOMTokenHandler(new Document(), retainedParserOptions),
-  new DocumentFragment(),
-  new Element(''),
-  new Text(''),
-  new Comment(''),
-  new CDATASection(''),
-  new ProcessingInstruction('', ''),
-  new DocumentType('')
+  new DOMTokenHandler(new Document(), retainedParserConfig),
+  new NamespaceDOMTokenHandler(new Document(), retainedParserConfig)
 );

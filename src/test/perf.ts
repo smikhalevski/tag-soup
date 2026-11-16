@@ -35,7 +35,7 @@ const noopTokenHandler: tagSoup.TokenHandler = {
   onComment: noop,
   onProcessingInstruction: noop,
   onCDATASection: noop,
-  onDoctypeName: noop,
+  onDoctype: noop,
 };
 
 beforeBatch(collectGarbage);

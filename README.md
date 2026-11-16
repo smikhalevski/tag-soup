@@ -5,11 +5,13 @@
 TagSoup is [the fastest](#performance) pure JS SAX/DOM XML/HTML parser and serializer.
 
 - Extremely low memory consumption.
-- Tolerant of malformed tag nesting, missing end tags, etc.
+- Forgiving HTML parsing: recovers from malformed nesting and missing end tags, and ends tags implicitly the way
+  browsers do in most cases.
+- Strict XML parsing that reports malformed markup with its position.
+- Streaming: parses text written in chunks, with the same result as the whole text.
 - Recognizes CDATA sections, processing instructions, and DOCTYPE declarations.
-- Supports both strict XML and forgiving HTML parsing modes.
-- Parses foreign content, like SVG and MathML inside HTML, with its own rules.
-- [20 kB gzipped](https://bundlephobia.com/result?p=tag-soup), including dependencies.
+- Reads foreign content, like SVG and MathML inside HTML, with its own rules.
+- [20 kB gzipped](https://bundlephobia.com/result?p=tag-soup), including dependencies.
 - Check out TagSoup dependencies: [Speedy Entities](https://github.com/smikhalevski/speedy-entities#readme) and
   [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme).
 
@@ -25,16 +27,18 @@ npm install --save-prod tag-soup
 - [DOM parsing](#dom-parsing)
 - [SAX parsing](#sax-parsing)
 - [Tokenization](#tokenization)
+- [Streaming](#streaming)
 - [Serialization](#serialization)
-- [Parser options](#parser-options)
+- [Options](#options)
 - [Error handling](#error-handling)
+- [Cookbook](#cookbook)
 - [Performance](#performance)
 - [Limitations](#limitations)
 
 # DOM parsing
 
-TagSoup exports preconfigured [`HTMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLDOMParser.html)
-which parses HTML markup as a DOM node. This parser never throws errors during parsing and forgives malformed markup:
+[`HTMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLDOMParser.html) parses HTML markup as a DOM. It
+never throws and forgives malformed markup:
 
 ```ts
 import { HTMLDOMParser, toHTML } from 'tag-soup';
@@ -46,13 +50,15 @@ toHTML(fragment);
 // ⮕ '<p>hello</p><p>cool<br></p>'
 ```
 
-`HTMLDOMParser` decodes both HTML entities and numeric character references: in text with
+`HTMLDOMParser` decodes HTML character references: in text with
 [`decodeHTML`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTML.html), and in attribute values with
-[`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html).
+[`decodeHTMLAttribute`](https://smikhalevski.github.io/speedy-entities/variables/decodeHTMLAttribute.html). Tag and
+attribute names are converted to lower case.
 
-[`XMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/XMLDOMParser.html) parses XML markup as a DOM node.
-It throws [`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup
-doesn't satisfy XML spec:
+[`XMLDOMParser`](https://smikhalevski.github.io/tag-soup/variables/XMLDOMParser.html) parses XML markup as a DOM. It
+throws [`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if tags aren't
+balanced, or markup breaks the
+[XML constraints](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#isstrict) that it checks:
 
 ```ts
 import { XMLDOMParser, toXML } from 'tag-soup';
@@ -67,8 +73,11 @@ toXML(fragment);
 // ⮕ '<p>hello<br/></p>'
 ```
 
-`XMLDOMParser` decodes both XML entities and numeric character references with
+`XMLDOMParser` decodes XML character references with
 [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html).
+
+`parseDocument` reads a document: leading spaces are skipped, and a DOCTYPE is recognized before the first tag or text.
+`parseFragment` reads a fragment, which has neither. A forgiving parser ignores a DOCTYPE anywhere else.
 
 TagSoup uses [Flyweight DOM](https://github.com/smikhalevski/flyweight-dom#readme) nodes, which provide many standard
 DOM manipulation features:
@@ -96,7 +105,7 @@ treeWalker.nextNode();
 // ⮕ Text { 'hello' }
 ```
 
-Create a custom DOM parser using
+Create a custom DOM parser with
 [`createDOMParser`](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html):
 
 ```ts
@@ -145,9 +154,8 @@ const myParser = createDOMParser({ areNamespacesRecognized: true });
 
 # SAX parsing
 
-TagSoup exports preconfigured [`HTMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html)
-which parses HTML markup and calls handler methods when a token is read. This parser never throws errors during parsing
-and forgives malformed markup:
+[`HTMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/HTMLSAXParser.html) parses HTML markup and calls
+handler methods when tokens are read. It never throws and forgives malformed markup:
 
 ```ts
 import { HTMLSAXParser } from 'tag-soup';
@@ -162,10 +170,10 @@ HTMLSAXParser.parseFragment('<p>hello<p>cool</br>', {
 });
 ```
 
-[`XMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/XMLSAXParser.html) parses XML markup and calls
-handler methods when a token is read. It throws
-[`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup doesn't satisfy
-XML spec:
+[`XMLSAXParser`](https://smikhalevski.github.io/tag-soup/variables/XMLSAXParser.html) parses XML markup the same way. It
+throws [`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if tags aren't
+balanced, or markup breaks the
+[XML constraints](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#isstrict) that it checks:
 
 ```ts
 import { XMLSAXParser } from 'tag-soup';
@@ -180,7 +188,7 @@ XMLSAXParser.parseFragment('<p>hello<br/></p>', {
 });
 ```
 
-Create a custom SAX parser using
+Create a custom SAX parser with
 [`createSAXParser`](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html):
 
 ```ts
@@ -216,37 +224,8 @@ XMLSAXParser.parseFragment('<svg xmlns="http://www.w3.org/2000/svg"><circle/></s
 enable
 [`areNamespacesRecognized`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized).
 
-## SAX handler callbacks
-
-The [`SAXHandler`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html) defines the following optional
-callbacks. Implement only the ones you need. Callbacks for a tag are called in the order they're listed below.
-
-<dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagopening"><code>onStartTagOpening(tagName)</code></a></dt>
-<dd>A start tag name is read, before its attributes.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onattribute"><code>onAttribute(name, value)</code></a></dt>
-<dd>An attribute is read. The value is decoded, and is an empty string if the attribute has no value.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagclosing"><code>onStartTagClosing()</code></a></dt>
-<dd>A start tag is closed with <code>&gt;</code>.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttagselfclosing"><code>onStartTagSelfClosing()</code></a></dt>
-<dd>A start tag is closed with <code>/&gt;</code>. Only called if self-closing tags are recognized.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onstarttag"><code>onStartTag(tagName, attributes, isSelfClosing, namespaceURI)</code></a></dt>
-<dd>A start tag and all its attributes are read. The namespace is <code>null</code> if the tag has none, or if namespaces aren't recognized.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onendtag"><code>onEndTag(tagName, namespaceURI)</code></a></dt>
-<dd>A tag is ended: by its end tag, implicitly, or right after the start tag of a void tag. Not called for self-closing tags. The namespace is the same that was passed to <code>onStartTag</code>.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ontext"><code>onText(text)</code></a></dt>
-<dd>A text is read. The text is decoded, except inside raw text tags.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncomment"><code>onComment(data)</code></a></dt>
-<dd>A comment is read.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#ondoctype"><code>onDoctype(name)</code></a></dt>
-<dd>A DOCTYPE declaration is read.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#oncdatasection"><code>onCDATASection(data)</code></a></dt>
-<dd>A CDATA section is read.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html#onprocessinginstruction"><code>onProcessingInstruction(target, data)</code></a></dt>
-<dd>A processing instruction is read.</dd>
-</dl>
-
-Example using several callbacks at once:
+All [`SAXHandler`](https://smikhalevski.github.io/tag-soup/interfaces/SAXHandler.html) callbacks are optional, implement
+only the ones you need. Callbacks of a tag are called in this order:
 
 ```ts
 import { HTMLSAXParser } from 'tag-soup';
@@ -265,7 +244,7 @@ HTMLSAXParser.parseFragment('<!-- greeting --><p class="x">hello</p>', {
     // Called after all attributes of 'p' are read
   },
   onStartTag(tagName, attributes, isSelfClosing) {
-    // Called after onStartTagClosing
+    // Called with 'p', { class: 'x' }, false
   },
   onText(text) {
     // Called with 'hello'
@@ -278,25 +257,25 @@ HTMLSAXParser.parseFragment('<!-- greeting --><p class="x">hello</p>', {
 
 # Tokenization
 
-TagSoup exports preconfigured [`HTMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/HTMLTokenizer.html)
-which parses HTML markup and passes tokens to a
-[`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html). This tokenizer never throws
-errors during tokenization and forgives malformed markup:
+[`HTMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/HTMLTokenizer.html) reads HTML markup and passes
+tokens to a [`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html). Tokens are indexes
+in the input, so the tokenizer creates no strings and decodes nothing. It never throws and forgives malformed markup:
 
 ```ts
 import { HTMLTokenizer } from 'tag-soup';
 
 HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', {
   onText(input, startIndex, endIndex, isRawText) {
-    // Handle text
+    input.substring(startIndex, endIndex);
+    // ⮕ 'hello', then 'cool'
   },
 });
 ```
 
-[`XMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html) parses XML markup and passes
-tokens to a handler the same way. It throws
-[`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if markup doesn't satisfy
-XML spec:
+[`XMLTokenizer`](https://smikhalevski.github.io/tag-soup/variables/XMLTokenizer.html) reads XML markup the same way. It
+throws [`MarkupSyntaxError`](https://smikhalevski.github.io/tag-soup/classes/MarkupSyntaxError.html) if tags aren't
+balanced, or markup breaks the
+[XML constraints](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#isstrict) that it checks:
 
 ```ts
 import { XMLTokenizer } from 'tag-soup';
@@ -307,7 +286,7 @@ XMLTokenizer.tokenizeFragment('<p>hello</br>', tokenHandler);
 XMLTokenizer.tokenizeFragment('<p>hello<br/></p>', tokenHandler);
 ```
 
-Create a custom tokenizer using
+Create a custom tokenizer with
 [`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html):
 
 ```ts
@@ -321,70 +300,85 @@ myTokenizer.tokenizeFragment('<p><br></p>', tokenHandler);
 ```
 
 [`TokenHandler`](https://smikhalevski.github.io/tag-soup/interfaces/TokenHandler.html) has a method per token. All
-methods are optional, implement only the ones you need. Indices passed to a method point to the token's value in the
-input: start indices are inclusive and end indices are exclusive.
-
-<dl>
-<dt><code>onText</code></dt>
-<dd>Text between tags. <code>isRawText</code> is <code>true</code> for the content of <code>raw_text</code> and
-<code>script_data</code> tags, which parsers don't decode.</dd>
-<dt><code>onStartTagName</code></dt>
-<dd>The tag name in a start tag, <code>p</code> in <code>&lt;p&gt;</code>.</dd>
-<dt><code>onStartTagClosing</code></dt>
-<dd>The <code>&gt;</code> that closes a start tag.</dd>
-<dt><code>onStartTagSelfClosing</code></dt>
-<dd>The <code>/&gt;</code> that closes a self-closing tag.</dd>
-<dt><code>onEndTagName</code></dt>
-<dd>The tag name in an end tag, <code>p</code> in <code>&lt;/p&gt;</code>.</dd>
-<dt><code>onAttribute</code></dt>
-<dd>An attribute name and its value without quotes. Value indices are equal if the attribute has no value. Tokenizers
-don't decode entities.</dd>
-<dt><code>onComment</code></dt>
-<dd>Comment content between <code>&lt;!--</code> and <code>--&gt;</code>.</dd>
-<dt><code>onProcessingInstruction</code></dt>
-<dd>The target and the data of a processing instruction: <code>xml</code> and <code>version="1.0"</code> in
-<code>&lt;?xml version="1.0"?&gt;</code>.</dd>
-<dt><code>onCDATASection</code></dt>
-<dd>CDATA section content between <code>&lt;![CDATA[</code> and <code>]]&gt;</code>.</dd>
-<dt><code>onDoctypeName</code></dt>
-<dd>The name in a DOCTYPE declaration, <code>html</code> in <code>&lt;!DOCTYPE html&gt;</code>.</dd>
-</dl>
+methods are optional, implement only the ones you need. Indexes passed to a method point to the token in the input:
+start indexes are inclusive and end indexes are exclusive.
 
 Tokens are balanced: each start tag is followed by a matching end tag, unless it's self-closing. End tags that the
-tokenizer inserts, for void tags and implicitly ended tags, have the start index equal to the end index.
-
-Use indices to read token values from the input:
+tokenizer inserts, for void tags and implicitly ended tags, have the start index equal to the end index:
 
 ```ts
-import { HTMLTokenizer } from 'tag-soup';
-
-const input = '<p class="x">hello</p>';
-
-HTMLTokenizer.tokenizeFragment(input, {
-  onAttribute(input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
-    input.substring(valueStartIndex, valueEndIndex);
-    // ⮕ 'x'
+HTMLTokenizer.tokenizeFragment('<p>hello<p>cool', {
+  onEndTagName(input, startIndex, endIndex) {
+    // Called with 8, 8 and 15, 15: both p are ended implicitly
   },
 });
 ```
 
+# Streaming
+
+Parsers and tokenizers read text written in chunks, for example from a stream. A token that reaches the end of a chunk
+is read when the next chunk is written, and text between tags is passed as a single token, so the result is the same as
+if the whole text was parsed at once:
+
+```ts
+import { HTMLDOMParser, HTMLSAXParser, toHTML } from 'tag-soup';
+
+const writer = HTMLDOMParser.createDocumentWriter();
+
+writer.write('<p>Hello, ');
+writer.write('Bob!');
+
+toHTML(writer.end());
+// ⮕ '<p>Hello, Bob!</p>'
+
+const saxWriter = HTMLSAXParser.createFragmentWriter({
+  onText(text) {
+    // Called with 'Hello' and ' world'
+  },
+});
+
+saxWriter.write('<b>Hel');
+saxWriter.write('lo</b> wor');
+saxWriter.end('ld');
+```
+
+A tokenizer writer passes tokens with indexes in the part of the stream that it reads now. Add
+[`inputOffset`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerWriter.html#inputoffset) to get indexes in
+the whole stream:
+
+```ts
+import { XMLTokenizer } from 'tag-soup';
+
+const writer = XMLTokenizer.createFragmentWriter({
+  onStartTagName(input, startIndex, endIndex) {
+    writer.inputOffset + startIndex;
+    // ⮕ 1 for 'aaa', 6 for 'bbb'
+  },
+});
+
+writer.write('<aaa><b');
+writer.write('bb></bbb>');
+writer.end('</aaa>');
+```
+
 # Serialization
 
-TagSoup exports two preconfigured serializers: [`toHTML`](https://smikhalevski.github.io/tag-soup/variables/toHTML.html)
-and [`toXML`](https://smikhalevski.github.io/tag-soup/variables/toXML.html).
+[`toHTML`](https://smikhalevski.github.io/tag-soup/variables/toHTML.html) and
+[`toXML`](https://smikhalevski.github.io/tag-soup/variables/toXML.html) serialize DOM nodes. Both escape text and
+attribute values with [`escapeXML`](https://smikhalevski.github.io/speedy-entities/functions/escapeXML.html); `toHTML`
+writes the content of raw text tags, like `script` and `style`, as is, and writes void tags without end tags, while
+`toXML` writes elements without children as self-closing tags:
 
 ```ts
 import { HTMLDOMParser, toHTML } from 'tag-soup';
 
-const fragment = HTMLDOMParser.parseFragment('<p>hello<p>cool</br>');
-// ⮕ DocumentFragment
-
-toHTML(fragment);
-// ⮕ '<p>hello</p><p>cool<br></p>'
+toHTML(HTMLDOMParser.parseFragment('<script>if (a < b) {}</script><p title="&quot;">a &amp; b</p>'));
+// ⮕ '<script>if (a < b) {}</script><p title="&quot;">a &amp; b</p>'
 ```
 
-Create a custom serializer using
-[`createSerializer`](https://smikhalevski.github.io/tag-soup/functions/createSerializer.html):
+Create a custom serializer with
+[`createSerializer`](https://smikhalevski.github.io/tag-soup/functions/createSerializer.html), see
+[`SerializerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html) for all options:
 
 ```ts
 import { HTMLDOMParser, createSerializer } from 'tag-soup';
@@ -393,189 +387,73 @@ const mySerializer = createSerializer({
   tags: { br: { kind: 'void' } },
 });
 
-const fragment = HTMLDOMParser.parseFragment('<p>hello</br>');
-// ⮕ DocumentFragment
-
-mySerializer(fragment);
+mySerializer(HTMLDOMParser.parseFragment('<p>hello</br>'));
 // ⮕ '<p>hello<br></p>'
 ```
 
-[`SerializerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html) accepts the following
-properties:
-
-<dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#tags"><code>tags</code></a></dt>
-<dd>The map from a tag name to <a href="https://smikhalevski.github.io/tag-soup/interfaces/TagSerializationOptions.html"><code>TagSerializationOptions</code></a>: void tags, like <code>br</code> and <code>img</code>, are written without an end tag, and text content of raw text tags, like <code>script</code> and <code>style</code>, is written without <code>encodeText</code>. <a href="#tag-options">Tag options</a> of a parser can be passed here too, so parsers and serializers can share them.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodetext"><code>encodeText</code></a></dt>
-<dd>Encodes text content, for example <code>escapeXML</code> from <code>speedy-entities</code>. Text of raw text tags, comments, CDATA sections and processing instructions are written as is.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#encodeattribute"><code>encodeAttribute</code></a></dt>
-<dd>Encodes attribute values, for example <code>escapeXML</code> from <code>speedy-entities</code>. Values are written in double quotes, so <code>"</code> must be encoded.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#areselfclosingtagssupported"><code>areSelfClosingTagsSupported</code></a></dt>
-<dd>If <code>true</code>, elements without children are written as <code>&lt;a/&gt;</code>, otherwise as <code>&lt;a&gt;&lt;/a&gt;</code>. Void tags are always written without an end tag.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
-<dd>If <code>true</code>, void and raw text tags are matched ignoring ASCII case.</dd>
-</dl>
-
-Serialize XML with entity encoding:
+Serialize XML with all non-ASCII chars encoded:
 
 ```ts
 import { encodeXML } from 'speedy-entities';
 import { XMLDOMParser, createSerializer } from 'tag-soup';
 
-const toXMLEncoded = createSerializer({
+const toASCIIXML = createSerializer({
   areSelfClosingTagsSupported: true,
   encodeText: encodeXML,
   encodeAttribute: encodeXML,
 });
 
-const fragment = XMLDOMParser.parseFragment('<note><text>AT&amp;T</text></note>');
-
-toXMLEncoded(fragment);
-// ⮕ '<note><text>AT&amp;T</text></note>'
+toASCIIXML(XMLDOMParser.parseFragment('<a>caf&#233; &lt;</a>'));
+// ⮕ '<a>caf&#xe9; &lt;</a>'
 ```
 
-# Parser options
+A DOCTYPE is written with its public and system identifiers, if it has them.
 
-[`createDOMParser`](https://smikhalevski.github.io/tag-soup/functions/createDOMParser.html) and
-[`createSAXParser`](https://smikhalevski.github.io/tag-soup/functions/createSAXParser.html) accept
-[`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html):
+# Options
 
-<dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#tokenizer"><code>tokenizer</code></a></dt>
-<dd>The tokenizer that reads tokens for the parser, for example <code>HTMLTokenizer</code>. By default, a tokenizer with default <a href="#tokenizer-options">tokenizer options</a> is created. Parsers can share a tokenizer.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodetext"><code>decodeText</code></a></dt>
-<dd>Decodes text content, for example <code>decodeHTML</code> from <code>speedy-entities</code>. Text inside raw text tags, comments, CDATA sections and processing instructions isn't decoded.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#decodeattribute"><code>decodeAttribute</code></a></dt>
-<dd>Decodes attribute values, for example <code>decodeHTMLAttribute</code> from <code>speedy-entities</code>. HTML decodes attribute values differently: <code>&amp;copy=2</code> stays intact in an attribute value, but becomes <code>©=2</code> in text.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html#arenamespacesrecognized"><code>areNamespacesRecognized</code></a></dt>
-<dd>If <code>true</code>, <code>xmlns</code> and <code>xmlns:*</code> attributes declare namespaces: a DOM parser sets the namespace of each element, and a SAX parser passes the namespace of a tag to <code>onStartTag</code> and <code>onEndTag</code>. Otherwise, elements have no namespace. See <a href="#namespaces">Namespaces</a>.</dd>
-</dl>
+Custom parsers, tokenizers and serializers are configured with options, which are described in the API docs:
+[`ParserOptions`](https://smikhalevski.github.io/tag-soup/interfaces/ParserOptions.html),
+[`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html),
+[`TagParsingOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html) and
+[`SerializerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/SerializerOptions.html).
+
+Parser options tell how names, text and attribute values are renamed and decoded:
 
 ```ts
-import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
-import { createDOMParser, HTMLTokenizer } from 'tag-soup';
+import { decodeHTML } from 'speedy-entities';
+import { createDOMParser, toHTML } from 'tag-soup';
 
 const myParser = createDOMParser({
-  tokenizer: HTMLTokenizer,
+  renameTag: name => name.toLowerCase(),
   decodeText: decodeHTML,
-  decodeAttribute: decodeHTMLAttribute,
 });
+
+toHTML(myParser.parseFragment('<B>caf&eacute;</B>'));
+// ⮕ '<b>café</b>'
 ```
 
-## Tokenizer options
-
-[`createTokenizer`](https://smikhalevski.github.io/tag-soup/functions/createTokenizer.html) accepts
-[`TokenizerOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html), which describe the
-markup that the tokenizer reads:
-
-<dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#tags"><code>tags</code></a></dt>
-<dd>The map from a tag name to <a href="#tag-options">tag options</a>, which describe what the tag can contain, and how it is implicitly ended and started.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areselfclosingtagsrecognized"><code>areSelfClosingTagsRecognized</code></a></dt>
-<dd>If <code>true</code>, self-closing tags (<code>&lt;br/&gt;</code>) are recognized, otherwise they are treated as start tags.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#arecdatasectionsrecognized"><code>areCDATASectionsRecognized</code></a></dt>
-<dd>If <code>true</code>, CDATA sections (<code>&lt;![CDATA[…]]&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areprocessinginstructionsrecognized"><code>areProcessingInstructionsRecognized</code></a></dt>
-<dd>If <code>true</code>, processing instructions (<code>&lt;?target data?&gt;</code>) are recognized, otherwise they are treated as comments.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#aretagnamescaseinsensitive"><code>areTagNamesCaseInsensitive</code></a></dt>
-<dd>If <code>true</code>, ASCII letters in tag names are compared ignoring case.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areunbalancedstarttagsimplicitlyended"><code>areUnbalancedStartTagsImplicitlyEnded</code></a></dt>
-<dd>If <code>true</code>, tags that aren't ended before the end tag of an ancestor, or before the end of the input, are implicitly ended. Otherwise, <code>MarkupSyntaxError</code> is thrown.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#areunbalancedendtagsignored"><code>areUnbalancedEndTagsIgnored</code></a></dt>
-<dd>If <code>true</code>, end tags without a matching start tag are ignored. Otherwise, <code>MarkupSyntaxError</code> is thrown.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TokenizerOptions.html#isstrict"><code>isStrict</code></a></dt>
-<dd>If <code>true</code>, input must satisfy XML constraints, otherwise <code>MarkupSyntaxError</code> is thrown: tag names, attribute names and processing instruction targets must be valid XML names, attribute values must be in double or single quotes, comments, CDATA sections and processing instructions must be terminated, and a document must have a single root element.</dd>
-</dl>
-
-## Tag options
-
-[`TagParsingOptions`](https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html) describe how a tag is
-read:
-
-<dl>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#kind"><code>kind</code></a></dt>
-<dd>The <a href="https://smikhalevski.github.io/tag-soup/types/TagKind.html"><code>TagKind</code></a> of the tag, which defines what the tag can contain:
-<ul>
-<li><code>'normal'</code>: tags and text, which is the default. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#normal-elements">HTML Normal Elements</a>.</li>
-<li><code>'void'</code>: nothing, like <code>br</code> and <code>img</code>. An end tag is inserted right after the start tag. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#void-elements">HTML Void Elements</a>.</li>
-<li><code>'raw_text'</code>: text that is read until the matching end tag, like in <code>style</code>. This text isn't decoded. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements">HTML Raw Text Elements</a>.</li>
-<li><code>'escapable_raw_text'</code>: same as <code>'raw_text'</code>, but the text is decoded, like in <code>textarea</code> and <code>title</code>. See <a href="https://html.spec.whatwg.org/multipage/syntax.html#escapable-raw-text-elements">HTML Escapable Raw Text Elements</a>.</li>
-<li><code>'script_data'</code>: same as <code>'raw_text'</code>, but after <code>&lt;!--</code> a start tag of the same name hides end tags until its own end tag or <code>--&gt;</code>, like in <code>script</code>. See <a href="https://html.spec.whatwg.org/multipage/scripting.html#restrictions-for-contents-of-script-elements">HTML Restrictions for Contents of Script Elements</a>.</li>
-</ul></dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#foreigncontext"><code>foreignContext</code></a></dt>
-<dd>Options that are applied to attributes and content of the tag, like SVG options for <code>svg</code> in HTML. Outer options are restored when the tag is ended. These options can contain <code>tags</code>, <code>areSelfClosingTagsRecognized</code>, <code>areCDATASectionsRecognized</code> and <code>areProcessingInstructionsRecognized</code>, and don't inherit outer options.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#implicitlyendedby"><code>implicitlyEndedBy</code></a></dt>
-<dd>Tags that implicitly end this tag when they are started. For example, <code>{ p: { implicitlyEndedBy: ['h1'] } }</code> means that <code>&lt;h1&gt;</code> ends an enclosing <code>&lt;p&gt;</code>. Tags inside foreign tags end outer tags too: with <code>{ svg: { implicitlyEndedBy: ['br'] } }</code>, <code>&lt;svg&gt;&lt;br&gt;</code> becomes <code>&lt;svg&gt;&lt;/svg&gt;&lt;br&gt;</code>, and <code>br</code> is read with tags of the outer options.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitendingboundary"><code>isImplicitEndingBoundary</code></a></dt>
-<dd>If <code>true</code>, the tag is a boundary for implicit ending: tags that are started inside it don't end tags outside of it. For example, with <code>{ li: { implicitlyEndedBy: ['li'] }, ul: { isImplicitEndingBoundary: true } }</code>, a nested <code>&lt;li&gt;</code> doesn't end the <code>&lt;li&gt;</code> of the outer list.</dd>
-<dt><a href="https://smikhalevski.github.io/tag-soup/interfaces/TagParsingOptions.html#isimplicitlystarted"><code>isImplicitlyStarted</code></a></dt>
-<dd>If <code>true</code>, a start tag is inserted if an unbalanced end tag of this tag is read. For example, with <code>{ p: { isImplicitlyStarted: true } }</code>, <code>&lt;/p&gt;</code> becomes <code>&lt;p&gt;&lt;/p&gt;</code>.</dd>
-</dl>
-
-A parser that mimics browser HTML behavior:
+Tokenizer options tell what tags can contain, and how they are implicitly ended:
 
 ```ts
-import { decodeHTML, decodeHTMLAttribute } from 'speedy-entities';
-import { createDOMParser, createTokenizer, type TokenizerContextOptions, type TokenizerOptions } from 'tag-soup';
-
-// SVG and MathML content doesn't inherit HTML tags
-const svgOptions: TokenizerContextOptions = {
-  areCDATASectionsRecognized: true,
-  areProcessingInstructionsRecognized: true,
-  areSelfClosingTagsRecognized: true,
-};
-
-const mathOptions: TokenizerContextOptions = {
-  areCDATASectionsRecognized: true,
-  areProcessingInstructionsRecognized: true,
-  areSelfClosingTagsRecognized: true,
-};
-
-const htmlOptions: TokenizerOptions = {
-  tags: {
-    area: { kind: 'void' },
-    base: { kind: 'void' },
-    br: { kind: 'void', isImplicitlyStarted: true },
-    col: { kind: 'void' },
-    dd: { implicitlyEndedBy: ['dd', 'dt'] },
-    dl: { isImplicitEndingBoundary: true },
-    dt: { implicitlyEndedBy: ['dd', 'dt'] },
-    embed: { kind: 'void' },
-    hr: { kind: 'void' },
-    img: { kind: 'void' },
-    input: { kind: 'void' },
-    li: { implicitlyEndedBy: ['li'] },
-    link: { kind: 'void' },
-    math: { foreignContext: mathOptions },
-    meta: { kind: 'void' },
-    ol: { isImplicitEndingBoundary: true },
-    p: { implicitlyEndedBy: ['h1', 'h2'], isImplicitlyStarted: true },
-    param: { kind: 'void' },
-    script: { kind: 'script_data' },
-    source: { kind: 'void' },
-    style: { kind: 'raw_text' },
-    svg: { foreignContext: svgOptions },
-    table: { isImplicitEndingBoundary: true },
-    textarea: { kind: 'escapable_raw_text' },
-    title: { kind: 'escapable_raw_text' },
-    track: { kind: 'void' },
-    ul: { isImplicitEndingBoundary: true },
-    wbr: { kind: 'void' },
-  },
-  areTagNamesCaseInsensitive: true,
-  areUnbalancedEndTagsIgnored: true,
-  areUnbalancedStartTagsImplicitlyEnded: true,
-};
-
-// Content of foreignObject is read as HTML again
-svgOptions.tags = { foreignObject: { foreignContext: htmlOptions } };
+import { createDOMParser, createTokenizer, toHTML } from 'tag-soup';
 
 const myParser = createDOMParser({
-  tokenizer: createTokenizer(htmlOptions),
-  decodeText: decodeHTML,
-  decodeAttribute: decodeHTMLAttribute,
+  tokenizer: createTokenizer({
+    tags: {
+      br: { kind: 'void' },
+      li: { implicitEndingTagNames: ['li'] },
+      ul: { isImplicitEndingScope: true },
+    },
+    areUnbalancedEndTagsIgnored: true,
+    areUnbalancedStartTagsImplicitlyEnded: true,
+  }),
 });
+
+toHTML(myParser.parseFragment('<ul><li>one<br><li>two<ul><li>three</ul></ul>'));
+// ⮕ '<ul><li>one<br></li><li>two<ul><li>three</li></ul></li></ul>'
 ```
+
+Options of `HTMLTokenizer` are a complete example, see [html.ts](src/main/html.ts).
 
 # Error handling
 
@@ -599,7 +477,86 @@ try {
 }
 ```
 
+A writer throws an error whose `input` is the part of the stream that it reads now; `inputOffset + startIndex` is the
+index in the whole stream:
+
+```ts
+const writer = XMLDOMParser.createFragmentWriter();
+
+try {
+  writer.write('<a>xxx');
+  writer.write('</b>');
+} catch (error) {
+  error.inputOffset + error.startIndex;
+  // ⮕ 8
+}
+```
+
 `HTMLDOMParser`, `HTMLSAXParser` and `HTMLTokenizer` never throw.
+
+# Cookbook
+
+Collect links with a SAX parser, which doesn't build a DOM:
+
+```ts
+import { HTMLSAXParser } from 'tag-soup';
+
+const hrefs: string[] = [];
+
+HTMLSAXParser.parseDocument('<a href="/a">A</a><a href="/b?x=1&amp;y=2">B</a>', {
+  onStartTag(tagName, attributes) {
+    if (tagName === 'a' && attributes.href !== undefined) {
+      hrefs.push(attributes.href);
+    }
+  },
+});
+
+hrefs;
+// ⮕ ['/a', '/b?x=1&y=2']
+```
+
+Read a DOCTYPE:
+
+```ts
+HTMLSAXParser.parseDocument(
+  '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">',
+  {
+    onDoctype(name, publicId, systemId) {
+      // Called with 'html', '-//W3C//DTD HTML 4.01//EN', 'http://www.w3.org/TR/html4/strict.dtd'
+    },
+  }
+);
+```
+
+Change a DOM and serialize it back:
+
+```ts
+import { HTMLDOMParser, toHTML } from 'tag-soup';
+
+const document = HTMLDOMParser.parseDocument('<ul><li>one<li>two</ul>');
+
+for (const item of document.getElementsByTagName('li')) {
+  item.setAttribute('class', 'item');
+}
+
+toHTML(document);
+// ⮕ '<ul><li class="item">one</li><li class="item">two</li></ul>'
+```
+
+Parse a stream of HTML chunks into a DOM:
+
+```ts
+import fs from 'node:fs';
+import { HTMLDOMParser } from 'tag-soup';
+
+const writer = HTMLDOMParser.createDocumentWriter();
+
+for await (const chunk of fs.createReadStream('index.html', 'utf8')) {
+  writer.write(chunk);
+}
+
+const document = writer.end();
+```
 
 # Performance
 
@@ -674,9 +631,15 @@ npm run perf
 
 # Limitations
 
-TagSoup doesn't resolve some quirky element structures that malformed HTML may cause.
+TagSoup reads markup in one pass and never moves a node after it was created, so it doesn't implement the tree
+construction algorithm of the HTML standard in full:
 
-Assume the following markup:
+- `html`, `head`, `body` and `tbody` aren't inserted when they are missing.
+- Misnested formatting tags aren't fixed with the adoption agency algorithm, and closed formatting tags aren't reopened.
+- Content in a wrong place of a table isn't moved before the table (foster parenting).
+- Legacy features such as `frameset`, `plaintext` and quirks mode aren't supported.
+
+For example, assume the following markup:
 
 <!-- prettier-ignore -->
 ```html
@@ -697,3 +660,7 @@ TagSoup doesn't insert the second `strong` tag:
 <p><strong>okay</strong></p>
 <p>nope</p>
 ```
+
+`HTMLDOMParser` builds the same tree as browsers for 1393 of 1967 tests of the
+[html5lib tree construction suite](https://github.com/html5lib/html5lib-tests), when `html`, `head` and `body` are
+ignored. Most of the other tests need the algorithms above.

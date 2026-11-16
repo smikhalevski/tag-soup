@@ -3,15 +3,23 @@ import type { Tokenizer } from './createTokenizer.ts';
 /**
  * The kind of a tag, which defines what the tag can contain, and how parsers read it and serializers write it:
  *
- * - `'normal'`: tag can contain tags and text. Parsers decode this text with {@link ParserOptions.decodeText}, and
- * serializers encode it with {@link SerializerOptions.encodeText}.
- * - `'void'`: tag can contain nothing. Parsers insert an end tag right after the start tag, and serializers write the
- * tag without an end tag and ignore its children.
- * - `'raw_text'`: tag can contain text up to the matching end tag. Parsers don't decode this text, and serializers
- * write it as is.
- * - `'escapable_raw_text'`: same as `'raw_text'`, but parsers decode the text, and serializers encode it.
- * - `'script_data'`: same as `'raw_text'`, but after `<!--` a start tag of the same name hides end tags until its own
- * end tag or `-->`. Browsers read `script` this way for compatibility with old scripts wrapped in comments:
+ * <dl>
+ * <dt><code>normal</code></dt>
+ * <dd>Tag can contain tags and text. Parsers decode this text with {@link ParserOptions.decodeText}, and serializers
+ * encode it with {@link SerializerOptions.encodeText}.</dd>
+ * <dt><code>void</code></dt>
+ * <dd>Tag can contain nothing. Tokenizers insert an end tag right after the start tag, and serializers write an element
+ * without children as a start tag only.</dd>
+ * <dt><code>raw_text</code></dt>
+ * <dd>Tag can contain text up to the matching end tag. Parsers don't decode this text, and serializers write it as
+ * is.</dd>
+ * <dt><code>escapable_raw_text</code></dt>
+ * <dd>Same as <code>raw_text</code>, but parsers decode the text, and serializers encode it.</dd>
+ * <dt><code>script_data</code></dt>
+ * <dd>Same as <code>raw_text</code>, but after <code>&lt;!--</code> a start tag of the same name hides end tags until
+ * its own end tag or <code>--&gt;</code>. Browsers read <code>script</code> this way for compatibility with old scripts
+ * wrapped in comments:</dd>
+ * </dl>
  *
  * ```html
  * <script><!--<script></script></script>
@@ -31,6 +39,28 @@ import type { Tokenizer } from './createTokenizer.ts';
 export type TagKind = 'normal' | 'void' | 'raw_text' | 'escapable_raw_text' | 'script_data';
 
 /**
+ * The syntax that processing instructions are read with:
+ *
+ * <dl>
+ * <dt><code>comment</code></dt>
+ * <dd>Processing instructions aren't recognized, and are treated as comments.</dd>
+ * <dt><code>xml</code></dt>
+ * <dd>Processing instructions are recognized by XML rules (<code>&lt;?target data?&gt;</code>).</dd>
+ * <dt><code>html</code></dt>
+ * <dd>Processing instructions are recognized by HTML rules (<code>&lt;?target data&gt;</code>). The target is an ASCII
+ * letter or <code>&#95;</code> followed by ASCII letters, digits, <code>-</code> and <code>&#95;</code>, and the data
+ * ends at the first <code>&gt;</code>, without a <code>?</code> before it. Instructions with an invalid target, or with
+ * the target <code>xml</code> or <code>xml-stylesheet</code>, are treated as comments, and an unclosed instruction at
+ * the end of the input is ignored.</dd>
+ * </dl>
+ *
+ * @see [XML Processing Instructions](https://www.w3.org/TR/xml/#sec-pi)
+ * @see [HTML Processing Instruction Open State](https://html.spec.whatwg.org/multipage/parsing.html#processing-instruction-open-state)
+ * @group Tokenizer
+ */
+export type ProcessingInstructionSyntax = 'comment' | 'xml' | 'html';
+
+/**
  * Options of a tag that tokenizers and parsers use.
  *
  * @see {@link TokenizerContextOptions.tags}
@@ -47,9 +77,11 @@ export interface TagParsingOptions {
   kind?: TagKind;
 
   /**
-   * Options that are applied to attributes and content of the tag, which makes it a foreign tag. Outer options are
-   * restored when the tag is ended. Foreign options don't inherit outer options, but options can reference each
-   * other, so foreign content may contain tags that switch back to outer options.
+   * Options of the context that the content of the tag is read in. A tag with these options is a foreign tag. Outer
+   * options are restored when the tag is ended. Foreign options don't inherit outer options, but options can reference
+   * each other, so foreign content may contain tags that switch back to outer options.
+   *
+   * The foreign tag itself is self-closing if either options recognize self-closing tags.
    *
    * For example, in HTML `svg` content is read with XML rules, while `foreignObject` inside `svg` switches back to HTML
    * rules:
@@ -89,14 +121,11 @@ export interface TagParsingOptions {
    * { p: { implicitEndingTagNames: ['h1'] } }
    * ```
    *
-   * Use in conjunction with {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded} and
-   * {@link isImplicitEndingBoundary}.
-   *
    * Tags are ended by name in any context. A tag inside a {@link foreignContext foreign tag} can end the foreign tag,
    * and then it's read with tags of the outer options. For example, in HTML `svg` is implicitly ended by `br`:
    *
    * ```html
-   * <svg><br>text  →  <svg></svg><br/>text
+   * <svg><br>text  →  <svg></svg><br>text
    *                        ▔▔▔▔▔▔ svg is implicitly ended by br
    * ```
    *
@@ -111,19 +140,21 @@ export interface TagParsingOptions {
    *   br: { kind: 'void' },
    * }
    * ```
+   *
+   * @see {@link isImplicitEndingScope}
    */
   implicitEndingTagNames?: Iterable<string>;
 
   /**
-   * If `true` then the tag is a boundary for {@link implicitEndingTagNames implicit ending}: tags that are started inside
-   * this tag don't implicitly end tags outside of it. A boundary tag that must be implicitly ended itself doesn't limit
-   * anything.
+   * If `true` then the tag is an implicit ending scope: tags that are started inside this tag don't
+   * {@link implicitEndingTagNames implicitly end} tags outside of it. A scope that is implicitly ended itself
+   * doesn't limit anything.
    *
    * For example, in HTML `li` is implicitly ended by `li`, but only inside the nearest list:
    *
    * ```html
    * <ul><li><ul><li>  →  <ul><li><ul><li></li></ul></li></ul>
-   *                                  ▔▔▔▔ outer li isn't ended by the nested li
+   *                                  ▔▔▔▔ Outer li isn't ended by the nested li
    * ```
    *
    * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
@@ -131,20 +162,18 @@ export interface TagParsingOptions {
    * ```ts
    * {
    *   li: { implicitEndingTagNames: ['li'] },
-   *   ul: { isImplicitEndingBoundary: true },
-   *   ol: { isImplicitEndingBoundary: true },
+   *   ul: { isImplicitEndingScope: true },
+   *   ol: { isImplicitEndingScope: true },
    * }
    * ```
    *
    * @default false
    */
-  isImplicitEndingBoundary?: boolean;
+  isImplicitEndingScope?: boolean;
 
   /**
-   * If `true` then a start tag is inserted if an unbalanced end tag of this tag is met. Otherwise,
-   * a {@link MarkupSyntaxError} is thrown.
-   *
-   * You can ignore unbalanced end tags with {@link TokenizerOptions.areUnbalancedEndTagsIgnored}.
+   * If `true` then a start tag is inserted before an unbalanced end tag of this tag. Otherwise, the end tag is ignored
+   * or rejected, see {@link TokenizerOptions.areUnbalancedEndTagsIgnored}.
    *
    * For example, in HTML `p` and `br` tags follow these semantics:
    *
@@ -152,8 +181,8 @@ export interface TagParsingOptions {
    * </p>   →  <p></p>
    *           ▔▔▔ p is implicitly started
    *
-   * </br>  →  <br/>
-   *           ▔▔▔▔▔ br is implicitly started and self-closed
+   * </br>  →  <br>
+   *           ▔▔▔▔ br is implicitly started
    * ```
    *
    * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
@@ -170,9 +199,51 @@ export interface TagParsingOptions {
    * }
    * ```
    *
+   * An end tag of an implicitly started tag doesn't end the tag across an
+   * {@link isImplicitEndingScope implicit ending scope} that its start tag doesn't end. A start tag is inserted
+   * instead:
+   *
+   * ```html
+   * <p><button></p>  →  <p><button><p></p></button></p>
+   * ```
+   *
    * @default false
    */
   isImplicitlyStarted?: boolean;
+
+  /**
+   * The end tag scope level of the tag. An end tag of an enclosing tag doesn't end this tag and the tags inside it if
+   * this level is higher than the level of the enclosing tag. Such an end tag is unbalanced.
+   *
+   * For example, in HTML an end tag inside a table cell can't end tags outside the table, but the end tag of a row ends
+   * the cell, and the end tag of a table ends rows and cells:
+   *
+   * ```html
+   * <div><table><tr><td></div>aaa  →  <div><table><tr><td>aaa</td></tr></table></div>
+   *                     ▔▔▔▔▔▔ Ignored, so "aaa" stays in the cell
+   * ```
+   *
+   * Without end tag scope levels, the end tag of `div` ends the cell, the row and the table:
+   *
+   * ```html
+   * <div><table><tr><td></div>aaa  →  <div><table><tr><td></td></tr></table></div>aaa
+   *                     ▔▔▔▔▔▔ Ends div, so "aaa" follows it
+   * ```
+   *
+   * To achieve this behavior, set {@link TokenizerContextOptions.tags tags} to:
+   *
+   * ```ts
+   * {
+   *   td: { endTagScopeLevel: 1 },
+   *   tr: { endTagScopeLevel: 1 },
+   *   table: { endTagScopeLevel: 2 },
+   * }
+   * ```
+   *
+   * @see [HTML Has An Element In Scope](https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-scope)
+   * @default 0
+   */
+  endTagScopeLevel?: number;
 }
 
 /**
@@ -232,11 +303,12 @@ export interface TokenizerContextOptions {
   areCDATASectionsRecognized?: boolean;
 
   /**
-   * If `true` then processing instructions (`<?target data?>`) are recognized, otherwise they are treated as comments.
+   * The syntax that processing instructions are read with.
    *
-   * @default false
+   * @see {@link ProcessingInstructionSyntax}
+   * @default 'comment'
    */
-  areProcessingInstructionsRecognized?: boolean;
+  processingInstructionSyntax?: ProcessingInstructionSyntax;
 }
 
 /**
@@ -246,14 +318,14 @@ export interface TokenizerContextOptions {
  */
 export interface TokenizerOptions extends TokenizerContextOptions {
   /**
-   * If `true` then ASCII alpha characters are case-insensitive in tag names.
+   * If `true` then the case of ASCII letters in tag names is ignored.
    *
    * @default false
    */
   areTagNamesCaseInsensitive?: boolean;
 
   /**
-   * If `true` then tags that aren't ended before the end tag of an ancestor, or before the end of the input, are
+   * If `true` then tags that aren't ended before the end tag of an enclosing tag, or before the end of the input, are
    * implicitly ended. Otherwise, a {@link MarkupSyntaxError} is thrown.
    *
    * Use in conjunction with {@link areUnbalancedEndTagsIgnored}.
@@ -268,8 +340,9 @@ export interface TokenizerOptions extends TokenizerContextOptions {
   areUnbalancedStartTagsImplicitlyEnded?: boolean;
 
   /**
-   * If `true` then end tags that don't have a corresponding start tag are ignored. Otherwise,
-   * a {@link MarkupSyntaxError} is thrown.
+   * If `true` then unbalanced end tags are ignored, otherwise a {@link MarkupSyntaxError} is thrown. An end tag is
+   * unbalanced if it doesn't match an enclosing tag, or if it can't end the tags inside the matching one, see
+   * {@link TagParsingOptions.endTagScopeLevel}.
    *
    * Use in conjunction with {@link areUnbalancedStartTagsImplicitlyEnded}.
    *
@@ -283,13 +356,15 @@ export interface TokenizerOptions extends TokenizerContextOptions {
   areUnbalancedEndTagsIgnored?: boolean;
 
   /**
-   * If `true` then input is read with XML constraints, and a {@link MarkupSyntaxError} is thrown if input doesn't
-   * satisfy them:
+   * If `true` then the input is read with XML constraints, and a {@link MarkupSyntaxError} is thrown if the input
+   * doesn't satisfy them:
    *
    * - tag names, attribute names and processing instruction targets must be valid XML names;
    * - attributes must have values in double or single quotes;
-   * - comments, CDATA sections and processing instructions must be terminated;
-   * - a document must have a single root element.
+   * - comments, CDATA sections and processing instructions must be closed;
+   * - a document can't have more than one root element.
+   *
+   * Otherwise, the tokenizer is forgiving: it reads markup by HTML rules, and throws only if tags can't be balanced.
    *
    * @default false
    */
@@ -318,8 +393,8 @@ export interface ParserOptions {
   /**
    * Renames tags. Use this method to normalize tag names, for example to lower case in HTML.
    *
-   * Called once for each start tag name read from the input. End tags get the name of the start tag that they end, so
-   * the tokenizer matches tags by the names as they appear in the input, regardless of renaming.
+   * End tags get the name of the start tag that they end, since the tokenizer matches tags by their names in the
+   * input.
    *
    * By default, tags aren't renamed.
    *
@@ -334,8 +409,6 @@ export interface ParserOptions {
   /**
    * Renames attributes. Use this method to normalize attribute names, for example to lower case in HTML.
    *
-   * Called for each attribute name read from the input, before its value is decoded with {@link decodeAttribute}.
-   *
    * By default, attributes aren't renamed.
    *
    * @example
@@ -347,10 +420,10 @@ export interface ParserOptions {
   renameAttribute?: (name: string) => string;
 
   /**
-   * Decodes text content. Use this method to decode HTML/XML entities.
+   * Decodes text. Use this method to decode HTML/XML entities.
    *
-   * Text inside {@link TagParsingOptions.kind raw text tags}, comments, CDATA sections and processing instructions
-   * isn't decoded.
+   * Text of `raw_text` and `script_data` {@link TagParsingOptions.kind tags}, comments, CDATA sections and processing
+   * instructions isn't decoded.
    *
    * By default, text isn't decoded.
    *
@@ -381,9 +454,8 @@ export interface ParserOptions {
   decodeAttribute?: (value: string) => string;
 
   /**
-   * If `true` then `xmlns` and `xmlns:*` attributes declare namespaces, and an element gets the namespace that the
-   * prefix of its tag name is bound to, or the default namespace if the tag name has no prefix. Otherwise, elements
-   * have no namespace.
+   * If `true` then `xmlns` and `xmlns:*` attributes declare namespaces, and a tag gets the namespace that the prefix of
+   * its name is bound to, or the default namespace if the name has no prefix. Otherwise, tags have no namespace.
    *
    * ```html
    * <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -394,9 +466,8 @@ export interface ParserOptions {
    * Here `svg` has the namespace `http://www.w3.org/2000/svg`, and `xlink:a` has the namespace
    * `http://www.w3.org/1999/xlink`.
    *
-   * An element can declare the namespace of its own tag name. An element whose prefix isn't bound has no namespace.
-   * Attributes that declare namespaces are kept, and namespaces of other attributes aren't resolved by parsers. In a
-   * DOM,
+   * A tag can declare the namespace of its own name. A tag whose prefix isn't bound has no namespace. Attributes that
+   * declare namespaces are kept, and namespaces of other attributes aren't resolved by parsers. In a DOM,
    * [`Element.getAttributeNS`](https://smikhalevski.github.io/flyweight-dom/classes/flyweight-dom.Element.html#getattributens)
    * looks them up.
    *
@@ -426,7 +497,7 @@ export interface SerializerOptions {
   tags?: Record<string, TagSerializationOptions>;
 
   /**
-   * If `true` then ASCII alpha characters are case-insensitive in tag names.
+   * If `true` then the case of ASCII letters in tag names is ignored.
    *
    * @default false
    */
@@ -434,17 +505,17 @@ export interface SerializerOptions {
 
   /**
    * If `true` then elements without children are written as self-closing tags (`<a/>`), otherwise as a start tag
-   * followed by an end tag (`<a></a>`). Void tags are always written without an end tag.
+   * followed by an end tag (`<a></a>`). Void elements without children are always written as a start tag only.
    *
    * @default false
    */
   areSelfClosingTagsSupported?: boolean;
 
   /**
-   * Encodes text content. Use this method to encode HTML/XML entities.
+   * Encodes text. Use this method to encode HTML/XML entities.
    *
-   * Text inside {@link TagSerializationOptions.kind raw text tags}, comments, CDATA sections and processing
-   * instructions is written as is.
+   * Text of `raw_text` and `script_data` {@link TagSerializationOptions.kind tags}, comments, CDATA sections and
+   * processing instructions is written as is.
    *
    * By default, text isn't encoded.
    *
@@ -474,10 +545,10 @@ export interface SerializerOptions {
 }
 
 /**
- * Parses text that is written in chunks.
+ * Parses an input that is written in chunks.
  *
  * A token that reaches the end of a chunk is read when the next chunk is written, since the token can continue there,
- * so the result is the same as if the whole text was parsed at once. Text between tags, including the content of raw
+ * so the result is the same as if the whole input was parsed at once. Text between tags, including the content of raw
  * text tags, is read as a single token as well.
  *
  * @template TResult The result of parsing.
@@ -488,25 +559,26 @@ export interface SerializerOptions {
  */
 export interface ParserWriter<TResult = void> {
   /**
-   * Parses a chunk of text.
+   * Parses a chunk.
    *
-   * @param chunk The chunk of text.
-   * @throws {@link MarkupSyntaxError} If text is malformed and options don't allow to recover.
+   * @param chunk The chunk to parse.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery. Chunks
+   * can't be written after that.
    */
   write(chunk: string): void;
 
   /**
-   * Parses the last chunk of text, and ends tags that weren't ended. Chunks can't be written after that.
+   * Parses the last chunk, and ends tags that weren't ended. Chunks can't be written after that.
    *
-   * @param chunk The last chunk of text.
+   * @param chunk The last chunk.
    * @returns The result of parsing.
-   * @throws {@link MarkupSyntaxError} If text is malformed and options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   end(chunk?: string): TResult;
 }
 
 /**
- * Reads tokens from text that is written in chunks, and passes them to a {@link TokenHandler}.
+ * Reads tokens from an input that is written in chunks, and passes them to a {@link TokenHandler}.
  *
  * @see {@link Tokenizer.createDocumentWriter}
  * @see {@link Tokenizer.createFragmentWriter}
@@ -515,7 +587,7 @@ export interface ParserWriter<TResult = void> {
 export interface TokenizerWriter extends ParserWriter {
   /**
    * The index in the stream where the input that is passed to the handler starts. The stream is all chunks that were
-   * written, and the input is the part of the stream that wasn't read before, followed by the last written chunk.
+   * written, and the input is the last written chunk, preceded by the part of earlier chunks that wasn't read yet.
    *
    * @example
    * const writer = HTMLTokenizer.createDocumentWriter({
@@ -529,7 +601,7 @@ export interface TokenizerWriter extends ParserWriter {
 }
 
 /**
- * Receives tokens that are read from text, one method per token.
+ * Receives tokens that are read from an input, one method per token.
  *
  * @group Tokenizer
  */
@@ -537,7 +609,7 @@ export interface TokenHandler {
   /**
    * Called when text between tags is read.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the text, inclusive.
    * @param endIndex The end index of the text, exclusive.
    * @param isRawText `true` if the text is the content of a `raw_text` or `script_data`
@@ -548,16 +620,17 @@ export interface TokenHandler {
   /**
    * Called when the tag name in a start tag is read, `p` in `<p>`.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the tag name, inclusive.
    * @param endIndex The end index of the tag name, exclusive.
    */
   onStartTagName?(input: string, startIndex: number, endIndex: number): void;
 
   /**
-   * Called when the `>` that closes a start tag is read.
+   * Called when the `>` that closes a start tag is read. Also called when the input ends inside a start tag, and for a
+   * start tag that a tokenizer inserts, with indexes that don't point to `>`.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the closing, inclusive.
    * @param endIndex The end index of the closing, exclusive.
    */
@@ -568,7 +641,7 @@ export interface TokenHandler {
    *
    * Only called if {@link TokenizerContextOptions.areSelfClosingTagsRecognized self-closing tags are recognized}.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the closing, inclusive.
    * @param endIndex The end index of the closing, exclusive.
    */
@@ -577,20 +650,19 @@ export interface TokenHandler {
   /**
    * Called when the tag name in an end tag is read, `p` in `</p>`.
    *
-   * End tags that are inserted by a tokenizer, for void tags and implicitly ended tags, have equal start and end
-   * indices.
+   * End tags that a tokenizer inserts, for void tags and implicitly ended tags, have equal start and end indexes.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the tag name, inclusive.
    * @param endIndex The end index of the tag name, exclusive.
    */
   onEndTagName?(input: string, startIndex: number, endIndex: number): void;
 
   /**
-   * Called when an attribute is read. Value indices point to the value without quotes, and are equal if the attribute
-   * has no value. Entities aren't decoded.
+   * Called when an attribute is read. Value indexes point to the value without quotes, and are equal if the attribute
+   * has no value.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param nameStartIndex The start index of the attribute name, inclusive.
    * @param nameEndIndex The end index of the attribute name, exclusive.
    * @param valueStartIndex The start index of the attribute value, inclusive.
@@ -605,11 +677,15 @@ export interface TokenHandler {
   ): void;
 
   /**
-   * Called when a comment is read. Indices point to the comment content between `<!--` and `-->`.
+   * Called when a comment is read. Indexes point to the comment content between `<!--` and `-->`.
    *
-   * @param input The text that indices point to.
+   * A forgiving tokenizer reads unrecognized markup like `<!x>`, `<?x>` and `</#>` as a bogus comment, with the
+   * content `x`, `?x` and `#`.
+   *
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the comment content, inclusive.
    * @param endIndex The end index of the comment content, exclusive.
+   * @see [HTML Bogus Comment State](https://html.spec.whatwg.org/multipage/parsing.html#bogus-comment-state)
    */
   onComment?(input: string, startIndex: number, endIndex: number): void;
 
@@ -617,7 +693,7 @@ export interface TokenHandler {
    * Called when a processing instruction is read: in `<?xml version="1.0"?>` the target is `xml` and the data is
    * `version="1.0"`.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param targetStartIndex The start index of the target, inclusive.
    * @param targetEndIndex The end index of the target, exclusive.
    * @param dataStartIndex The start index of the data, inclusive.
@@ -632,20 +708,37 @@ export interface TokenHandler {
   ): void;
 
   /**
-   * Called when a CDATA section is read. Indices point to the content between `<![CDATA[` and `]]>`.
+   * Called when a CDATA section is read. Indexes point to the content between `<![CDATA[` and `]]>`.
    *
-   * @param input The text that indices point to.
+   * @param input The input that indexes point to.
    * @param startIndex The start index of the content, inclusive.
    * @param endIndex The end index of the content, exclusive.
    */
   onCDATASection?(input: string, startIndex: number, endIndex: number): void;
 
   /**
-   * Called when a DOCTYPE declaration is read. Indices point to the name, `html` in `<!DOCTYPE html>`.
+   * Called when a DOCTYPE is read.
    *
-   * @param input The text that indices point to.
-   * @param startIndex The start index of the name, inclusive.
-   * @param endIndex The end index of the name, exclusive.
+   * A missing identifier has equal start and end indexes, so in `<!DOCTYPE html>` both identifiers are empty strings.
+   *
+   * DOCTYPE is read only in a document, before the first tag or text. A forgiving tokenizer reads the first DOCTYPE
+   * there and ignores the others, and a strict tokenizer throws a {@link MarkupSyntaxError} at DOCTYPE elsewhere.
+   *
+   * @param input The input that indexes point to.
+   * @param nameStartIndex The start index of the name, inclusive.
+   * @param nameEndIndex The end index of the name, exclusive.
+   * @param publicIdStartIndex The start index of the public identifier, inclusive.
+   * @param publicIdEndIndex The end index of the public identifier, exclusive.
+   * @param systemIdStartIndex The start index of the system identifier, inclusive.
+   * @param systemIdEndIndex The end index of the system identifier, exclusive.
    */
-  onDoctypeName?(input: string, startIndex: number, endIndex: number): void;
+  onDoctype?(
+    input: string,
+    nameStartIndex: number,
+    nameEndIndex: number,
+    publicIdStartIndex: number,
+    publicIdEndIndex: number,
+    systemIdStartIndex: number,
+    systemIdEndIndex: number
+  ): void;
 }

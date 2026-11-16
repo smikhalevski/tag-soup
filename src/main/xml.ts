@@ -1,14 +1,15 @@
 import { decodeXML, escapeXML } from 'speedy-entities';
-import { createDOMParser } from './createDOMParser.ts';
-import { createSAXParser } from './createSAXParser.ts';
+import { createDOMParserFromConfig } from './createDOMParser.ts';
+import { createSAXParserFromConfig } from './createSAXParser.ts';
 import { createSerializer } from './createSerializer.ts';
 import { createTokenizer } from './createTokenizer.ts';
-import { type ParserOptions, type SerializerOptions, type TokenizerOptions } from './types.ts';
+import { resolveParserOptions } from './resolveParserOptions.ts';
+import { type SerializerOptions, type TokenizerOptions } from './types.ts';
 
 const xmlTokenizerOptions: TokenizerOptions = {
-  areSelfClosingTagsRecognized: true,
-  areProcessingInstructionsRecognized: true,
   areCDATASectionsRecognized: true,
+  areSelfClosingTagsRecognized: true,
+  processingInstructionSyntax: 'xml',
   isStrict: true,
 };
 
@@ -19,39 +20,36 @@ const xmlSerializerOptions: SerializerOptions = {
 };
 
 /**
- * Tokenizes XML markup as a stream of tokens.
+ * Reads tokens from XML markup.
  *
- * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group Tokenizer
  */
 export const XMLTokenizer = createTokenizer(xmlTokenizerOptions);
 
-const xmlParserOptions: ParserOptions = {
+const xmlParserConfig = resolveParserOptions({
   tokenizer: XMLTokenizer,
   decodeText: decodeXML,
   decodeAttribute: decodeXML,
   areNamespacesRecognized: true,
-};
+});
 
 /**
  * Parses XML markup as a DOM. Decodes XML entities with
  * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html), and resolves namespaces of
- * elements from `xmlns` attributes.
+ * elements from `xmlns` and `xmlns:*` attributes.
  *
- * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group DOM
  */
-export const XMLDOMParser = createDOMParser(xmlParserOptions);
+export const XMLDOMParser = createDOMParserFromConfig(xmlParserConfig);
 
 /**
  * Parses XML markup and calls {@link SAXHandler} methods when tokens are read. Decodes XML entities with
  * [`decodeXML`](https://smikhalevski.github.io/speedy-entities/functions/decodeXML.html), and resolves namespaces of
- * tags from `xmlns` attributes.
+ * tags from `xmlns` and `xmlns:*` attributes.
  *
- * @throws {@link MarkupSyntaxError} If markup isn't well-formed XML.
  * @group SAX
  */
-export const XMLSAXParser = createSAXParser(xmlParserOptions);
+export const XMLSAXParser = createSAXParserFromConfig(xmlParserConfig);
 
 /**
  * Serializes a DOM node as an XML string. Encodes text and attribute values with

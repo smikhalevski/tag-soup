@@ -10,8 +10,8 @@ import { XML_NAMESPACE, XMLNS_NAMESPACE } from 'flyweight-dom';
  * Most elements declare no namespaces, so a scope is created only for an element that declares one, and other
  * elements cost a counter update.
  *
- * Arrays are stacks that are indexed by a cursor and never shrink, so entries above a cursor are stale, and are
- * overwritten by later declarations.
+ * Arrays are stacks that never shrink: entries after the last index are stale, and are overwritten by later
+ * declarations.
  *
  * @internal
  */
@@ -23,7 +23,7 @@ export class NamespaceStack {
 
   /**
    * Prefixes declared by `xmlns:*` attributes of enclosing elements, the innermost declaration is at
-   * {@link prefixCursor}.
+   * {@link lastPrefixIndex}.
    */
   prefixes: string[] = [];
 
@@ -36,7 +36,7 @@ export class NamespaceStack {
   /**
    * The index of the innermost declared prefix, or -1 if no prefixes are declared.
    */
-  prefixCursor = -1;
+  lastPrefixIndex = -1;
 
   /**
    * The number of elements that are started and not yet ended.
@@ -49,9 +49,9 @@ export class NamespaceStack {
   scopeDepths: number[] = [];
 
   /**
-   * {@link prefixCursor} outside of each scope, restored when the scope ends.
+   * {@link lastPrefixIndex} outside of each scope, restored when the scope ends.
    */
-  scopePrefixCursors: number[] = [];
+  scopeLastPrefixIndexes: number[] = [];
 
   /**
    * {@link defaultNamespaceURI} outside of each scope, restored when the scope ends.
@@ -61,7 +61,7 @@ export class NamespaceStack {
   /**
    * The index of the innermost scope, or -1 if no enclosing element declares namespaces.
    */
-  scopeCursor = -1;
+  lastScopeIndex = -1;
 
   /**
    * Declares a namespace in the scope of the element being read, if the attribute is `xmlns` or `xmlns:*`. Other
@@ -87,12 +87,12 @@ export class NamespaceStack {
     const scopeDepth = this.depth + 1;
 
     // Scopes of elements that were ended are removed, so only the element being read can have a scope at this depth
-    if (this.scopeCursor === -1 || this.scopeDepths[this.scopeCursor] !== scopeDepth) {
-      const scopeCursor = ++this.scopeCursor;
+    if (this.lastScopeIndex === -1 || this.scopeDepths[this.lastScopeIndex] !== scopeDepth) {
+      const lastScopeIndex = ++this.lastScopeIndex;
 
-      this.scopeDepths[scopeCursor] = scopeDepth;
-      this.scopePrefixCursors[scopeCursor] = this.prefixCursor;
-      this.scopeDefaultNamespaceURIs[scopeCursor] = this.defaultNamespaceURI;
+      this.scopeDepths[lastScopeIndex] = scopeDepth;
+      this.scopeLastPrefixIndexes[lastScopeIndex] = this.lastPrefixIndex;
+      this.scopeDefaultNamespaceURIs[lastScopeIndex] = this.defaultNamespaceURI;
     }
 
     const namespaceURI = attributeValue.length === 0 ? null : attributeValue;
@@ -102,10 +102,10 @@ export class NamespaceStack {
       return;
     }
 
-    const prefixCursor = ++this.prefixCursor;
+    const lastPrefixIndex = ++this.lastPrefixIndex;
 
-    this.prefixes[prefixCursor] = attributeName.substring(6);
-    this.namespaceURIs[prefixCursor] = namespaceURI;
+    this.prefixes[lastPrefixIndex] = attributeName.substring(6);
+    this.namespaceURIs[lastPrefixIndex] = namespaceURI;
   }
 
   /**
@@ -135,7 +135,7 @@ export class NamespaceStack {
     const { prefixes } = this;
 
     // The innermost declaration of a prefix wins. Prefixes are compared in place, so the tag name isn't split.
-    for (let index = this.prefixCursor; index !== -1; --index) {
+    for (let index = this.lastPrefixIndex; index !== -1; --index) {
       const prefix = prefixes[index];
 
       if (prefix.length === prefixLength && tagName.startsWith(prefix)) {
@@ -147,7 +147,7 @@ export class NamespaceStack {
   }
 
   /**
-   * Starts the element being read, so namespaces declared after this call are in the scope of its child.
+   * Starts the element being read, so namespaces declared after this call are in the scope of its children.
    */
   startElement(): void {
     ++this.depth;
@@ -158,14 +158,14 @@ export class NamespaceStack {
    */
   endElement(): void {
     const depth = this.depth--;
-    const scopeCursor = this.scopeCursor;
+    const lastScopeIndex = this.lastScopeIndex;
 
-    if (scopeCursor === -1 || this.scopeDepths[scopeCursor] !== depth) {
+    if (lastScopeIndex === -1 || this.scopeDepths[lastScopeIndex] !== depth) {
       return;
     }
 
-    this.prefixCursor = this.scopePrefixCursors[scopeCursor];
-    this.defaultNamespaceURI = this.scopeDefaultNamespaceURIs[scopeCursor];
-    this.scopeCursor = scopeCursor - 1;
+    this.lastPrefixIndex = this.scopeLastPrefixIndexes[lastScopeIndex];
+    this.defaultNamespaceURI = this.scopeDefaultNamespaceURIs[lastScopeIndex];
+    this.lastScopeIndex = lastScopeIndex - 1;
   }
 }

@@ -3,7 +3,7 @@ import { resolveTokenizerOptions, type TokenizerConfig } from './resolveTokenize
 import type { TokenHandler, TokenizerOptions, TokenizerWriter } from './types.ts';
 
 /**
- * Reads tokens from text and passes them to a {@link TokenHandler}.
+ * Reads tokens from an input and passes them to a {@link TokenHandler}.
  *
  * @see {@link createTokenizer}
  * @group Tokenizer
@@ -12,29 +12,29 @@ export interface Tokenizer {
   /**
    * Reads tokens from a document.
    *
-   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Before the first tag or text, spaces are skipped and DOCTYPE is read.
    *
-   * @param input The text to read tokens from.
+   * @param input The input to read tokens from.
    * @param handler The handler that receives tokens.
-   * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   tokenizeDocument(input: string, handler: TokenHandler): void;
 
   /**
    * Reads tokens from a document fragment.
    *
-   * DOCTYPE isn't recognized.
+   * DOCTYPE isn't read.
    *
-   * @param input The text to read tokens from.
+   * @param input The input to read tokens from.
    * @param handler The handler that receives tokens.
-   * @throws {@link MarkupSyntaxError} If text is malformed and tokenizer options don't allow to recover.
+   * @throws {@link MarkupSyntaxError} If the input is malformed and tokenizer options don't allow recovery.
    */
   tokenizeFragment(input: string, handler: TokenHandler): void;
 
   /**
    * Creates a writer that reads tokens from a document written in chunks.
    *
-   * Leading spaces are skipped, and DOCTYPE is recognized before the first tag or text.
+   * Before the first tag or text, spaces are skipped and DOCTYPE is read.
    *
    * @example
    * const writer = HTMLTokenizer.createDocumentWriter({
@@ -56,7 +56,7 @@ export interface Tokenizer {
   /**
    * Creates a writer that reads tokens from a document fragment written in chunks.
    *
-   * DOCTYPE isn't recognized.
+   * DOCTYPE isn't read.
    *
    * @param handler The handler that receives tokens.
    * @returns The new writer.
@@ -65,10 +65,11 @@ export interface Tokenizer {
 }
 
 /**
- * Creates a tokenizer that reads tokens from text and passes them to a {@link TokenHandler}.
+ * Creates a tokenizer that reads tokens from an input and passes them to a {@link TokenHandler}.
  *
  * Tokens are _guaranteed_ to be balanced: each start tag is followed by a matching end tag, unless it's self-closing.
- * Missing tokens are inserted if needed.
+ * Missing tags are inserted and unbalanced end tags are ignored as options allow, otherwise a {@link MarkupSyntaxError}
+ * is thrown.
  *
  * @example
  * import { createTokenizer } from 'tag-soup';

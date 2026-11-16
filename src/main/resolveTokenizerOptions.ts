@@ -1,24 +1,26 @@
-import type { TagKind, TagParsingOptions, TokenizerContextOptions, TokenizerOptions } from './types.ts';
-import {
-  areCaseInsensitiveSubstringsEqual,
-  areCaseSensitiveSubstringsEqual,
-  getCaseInsensitiveHashCode,
-  getCaseSensitiveHashCode,
-  identity,
-  type SubstringComparer,
-  type SubstringHasher,
-  toLowerCase,
-} from './utils.ts';
+import type {
+  ProcessingInstructionSyntax,
+  TagKind,
+  TagParsingOptions,
+  TokenizerContextOptions,
+  TokenizerOptions,
+} from './types.ts';
+import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode, identity, toLowerCase } from './utils.ts';
 
 /**
  * Resolved options of a tag in a context.
  */
 export interface TagParsingConfig {
   /**
-   * The tag name, in lower case if tag names are case-insensitive. A lookup by hash code compares it, since different
-   * names can share a hash code.
+   * The tag name, in lower case if tag names are case-insensitive.
    */
   tagName: string;
+
+  /**
+   * Char codes of {@link tagName}. A lookup by hash code compares them with the char codes that the tag stack holds,
+   * since different names can share a hash code.
+   */
+  tagNameCharCodes: Uint16Array;
 
   /**
    * The hash code of {@link tagName}.
@@ -36,14 +38,19 @@ export interface TagParsingConfig {
   foreignContext: TokenizerContext | undefined;
 
   /**
-   * @see {@link TagParsingOptions.isImplicitEndingBoundary}
+   * @see {@link TagParsingOptions.isImplicitEndingScope}
    */
-  isImplicitEndingBoundary: boolean;
+  isImplicitEndingScope: boolean;
 
   /**
    * @see {@link TagParsingOptions.isImplicitlyStarted}
    */
   isImplicitlyStarted: boolean;
+
+  /**
+   * @see {@link TagParsingOptions.endTagScopeLevel}
+   */
+  endTagScopeLevel: number;
 
   /**
    * Names of tags that implicitly end this tag, normalized like {@link tagName}.
@@ -53,8 +60,8 @@ export interface TagParsingConfig {
   implicitEndingTagNameSet: ReadonlySet<string>;
 
   /**
-   * The bit of the group of this tag, or 0 if the tag can't be implicitly ended. Tags with the same set of
-   * {@link implicitEndingTagNameSet} names are in one group. Groups of all contexts are numbered together, so one bitmask
+   * The bit of the group of this tag, or 0 if the tag can't be implicitly ended. Tags with the same
+   * {@link implicitEndingTagNameSet} are in one group. Groups of all contexts are numbered together, so one bitmask
    * covers enclosing tags of any context. Groups from the 30th up share bit 29.
    */
   groupBit: number;
@@ -104,9 +111,9 @@ export interface TokenizerContext {
   areCDATASectionsRecognized: boolean;
 
   /**
-   * @see {@link TokenizerContextOptions.areProcessingInstructionsRecognized}
+   * @see {@link TokenizerContextOptions.processingInstructionSyntax}
    */
-  areProcessingInstructionsRecognized: boolean;
+  processingInstructionSyntax: ProcessingInstructionSyntax;
 }
 
 /**
@@ -119,6 +126,11 @@ export interface TokenizerConfig {
   rootContext: TokenizerContext;
 
   /**
+   * @see {@link TokenizerOptions.areTagNamesCaseInsensitive}
+   */
+  areTagNamesCaseInsensitive: boolean;
+
+  /**
    * @see {@link TokenizerOptions.areUnbalancedStartTagsImplicitlyEnded}
    */
   areUnbalancedStartTagsImplicitlyEnded: boolean;
@@ -129,29 +141,13 @@ export interface TokenizerConfig {
   areUnbalancedEndTagsIgnored: boolean;
 
   /**
-   * If `true` then tag names are hashed and compared ignoring the case of ASCII letters.
-   */
-  areTagNamesCaseInsensitive: boolean;
-
-  /**
-   * Compares substrings, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`. Comparisons of names with
-   * equal hash codes pass end indices minus 1 to skip the last char, see {@link getCaseInsensitiveHashCode}.
-   */
-  areSubstringsEqual: SubstringComparer;
-
-  /**
-   * Returns the hash code of a tag name, case-insensitive if {@link areTagNamesCaseInsensitive} is `true`.
-   */
-  getSubstringHashCode: SubstringHasher;
-
-  /**
    * @see {@link TokenizerOptions.isStrict}
    */
   isStrict: boolean;
 
   /**
-   * If `true` then the input is a fragment, which has no prologue: leading spaces aren't skipped and DOCTYPE isn't
-   * recognized. A strict tokenizer also allows several root elements in a fragment.
+   * If `true` then the input is a fragment, which has no prologue: spaces aren't skipped, and DOCTYPE is ignored by a
+   * forgiving tokenizer and rejected by a strict one. A strict tokenizer also allows several root elements.
    */
   isFragment: boolean;
 }
@@ -170,17 +166,12 @@ export function resolveTokenizerOptions(options: TokenizerOptions): TokenizerCon
   // Functions that depend on whether tag names are case-insensitive
   const normalizeTagName = areTagNamesCaseInsensitive ? toLowerCase : identity;
   const getSubstringHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
-  const areSubstringsEqual = areTagNamesCaseInsensitive
-    ? areCaseInsensitiveSubstringsEqual
-    : areCaseSensitiveSubstringsEqual;
 
   return {
     rootContext: resolveContexts(options, normalizeTagName, getSubstringHashCode),
+    areTagNamesCaseInsensitive,
     areUnbalancedStartTagsImplicitlyEnded,
     areUnbalancedEndTagsIgnored,
-    areTagNamesCaseInsensitive,
-    areSubstringsEqual,
-    getSubstringHashCode,
     isStrict,
     isFragment: false,
   };
@@ -214,7 +205,7 @@ interface TagGroup {
 // Groups from the 30th up share bit 29, the highest bit of a positive small integer, which V8 doesn't allocate
 const LAST_GROUP_BIT_INDEX = 29;
 
-// The empty set of ending tag names, shared by tags that can't be implicitly ended
+// The group of tags that can't be implicitly ended: no bit and no ending tag names
 const emptyGroup: TagGroup = {
   groupBit: 0,
   implicitEndingTagNameSet: new Set(),
@@ -224,7 +215,7 @@ const emptyGroup: TagGroup = {
 const emptyTagOptions: TagParsingOptions = {};
 
 /**
- * Resolves the initial context and the contexts of foreign tags reachable from it, and builds the tag config table of
+ * Resolves the root context and the contexts of foreign tags reachable from it, and builds the tag config table of
  * each, so {@link readTokens} looks up a start tag once. Contexts with the same
  * {@link TokenizerContextOptions.tags tags} share the configs and the table.
  *
@@ -238,13 +229,13 @@ const emptyTagOptions: TagParsingOptions = {};
  * @param rootContextOptions Options of the context outside of foreign tags.
  * @param normalizeTagName Returns a tag name in lower case if tag names are case-insensitive, or as is.
  * @param getSubstringHashCode Returns the hash code of a tag name.
- * @returns The resolved initial context.
+ * @returns The resolved root context.
  * @see {@link createTagConfigTable}
  */
 function resolveContexts(
   rootContextOptions: TokenizerContextOptions,
   normalizeTagName: (tagName: string) => string,
-  getSubstringHashCode: SubstringHasher
+  getSubstringHashCode: (str: string, startIndex: number, endIndex: number) => number
 ): TokenizerContext {
   // Contexts by their options, filled while configs are created, since foreign tags reference contexts
   const contextMap = new Map<TokenizerContextOptions, TokenizerContext>();
@@ -282,7 +273,6 @@ function resolveContexts(
 
     groupMap.set(groupKey, group);
 
-    // Each tag that ends this group gets its bit, so it knows which tags to end when it's started
     for (const tagName of implicitEndingTagNameSet) {
       endedGroupBitsMap.set(tagName, endedGroupBitsMap.get(tagName)! | group.groupBit);
     }
@@ -298,8 +288,9 @@ function resolveContexts(
       kind = 'normal',
       foreignContext,
       implicitEndingTagNames,
-      isImplicitEndingBoundary = false,
+      isImplicitEndingScope = false,
       isImplicitlyStarted = false,
+      endTagScopeLevel = 0,
     } = tagOptions;
 
     let group = emptyGroup;
@@ -312,13 +303,21 @@ function resolveContexts(
       }
     }
 
+    const tagNameCharCodes = new Uint16Array(tagName.length);
+
+    for (let i = 0; i < tagName.length; ++i) {
+      tagNameCharCodes[i] = tagName.charCodeAt(i);
+    }
+
     return {
       tagName,
+      tagNameCharCodes,
       tagHashCode: getSubstringHashCode(tagName, 0, tagName.length),
       kind,
       foreignContext: foreignContext !== undefined ? getOrCreateContext(foreignContext, contextMap) : undefined,
-      isImplicitEndingBoundary,
+      isImplicitEndingScope,
       isImplicitlyStarted,
+      endTagScopeLevel,
       implicitEndingTagNameSet: group.implicitEndingTagNameSet,
       groupBit: group.groupBit,
 
@@ -444,7 +443,7 @@ function getOrCreateContext(
   const {
     areSelfClosingTagsRecognized = false,
     areCDATASectionsRecognized = false,
-    areProcessingInstructionsRecognized = false,
+    processingInstructionSyntax = 'comment',
   } = contextOptions;
 
   context = {
@@ -452,7 +451,7 @@ function getOrCreateContext(
     tagConfigTable: [],
     areSelfClosingTagsRecognized,
     areCDATASectionsRecognized,
-    areProcessingInstructionsRecognized,
+    processingInstructionSyntax,
   };
 
   contextMap.set(contextOptions, context);

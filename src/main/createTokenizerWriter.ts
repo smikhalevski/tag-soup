@@ -1,11 +1,11 @@
 import { MarkupSyntaxError } from './MarkupSyntaxError.ts';
 import type { TagParsingConfig, TokenizerConfig, TokenizerContext } from './resolveTokenizerOptions.ts';
 import type { TokenHandler, TokenizerWriter } from './types.ts';
-import { type SubstringComparer, toLowerCaseCharCode as __toLowerCaseCharCode } from './utils.ts';
+import { toLowerCaseCharCode as importedToLowerCaseCharCode } from './utils.ts';
 
 /**
- * Creates a writer that reads tokens from chunks of text and passes them to a handler. Tokens are balanced: each start
- * tag gets an end tag, unless it's self-closing.
+ * Creates a writer that reads tokens from chunks and passes them to a handler. Tokens are balanced: each start tag
+ * gets an end tag, unless it's self-closing.
  *
  * @param handler The handler that receives tokens.
  * @param config The config from {@link resolveTokenizerOptions}.
@@ -45,14 +45,12 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
         return;
       }
 
-      copyChunkTagNames(tagStack, input);
-
       unreadInput = input.substring(unreadStartIndex);
       writer.inputOffset = state.inputOffset += unreadStartIndex;
     } catch (error) {
       writer.inputOffset = state.inputOffset;
 
-      // Error indices point into the input, so add where the input starts in the stream
+      // Error indexes point into the input, so add where the input starts in the stream
       if (error instanceof MarkupSyntaxError && error.input === input) {
         error.inputOffset = state.inputOffset;
       }
@@ -77,7 +75,7 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
   return writer;
 }
 
-// Before the first tag or text of a document: spaces are skipped and DOCTYPE is recognized
+// Before the first tag or text of a document: spaces are skipped and DOCTYPE is read
 const SCOPE_PROLOGUE = 0;
 
 // Content after the prologue, and all content of a fragment
@@ -88,11 +86,14 @@ const SCOPE_START_TAG = 2;
 
 type Scope = typeof SCOPE_PROLOGUE | typeof SCOPE_TEXT | typeof SCOPE_START_TAG;
 
-// Selects the low 4 bits of a tag name hash code, the index in TagStack.enclosingTagHashCodeCounts
-const ENCLOSING_TAG_HASH_CODE_MASK = 0b1111;
+// The initial length of arrays of a tag stack that are indexed by tag
+const TAG_STACK_CAPACITY = 16;
+
+// The max length of a run of spaces at the start of a text that is read char by char, see readTokens
+const SPACE_RUN_LIMIT = 16;
 
 // V8 checks an imported function at every call, but inlines a local constant without a check
-const toLowerCaseCharCode = __toLowerCaseCharCode;
+const toLowerCaseCharCode = importedToLowerCaseCharCode;
 
 /**
  * Where reading resumes in the next chunk. The {@link TagStack} holds the rest of what reading needs to resume.
@@ -107,13 +108,14 @@ interface TokenizerState {
   scope: Scope;
 
   /**
-   * The length of text at the start of the input that was already scanned and has no tokens, so it isn't scanned again.
+   * The length of the pending text at the start of the input, which was scanned with the previous chunk and has no
+   * tokens, so it isn't scanned again.
    */
   scannedLength: number;
 
   /**
    * The index in the stream where the input starts. The stream is all chunks that were written, and the input is the
-   * part of the stream that wasn't read before, followed by the last written chunk.
+   * last written chunk, preceded by the part of earlier chunks that wasn't read yet.
    *
    * @see {@link TokenizerWriter.inputOffset}
    */
@@ -122,28 +124,36 @@ interface TokenizerState {
 
 /**
  * Enclosing tags (started and not yet ended) that {@link readTokens} balances end tags against. A writer keeps one
- * stack for all chunks. Arrays indexed by tag share the index, and {@link cursor} is the index of the innermost tag.
- * It also holds the current context, which foreign tags switch, and whether the root element was read.
+ * stack for all chunks. Arrays indexed by tag share the index, and {@link lastIndex} is the index of the innermost tag.
+ * It also holds the current context, which foreign tags switch, and whether the root element and DOCTYPE were read.
+ *
+ * The stack keeps the chars of tag names, not their indexes in the input. So an end tag is compared with the innermost
+ * tag while its name is read, and the stack doesn't depend on chunks that were already read.
  *
  * @see {@link createTagStack}
  * @internal
  */
 interface TagStack {
   /**
-   * Start indices of tag names in the input.
+   * Char codes of the names of enclosing tags, one name after another, from the outermost tag to the innermost one.
+   * Names are in lower case if tag names are case-insensitive.
+   *
+   * The name that is being read is written after the name of the innermost tag: {@link readTokens} writes the name
+   * of a start tag there, and {@link writeTagName} the name of an end tag that doesn't match the innermost tag.
    */
-  tagNameStartIndices: number[];
+  tagNameCharCodes: Uint16Array;
 
   /**
-   * End indices of tag names in the input.
+   * Offsets in {@link tagNameCharCodes} where tag names start. One more offset follows the offset of the innermost
+   * tag: where its name ends and the name that is being read starts. It is 0 if the stack is empty.
    */
-  tagNameEndIndices: number[];
+  tagNameOffsets: Int32Array;
 
   /**
    * Hash codes of tag names. When an end tag doesn't match the innermost tag, the stack is searched by hash code, and
    * names are compared only if hash codes are equal.
    */
-  tagHashCodes: number[];
+  tagHashCodes: Int32Array;
 
   /**
    * Tag configs, `undefined` for tags without a config in the context they were started in.
@@ -151,46 +161,16 @@ interface TagStack {
   tagConfigs: Array<TagParsingConfig | undefined>;
 
   /**
-   * {@link enclosingGroupBits} from before each tag was started, restored when the tag ends, so tags of each group
-   * don't have to be counted.
+   * Bitwise OR of {@link TagParsingConfig.groupBit} of the tags that enclose each tag. One more entry follows the entry
+   * of the innermost tag: the bits of all enclosing tags, 0 if the stack is empty. Each entry includes the bits of the
+   * entries before it, so popping a tag needs no update, and tags of each group don't have to be counted.
    */
-  outerGroupBits: number[];
-
-  /**
-   * Names of tags started in previous chunks, copied since the writer drops the input that was read. These tags are at
-   * the bottom of the stack, below {@link previousChunkTagCount}.
-   */
-  previousChunkTagNames: string[];
+  outerGroupBits: Int32Array;
 
   /**
    * The index of the innermost tag, or -1 if the stack is empty.
    */
-  cursor: number;
-
-  /**
-   * The number of tags started in previous chunks.
-   */
-  previousChunkTagCount: number;
-
-  /**
-   * Bitwise OR of {@link TagParsingConfig.groupBit} of all enclosing tags.
-   */
-  enclosingGroupBits: number;
-
-  /**
-   * Counts of enclosing tags by the low 4 bits of their name hash code. If the count for an end tag is 0, no enclosing
-   * tag has its name, so the stack isn't searched. Different names can share a count, which costs a search but doesn't
-   * change the result.
-   *
-   * Most end tags match the innermost tag and need no counts, so tags are counted lazily, when the stack is searched.
-   * Only tags below {@link countedTagCount} are counted.
-   */
-  enclosingTagHashCodeCounts: number[];
-
-  /**
-   * The number of tags at the bottom of the stack that are counted in {@link enclosingTagHashCodeCounts}.
-   */
-  countedTagCount: number;
+  lastIndex: number;
 
   /**
    * The context of the content being read. Foreign tags switch it, so code reads it from here on every use.
@@ -206,31 +186,32 @@ interface TagStack {
    * `true` once the root element of a document was started, so a strict tokenizer rejects a second one.
    */
   isRootElementRead: boolean;
+
+  /**
+   * `true` once a DOCTYPE was read, so a forgiving tokenizer ignores another one.
+   */
+  isDoctypeRead: boolean;
 }
 
 /**
- * Creates an empty tag stack in the initial context of the config.
+ * Creates an empty tag stack in the root context of the config.
  *
  * @internal
  */
 export function createTagStack(config: TokenizerConfig): TagStack {
-  // Number arrays start with a few zeros, so storing the first tags doesn't grow them. The counts array has a zero for
-  // each of the 16 values of the low hash code bits, since any of them can be read.
+  // Typed arrays are filled with zeros, and the first name offset and the first group bits must be 0, since they
+  // describe the empty stack. V8 keeps typed arrays of up to 64 bytes in its heap, which is faster to allocate.
   return {
-    tagNameStartIndices: [0, 0, 0, 0, 0, 0, 0, 0],
-    tagNameEndIndices: [0, 0, 0, 0, 0, 0, 0, 0],
-    tagHashCodes: [0, 0, 0, 0, 0, 0, 0, 0],
-    previousChunkTagNames: [],
+    tagNameCharCodes: new Uint16Array(32),
+    tagNameOffsets: new Int32Array(TAG_STACK_CAPACITY),
+    tagHashCodes: new Int32Array(TAG_STACK_CAPACITY),
     tagConfigs: [],
-    enclosingGroupBits: 0,
-    outerGroupBits: [0, 0, 0, 0, 0, 0, 0, 0],
-    enclosingTagHashCodeCounts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    countedTagCount: 0,
+    outerGroupBits: new Int32Array(TAG_STACK_CAPACITY),
     outerContexts: [],
-    cursor: -1,
+    lastIndex: -1,
     context: config.rootContext,
-    previousChunkTagCount: 0,
     isRootElementRead: false,
+    isDoctypeRead: false,
   };
 }
 
@@ -251,7 +232,7 @@ export function createTokenizerState(config: TokenizerConfig): TokenizerState {
 // every inlined call, while a constant is inlined without a check.
 
 /**
- * Ends the tags that are still enclosing at the end of the input.
+ * Ends enclosing tags at the end of the input.
  */
 const endEnclosingTags = (
   tagStack: TagStack,
@@ -262,7 +243,7 @@ const endEnclosingTags = (
 ): void => {
   const inputLength = input.length;
 
-  if (tagStack.cursor !== -1 && !config.areUnbalancedStartTagsImplicitlyEnded) {
+  if (tagStack.lastIndex !== -1 && !config.areUnbalancedStartTagsImplicitlyEnded) {
     throw new MarkupSyntaxError('Unexpected end of the document.', input, inputLength);
   }
 
@@ -270,7 +251,7 @@ const endEnclosingTags = (
   if (scope === SCOPE_START_TAG) {
     handler.onStartTagClosing?.(input, inputLength, inputLength);
 
-    const tagConfig = tagStack.tagConfigs[tagStack.cursor];
+    const tagConfig = tagStack.tagConfigs[tagStack.lastIndex];
 
     if (tagConfig?.kind === 'void') {
       handler.onEndTagName?.(input, inputLength, inputLength);
@@ -278,7 +259,7 @@ const endEnclosingTags = (
     }
   }
 
-  while (tagStack.cursor !== -1) {
+  while (tagStack.lastIndex !== -1) {
     handler.onEndTagName?.(input, inputLength, inputLength);
     popTag(tagStack);
   }
@@ -289,21 +270,7 @@ const endEnclosingTags = (
  * the innermost tag inline, keep them in sync.
  */
 const popTag = (tagStack: TagStack): void => {
-  const cursor = tagStack.cursor--;
-
-  // Tags from previous chunks are at the bottom of the stack
-  if (cursor < tagStack.previousChunkTagCount) {
-    tagStack.previousChunkTagCount = cursor;
-  }
-
-  if (cursor < tagStack.countedTagCount) {
-    tagStack.countedTagCount = cursor;
-    --tagStack.enclosingTagHashCodeCounts[tagStack.tagHashCodes[cursor] & ENCLOSING_TAG_HASH_CODE_MASK];
-  }
-
-  tagStack.enclosingGroupBits = tagStack.outerGroupBits[cursor];
-
-  const tagConfig = tagStack.tagConfigs[cursor];
+  const tagConfig = tagStack.tagConfigs[tagStack.lastIndex--];
 
   if (tagConfig?.foreignContext !== undefined) {
     tagStack.context = tagStack.outerContexts.pop()!;
@@ -311,83 +278,121 @@ const popTag = (tagStack: TagStack): void => {
 };
 
 /**
- * Copies names of tags started in this chunk, since the writer drops the input, and drops names of ended tags. V8
- * copies a substring shorter than 13 chars, while a longer one is a slice that keeps the input alive while its tag is
- * open.
+ * Returns `true` if two ranges of char codes are equal.
+ *
+ * @param charCodes1 The first array.
+ * @param offset1 The offset in the first array where its char codes start.
+ * @param charCodes2 The second array.
+ * @param offset2 The offset in the second array where its char codes start.
+ * @param length The number of char codes to compare.
  */
-const copyChunkTagNames = (tagStack: TagStack, input: string): void => {
-  const { tagNameStartIndices, tagNameEndIndices, previousChunkTagNames } = tagStack;
-
-  let tagIndex = tagStack.previousChunkTagCount;
-
-  for (; tagIndex <= tagStack.cursor; ++tagIndex) {
-    previousChunkTagNames[tagIndex] = input.substring(tagNameStartIndices[tagIndex], tagNameEndIndices[tagIndex]);
+const areCharCodesEqual = (
+  charCodes1: Uint16Array,
+  offset1: number,
+  charCodes2: Uint16Array,
+  offset2: number,
+  length: number
+): boolean => {
+  for (let i = 0; i < length; ++i) {
+    if (charCodes1[offset1 + i] !== charCodes2[offset2 + i]) {
+      return false;
+    }
   }
-
-  tagStack.previousChunkTagCount = tagIndex;
-
-  // Drop names of ended tags
-  previousChunkTagNames.length = tagIndex;
+  return true;
 };
 
 /**
- * Returns the index of the innermost tag with the name of the end tag, or -1 if there's none. Names are compared only
- * for tags with the hash code of the end tag, and equal hash codes make the last chars equal, so comparisons skip them
- * by passing end indices minus 1, see {@link getCaseInsensitiveHashCode}.
+ * Writes the name of an end tag to {@link TagStack.tagNameCharCodes} after the name of the innermost tag, in lower
+ * case if tag names are case-insensitive, like {@link readTokens} writes the name of a start tag. So the name is
+ * compared with names of enclosing tags and of tag configs as char codes, and the input isn't read again.
  *
- * First counts the tags pushed since the previous search, see {@link TagStack.countedTagCount}, so it updates the
- * stack.
+ * The array grows if the name doesn't fit, so readTokens calls this for a start tag name that didn't fit either.
+ *
+ * @param tagStack The stack of enclosing tags.
+ * @param input The input to read the name from.
+ * @param tagNameStartIndex The start index of the name, inclusive.
+ * @param tagNameEndIndex The end index of the name, exclusive.
+ * @param areTagNamesCaseInsensitive If `true` then the name is written in lower case.
+ * @returns The hash code of the name, see {@link getCaseInsensitiveHashCode}.
  */
-const getEnclosingTagIndex = (
+const writeTagName = (
   tagStack: TagStack,
-  areSubstringsEqual: SubstringComparer,
-  endTagHashCode: number,
   input: string,
-  endTagNameStartIndex: number,
-  endTagNameEndIndex: number
+  tagNameStartIndex: number,
+  tagNameEndIndex: number,
+  areTagNamesCaseInsensitive: boolean
 ): number => {
-  const { tagHashCodes, enclosingTagHashCodeCounts } = tagStack;
+  let { tagNameCharCodes } = tagStack;
+  let tagNameOffset = tagStack.tagNameOffsets[tagStack.lastIndex + 1];
 
-  // Count tags that were started since the previous search
-  for (let index = tagStack.countedTagCount; index <= tagStack.cursor; ++index) {
-    ++enclosingTagHashCodeCounts[tagHashCodes[index] & ENCLOSING_TAG_HASH_CODE_MASK];
+  const tagNameEndOffset = tagNameOffset + tagNameEndIndex - tagNameStartIndex;
+
+  if (tagNameEndOffset > tagNameCharCodes.length) {
+    let length = tagNameCharCodes.length * 2;
+
+    while (length < tagNameEndOffset) {
+      length *= 2;
+    }
+
+    tagStack.tagNameCharCodes = new Uint16Array(length);
+    tagStack.tagNameCharCodes.set(tagNameCharCodes);
+
+    tagNameCharCodes = tagStack.tagNameCharCodes;
   }
-  tagStack.countedTagCount = tagStack.cursor + 1;
 
-  // No enclosing tag has these low hash code bits
-  if (enclosingTagHashCodeCounts[endTagHashCode & ENCLOSING_TAG_HASH_CODE_MASK] === 0) {
-    return -1;
+  let tagHashCode = 5_381;
+
+  for (let index = tagNameStartIndex; index < tagNameEndIndex; ++index) {
+    let charCode = input.charCodeAt(index);
+
+    if (areTagNamesCaseInsensitive) {
+      charCode = toLowerCaseCharCode(charCode);
+    }
+
+    tagHashCode = ((tagHashCode << 5) + tagHashCode + charCode) | 0;
+    tagNameCharCodes[tagNameOffset++] = charCode;
   }
 
-  const { tagNameStartIndices, tagNameEndIndices, previousChunkTagNames, previousChunkTagCount } = tagStack;
+  return tagHashCode & 0x3fffffff;
+};
 
-  let index = tagStack.cursor;
+/**
+ * Doubles the length of the arrays of a tag stack that are indexed by tag.
+ */
+const growTagStack = (tagStack: TagStack): void => {
+  const { tagNameOffsets, tagHashCodes, outerGroupBits } = tagStack;
+  const length = tagNameOffsets.length * 2;
 
-  for (; index >= previousChunkTagCount; --index) {
+  tagStack.tagNameOffsets = new Int32Array(length);
+  tagStack.tagNameOffsets.set(tagNameOffsets);
+
+  tagStack.tagHashCodes = new Int32Array(length);
+  tagStack.tagHashCodes.set(tagHashCodes);
+
+  tagStack.outerGroupBits = new Int32Array(length);
+  tagStack.outerGroupBits.set(outerGroupBits);
+};
+
+/**
+ * Returns the index of the innermost tag with the name that {@link writeTagName} has written, or -1 if there's none.
+ * Names are compared only for tags with the hash code of the name.
+ *
+ * @param tagStack The stack of enclosing tags.
+ * @param tagHashCode The hash code of the name.
+ * @param tagNameLength The length of the name.
+ */
+const getEnclosingTagIndex = (tagStack: TagStack, tagHashCode: number, tagNameLength: number): number => {
+  const { tagNameCharCodes, tagNameOffsets, tagHashCodes } = tagStack;
+
+  // Where the name was written
+  const tagNameOffset = tagNameOffsets[tagStack.lastIndex + 1];
+
+  for (let index = tagStack.lastIndex; index !== -1; --index) {
     if (
-      tagHashCodes[index] === endTagHashCode &&
-      areSubstringsEqual(
-        input,
-        tagNameStartIndices[index],
-        tagNameEndIndices[index] - 1,
-        input,
-        endTagNameStartIndex,
-        endTagNameEndIndex - 1
-      )
+      tagHashCodes[index] === tagHashCode &&
+      tagNameOffsets[index + 1] - tagNameOffsets[index] === tagNameLength &&
+      areCharCodesEqual(tagNameCharCodes, tagNameOffsets[index], tagNameCharCodes, tagNameOffset, tagNameLength)
     ) {
-      return index;
-    }
-  }
-
-  // Tags from previous chunks, compared by their copied names
-  for (; index !== -1; --index) {
-    if (tagHashCodes[index] !== endTagHashCode) {
-      continue;
-    }
-
-    const tagName = previousChunkTagNames[index];
-
-    if (areSubstringsEqual(tagName, 0, tagName.length - 1, input, endTagNameStartIndex, endTagNameEndIndex - 1)) {
       return index;
     }
   }
@@ -396,13 +401,13 @@ const getEnclosingTagIndex = (
 
 /**
  * Ends the outermost enclosing tag that a tag implicitly ends, and the tags inside it. Tags outside the nearest
- * implicit ending boundary aren't ended.
+ * implicit ending scope aren't ended.
  *
  * @param tagStack The stack of enclosing tags.
  * @param handler The handler that receives the inserted end tags.
  * @param endingTagConfig The config of the tag that ends enclosing tags.
  * @param insertionIndex The index in the input that the inserted end tags point to.
- * @param input The text that the insertion index points to.
+ * @param input The input that the insertion index points to.
  */
 const insertImplicitEndTags = (
   tagStack: TagStack,
@@ -413,12 +418,12 @@ const insertImplicitEndTags = (
 ): void => {
   const { tagConfigs } = tagStack;
 
-  // Find the nearest boundary, skipping boundaries that are implicitly ended themselves
-  let index = tagStack.cursor;
+  // Find the nearest implicit ending scope, skipping scopes that are implicitly ended themselves
+  let index = tagStack.lastIndex;
 
   while (
     index !== -1 &&
-    (!isImplicitEndingBoundary(tagConfigs[index]) || isImplicitlyEndedBy(tagConfigs[index], endingTagConfig))
+    (!isImplicitEndingScope(tagConfigs[index]) || isImplicitlyEndedBy(tagConfigs[index], endingTagConfig))
   ) {
     --index;
   }
@@ -426,11 +431,11 @@ const insertImplicitEndTags = (
   // Find the outermost tag that must be ended
   ++index;
 
-  while (index <= tagStack.cursor && !isImplicitlyEndedBy(tagConfigs[index], endingTagConfig)) {
+  while (index <= tagStack.lastIndex && !isImplicitlyEndedBy(tagConfigs[index], endingTagConfig)) {
     ++index;
   }
 
-  while (index <= tagStack.cursor) {
+  while (index <= tagStack.lastIndex) {
     handler.onEndTagName?.(input, insertionIndex, insertionIndex);
     popTag(tagStack);
   }
@@ -440,13 +445,15 @@ const insertImplicitEndTags = (
  * Ends the enclosing tags that a start tag implicitly ends, and returns the config of the start tag in the context that
  * is current after that, since ending a foreign tag restores the outer context.
  *
+ * The name of the start tag was written after the name of the innermost tag. If tags are ended, the name is moved to
+ * where it follows the name of the tag that is the innermost after that.
+ *
  * @param tagStack The stack of enclosing tags.
  * @param handler The handler that receives the inserted end tags.
  * @param startTagConfig The config of the start tag in the context where it was read.
- * @param input The text that indices point to.
+ * @param input The input that indexes point to.
  * @param tagNameStartIndex The start index of the start tag name, inclusive.
- * @param tagNameEndIndex The end index of the start tag name, exclusive.
- * @param areSubstringsEqual Compares substrings.
+ * @param tagNameLength The length of the start tag name.
  */
 const insertImplicitEndTagsBeforeStartTag = (
   tagStack: TagStack,
@@ -454,13 +461,28 @@ const insertImplicitEndTagsBeforeStartTag = (
   startTagConfig: TagParsingConfig,
   input: string,
   tagNameStartIndex: number,
-  tagNameEndIndex: number,
-  areSubstringsEqual: SubstringComparer
+  tagNameLength: number
 ): TagParsingConfig | undefined => {
-  const context = tagStack.context;
+  const { tagNameCharCodes, tagNameOffsets, lastIndex, context } = tagStack;
+
+  // Where the name of the start tag was written
+  const tagNameOffset = tagNameOffsets[lastIndex + 1];
 
   // End tags are inserted before "<"
   insertImplicitEndTags(tagStack, handler, startTagConfig, tagNameStartIndex - 1, input);
+
+  // No tags were ended
+  if (tagStack.lastIndex === lastIndex) {
+    return startTagConfig;
+  }
+
+  // Where the name that is being read is written now, which is before the name of the start tag
+  const targetOffset = tagNameOffsets[tagStack.lastIndex + 1];
+
+  // Chars are copied in ascending order, so the ranges can overlap
+  for (let i = 0; i < tagNameLength; ++i) {
+    tagNameCharCodes[targetOffset + i] = tagNameCharCodes[tagNameOffset + i];
+  }
 
   // The context didn't change, so neither did the config
   if (tagStack.context === context) {
@@ -468,20 +490,13 @@ const insertImplicitEndTagsBeforeStartTag = (
   }
 
   // Look the start tag up again in the restored context, the config holds its hash code
-  return getTagConfig(
-    tagStack.context,
-    startTagConfig.tagHashCode,
-    input,
-    tagNameStartIndex,
-    tagNameEndIndex,
-    areSubstringsEqual
-  );
+  return getTagConfig(tagStack.context, startTagConfig.tagHashCode, tagNameCharCodes, targetOffset, tagNameLength);
 };
 
 /**
- * Balances an end tag that {@link readTokens} didn't match with the innermost tag, because the stack is empty, the
- * names differ, or that tag is from a previous chunk. Ends the matching enclosing tag and the tags inside it, or inserts
- * the start tag of an implicitly started tag, or ignores or rejects the end tag.
+ * Balances an end tag that {@link readTokens} didn't match with the innermost tag on the fast path. Ends the matching
+ * enclosing tag and the tags inside it, or inserts the start tag of an implicitly started tag, or ignores or rejects
+ * the end tag.
  */
 const balanceEndTag = (
   tagStack: TagStack,
@@ -491,35 +506,35 @@ const balanceEndTag = (
   endTagNameStartIndex: number,
   endTagNameEndIndex: number
 ): void => {
-  const {
-    areSubstringsEqual,
-    getSubstringHashCode,
-    areUnbalancedStartTagsImplicitlyEnded,
-    areUnbalancedEndTagsIgnored,
-  } = config;
+  const { areTagNamesCaseInsensitive, areUnbalancedStartTagsImplicitlyEnded, areUnbalancedEndTagsIgnored } = config;
 
   // The index of "</"
   const endTagStartIndex = endTagNameStartIndex - 2;
 
-  const endTagHashCode = getSubstringHashCode(input, endTagNameStartIndex, endTagNameEndIndex);
+  const endTagNameLength = endTagNameEndIndex - endTagNameStartIndex;
 
-  const enclosingTagIndex = getEnclosingTagIndex(
+  const endTagHashCode = writeTagName(
     tagStack,
-    areSubstringsEqual,
-    endTagHashCode,
     input,
     endTagNameStartIndex,
-    endTagNameEndIndex
+    endTagNameEndIndex,
+    areTagNamesCaseInsensitive
   );
+
+  let enclosingTagIndex = getEnclosingTagIndex(tagStack, endTagHashCode, endTagNameLength);
+
+  if (enclosingTagIndex !== -1 && isEndTagOutOfScope(tagStack, enclosingTagIndex)) {
+    enclosingTagIndex = -1;
+  }
 
   // The end tag matches an enclosing tag
   if (enclosingTagIndex !== -1) {
-    if (!areUnbalancedStartTagsImplicitlyEnded && enclosingTagIndex !== tagStack.cursor) {
+    if (!areUnbalancedStartTagsImplicitlyEnded && enclosingTagIndex !== tagStack.lastIndex) {
       throw new MarkupSyntaxError('Expected an end tag.', input, endTagStartIndex);
     }
 
     // End the tags inside the matching tag
-    while (enclosingTagIndex < tagStack.cursor) {
+    while (enclosingTagIndex < tagStack.lastIndex) {
       handler.onEndTagName?.(input, endTagStartIndex, endTagStartIndex);
       popTag(tagStack);
     }
@@ -533,10 +548,9 @@ const balanceEndTag = (
   const endTagConfig = getTagConfig(
     tagStack.context,
     endTagHashCode,
-    input,
-    endTagNameStartIndex,
-    endTagNameEndIndex,
-    areSubstringsEqual
+    tagStack.tagNameCharCodes,
+    tagStack.tagNameOffsets[tagStack.lastIndex + 1],
+    endTagNameLength
   );
 
   if (endTagConfig === undefined || !endTagConfig.isImplicitlyStarted) {
@@ -546,7 +560,7 @@ const balanceEndTag = (
     return;
   }
 
-  if ((tagStack.enclosingGroupBits & endTagConfig.endedGroupBits) !== 0) {
+  if ((tagStack.outerGroupBits[tagStack.lastIndex + 1] & endTagConfig.endedGroupBits) !== 0) {
     insertImplicitEndTags(tagStack, handler, endTagConfig, endTagStartIndex, input);
   }
 
@@ -556,19 +570,54 @@ const balanceEndTag = (
 };
 
 /**
- * Returns the config of a tag in a context, or `undefined` if there's none. Names can share a hash code, so the name is
- * compared too, for equal hash codes, which make the last chars equal, so comparisons skip them by passing end indices
- * minus 1, see {@link getCaseInsensitiveHashCode}.
+ * Returns `true` if the end tag of an enclosing tag can't end the tags inside it: a tag inside has a higher
+ * {@link TagParsingOptions.endTagScopeLevel end tag scope level}, or the enclosing tag is implicitly started, and a tag
+ * inside is an implicit ending scope that a start tag of the enclosing tag doesn't end.
  *
+ * @param tagStack The stack of enclosing tags.
+ * @param enclosingTagIndex The index of the tag that the end tag matches.
+ */
+const isEndTagOutOfScope = (tagStack: TagStack, enclosingTagIndex: number): boolean => {
+  const { tagConfigs } = tagStack;
+  const enclosingTagConfig = tagConfigs[enclosingTagIndex];
+
+  const endTagScopeLevel = enclosingTagConfig !== undefined ? enclosingTagConfig.endTagScopeLevel : 0;
+  const isImplicitlyStarted = enclosingTagConfig !== undefined && enclosingTagConfig.isImplicitlyStarted;
+
+  for (let index = enclosingTagIndex + 1; index <= tagStack.lastIndex; ++index) {
+    const tagConfig = tagConfigs[index];
+
+    if (
+      tagConfig !== undefined &&
+      (tagConfig.endTagScopeLevel > endTagScopeLevel ||
+        (isImplicitlyStarted &&
+          tagConfig.isImplicitEndingScope &&
+          !isImplicitlyEndedBy(tagConfig, enclosingTagConfig!)))
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Returns the config of a tag in a context, or `undefined` if there's none. Names can share a hash code, so the name is
+ * compared too.
+ *
+ * @param context The context to look the tag up in.
+ * @param tagHashCode The hash code of the tag name.
+ * @param tagNameCharCodes The array that holds char codes of the tag name, in lower case if tag names are
+ * case-insensitive.
+ * @param tagNameOffset The offset in the array where the tag name starts.
+ * @param tagNameLength The length of the tag name.
  * @see {@link createTagConfigTable}
  */
 const getTagConfig = (
   context: TokenizerContext,
   tagHashCode: number,
-  input: string,
-  tagNameStartIndex: number,
-  tagNameEndIndex: number,
-  areSubstringsEqual: SubstringComparer
+  tagNameCharCodes: Uint16Array,
+  tagNameOffset: number,
+  tagNameLength: number
 ): TagParsingConfig | undefined => {
   // The same lookup is written in readTokens, keep them in sync
   let tagConfig: TagParsingConfig | undefined;
@@ -582,14 +631,8 @@ const getTagConfig = (
   while ((tagConfig = tagConfigTable[tagConfigIndex]) !== undefined) {
     if (
       tagConfig.tagHashCode === tagHashCode &&
-      areSubstringsEqual(
-        tagConfig.tagName,
-        0,
-        tagConfig.tagName.length - 1,
-        input,
-        tagNameStartIndex,
-        tagNameEndIndex - 1
-      )
+      tagConfig.tagNameCharCodes.length === tagNameLength &&
+      areCharCodesEqual(tagConfig.tagNameCharCodes, 0, tagNameCharCodes, tagNameOffset, tagNameLength)
     ) {
       break;
     }
@@ -602,10 +645,10 @@ const getTagConfig = (
 /**
  * Returns `true` if a tag limits implicit ending.
  *
- * @see {@link TagParsingOptions.isImplicitEndingBoundary}
+ * @see {@link TagParsingOptions.isImplicitEndingScope}
  */
-const isImplicitEndingBoundary = (tagConfig: TagParsingConfig | undefined): boolean => {
-  return tagConfig !== undefined && tagConfig.isImplicitEndingBoundary;
+const isImplicitEndingScope = (tagConfig: TagParsingConfig | undefined): boolean => {
+  return tagConfig !== undefined && tagConfig.isImplicitEndingScope;
 };
 
 /**
@@ -621,22 +664,22 @@ const isImplicitlyEndedBy = (tagConfig: TagParsingConfig | undefined, endingTagC
 };
 
 /**
- * Reads tokens from text and passes them to a handler, balancing tags on the way: inserts missing end tags, ends and
- * starts tags implicitly, ignores or rejects stray end tags, and switches the context at foreign tags.
+ * Reads tokens from an input and passes them to a handler, balancing tags on the way: inserts missing end tags, ends
+ * and starts tags implicitly, ignores or rejects unbalanced end tags, and switches the context at foreign tags.
  *
  * If the input isn't ended, trailing text and a token that reaches the end of the input aren't passed to the handler,
  * since they can continue in the next chunk. Read the unread text followed by the next chunk with the same state and
  * stack. Use {@link createTokenizerWriter}, which does that and ends tags at the end of the input.
  *
- * @param input The text to read tokens from.
+ * @param input The input to read tokens from.
  * @param isInputEnded If `false` then more chunks can follow the input.
  * @param handler The handler that receives tokens.
  * @param config The config from {@link resolveTokenizerOptions}.
  * @param state The state where reading resumes in the next chunk.
  * @param tagStack The stack of enclosing tags.
  * @returns The index in the input where the unread text starts, or the input length if all of it was read.
- * @throws {@link MarkupSyntaxError} If {@link TokenizerConfig.isStrict} is `true` and input is malformed, or if
- *   options don't allow to balance tags.
+ * @throws {@link MarkupSyntaxError} If {@link TokenizerConfig.isStrict} is `true` and the input is malformed, or if
+ *   options don't allow balancing tags.
  * @internal
  */
 export function readTokens(
@@ -647,7 +690,7 @@ export function readTokens(
   state: TokenizerState,
   tagStack: TagStack
 ): number {
-  const { areTagNamesCaseInsensitive, areSubstringsEqual, isFragment, isStrict } = config;
+  const { areTagNamesCaseInsensitive, isFragment, isStrict } = config;
 
   const inputLength = input.length;
 
@@ -662,7 +705,7 @@ export function readTokens(
 
   // On resume the innermost tag is the start tag being read, or the raw text tag whose text is being read, since raw
   // text contains no tags
-  const tagConfig = tagStack.cursor !== -1 ? tagStack.tagConfigs[tagStack.cursor] : undefined;
+  const tagConfig = tagStack.lastIndex !== -1 ? tagStack.tagConfigs[tagStack.lastIndex] : undefined;
 
   // Here raw text is any kind other than normal and void, including escapable_raw_text: its content has no tags. Unlike
   // TagParsingConfig.isRawText, which excludes escapable_raw_text, since parsers decode its text.
@@ -681,13 +724,17 @@ export function readTokens(
   // The index of the end tag that ends the enclosing script data
   let scriptDataEndIndex = -1;
 
+  // The max number of spaces at the start of a text that are read before indexOf is called, or 0 after a run of spaces
+  // reached SPACE_RUN_LIMIT
+  let spaceRunLimit = SPACE_RUN_LIMIT;
+
   // Whether an end tag ends script data depends on all script data before it, so rescan it from the start
   if (scope !== SCOPE_START_TAG && enclosingRawTextTagConfig?.kind === 'script_data') {
     index = scriptDataEndIndex = getScriptDataEndIndex(
       input,
       textStartIndex,
-      enclosingRawTextTagConfig.tagName,
-      areSubstringsEqual
+      enclosingRawTextTagConfig.tagNameCharCodes,
+      areTagNamesCaseInsensitive
     );
   }
 
@@ -719,9 +766,36 @@ export function readTokens(
       if (charCode !== /* < */ 60) {
         scope = SCOPE_TEXT;
 
-        // Text is often a single char, so the next char is checked before indexOf is called
-        tokenStartIndex = index =
-          getCharCodeAt(input, index + 1) === /* < */ 60 ? index + 1 : getIndexOfOrLength(input, '<', index + 1);
+        // Skip the first char of the text
+        ++index;
+
+        // Text between tags is often a line break and an indentation. A call of indexOf costs as much as reading a
+        // dozen chars, so a short run of spaces is read here. Spaces are any chars up to 32 here, since they are
+        // only skipped, and "<" isn't among them.
+        if (charCode <= /* \s */ 32 && spaceRunLimit !== 0) {
+          const limitIndex = index + spaceRunLimit < inputLength ? index + spaceRunLimit : inputLength;
+
+          while (index !== limitIndex && (charCode = input.charCodeAt(index)) <= /* \s */ 32) {
+            ++index;
+          }
+
+          // The run is long, so the next runs are expected to be long too, and aren't read here
+          if (index === limitIndex) {
+            spaceRunLimit = 0;
+          }
+        }
+
+        // charCode is the first char of the text, or the last char that was read after it
+        if (charCode !== /* < */ 60) {
+          index = getIndexOfOrLength(input, '<', index);
+
+          // The text starts with a space and is short, so short runs of spaces are expected again
+          if (spaceRunLimit === 0 && charCode <= /* \s */ 32 && index - tokenStartIndex <= SPACE_RUN_LIMIT) {
+            spaceRunLimit = SPACE_RUN_LIMIT;
+          }
+        }
+
+        tokenStartIndex = index;
 
         if (tokenStartIndex === inputLength) {
           break;
@@ -741,27 +815,67 @@ export function readTokens(
         // Skip "/"
         const tagNameStartIndex = ++index;
 
-        // The name is read here rather than by skipName, so the char after it is carried in charCode, not read again
-        charCode = getCharCodeAt(input, index);
+        const lastTagIndex = tagStack.lastIndex;
 
-        if (isXMLNameStartChar(charCode)) {
-          while (true) {
-            if (++index === inputLength) {
-              charCode = -1;
-              break;
+        // `true` if the end tag has the name of the innermost tag
+        let isInnermostTagEnded = false;
+
+        // Fast path: the name is compared with the name of the innermost tag while it's read. An empty stack is left
+        // to balanceEndTag.
+        if (lastTagIndex !== -1) {
+          const tagNameCharCodes = tagStack.tagNameCharCodes;
+          const tagNameEndOffset = tagStack.tagNameOffsets[lastTagIndex + 1];
+
+          let tagNameOffset = tagStack.tagNameOffsets[lastTagIndex];
+
+          // The name and the char after it must be in the input, otherwise the name is read below
+          if (index + tagNameEndOffset - tagNameOffset < inputLength) {
+            while (tagNameOffset !== tagNameEndOffset) {
+              charCode = input.charCodeAt(index);
+
+              if (
+                charCode !== tagNameCharCodes[tagNameOffset] &&
+                (!areTagNamesCaseInsensitive || toLowerCaseCharCode(charCode) !== tagNameCharCodes[tagNameOffset])
+              ) {
+                break;
+              }
+              ++index;
+              ++tagNameOffset;
             }
 
-            charCode = input.charCodeAt(index);
+            if (tagNameOffset === tagNameEndOffset) {
+              charCode = input.charCodeAt(index);
 
-            if (isStrict ? !isXMLNameChar(charCode) : !isHTMLNameChar(charCode)) {
-              break;
+              // The names are equal if the name of the end tag ends here too
+              isInnermostTagEnded = isStrict ? !isXMLNameChar(charCode) : !isHTMLNameChar(charCode);
             }
           }
         }
 
-        // The name can continue in the next chunk
-        if (index === openEndIndex) {
-          break;
+        if (!isInnermostTagEnded) {
+          // The name is read here rather than by skipName, so the char after it is carried in charCode, not read again
+          index = tagNameStartIndex;
+          charCode = getCharCodeAt(input, index);
+
+          if (isXMLNameStartChar(charCode)) {
+            while (true) {
+              if (++index === inputLength) {
+                charCode = -1;
+                break;
+              }
+
+              charCode = input.charCodeAt(index);
+
+              if (isStrict ? !isXMLNameChar(charCode) : !isHTMLNameChar(charCode)) {
+                break;
+              }
+            }
+          }
+
+          // The name can continue in the next chunk
+          if (index === openEndIndex) {
+            break;
+          }
         }
 
         const tagNameEndIndex = index;
@@ -804,11 +918,12 @@ export function readTokens(
           continue;
         }
 
-        // Inside raw text only the end tag of the raw text tag counts. The end tag of script data was found in advance.
+        // Inside raw text only the end tag of the raw text tag counts, which is the innermost tag, and only if a space,
+        // "/" or ">" follows its name. The end tag of script data was found in advance.
         if (
           isEnclosingRawTextTag &&
           tokenStartIndex !== scriptDataEndIndex &&
-          !isRawTextTagNameAt(input, tagNameStartIndex, enclosingRawTextTagConfig!.tagName, areSubstringsEqual)
+          !(isInnermostTagEnded && (isSpaceChar(charCode) || charCode === /* / */ 47 || charCode === /* > */ 62))
         ) {
           // Rescan the name as text, since it can contain the real end tag, like in "</a</script>"
           index = tagNameStartIndex;
@@ -833,36 +948,13 @@ export function readTokens(
           handler.onText?.(input, textStartIndex, tokenStartIndex, enclosingRawTextTagConfig?.isRawText === true);
         }
 
-        const tagStackCursor = tagStack.cursor;
-
-        // Fast path: the end tag matches the innermost tag, which was started in this chunk. An empty stack (cursor -1)
-        // fails the first check too, so balanceEndTag handles it. End tag names aren't hashed while read, so all chars
-        // are compared.
-        if (
-          tagStackCursor >= tagStack.previousChunkTagCount &&
-          areSubstringsEqual(
-            input,
-            tagStack.tagNameStartIndices[tagStackCursor],
-            tagStack.tagNameEndIndices[tagStackCursor],
-            input,
-            tagNameStartIndex,
-            tagNameEndIndex
-          )
-        ) {
+        if (isInnermostTagEnded) {
           handler.onEndTagName?.(input, tagNameStartIndex, tagNameEndIndex);
 
           // popTag written inline, since V8 doesn't inline it on this hot path. Other pops are rarer and stay calls.
-          // The tag is from this chunk, so previousChunkTagCount stays.
-          tagStack.cursor = tagStackCursor - 1;
+          tagStack.lastIndex = lastTagIndex - 1;
 
-          if (tagStackCursor < tagStack.countedTagCount) {
-            tagStack.countedTagCount = tagStackCursor;
-            --tagStack.enclosingTagHashCodeCounts[tagStack.tagHashCodes[tagStackCursor] & ENCLOSING_TAG_HASH_CODE_MASK];
-          }
-
-          tagStack.enclosingGroupBits = tagStack.outerGroupBits[tagStackCursor];
-
-          const tagConfig = tagStack.tagConfigs[tagStackCursor];
+          const tagConfig = tagStack.tagConfigs[lastTagIndex];
 
           if (tagConfig?.foreignContext !== undefined) {
             tagStack.context = tagStack.outerContexts.pop()!;
@@ -902,7 +994,7 @@ export function readTokens(
       // Processing instruction
       // ----------------------------------------------------------
 
-      if (charCode === /* ? */ 63 && tagStack.context.areProcessingInstructionsRecognized) {
+      if (charCode === /* ? */ 63 && tagStack.context.processingInstructionSyntax === 'xml') {
         // Skip "?"
         const targetStartIndex = index + 1;
         const targetEndIndex = skipName(input, targetStartIndex);
@@ -952,26 +1044,32 @@ export function readTokens(
       // ----------------------------------------------------------
 
       // The char is checked first, so the call isn't made at the first tag of every document: with short documents V8
-      // would inline it in place of hotter calls
+      // would inline it in place of hotter calls. A strict tokenizer reads DOCTYPE only in the prologue, and rejects it
+      // elsewhere as a bogus comment.
       if (
         charCode === /* ! */ 33 &&
-        scope === SCOPE_PROLOGUE &&
+        (scope === SCOPE_PROLOGUE || !isStrict) &&
         isCaseInsensitiveSubstringAt(input, index, '!doctype')
       ) {
-        // Skip "!DOCTYPE"
-        const doctypeNameStartIndex = skipSpaces(input, index + 8);
-        const doctypeNameEndIndex = skipName(input, doctypeNameStartIndex);
-        const doctypeClosingIndex = skipUntilTagClosing(input, doctypeNameEndIndex);
+        const doctypeClosingIndex = skipUntilTagClosing(input, index + 8);
 
         // ">" can be in the next chunk
         if (doctypeClosingIndex === openEndIndex) {
           break;
         }
 
-        handler.onDoctypeName?.(input, doctypeNameStartIndex, doctypeNameEndIndex);
+        if (scope === SCOPE_PROLOGUE && !(tagStack.isDoctypeRead && !isStrict)) {
+          tagStack.isDoctypeRead = true;
+
+          readDoctype(input, index + 8, doctypeClosingIndex, isStrict, handler);
+        } else if (textStartIndex !== tokenStartIndex) {
+          // A forgiving tokenizer ignores DOCTYPE after the prologue, and a second one in it
+          handler.onText?.(input, textStartIndex, tokenStartIndex, false);
+        }
 
         // Skip ">"
-        textStartIndex = index = skipSpaces(input, doctypeClosingIndex + 1);
+        index = doctypeClosingIndex + 1;
+        textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
         continue;
       }
 
@@ -1079,6 +1177,25 @@ export function readTokens(
           handler.onText?.(input, textStartIndex, tokenStartIndex, false);
         }
 
+        // An HTML processing instruction ends at the first ">", like a bogus comment. It becomes a bogus comment if its
+        // target is invalid.
+        const targetEndIndex =
+          charCode === /* ? */ 63 && tagStack.context.processingInstructionSyntax === 'html'
+            ? getHTMLProcessingInstructionTargetEndIndex(input, index + 1)
+            : -1;
+
+        if (targetEndIndex !== -1) {
+          // An unclosed processing instruction has no token
+          if (commentEndIndex !== inputLength) {
+            readHTMLProcessingInstruction(input, index + 1, targetEndIndex, commentEndIndex, handler);
+          }
+
+          // Skip ">"
+          index = commentEndIndex + 1;
+          textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+          continue;
+        }
+
         if (isStrict) {
           throw new MarkupSyntaxError(
             charCode === /* ? */ 63
@@ -1112,15 +1229,30 @@ export function readTokens(
 
       const tagNameStartIndex = index;
 
-      // The name is hashed while it's read, rather than read again by config.getSubstringHashCode, which gives the same
-      // hash. Keep in sync with getCaseInsensitiveHashCode and getCaseSensitiveHashCode.
+      // While the name is read, it's hashed, and its chars are written to the tag stack, in lower case if tag names are
+      // case-insensitive. The hash code is the same that getCaseInsensitiveHashCode or getCaseSensitiveHashCode
+      // returns, keep them in sync.
+      let tagNameCharCodes = tagStack.tagNameCharCodes;
+
+      const tagNameCharCodesLength = tagNameCharCodes.length;
+      const tagNameOffset = tagStack.tagNameOffsets[tagStack.lastIndex + 1];
+
+      let tagNameEndOffset = tagNameOffset;
       let startTagHashCode = 5_381;
 
       if (isXMLNameStartChar(charCode)) {
         if (areTagNamesCaseInsensitive && !isStrict) {
           // HTML names have a separate loop, which doesn't check options at every char
           while (true) {
-            startTagHashCode = ((startTagHashCode << 5) + startTagHashCode + toLowerCaseCharCode(charCode)) | 0;
+            const lowerCaseCharCode = toLowerCaseCharCode(charCode);
+
+            startTagHashCode = ((startTagHashCode << 5) + startTagHashCode + lowerCaseCharCode) | 0;
+
+            // A name that doesn't fit is written after it's read, when the array has grown
+            if (tagNameEndOffset < tagNameCharCodesLength) {
+              tagNameCharCodes[tagNameEndOffset] = lowerCaseCharCode;
+            }
+            ++tagNameEndOffset;
 
             if (++index === inputLength) {
               charCode = -1;
@@ -1135,11 +1267,14 @@ export function readTokens(
           }
         } else {
           while (true) {
-            startTagHashCode =
-              ((startTagHashCode << 5) +
-                startTagHashCode +
-                (areTagNamesCaseInsensitive ? toLowerCaseCharCode(charCode) : charCode)) |
-              0;
+            const normalizedCharCode = areTagNamesCaseInsensitive ? toLowerCaseCharCode(charCode) : charCode;
+
+            startTagHashCode = ((startTagHashCode << 5) + startTagHashCode + normalizedCharCode) | 0;
+
+            if (tagNameEndOffset < tagNameCharCodesLength) {
+              tagNameCharCodes[tagNameEndOffset] = normalizedCharCode;
+            }
+            ++tagNameEndOffset;
 
             if (++index === inputLength) {
               charCode = -1;
@@ -1184,6 +1319,12 @@ export function readTokens(
         handler.onText?.(input, textStartIndex, tokenStartIndex, false);
       }
 
+      // The name didn't fit into the array, so write it again, which grows the array
+      if (tagNameEndOffset > tagNameCharCodesLength) {
+        writeTagName(tagStack, input, tagNameStartIndex, tagNameEndIndex, areTagNamesCaseInsensitive);
+        tagNameCharCodes = tagStack.tagNameCharCodes;
+      }
+
       // getTagConfig written inline, since it doesn't fit into the inlining budget of readTokens. Keep them in sync.
       let startTagConfig: TagParsingConfig | undefined;
 
@@ -1192,18 +1333,14 @@ export function readTokens(
 
       let tagConfigIndex = startTagHashCode & indexMask;
 
+      const tagNameLength = tagNameEndOffset - tagNameOffset;
+
       // An empty slot ends the lookup
       while ((startTagConfig = tagConfigTable[tagConfigIndex]) !== undefined) {
         if (
           startTagConfig.tagHashCode === startTagHashCode &&
-          areSubstringsEqual(
-            startTagConfig.tagName,
-            0,
-            startTagConfig.tagName.length - 1,
-            input,
-            tagNameStartIndex,
-            tagNameEndIndex - 1
-          )
+          startTagConfig.tagNameCharCodes.length === tagNameLength &&
+          areCharCodesEqual(startTagConfig.tagNameCharCodes, 0, tagNameCharCodes, tagNameOffset, tagNameLength)
         ) {
           break;
         }
@@ -1211,19 +1348,24 @@ export function readTokens(
       }
 
       // Group bits show whether the tag can end any enclosing tag, which is rare, so the stack is usually not searched
-      if (startTagConfig !== undefined && (tagStack.enclosingGroupBits & startTagConfig.endedGroupBits) !== 0) {
+      if (
+        startTagConfig !== undefined &&
+        (tagStack.outerGroupBits[tagStack.lastIndex + 1] & startTagConfig.endedGroupBits) !== 0
+      ) {
         startTagConfig = insertImplicitEndTagsBeforeStartTag(
           tagStack,
           handler,
           startTagConfig,
           input,
           tagNameStartIndex,
-          tagNameEndIndex,
-          areSubstringsEqual
+          tagNameLength
         );
+
+        // If tags were ended, the name was moved to where it follows the name of the innermost tag
+        tagNameEndOffset = tagStack.tagNameOffsets[tagStack.lastIndex + 1] + tagNameLength;
       }
 
-      if (isStrict && !isFragment && tagStack.cursor === -1) {
+      if (isStrict && !isFragment && tagStack.lastIndex === -1) {
         if (tagStack.isRootElementRead) {
           throw new MarkupSyntaxError('Expected a single root element.', input, tokenStartIndex, tagNameEndIndex);
         }
@@ -1233,16 +1375,22 @@ export function readTokens(
       handler.onStartTagName?.(input, tagNameStartIndex, tagNameEndIndex);
 
       // Push written inline, since a push function would compete for the inlining budget of readTokens and stay a call
-      const tagStackCursor = ++tagStack.cursor;
+      const lastTagIndex = ++tagStack.lastIndex;
 
-      tagStack.tagNameStartIndices[tagStackCursor] = tagNameStartIndex;
-      tagStack.tagNameEndIndices[tagStackCursor] = tagNameEndIndex;
-      tagStack.tagHashCodes[tagStackCursor] = startTagHashCode;
-      tagStack.tagConfigs[tagStackCursor] = startTagConfig;
-      tagStack.outerGroupBits[tagStackCursor] = tagStack.enclosingGroupBits;
+      // One more entry follows the entries of the innermost tag
+      if (lastTagIndex + 1 === tagStack.tagNameOffsets.length) {
+        growTagStack(tagStack);
+      }
 
-      if (startTagConfig !== undefined) {
-        tagStack.enclosingGroupBits |= startTagConfig.groupBit;
+      // The name is already in tagNameCharCodes, the offset after it is where the next name is written
+      tagStack.tagNameOffsets[lastTagIndex + 1] = tagNameEndOffset;
+      tagStack.tagHashCodes[lastTagIndex] = startTagHashCode;
+      tagStack.tagConfigs[lastTagIndex] = startTagConfig;
+
+      if (startTagConfig === undefined) {
+        tagStack.outerGroupBits[lastTagIndex + 1] = tagStack.outerGroupBits[lastTagIndex];
+      } else {
+        tagStack.outerGroupBits[lastTagIndex + 1] = tagStack.outerGroupBits[lastTagIndex] | startTagConfig.groupBit;
 
         if (startTagConfig.foreignContext !== undefined) {
           tagStack.outerContexts.push(tagStack.context);
@@ -1289,7 +1437,11 @@ export function readTokens(
       // Self-closing start tag
       // ----------------------------------------------------------
 
-      if (charCode === /* / */ 47 && tagStack.context.areSelfClosingTagsRecognized) {
+      // The context is checked first, since a foreign start tag rarely closes itself
+      if (
+        charCode === /* / */ 47 &&
+        (tagStack.context.areSelfClosingTagsRecognized || isForeignStartTagSelfClosingRecognized(tagStack))
+      ) {
         if (getCharCodeAt(input, tokenStartIndex + 1) === /* > */ 62) {
           // Skip "/>"
           index += 2;
@@ -1298,7 +1450,7 @@ export function readTokens(
 
           popTag(tagStack);
 
-          // Self-closing raw text tag has no content
+          // A self-closing raw text tag has no content
           enclosingRawTextTagConfig = undefined;
           isEnclosingRawTextTag = false;
 
@@ -1337,8 +1489,8 @@ export function readTokens(
           index = scriptDataEndIndex = getScriptDataEndIndex(
             input,
             index,
-            enclosingRawTextTagConfig.tagName,
-            areSubstringsEqual
+            enclosingRawTextTagConfig.tagNameCharCodes,
+            areTagNamesCaseInsensitive
           );
         }
         continue nextToken;
@@ -1500,27 +1652,230 @@ export function readTokens(
 }
 
 /**
+ * Returns `true` if the start tag being read is foreign, and the context where it was read recognizes self-closing
+ * tags. The context is switched at the name of a foreign tag, so readTokens checks its own `/>` in the foreign context,
+ * and then in the outer one, like `<foreignObject/>` in SVG.
+ */
+const isForeignStartTagSelfClosingRecognized = (tagStack: TagStack): boolean => {
+  const { outerContexts } = tagStack;
+
+  return (
+    tagStack.tagConfigs[tagStack.lastIndex]?.foreignContext !== undefined &&
+    outerContexts[outerContexts.length - 1].areSelfClosingTagsRecognized
+  );
+};
+
+/**
+ * Reads the name and the identifiers of a DOCTYPE, and passes them to the handler.
+ *
+ * Identifiers follow the keyword `PUBLIC` or `SYSTEM` in any case, in double or single quotes, and end at the closing
+ * quote, or at the `>` that ends the DOCTYPE. If the keyword or the quotes are missing, the rest is ignored.
+ *
+ * @param input The input to read.
+ * @param index The index in the input after `<!DOCTYPE`.
+ * @param closingIndex The index of the `>` that ends the DOCTYPE, or the input length.
+ * @param isStrict If `true` then the name is an XML name, otherwise any chars up to a space or `>`.
+ * @param handler The handler that receives the DOCTYPE.
+ * @see [HTML DOCTYPE State](https://html.spec.whatwg.org/multipage/parsing.html#doctype-state)
+ */
+const readDoctype = (
+  input: string,
+  index: number,
+  closingIndex: number,
+  isStrict: boolean,
+  handler: TokenHandler
+): void => {
+  const nameStartIndex = skipSpaces(input, index);
+
+  // The name of an HTML DOCTYPE is any chars up to a space or ">", the same chars that end an unquoted attribute value
+  const nameEndIndex = isStrict
+    ? skipXMLName(input, nameStartIndex)
+    : skipUnquotedAttributeValue(input, nameStartIndex);
+
+  // Missing identifiers are empty
+  let publicIdStartIndex = closingIndex;
+  let publicIdEndIndex = closingIndex;
+  let systemIdStartIndex = closingIndex;
+  let systemIdEndIndex = closingIndex;
+
+  index = skipSpaces(input, nameEndIndex);
+
+  const isPublic = isCaseInsensitiveSubstringAt(input, index, 'public');
+
+  if (isPublic || isCaseInsensitiveSubstringAt(input, index, 'system')) {
+    // Skip the keyword
+    index = skipSpaces(input, index + 6);
+
+    let idEndIndex = getDoctypeIdEndIndex(input, index, closingIndex);
+
+    if (isPublic && idEndIndex !== -1) {
+      publicIdStartIndex = index + 1;
+      publicIdEndIndex = idEndIndex;
+
+      // The system identifier can follow the public one
+      index = skipSpaces(input, idEndIndex + 1);
+      idEndIndex = getDoctypeIdEndIndex(input, index, closingIndex);
+    }
+
+    // The identifier after SYSTEM, or the second one after PUBLIC
+    if (idEndIndex !== -1) {
+      systemIdStartIndex = index + 1;
+      systemIdEndIndex = idEndIndex;
+    }
+  }
+
+  handler.onDoctype?.(
+    input,
+    nameStartIndex,
+    nameEndIndex,
+    publicIdStartIndex,
+    publicIdEndIndex,
+    systemIdStartIndex,
+    systemIdEndIndex
+  );
+};
+
+/**
+ * Returns the index of the closing quote of a DOCTYPE identifier, or the closing index if the quote is missing, or -1
+ * if there's no opening quote at the index.
+ */
+const getDoctypeIdEndIndex = (input: string, index: number, closingIndex: number): number => {
+  if (index >= closingIndex) {
+    return -1;
+  }
+
+  const quoteCharCode = input.charCodeAt(index);
+
+  if (quoteCharCode !== /* " */ 34 && quoteCharCode !== /* ' */ 39) {
+    return -1;
+  }
+
+  const idEndIndex = input.indexOf(quoteCharCode === /* " */ 34 ? '"' : "'", index + 1);
+
+  return idEndIndex !== -1 && idEndIndex < closingIndex ? idEndIndex : closingIndex;
+};
+
+/**
+ * Returns the index after the target of an HTML processing instruction, or -1 if the chars at the index don't make a
+ * target, so the processing instruction is read as a bogus comment. Returns the input length if the input ends before
+ * the target does, so the processing instruction has no token.
+ *
+ * A target is an ASCII letter or `_`, followed by ASCII letters, digits, `-` and `_`, and then by a space, `\f`, `?` or
+ * `>`. Targets `xml` and `xml-stylesheet` in any case are bogus comments.
+ *
+ * @param input The input to read.
+ * @param index The index in the input after `<?`.
+ * @see [HTML Processing Instruction Open State](https://html.spec.whatwg.org/multipage/parsing.html#processing-instruction-open-state)
+ */
+const getHTMLProcessingInstructionTargetEndIndex = (input: string, index: number): number => {
+  const startIndex = index;
+
+  let charCode = getCharCodeAt(input, index);
+
+  if (charCode === -1) {
+    return index;
+  }
+
+  if (!isAlphaChar(charCode) && charCode !== /* _ */ 95) {
+    return -1;
+  }
+
+  do {
+    charCode = getCharCodeAt(input, ++index);
+  } while (
+    isAlphaChar(charCode) ||
+    (charCode >= /* 0 */ 48 && charCode <= /* 9 */ 57) ||
+    charCode === /* - */ 45 ||
+    charCode === /* _ */ 95
+  );
+
+  if (charCode === -1) {
+    return index;
+  }
+
+  if (!isSpaceChar(charCode) && charCode !== /* \f */ 12 && charCode !== /* ? */ 63 && charCode !== /* > */ 62) {
+    return -1;
+  }
+
+  const targetLength = index - startIndex;
+
+  if (
+    (targetLength === 3 && isCaseInsensitiveSubstringAt(input, startIndex, 'xml')) ||
+    (targetLength === 14 && isCaseInsensitiveSubstringAt(input, startIndex, 'xml-stylesheet'))
+  ) {
+    return -1;
+  }
+
+  return index;
+};
+
+/**
+ * Reads the data of an HTML processing instruction, and passes the processing instruction to the handler. The data
+ * starts after spaces and `\f` that follow the target, and ends at the `>`, without one `?` before it.
+ *
+ * @param input The input to read.
+ * @param targetStartIndex The start index of the target, inclusive.
+ * @param targetEndIndex The end index of the target, exclusive.
+ * @param closingIndex The index of the `>` that ends the processing instruction.
+ * @param handler The handler that receives the processing instruction.
+ * @see [HTML Processing Instruction Data State](https://html.spec.whatwg.org/multipage/parsing.html#processing-instruction-data-state)
+ */
+const readHTMLProcessingInstruction = (
+  input: string,
+  targetStartIndex: number,
+  targetEndIndex: number,
+  closingIndex: number,
+  handler: TokenHandler
+): void => {
+  let dataStartIndex = targetEndIndex;
+
+  while (dataStartIndex < closingIndex) {
+    const charCode = input.charCodeAt(dataStartIndex);
+
+    if (!isSpaceChar(charCode) && charCode !== /* \f */ 12) {
+      break;
+    }
+    ++dataStartIndex;
+  }
+
+  const dataEndIndex =
+    dataStartIndex < closingIndex && input.charCodeAt(closingIndex - 1) === /* ? */ 63
+      ? closingIndex - 1
+      : closingIndex;
+
+  handler.onProcessingInstruction?.(input, targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex);
+};
+
+/**
  * Returns `true` if the name of a raw text tag starts at index and is followed by a space, `/` or `>`. Only such an end
  * tag ends raw text, so `</script` at the end of the input, or `</scripts>`, is text.
  *
- * @param input The text to check.
+ * @param input The input to check.
  * @param index The index in the input where the name is expected.
- * @param tagName The name of the raw text tag.
- * @param areSubstringsEqual Compares all chars, since hash codes aren't known here.
+ * @param tagNameCharCodes Char codes of the name of the raw text tag, see {@link TagParsingConfig.tagNameCharCodes}.
+ * @param areTagNamesCaseInsensitive If `true` then the case of ASCII letters in the input is ignored.
  */
 const isRawTextTagNameAt = (
   input: string,
   index: number,
-  tagName: string,
-  areSubstringsEqual: SubstringComparer
+  tagNameCharCodes: Uint16Array,
+  areTagNamesCaseInsensitive: boolean
 ): boolean => {
-  const endIndex = index + tagName.length;
-  const charCode = getCharCodeAt(input, endIndex);
+  const tagNameLength = tagNameCharCodes.length;
+  const charCode = getCharCodeAt(input, index + tagNameLength);
 
-  return (
-    (isSpaceChar(charCode) || charCode === /* / */ 47 || charCode === /* > */ 62) &&
-    areSubstringsEqual(tagName, 0, tagName.length, input, index, endIndex)
-  );
+  if (!isSpaceChar(charCode) && charCode !== /* / */ 47 && charCode !== /* > */ 62) {
+    return false;
+  }
+
+  for (let i = 0; i < tagNameLength; ++i) {
+    const charCode = input.charCodeAt(index + i);
+
+    if ((areTagNamesCaseInsensitive ? toLowerCaseCharCode(charCode) : charCode) !== tagNameCharCodes[i]) {
+      return false;
+    }
+  }
+  return true;
 };
 
 /**
@@ -1529,21 +1884,22 @@ const isRawTextTagNameAt = (
  * After `<!--` script data is escaped, and a start tag with the script tag's name makes it double escaped. In double
  * escaped data an end tag of that name only returns to escaped, and `-->` ends escaping.
  *
- * @param input The text to scan.
+ * @param input The input to scan.
  * @param index The index in the input where script data starts.
- * @param tagName The name of the script data tag.
- * @param areSubstringsEqual Compares all chars, since hash codes aren't known here.
+ * @param tagNameCharCodes Char codes of the name of the script data tag, see
+ * {@link TagParsingConfig.tagNameCharCodes}.
+ * @param areTagNamesCaseInsensitive If `true` then the case of ASCII letters in the input is ignored.
  * @see [HTML Script Data State](https://html.spec.whatwg.org/multipage/parsing.html#script-data-state)
  */
 const getScriptDataEndIndex = (
   input: string,
   index: number,
-  tagName: string,
-  areSubstringsEqual: SubstringComparer
+  tagNameCharCodes: Uint16Array,
+  areTagNamesCaseInsensitive: boolean
 ): number => {
   // Most "<" in script data aren't followed by the tag name, so its first char is compared before the whole name.
   // Ignoring case here also works for case-sensitive names, since this only filters.
-  const tagNameCharCode = toLowerCaseCharCode(tagName.charCodeAt(0));
+  const tagNameCharCode = toLowerCaseCharCode(tagNameCharCodes[0]);
 
   let isEscaped = false;
   let isDoubleEscaped = false;
@@ -1572,7 +1928,7 @@ const getScriptDataEndIndex = (
       if (
         index + 1 < input.length &&
         toLowerCaseCharCode(input.charCodeAt(index + 1)) === tagNameCharCode &&
-        isRawTextTagNameAt(input, index + 1, tagName, areSubstringsEqual)
+        isRawTextTagNameAt(input, index + 1, tagNameCharCodes, areTagNamesCaseInsensitive)
       ) {
         if (!isDoubleEscaped) {
           return tagOpeningIndex;
@@ -1599,7 +1955,7 @@ const getScriptDataEndIndex = (
 
     if (
       toLowerCaseCharCode(input.charCodeAt(index)) === tagNameCharCode &&
-      isRawTextTagNameAt(input, index, tagName, areSubstringsEqual)
+      isRawTextTagNameAt(input, index, tagNameCharCodes, areTagNamesCaseInsensitive)
     ) {
       isDoubleEscaped = true;
     }
@@ -1610,7 +1966,7 @@ const getScriptDataEndIndex = (
  * Returns the index where the content of an HTML comment ends. `-->` and `--!>` close a comment, and `<!-->` and
  * `<!--->` are empty. An unclosed comment ends with the input, except for a trailing `-`, `--` or `--!`.
  *
- * @param input The text to scan.
+ * @param input The input to scan.
  * @param index The index in the input where the content starts, after `<!--`.
  * @see [HTML Comment Start State](https://html.spec.whatwg.org/multipage/parsing.html#comment-start-state)
  */
@@ -1754,6 +2110,10 @@ const isSpaceChar = (charCode: number): boolean => {
   return (asciiCharFlags[charCode] & CHAR_FLAG_SPACE) !== 0;
 };
 
+const isAlphaChar = (charCode: number): boolean => {
+  return (charCode >= /* a */ 97 && charCode <= /* z */ 122) || (charCode >= /* A */ 65 && charCode <= /* Z */ 90);
+};
+
 const isXMLNameStartChar = (charCode: number): boolean => {
   // Most names are ASCII, so other chars are checked in a separate function
   return charCode < 0x80
@@ -1855,9 +2215,6 @@ const skipUnquotedAttributeValue = (input: string, index: number): number => {
   return index;
 };
 
-// Tags are often adjacent or one char apart, and ">" usually follows an end tag name, so the nearest chars are checked
-// before indexOf is called, which costs more than a few comparisons
-
 const skipUntilTagOpening = (input: string, index: number): number => {
   if (index + 1 < input.length) {
     if (input.charCodeAt(index) === /* < */ 60) {
@@ -1870,6 +2227,10 @@ const skipUntilTagOpening = (input: string, index: number): number => {
   return getIndexOfOrLength(input, '<', index);
 };
 
+/**
+ * Tags are often adjacent or one char apart, and ">" usually follows an end tag name, so the nearest chars are checked
+ * before indexOf is called, which costs more than a few comparisons.
+ */
 const skipUntilTagClosing = (input: string, index: number): number => {
   if (index < input.length && input.charCodeAt(index) === /* > */ 62) {
     return index;

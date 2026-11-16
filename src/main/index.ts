@@ -11,6 +11,7 @@ export type {
   TokenizerOptions,
   TokenizerContextOptions,
   TagKind,
+  ProcessingInstructionSyntax,
   TokenHandler,
   TokenizerWriter,
   ParserWriter,
