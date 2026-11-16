@@ -21,48 +21,48 @@ test('parses XML DOM from chunks', () => {
 });
 
 test('parses XML SAX', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   XMLSAXParser.parseDocument(
     '<?xml version="1.0"?><!DOCTYPE aaa><!-- bbb --><aaa ccc="&lt;">ddd&amp;<![CDATA[<eee>&amp;]]><?fff ggg?><hhh/></aaa>',
     {
       onText(text) {
-        calls.push(['onText', text]);
+        callbackMock('onText', text);
       },
       onStartTagOpening(tagName) {
-        calls.push(['onStartTagOpening', tagName]);
+        callbackMock('onStartTagOpening', tagName);
       },
       onStartTagClosing() {
-        calls.push(['onStartTagClosing']);
+        callbackMock('onStartTagClosing');
       },
       onStartTagSelfClosing() {
-        calls.push(['onStartTagSelfClosing']);
+        callbackMock('onStartTagSelfClosing');
       },
       onStartTag(tagName, attributes, isSelfClosing, namespaceURI) {
-        calls.push(['onStartTag', tagName, attributes, isSelfClosing, namespaceURI]);
+        callbackMock('onStartTag', tagName, attributes, isSelfClosing, namespaceURI);
       },
       onEndTag(tagName, namespaceURI) {
-        calls.push(['onEndTag', tagName, namespaceURI]);
+        callbackMock('onEndTag', tagName, namespaceURI);
       },
       onAttribute(name, value) {
-        calls.push(['onAttribute', name, value]);
+        callbackMock('onAttribute', name, value);
       },
       onCDATASection(data) {
-        calls.push(['onCDATASection', data]);
+        callbackMock('onCDATASection', data);
       },
       onComment(data) {
-        calls.push(['onComment', data]);
+        callbackMock('onComment', data);
       },
       onDoctype(name, publicId, systemId) {
-        calls.push(['onDoctype', name, publicId, systemId]);
+        callbackMock('onDoctype', name, publicId, systemId);
       },
       onProcessingInstruction(target, data) {
-        calls.push(['onProcessingInstruction', target, data]);
+        callbackMock('onProcessingInstruction', target, data);
       },
     }
   );
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onProcessingInstruction', 'xml', 'version="1.0"'],
     ['onDoctype', 'aaa', '', ''],
     ['onComment', ' bbb '],
@@ -81,50 +81,50 @@ test('parses XML SAX', () => {
 });
 
 test('reads tokens of an XML document', () => {
-  const tokens: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   XMLTokenizer.tokenizeDocument('<?aaa bbb?><!DOCTYPE ccc><ddd eee="&lt;">&lt;<![CDATA[fff]]><!--ggg--><hhh/></ddd>', {
     onText(input, startIndex, endIndex, isRawText) {
-      tokens.push(['onText', input.substring(startIndex, endIndex), isRawText]);
+      callbackMock('onText', input.substring(startIndex, endIndex), isRawText);
     },
     onStartTagName(input, startIndex, endIndex) {
-      tokens.push(['onStartTagName', input.substring(startIndex, endIndex)]);
+      callbackMock('onStartTagName', input.substring(startIndex, endIndex));
     },
     onStartTagClosing(input, startIndex, endIndex) {
-      tokens.push(['onStartTagClosing', input.substring(startIndex, endIndex)]);
+      callbackMock('onStartTagClosing', input.substring(startIndex, endIndex));
     },
     onStartTagSelfClosing(input, startIndex, endIndex) {
-      tokens.push(['onStartTagSelfClosing', input.substring(startIndex, endIndex)]);
+      callbackMock('onStartTagSelfClosing', input.substring(startIndex, endIndex));
     },
     onEndTagName(input, startIndex, endIndex) {
-      tokens.push(['onEndTagName', input.substring(startIndex, endIndex)]);
+      callbackMock('onEndTagName', input.substring(startIndex, endIndex));
     },
     onAttribute(input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
-      tokens.push([
+      callbackMock(
         'onAttribute',
         input.substring(nameStartIndex, nameEndIndex),
-        input.substring(valueStartIndex, valueEndIndex),
-      ]);
+        input.substring(valueStartIndex, valueEndIndex)
+      );
     },
     onComment(input, startIndex, endIndex) {
-      tokens.push(['onComment', input.substring(startIndex, endIndex)]);
+      callbackMock('onComment', input.substring(startIndex, endIndex));
     },
     onProcessingInstruction(input, targetStartIndex, targetEndIndex, dataStartIndex, dataEndIndex) {
-      tokens.push([
+      callbackMock(
         'onProcessingInstruction',
         input.substring(targetStartIndex, targetEndIndex),
-        input.substring(dataStartIndex, dataEndIndex),
-      ]);
+        input.substring(dataStartIndex, dataEndIndex)
+      );
     },
     onCDATASection(input, startIndex, endIndex) {
-      tokens.push(['onCDATASection', input.substring(startIndex, endIndex)]);
+      callbackMock('onCDATASection', input.substring(startIndex, endIndex));
     },
     onDoctype(input, nameStartIndex, nameEndIndex) {
-      tokens.push(['onDoctype', input.substring(nameStartIndex, nameEndIndex)]);
+      callbackMock('onDoctype', input.substring(nameStartIndex, nameEndIndex));
     },
   });
 
-  expect(tokens).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onProcessingInstruction', 'aaa', 'bbb'],
     ['onDoctype', 'ccc'],
     ['onStartTagName', 'ddd'],
@@ -181,47 +181,47 @@ test('parses the XML declaration and DOCTYPE of a document', () => {
 });
 
 test('resolves namespaces', () => {
-  expect(XMLDOMParser.parseDocument('<aaa xmlns="xxx"/>').documentElement!.namespaceURI).toBe('xxx');
+  expect(XMLDOMParser.parseDocument('<aaa xmlns="bbb"/>').documentElement!.namespaceURI).toBe('bbb');
 });
 
 test('resolves namespaces of prefixes', () => {
-  const document = XMLDOMParser.parseDocument('<aaa xmlns="xxx" xmlns:bbb="yyy"><bbb:ccc/><ddd:eee/></aaa>');
+  const document = XMLDOMParser.parseDocument('<aaa xmlns="fff" xmlns:bbb="ggg"><bbb:ccc/><ddd:eee/></aaa>');
 
   expect(Array.from(document.getElementsByTagName('*'), element => element.namespaceURI)).toStrictEqual([
-    'xxx',
-    'yyy',
+    'fff',
+    'ggg',
     null,
   ]);
 });
 
 test('keeps attributes that declare namespaces, so namespaces of attributes can be looked up', () => {
-  const element = XMLDOMParser.parseDocument('<aaa xmlns:bbb="xxx" bbb:ccc="ddd"/>').documentElement!;
+  const element = XMLDOMParser.parseDocument('<aaa xmlns:bbb="eee" bbb:ccc="ddd"/>').documentElement!;
 
-  expect(element.attributes).toStrictEqual({ 'xmlns:bbb': 'xxx', 'bbb:ccc': 'ddd' });
-  expect(element.getAttributeNS('xxx', 'ccc')).toBe('ddd');
+  expect(element.attributes).toStrictEqual({ 'xmlns:bbb': 'eee', 'bbb:ccc': 'ddd' });
+  expect(element.getAttributeNS('eee', 'ccc')).toBe('ddd');
 });
 
 test('resolves namespaces of tags', () => {
   const onStartTagMock = vi.fn();
 
-  XMLSAXParser.parseDocument('<aaa xmlns="xxx"/>', { onStartTag: onStartTagMock });
+  XMLSAXParser.parseDocument('<aaa xmlns="bbb"/>', { onStartTag: onStartTagMock });
 
-  expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'xxx' }, true, 'xxx');
+  expect(onStartTagMock).toHaveBeenNthCalledWith(1, 'aaa', { xmlns: 'bbb' }, true, 'bbb');
 });
 
 test('passes namespaces to onStartTag and onEndTag', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   XMLSAXParser.parseFragment('<svg xmlns="http://www.w3.org/2000/svg"><circle/></svg>', {
     onStartTag(tagName, attributes, isSelfClosing, namespaceURI) {
-      calls.push(['onStartTag', tagName, attributes, isSelfClosing, namespaceURI]);
+      callbackMock('onStartTag', tagName, attributes, isSelfClosing, namespaceURI);
     },
     onEndTag(tagName, namespaceURI) {
-      calls.push(['onEndTag', tagName, namespaceURI]);
+      callbackMock('onEndTag', tagName, namespaceURI);
     },
   });
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onStartTag', 'svg', { xmlns: 'http://www.w3.org/2000/svg' }, false, 'http://www.w3.org/2000/svg'],
     ['onStartTag', 'circle', {}, true, 'http://www.w3.org/2000/svg'],
     ['onEndTag', 'svg', 'http://www.w3.org/2000/svg'],
@@ -231,7 +231,7 @@ test('passes namespaces to onStartTag and onEndTag', () => {
 test('throws MarkupSyntaxError that points to the name of an unbalanced end tag', () => {
   const xml = '<p>hello</br>';
 
-  // Indices 10 and 12 enclose "br"
+  // Indexes 10 and 12 enclose "br"
   const error = new MarkupSyntaxError('Unexpected end tag.', xml, 10, 12);
 
   expect(() => XMLDOMParser.parseFragment(xml)).toThrow(error);

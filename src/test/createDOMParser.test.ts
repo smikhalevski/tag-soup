@@ -1,10 +1,11 @@
 import { type Document, type Element, XML_NAMESPACE, XMLNS_NAMESPACE } from 'flyweight-dom';
 import { h } from 'flyweight-dom/dsl';
 import { decodeXML } from 'speedy-entities';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { createDOMParser } from '../main/createDOMParser.ts';
 import { createTokenizer } from '../main/createTokenizer.ts';
 import { MarkupSyntaxError } from '../main/MarkupSyntaxError.ts';
+import { identity } from '../main/utils.ts';
 
 const namespaceParser = createDOMParser({
   tokenizer: createTokenizer({ areSelfClosingTagsRecognized: true }),
@@ -30,8 +31,8 @@ test('parses element', () => {
 });
 
 test('parses attributes', () => {
-  expect(createDOMParser().parseDocument('<aaa xxx="yyy" zzz="vvv">bbb</aaa>')).toStrictEqual(
-    h.document(h('aaa', { xxx: 'yyy', zzz: 'vvv' }, 'bbb'))
+  expect(createDOMParser().parseDocument('<aaa ccc="ddd" eee="fff">bbb</aaa>')).toStrictEqual(
+    h.document(h('aaa', { ccc: 'ddd', eee: 'fff' }, 'bbb'))
   );
 });
 
@@ -54,7 +55,7 @@ test('parses self-closing tags', () => {
 });
 
 test('parses comments', () => {
-  expect(createDOMParser().parseDocument('<!--xxx-->')).toStrictEqual(h.document(h.comment('xxx')));
+  expect(createDOMParser().parseDocument('<!--aaa-->')).toStrictEqual(h.document(h.comment('aaa')));
 });
 
 test('parses CDATA sections', () => {
@@ -100,23 +101,15 @@ test('decodes attribute values with decodeAttribute', () => {
 });
 
 test('calls decodeText and decodeAttribute with this undefined', () => {
-  const calls: unknown[][] = [];
+  const decodeTextMock = vi.fn(identity);
+  const decodeAttributeMock = vi.fn(identity);
 
-  createDOMParser({
-    decodeText(this: unknown, text: string) {
-      calls.push(['text', this]);
-      return text;
-    },
-    decodeAttribute(this: unknown, value: string) {
-      calls.push(['attribute', this]);
-      return value;
-    },
-  }).parseFragment('<aaa bbb="ccc">ddd</aaa>');
+  createDOMParser({ decodeText: decodeTextMock, decodeAttribute: decodeAttributeMock }).parseFragment(
+    '<aaa bbb="ccc">ddd</aaa>'
+  );
 
-  expect(calls).toStrictEqual([
-    ['attribute', undefined],
-    ['text', undefined],
-  ]);
+  expect(decodeTextMock.mock.contexts).toStrictEqual([undefined]);
+  expect(decodeAttributeMock.mock.contexts).toStrictEqual([undefined]);
 });
 
 test('renames tags with renameTag', () => {
@@ -128,49 +121,31 @@ test('renames tags with renameTag', () => {
 test('renames attributes with renameAttribute', () => {
   const parser = createDOMParser({ renameAttribute: name => name.toLowerCase() });
 
-  expect(parser.parseDocument('<aaa XXX="YYY"></aaa>')).toStrictEqual(h.document(h('aaa', { xxx: 'YYY' })));
+  expect(parser.parseDocument('<aaa BBB="CCC"></aaa>')).toStrictEqual(h.document(h('aaa', { bbb: 'CCC' })));
 });
 
 test('calls renameTag once for each start tag and renameAttribute once for each attribute', () => {
-  const calls: string[][] = [];
+  const renameTagMock = vi.fn(identity);
+  const renameAttributeMock = vi.fn(identity);
 
-  createDOMParser({
-    renameTag(name) {
-      calls.push(['tag', name]);
-      return name;
-    },
-    renameAttribute(name) {
-      calls.push(['attribute', name]);
-      return name;
-    },
-  }).parseDocument('<aaa xxx="yyy"><aaa xxx="zzz"></aaa></aaa>');
+  createDOMParser({ renameTag: renameTagMock, renameAttribute: renameAttributeMock }).parseDocument(
+    '<aaa bbb="ccc"><aaa bbb="ddd"></aaa></aaa>'
+  );
 
-  expect(calls).toStrictEqual([
-    ['tag', 'aaa'],
-    ['attribute', 'xxx'],
-    ['tag', 'aaa'],
-    ['attribute', 'xxx'],
-  ]);
+  expect(renameTagMock.mock.calls).toStrictEqual([['aaa'], ['aaa']]);
+  expect(renameAttributeMock.mock.calls).toStrictEqual([['bbb'], ['bbb']]);
 });
 
 test('calls renameTag and renameAttribute with this undefined', () => {
-  const calls: unknown[][] = [];
+  const renameTagMock = vi.fn(identity);
+  const renameAttributeMock = vi.fn(identity);
 
-  createDOMParser({
-    renameTag(this: unknown, name: string) {
-      calls.push(['tag', this]);
-      return name;
-    },
-    renameAttribute(this: unknown, name: string) {
-      calls.push(['attribute', this]);
-      return name;
-    },
-  }).parseFragment('<aaa bbb="ccc">ddd</aaa>');
+  createDOMParser({ renameTag: renameTagMock, renameAttribute: renameAttributeMock }).parseFragment(
+    '<aaa bbb="ccc">ddd</aaa>'
+  );
 
-  expect(calls).toStrictEqual([
-    ['tag', undefined],
-    ['attribute', undefined],
-  ]);
+  expect(renameTagMock.mock.contexts).toStrictEqual([undefined]);
+  expect(renameAttributeMock.mock.contexts).toStrictEqual([undefined]);
 });
 
 test('preserves __proto__ attribute', () => {
@@ -180,36 +155,36 @@ test('preserves __proto__ attribute', () => {
 });
 
 test('parses comments in elements', () => {
-  expect(createDOMParser().parseDocument('<aaa><!--xxx--></aaa>')).toStrictEqual(
-    h.document(h('aaa', h.comment('xxx')))
+  expect(createDOMParser().parseDocument('<aaa><!--bbb--></aaa>')).toStrictEqual(
+    h.document(h('aaa', h.comment('bbb')))
   );
 });
 
 test('parses processing instructions in elements', () => {
   const tokenizer = createTokenizer({ processingInstructionSyntax: 'xml' });
 
-  expect(createDOMParser({ tokenizer }).parseDocument('<aaa><?xxx yyy?></aaa>')).toStrictEqual(
-    h.document(h('aaa', h.processingInstruction('xxx', 'yyy')))
+  expect(createDOMParser({ tokenizer }).parseDocument('<aaa><?bbb ccc?></aaa>')).toStrictEqual(
+    h.document(h('aaa', h.processingInstruction('bbb', 'ccc')))
   );
 });
 
 test('parses DOCTYPE, processing instruction and text', () => {
   const tokenizer = createTokenizer({ processingInstructionSyntax: 'xml' });
 
-  expect(createDOMParser({ tokenizer }).parseDocument('   <!DOCTYPE html>  <?xxx yyy?>  vvv')).toStrictEqual(
-    h.document(h.doctype('html'), h.processingInstruction('xxx', 'yyy'), 'vvv')
+  expect(createDOMParser({ tokenizer }).parseDocument('   <!DOCTYPE html>  <?aaa bbb?>  ccc')).toStrictEqual(
+    h.document(h.doctype('html'), h.processingInstruction('aaa', 'bbb'), 'ccc')
   );
 });
 
 test('parses DOCTYPE, text and bogus comment', () => {
-  expect(createDOMParser().parseDocument('   <!DOCTYPE html>   vvv   <?xxx yyy?>')).toStrictEqual(
-    h.document(h.doctype('html'), 'vvv   ', h.comment('?xxx yyy?'))
+  expect(createDOMParser().parseDocument('   <!DOCTYPE html>   aaa   <?bbb ccc?>')).toStrictEqual(
+    h.document(h.doctype('html'), 'aaa   ', h.comment('?bbb ccc?'))
   );
 });
 
 test('parses bogus comment, DOCTYPE and text', () => {
-  expect(createDOMParser().parseDocument('   <?xxx yyy?>   <!DOCTYPE html>   vvv   ')).toStrictEqual(
-    h.document(h.comment('?xxx yyy?'), h.doctype('html'), 'vvv   ')
+  expect(createDOMParser().parseDocument('   <?aaa bbb?>   <!DOCTYPE html>   ccc   ')).toStrictEqual(
+    h.document(h.comment('?aaa bbb?'), h.doctype('html'), 'ccc   ')
   );
 });
 
@@ -276,45 +251,45 @@ test('parses fragment chunks with the given tokenizer and keeps leading spaces',
 });
 
 test('does not recognize namespaces by default', () => {
-  expect(getNamespaceURIs(createDOMParser().parseDocument('<aaa xmlns="xxx"></aaa>'))).toStrictEqual({ aaa: null });
+  expect(getNamespaceURIs(createDOMParser().parseDocument('<aaa xmlns="bbb"></aaa>'))).toStrictEqual({ aaa: null });
 });
 
 test('resolves the default namespace of an element and its descendants', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb></bbb></aaa>'))).toStrictEqual({
-    aaa: 'xxx',
-    bbb: 'xxx',
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="ccc"><bbb></bbb></aaa>'))).toStrictEqual({
+    aaa: 'ccc',
+    bbb: 'ccc',
   });
 });
 
 test('resolves the namespace of a prefix declared by the same element', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa:bbb xmlns:aaa="xxx"></aaa:bbb>'))).toStrictEqual({
-    'aaa:bbb': 'xxx',
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa:bbb xmlns:aaa="ccc"></aaa:bbb>'))).toStrictEqual({
+    'aaa:bbb': 'ccc',
   });
 });
 
 test('resolves the namespace of a prefix declared by an enclosing element', () => {
   expect(
-    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bbb="xxx"><bbb:ccc></bbb:ccc></aaa>'))
-  ).toStrictEqual({ aaa: null, 'bbb:ccc': 'xxx' });
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bbb="ddd"><bbb:ccc></bbb:ccc></aaa>'))
+  ).toStrictEqual({ aaa: null, 'bbb:ccc': 'ddd' });
 });
 
 test('resolves the namespace of a prefix from its innermost declaration', () => {
   expect(
-    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bbb="xxx"><ccc xmlns:bbb="yyy"><bbb:ddd/></ccc></aaa>'))
-  ).toStrictEqual({ aaa: null, ccc: null, 'bbb:ddd': 'yyy' });
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bbb="eee"><ccc xmlns:bbb="fff"><bbb:ddd/></ccc></aaa>'))
+  ).toStrictEqual({ aaa: null, ccc: null, 'bbb:ddd': 'fff' });
 });
 
 test('does not resolve the namespace of a prefix that is not declared', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb:ccc></bbb:ccc></aaa>'))).toStrictEqual({
-    aaa: 'xxx',
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="ddd"><bbb:ccc></bbb:ccc></aaa>'))).toStrictEqual({
+    aaa: 'ddd',
     'bbb:ccc': null,
   });
 });
 
 test('does not resolve the namespace of a prefix that only resembles a declared prefix', () => {
   expect(
-    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bb="xxx"><bbb:ccc/><cc:ddd/><bb:eee/></aaa>'))
-  ).toStrictEqual({ aaa: null, 'bbb:ccc': null, 'cc:ddd': null, 'bb:eee': 'xxx' });
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns:bb="fff"><bbb:ccc/><cc:ddd/><bb:eee/></aaa>'))
+  ).toStrictEqual({ aaa: null, 'bbb:ccc': null, 'cc:ddd': null, 'bb:eee': 'fff' });
 });
 
 test('resolves the namespace of the xml prefix', () => {
@@ -324,7 +299,7 @@ test('resolves the namespace of the xml prefix', () => {
 });
 
 test('does not rebind the xml prefix', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<xml:aaa xmlns:xml="xxx"></xml:aaa>'))).toStrictEqual({
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<xml:aaa xmlns:xml="bbb"></xml:aaa>'))).toStrictEqual({
     'xml:aaa': XML_NAMESPACE,
   });
 });
@@ -337,28 +312,28 @@ test('resolves the namespace of the xmlns prefix', () => {
 
 test('removes namespaces declared by an element when it is ended', () => {
   expect(
-    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb xmlns="yyy"></bbb><ccc></ccc></aaa>'))
-  ).toStrictEqual({ aaa: 'xxx', bbb: 'yyy', ccc: 'xxx' });
+    getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="ddd"><bbb xmlns="eee"></bbb><ccc></ccc></aaa>'))
+  ).toStrictEqual({ aaa: 'ddd', bbb: 'eee', ccc: 'ddd' });
 });
 
 test('removes all namespaces declared by an element when it is ended', () => {
   expect(
     getNamespaceURIs(
-      namespaceParser.parseDocument('<aaa><bbb xmlns="xxx" xmlns:ccc="yyy"></bbb><ddd></ddd><ccc:eee></ccc:eee></aaa>')
+      namespaceParser.parseDocument('<aaa><bbb xmlns="fff" xmlns:ccc="ggg"></bbb><ddd></ddd><ccc:eee></ccc:eee></aaa>')
     )
-  ).toStrictEqual({ aaa: null, bbb: 'xxx', ddd: null, 'ccc:eee': null });
+  ).toStrictEqual({ aaa: null, bbb: 'fff', ddd: null, 'ccc:eee': null });
 });
 
 test('removes namespaces declared by nested elements when they are ended', () => {
   expect(
     getNamespaceURIs(
-      namespaceParser.parseDocument('<aaa><bbb xmlns="xxx"><ccc xmlns="yyy"></ccc></bbb><ddd></ddd></aaa>')
+      namespaceParser.parseDocument('<aaa><bbb xmlns="eee"><ccc xmlns="fff"></ccc></bbb><ddd></ddd></aaa>')
     )
-  ).toStrictEqual({ aaa: null, bbb: 'xxx', ccc: 'yyy', ddd: null });
+  ).toStrictEqual({ aaa: null, bbb: 'eee', ccc: 'fff', ddd: null });
 });
 
 test('removes namespaces declared by a self-closing element', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa><bbb xmlns:ccc="xxx"/><ccc:ddd/></aaa>'))).toStrictEqual({
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa><bbb xmlns:ccc="eee"/><ccc:ddd/></aaa>'))).toStrictEqual({
     aaa: null,
     bbb: null,
     'ccc:ddd': null,
@@ -369,15 +344,15 @@ test('resolves namespaces declared after namespaces of an ended element were rem
   expect(
     getNamespaceURIs(
       namespaceParser.parseDocument(
-        '<aaa><bbb xmlns:ppp="xxx"></bbb><ccc><ddd xmlns:ppp="yyy"><ppp:eee/></ddd><ppp:fff/></ccc></aaa>'
+        '<aaa><bbb xmlns:ppp="ggg"></bbb><ccc><ddd xmlns:ppp="hhh"><ppp:eee/></ddd><ppp:fff/></ccc></aaa>'
       )
     )
-  ).toStrictEqual({ aaa: null, bbb: null, ccc: null, ddd: null, 'ppp:eee': 'yyy', 'ppp:fff': null });
+  ).toStrictEqual({ aaa: null, bbb: null, ccc: null, ddd: null, 'ppp:eee': 'hhh', 'ppp:fff': null });
 });
 
 test('removes the default namespace if xmlns has an empty value', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="xxx"><bbb xmlns=""></bbb></aaa>'))).toStrictEqual({
-    aaa: 'xxx',
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<aaa xmlns="ccc"><bbb xmlns=""></bbb></aaa>'))).toStrictEqual({
+    aaa: 'ccc',
     bbb: null,
   });
 });
@@ -385,20 +360,20 @@ test('removes the default namespace if xmlns has an empty value', () => {
 test('removes the namespace of a prefix if its declaration has an empty value', () => {
   expect(
     getNamespaceURIs(
-      namespaceParser.parseDocument('<aaa xmlns:bbb="xxx"><ccc xmlns:bbb=""><bbb:ddd/></ccc><bbb:eee/></aaa>')
+      namespaceParser.parseDocument('<aaa xmlns:bbb="fff"><ccc xmlns:bbb=""><bbb:ddd/></ccc><bbb:eee/></aaa>')
     )
-  ).toStrictEqual({ aaa: null, ccc: null, 'bbb:ddd': null, 'bbb:eee': 'xxx' });
+  ).toStrictEqual({ aaa: null, ccc: null, 'bbb:ddd': null, 'bbb:eee': 'fff' });
 });
 
 test('does not recognize a namespace declared by an attribute that only starts with xmlns', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<bb:aaa xmlnsbbb="xxx"><ccc/></bb:aaa>'))).toStrictEqual({
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<bb:aaa xmlnsbbb="bbb"><ccc/></bb:aaa>'))).toStrictEqual({
     'bb:aaa': null,
     ccc: null,
   });
 });
 
 test('does not recognize a prefix declared by xmlns: without a name', () => {
-  expect(getNamespaceURIs(namespaceParser.parseDocument('<:aaa xmlns:="xxx"></:aaa>'))).toStrictEqual({
+  expect(getNamespaceURIs(namespaceParser.parseDocument('<:aaa xmlns:="bbb"></:aaa>'))).toStrictEqual({
     ':aaa': null,
   });
 });
@@ -406,7 +381,7 @@ test('does not recognize a prefix declared by xmlns: without a name', () => {
 test('recognizes a namespace declared by a renamed attribute', () => {
   const parser = createDOMParser({ renameAttribute: name => name.toLowerCase(), areNamespacesRecognized: true });
 
-  expect(getNamespaceURIs(parser.parseDocument('<aaa XMLNS="xxx"></aaa>'))).toStrictEqual({ aaa: 'xxx' });
+  expect(getNamespaceURIs(parser.parseDocument('<aaa XMLNS="bbb"></aaa>'))).toStrictEqual({ aaa: 'bbb' });
 });
 
 test('recognizes a namespace declared by a decoded attribute value', () => {
@@ -418,41 +393,32 @@ test('recognizes a namespace declared by a decoded attribute value', () => {
 test('resolves the namespace of a prefix in a renamed tag', () => {
   const parser = createDOMParser({ renameTag: name => name.toLowerCase(), areNamespacesRecognized: true });
 
-  expect(getNamespaceURIs(parser.parseDocument('<AAA:bbb xmlns:aaa="xxx"></AAA:bbb>'))).toStrictEqual({
-    'aaa:bbb': 'xxx',
+  expect(getNamespaceURIs(parser.parseDocument('<AAA:bbb xmlns:aaa="ccc"></AAA:bbb>'))).toStrictEqual({
+    'aaa:bbb': 'ccc',
   });
 });
 
 test('calls renameTag, renameAttribute and decodeAttribute with this undefined when namespaces are recognized', () => {
-  const calls: unknown[][] = [];
+  const renameTagMock = vi.fn(identity);
+  const renameAttributeMock = vi.fn(identity);
+  const decodeAttributeMock = vi.fn(identity);
 
   createDOMParser({
-    renameTag(this: unknown, name: string) {
-      calls.push(['tag', this]);
-      return name;
-    },
-    renameAttribute(this: unknown, name: string) {
-      calls.push(['name', this]);
-      return name;
-    },
-    decodeAttribute(this: unknown, value: string) {
-      calls.push(['value', this]);
-      return value;
-    },
+    renameTag: renameTagMock,
+    renameAttribute: renameAttributeMock,
+    decodeAttribute: decodeAttributeMock,
     areNamespacesRecognized: true,
   }).parseFragment('<aaa bbb="ccc"></aaa>');
 
-  expect(calls).toStrictEqual([
-    ['tag', undefined],
-    ['name', undefined],
-    ['value', undefined],
-  ]);
+  expect(renameTagMock.mock.contexts).toStrictEqual([undefined]);
+  expect(renameAttributeMock.mock.contexts).toStrictEqual([undefined]);
+  expect(decodeAttributeMock.mock.contexts).toStrictEqual([undefined]);
 });
 
 test('keeps attributes of an element when namespaces are recognized', () => {
-  const document = namespaceParser.parseDocument('<aaa xmlns="xxx" bbb="ccc"></aaa>');
+  const document = namespaceParser.parseDocument('<aaa xmlns="ddd" bbb="ccc"></aaa>');
 
-  expect(document.documentElement!.attributes).toStrictEqual({ xmlns: 'xxx', bbb: 'ccc' });
+  expect(document.documentElement!.attributes).toStrictEqual({ xmlns: 'ddd', bbb: 'ccc' });
 });
 
 test('preserves __proto__ attribute when namespaces are recognized', () => {
@@ -462,51 +428,51 @@ test('preserves __proto__ attribute when namespaces are recognized', () => {
 });
 
 test('parses nested nodes when namespaces are recognized', () => {
-  expect(namespaceParser.parseDocument('<aaa xxx="yyy">bbb<ccc/>ddd<eee>fff</eee>ggg</aaa>')).toStrictEqual(
-    h.document(h('aaa', { xxx: 'yyy' }, 'bbb', h('ccc'), 'ddd', h('eee', 'fff'), 'ggg'))
+  expect(namespaceParser.parseDocument('<aaa hhh="iii">bbb<ccc/>ddd<eee>fff</eee>ggg</aaa>')).toStrictEqual(
+    h.document(h('aaa', { hhh: 'iii' }, 'bbb', h('ccc'), 'ddd', h('eee', 'fff'), 'ggg'))
   );
 });
 
 test('resolves namespaces of a fragment', () => {
-  const fragment = namespaceParser.parseFragment('<aaa xmlns="xxx"></aaa>');
+  const fragment = namespaceParser.parseFragment('<aaa xmlns="bbb"></aaa>');
 
-  expect((fragment.firstChild as Element).namespaceURI).toBe('xxx');
+  expect((fragment.firstChild as Element).namespaceURI).toBe('bbb');
 });
 
 test('resolves namespaces of document chunks', () => {
   const writer = namespaceParser.createDocumentWriter();
 
-  writer.write('<aaa:bbb xmlns:aaa="xx');
+  writer.write('<aaa:bbb xmlns:aaa="cc');
 
-  expect(getNamespaceURIs(writer.end('x"></aaa:bbb>'))).toStrictEqual({ 'aaa:bbb': 'xxx' });
+  expect(getNamespaceURIs(writer.end('c"></aaa:bbb>'))).toStrictEqual({ 'aaa:bbb': 'ccc' });
 });
 
 test('resolves namespaces of fragment chunks', () => {
   const writer = namespaceParser.createFragmentWriter();
 
-  writer.write('<aaa xmlns="xx');
+  writer.write('<aaa xmlns="bb');
 
-  expect((writer.end('x"></aaa>').firstChild as Element).namespaceURI).toBe('xxx');
+  expect((writer.end('b"></aaa>').firstChild as Element).namespaceURI).toBe('bbb');
 });
 
 test('keeps attributes that were read in a previous chunk when namespaces are recognized', () => {
   const writer = namespaceParser.createDocumentWriter();
 
-  writer.write('<aaa:bbb xmlns:aaa="xxx" ');
+  writer.write('<aaa:bbb xmlns:aaa="eee" ');
 
   const document = writer.end('ccc="ddd"></aaa:bbb>');
 
-  expect(document.documentElement!.attributes).toStrictEqual({ 'xmlns:aaa': 'xxx', ccc: 'ddd' });
-  expect(document.documentElement!.namespaceURI).toBe('xxx');
+  expect(document.documentElement!.attributes).toStrictEqual({ 'xmlns:aaa': 'eee', ccc: 'ddd' });
+  expect(document.documentElement!.namespaceURI).toBe('eee');
 });
 
 test('parses chunks written to several writers in turns', () => {
   const writer1 = namespaceParser.createDocumentWriter();
   const writer2 = namespaceParser.createDocumentWriter();
 
-  writer1.write('<aaa xmlns="xxx">');
+  writer1.write('<aaa xmlns="ccc">');
   writer2.write('<bbb>');
 
-  expect(getNamespaceURIs(writer1.end('</aaa>'))).toStrictEqual({ aaa: 'xxx' });
+  expect(getNamespaceURIs(writer1.end('</aaa>'))).toStrictEqual({ aaa: 'ccc' });
   expect(getNamespaceURIs(writer2.end('</bbb>'))).toStrictEqual({ bbb: null });
 });

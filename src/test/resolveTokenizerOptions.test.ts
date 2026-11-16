@@ -47,9 +47,9 @@ describe('resolveTokenizerOptions', () => {
   test('puts tags that are implicitly ended by the same tags in one group', () => {
     const { rootContext } = resolveTokenizerOptions({
       tags: {
-        aaa: { implicitEndingTagNames: ['xxx', 'yyy'] },
-        bbb: { implicitEndingTagNames: ['YYY', 'xxx', 'yyy'] },
-        ccc: { implicitEndingTagNames: ['xxx'] },
+        aaa: { implicitEndingTagNames: ['eee', 'fff'] },
+        bbb: { implicitEndingTagNames: ['FFF', 'eee', 'fff'] },
+        ccc: { implicitEndingTagNames: ['eee'] },
         ddd: { implicitEndingTagNames: [] },
       },
       areTagNamesCaseInsensitive: true,
@@ -61,8 +61,8 @@ describe('resolveTokenizerOptions', () => {
     expect(getTagConfig(rootContext, 'ddd').groupBit).toBe(0);
 
     // Tags that end groups get configs with the bits of the groups that they end
-    expect(getTagConfig(rootContext, 'xxx').endedGroupBits).toBe(3);
-    expect(getTagConfig(rootContext, 'yyy').endedGroupBits).toBe(1);
+    expect(getTagConfig(rootContext, 'eee').endedGroupBits).toBe(3);
+    expect(getTagConfig(rootContext, 'fff').endedGroupBits).toBe(1);
     expect(getTagConfig(rootContext, 'aaa').endedGroupBits).toBe(0);
   });
 

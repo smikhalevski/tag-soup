@@ -1,5 +1,5 @@
 import { h } from 'flyweight-dom/dsl';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { HTMLDOMParser, HTMLSAXParser, HTMLTokenizer, toHTML } from '../main/html.ts';
 
 test('parses HTML DOM', () => {
@@ -31,21 +31,21 @@ test('decodes text and attribute values of each chunk', () => {
 });
 
 test('parses HTML SAX', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLSAXParser.parseFragment('<p>aaa<p>bbb</br>', {
     onStartTagOpening(tagName) {
-      calls.push(['onStartTagOpening', tagName]);
+      callbackMock('onStartTagOpening', tagName);
     },
     onText(text) {
-      calls.push(['onText', text]);
+      callbackMock('onText', text);
     },
     onEndTag(tagName, namespaceURI) {
-      calls.push(['onEndTag', tagName, namespaceURI]);
+      callbackMock('onEndTag', tagName, namespaceURI);
     },
   });
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onStartTagOpening', 'p'],
     ['onText', 'aaa'],
     ['onEndTag', 'p', null],
@@ -58,17 +58,17 @@ test('parses HTML SAX', () => {
 });
 
 test('parses HTML SAX from chunks', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   const writer = HTMLSAXParser.createDocumentWriter({
     onDoctype(name, publicId, systemId) {
-      calls.push(['onDoctype', name, publicId, systemId]);
+      callbackMock('onDoctype', name, publicId, systemId);
     },
     onStartTagOpening(tagName) {
-      calls.push(['onStartTagOpening', tagName]);
+      callbackMock('onStartTagOpening', tagName);
     },
     onText(text) {
-      calls.push(['onText', text]);
+      callbackMock('onText', text);
     },
   });
 
@@ -76,7 +76,7 @@ test('parses HTML SAX from chunks', () => {
   writer.write('ml><P>a&am');
   writer.end('p;b');
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onDoctype', 'html', '', ''],
     ['onStartTagOpening', 'p'],
     ['onText', 'a&b'],
@@ -84,14 +84,14 @@ test('parses HTML SAX from chunks', () => {
 });
 
 test('passes decoded text and attribute values of each chunk to the SAX handler', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   const writer = HTMLSAXParser.createFragmentWriter({
     onAttribute(name, value) {
-      calls.push(['onAttribute', name, value]);
+      callbackMock('onAttribute', name, value);
     },
     onText(text) {
-      calls.push(['onText', text]);
+      callbackMock('onText', text);
     },
   });
 
@@ -101,7 +101,7 @@ test('passes decoded text and attribute values of each chunk to the SAX handler'
   writer.write('<p>bbbbbbbbbbbbbbbbbbbb</p>');
   writer.end('<p>&amp;</p>');
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onText', 'aaaaaaaaaaaaaaaaaaaa'],
     ['onAttribute', 'title', '&'],
     ['onText', '&'],
@@ -111,21 +111,21 @@ test('passes decoded text and attribute values of each chunk to the SAX handler'
 });
 
 test('passes lower case names and decoded values to the SAX handler', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLSAXParser.parseFragment('<A HREF="?aaa=111&amp;bbb=222&copy=333">&copy=333</A>', {
     onStartTag(tagName, attributes, isSelfClosing, namespaceURI) {
-      calls.push(['onStartTag', tagName, attributes, isSelfClosing, namespaceURI]);
+      callbackMock('onStartTag', tagName, attributes, isSelfClosing, namespaceURI);
     },
     onText(text) {
-      calls.push(['onText', text]);
+      callbackMock('onText', text);
     },
     onEndTag(tagName, namespaceURI) {
-      calls.push(['onEndTag', tagName, namespaceURI]);
+      callbackMock('onEndTag', tagName, namespaceURI);
     },
   });
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onStartTag', 'a', { href: '?aaa=111&bbb=222&copy=333' }, false, null],
     ['onText', '©=333'],
     ['onEndTag', 'a', null],
@@ -133,30 +133,26 @@ test('passes lower case names and decoded values to the SAX handler', () => {
 });
 
 test('passes raw text to the SAX handler as is, and decodes escapable raw text', () => {
-  const texts: string[] = [];
+  const onTextMock = vi.fn();
 
-  HTMLSAXParser.parseFragment('<script>a<b&amp;</script><textarea>a<b&amp;</textarea>', {
-    onText(text) {
-      texts.push(text);
-    },
-  });
+  HTMLSAXParser.parseFragment('<script>a<b&amp;</script><textarea>a<b&amp;</textarea>', { onText: onTextMock });
 
-  expect(texts).toStrictEqual(['a<b&amp;', 'a<b&']);
+  expect(onTextMock.mock.calls).toStrictEqual([['a<b&amp;'], ['a<b&']]);
 });
 
 test('does not pass namespaces to the SAX handler', () => {
-  const calls: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLSAXParser.parseFragment('<svg xmlns="http://www.w3.org/2000/svg"><circle/></svg>', {
     onStartTag(tagName, attributes, isSelfClosing, namespaceURI) {
-      calls.push(['onStartTag', tagName, attributes, isSelfClosing, namespaceURI]);
+      callbackMock('onStartTag', tagName, attributes, isSelfClosing, namespaceURI);
     },
     onEndTag(tagName, namespaceURI) {
-      calls.push(['onEndTag', tagName, namespaceURI]);
+      callbackMock('onEndTag', tagName, namespaceURI);
     },
   });
 
-  expect(calls).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onStartTag', 'svg', { xmlns: 'http://www.w3.org/2000/svg' }, false, null],
     ['onStartTag', 'circle', {}, true, null],
     ['onEndTag', 'svg', null],
@@ -164,24 +160,24 @@ test('does not pass namespaces to the SAX handler', () => {
 });
 
 test('reads tokens of void tags and tags that are not ended', () => {
-  const tokens: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLTokenizer.tokenizeFragment('<p>hello<p>cool</br>', {
     onStartTagName(input, startIndex, endIndex) {
-      tokens.push(['onStartTagName', input.substring(startIndex, endIndex), startIndex, endIndex]);
+      callbackMock('onStartTagName', input.substring(startIndex, endIndex), startIndex, endIndex);
     },
     onStartTagClosing(input, startIndex, endIndex) {
-      tokens.push(['onStartTagClosing', input.substring(startIndex, endIndex), startIndex, endIndex]);
+      callbackMock('onStartTagClosing', input.substring(startIndex, endIndex), startIndex, endIndex);
     },
     onText(input, startIndex, endIndex, isRawText) {
-      tokens.push(['onText', input.substring(startIndex, endIndex), startIndex, endIndex, isRawText]);
+      callbackMock('onText', input.substring(startIndex, endIndex), startIndex, endIndex, isRawText);
     },
     onEndTagName(input, startIndex, endIndex) {
-      tokens.push(['onEndTagName', input.substring(startIndex, endIndex), startIndex, endIndex]);
+      callbackMock('onEndTagName', input.substring(startIndex, endIndex), startIndex, endIndex);
     },
   });
 
-  expect(tokens).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onStartTagName', 'p', 1, 2],
     ['onStartTagClosing', '>', 2, 3],
     ['onText', 'hello', 3, 8, false],
@@ -197,28 +193,28 @@ test('reads tokens of void tags and tags that are not ended', () => {
 });
 
 test('reads tokens without renaming tags and attributes and without decoding entities', () => {
-  const tokens: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLTokenizer.tokenizeFragment('<A HREF="&amp;">&amp;</a>', {
     onStartTagName(input, startIndex, endIndex) {
-      tokens.push(['onStartTagName', input.substring(startIndex, endIndex)]);
+      callbackMock('onStartTagName', input.substring(startIndex, endIndex));
     },
     onAttribute(input, nameStartIndex, nameEndIndex, valueStartIndex, valueEndIndex) {
-      tokens.push([
+      callbackMock(
         'onAttribute',
         input.substring(nameStartIndex, nameEndIndex),
-        input.substring(valueStartIndex, valueEndIndex),
-      ]);
+        input.substring(valueStartIndex, valueEndIndex)
+      );
     },
     onText(input, startIndex, endIndex) {
-      tokens.push(['onText', input.substring(startIndex, endIndex)]);
+      callbackMock('onText', input.substring(startIndex, endIndex));
     },
     onEndTagName(input, startIndex, endIndex) {
-      tokens.push(['onEndTagName', input.substring(startIndex, endIndex)]);
+      callbackMock('onEndTagName', input.substring(startIndex, endIndex));
     },
   });
 
-  expect(tokens).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onStartTagName', 'A'],
     ['onAttribute', 'HREF', '&amp;'],
     ['onText', '&amp;'],
@@ -227,15 +223,15 @@ test('reads tokens without renaming tags and attributes and without decoding ent
 });
 
 test('marks text tokens of raw text and script data tags as raw', () => {
-  const tokens: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLTokenizer.tokenizeFragment('<script>a<b</script><style>c<d</style><title>e<f</title>ggg', {
     onText(input, startIndex, endIndex, isRawText) {
-      tokens.push([input.substring(startIndex, endIndex), isRawText]);
+      callbackMock(input.substring(startIndex, endIndex), isRawText);
     },
   });
 
-  expect(tokens).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['a<b', true],
     ['c<d', true],
     ['e<f', false],
@@ -244,18 +240,18 @@ test('marks text tokens of raw text and script data tags as raw', () => {
 });
 
 test('reads the DOCTYPE token of a document', () => {
-  const tokens: unknown[][] = [];
+  const callbackMock = vi.fn();
 
   HTMLTokenizer.tokenizeDocument('  <!DOCTYPE html>aaa', {
     onDoctype(input, nameStartIndex, nameEndIndex) {
-      tokens.push(['onDoctype', input.substring(nameStartIndex, nameEndIndex)]);
+      callbackMock('onDoctype', input.substring(nameStartIndex, nameEndIndex));
     },
     onText(input, startIndex, endIndex) {
-      tokens.push(['onText', input.substring(startIndex, endIndex)]);
+      callbackMock('onText', input.substring(startIndex, endIndex));
     },
   });
 
-  expect(tokens).toStrictEqual([
+  expect(callbackMock.mock.calls).toStrictEqual([
     ['onDoctype', 'html'],
     ['onText', 'aaa'],
   ]);

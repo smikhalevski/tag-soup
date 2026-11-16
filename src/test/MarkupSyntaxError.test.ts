@@ -10,7 +10,7 @@ describe('MarkupSyntaxError', () => {
     expect(String(error)).toBe('MarkupSyntaxError: aaa');
   });
 
-  test('has unknown indices and no input offset by default', () => {
+  test('has unknown indexes and no input offset by default', () => {
     const error = new MarkupSyntaxError('aaa', 'bbb');
 
     expect(error.message).toBe('aaa');
