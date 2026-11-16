@@ -178,9 +178,15 @@ interface TagStack {
   context: TokenizerContext;
 
   /**
-   * The context outside each enclosing foreign tag, pushed when the tag starts and restored when it ends.
+   * The context outside each enclosing foreign tag, stored when the tag starts and restored when it ends. Entries after
+   * {@link lastOuterContextIndex} are stale, and are overwritten rather than removed, so the array never shrinks.
    */
   outerContexts: TokenizerContext[];
+
+  /**
+   * The index of the context outside the innermost foreign tag, or -1 if no foreign tag encloses the content.
+   */
+  lastOuterContextIndex: number;
 
   /**
    * `true` once the root element of a document was started, so a strict tokenizer rejects a second one.
@@ -208,6 +214,7 @@ export function createTagStack(config: TokenizerConfig): TagStack {
     tagConfigs: [],
     outerGroupBits: new Int32Array(TAG_STACK_CAPACITY),
     outerContexts: [],
+    lastOuterContextIndex: -1,
     lastIndex: -1,
     context: config.rootContext,
     isRootElementRead: false,
@@ -273,7 +280,7 @@ const popTag = (tagStack: TagStack): void => {
   const tagConfig = tagStack.tagConfigs[tagStack.lastIndex--];
 
   if (tagConfig?.foreignContext !== undefined) {
-    tagStack.context = tagStack.outerContexts.pop()!;
+    tagStack.context = tagStack.outerContexts[tagStack.lastOuterContextIndex--];
   }
 };
 
@@ -957,7 +964,7 @@ export function readTokens(
           const tagConfig = tagStack.tagConfigs[lastTagIndex];
 
           if (tagConfig?.foreignContext !== undefined) {
-            tagStack.context = tagStack.outerContexts.pop()!;
+            tagStack.context = tagStack.outerContexts[tagStack.lastOuterContextIndex--];
           }
         } else {
           balanceEndTag(tagStack, handler, config, input, tagNameStartIndex, tagNameEndIndex);
@@ -1393,7 +1400,7 @@ export function readTokens(
         tagStack.outerGroupBits[lastTagIndex + 1] = tagStack.outerGroupBits[lastTagIndex] | startTagConfig.groupBit;
 
         if (startTagConfig.foreignContext !== undefined) {
-          tagStack.outerContexts.push(tagStack.context);
+          tagStack.outerContexts[++tagStack.lastOuterContextIndex] = tagStack.context;
           tagStack.context = startTagConfig.foreignContext;
         }
       }
@@ -1657,11 +1664,9 @@ export function readTokens(
  * and then in the outer one, like `<foreignObject/>` in SVG.
  */
 const isForeignStartTagSelfClosingRecognized = (tagStack: TagStack): boolean => {
-  const { outerContexts } = tagStack;
-
   return (
     tagStack.tagConfigs[tagStack.lastIndex]?.foreignContext !== undefined &&
-    outerContexts[outerContexts.length - 1].areSelfClosingTagsRecognized
+    tagStack.outerContexts[tagStack.lastOuterContextIndex].areSelfClosingTagsRecognized
   );
 };
 
