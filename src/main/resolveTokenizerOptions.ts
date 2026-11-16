@@ -146,7 +146,7 @@ export interface TokenizerConfig {
   isStrict: boolean;
 
   /**
-   * If `true` then the input is a fragment, which has no prologue: spaces aren't skipped, and DOCTYPE is ignored by a
+   * If `true` then the input is a fragment, which has no prolog: spaces aren't skipped, and DOCTYPE is ignored by a
    * forgiving tokenizer and rejected by a strict one. A strict tokenizer also allows several root elements.
    */
   isFragment: boolean;

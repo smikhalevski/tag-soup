@@ -1226,7 +1226,7 @@ describe('readTokens', () => {
     expect(tokens).toEqual(expectedTokens);
   });
 
-  test('ignores the second DOCTYPE in the prologue', () => {
+  test('ignores the second DOCTYPE in the prolog', () => {
     readInput('<!DOCTYPE aaa> <!DOCTYPE bbb>ccc', defaultConfig);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
@@ -1234,7 +1234,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 29, 32);
   });
 
-  test('strict reads the second DOCTYPE in the prologue', () => {
+  test('strict reads the second DOCTYPE in the prolog', () => {
     readInput('<!DOCTYPE aaa> <!DOCTYPE bbb><ccc></ccc>', strictConfig);
 
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'doctype_name', 10, 13);
@@ -1259,7 +1259,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'text', 7, 9);
   });
 
-  test('does not end the prologue after a comment', () => {
+  test('does not end the prolog after a comment', () => {
     readInput('<!--xxx-->   \n\n   <!DOCTYPE html>', defaultConfig);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
@@ -1267,7 +1267,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'doctype_name', 28, 32);
   });
 
-  test('does not end the prologue after DOCTYPE', () => {
+  test('does not end the prolog after DOCTYPE', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
     readInput('<!--xxx-->   \n\n   <!DOCTYPE html><!--xxx-->   \n\n   <?xml aaa?>', config);
@@ -1280,7 +1280,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'processing_instruction_data', 57, 60);
   });
 
-  test('does not end the prologue after a processing instruction', () => {
+  test('does not end the prolog after a processing instruction', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
     readInput('   <?xml aaa?>   <!DOCTYPE html>   ', config);
@@ -1291,7 +1291,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'doctype_name', 27, 31);
   });
 
-  test('does not end the prologue after a bogus comment', () => {
+  test('does not end the prolog after a bogus comment', () => {
     readInput('   <?xml aaa?>   <!DOCTYPE html>   ', defaultConfig);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
@@ -1299,7 +1299,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'doctype_name', 27, 31);
   });
 
-  test('does not end the prologue after a malformed end tag', () => {
+  test('does not end the prolog after a malformed end tag', () => {
     readInput('   </#>   aaa', defaultConfig);
 
     expect(callbackMock).toHaveBeenCalledTimes(2);
@@ -1307,7 +1307,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'text', 10, 13);
   });
 
-  test('skips spaces between processing instructions in the prologue', () => {
+  test('skips spaces between processing instructions in the prolog', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
     readInput('   <?xml aaa?>  <?xml bbb?>  <?xml ccc?>', config);
@@ -1321,7 +1321,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(6, 'processing_instruction_data', 35, 38);
   });
 
-  test('ends the prologue after a start tag', () => {
+  test('ends the prolog after a start tag', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
     readInput('<?xml aaa?><aaa><!DOCTYPE html>', config);
@@ -1334,20 +1334,20 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(4, 'start_tag_closing', 15, 16);
   });
 
-  test('ends the prologue after an end tag', () => {
-    // A start tag ends the prologue too, so the end tag has no start tag, and aaa is implicitly started instead
+  test('ends the prolog after an end tag', () => {
+    // A start tag ends the prolog too, so the end tag has no start tag, and aaa is implicitly started instead
     const config = resolveTokenizerOptions({ tags: { aaa: { isImplicitlyStarted: true } } });
 
     readInput('</aaa><!DOCTYPE html>', config);
 
-    // DOCTYPE after the prologue is ignored
+    // DOCTYPE after the prolog is ignored
     expect(callbackMock).toHaveBeenCalledTimes(3);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'start_tag_name', 2, 5);
     expect(callbackMock).toHaveBeenNthCalledWith(2, 'start_tag_closing', 5, 6);
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'end_tag_name', 2, 5);
   });
 
-  test('ends the prologue after a start tag without a name', () => {
+  test('ends the prolog after a start tag without a name', () => {
     readInput('< ><!DOCTYPE html>', defaultConfig);
 
     // DOCTYPE after the prolog is ignored
@@ -1355,15 +1355,15 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 3);
   });
 
-  test('ends the prologue after < that is followed by a tag', () => {
+  test('ends the prolog after < that is followed by a tag', () => {
     readInput('<<!DOCTYPE html>', defaultConfig);
 
-    // DOCTYPE after the prologue is ignored
+    // DOCTYPE after the prolog is ignored
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'text', 0, 1);
   });
 
-  test('ends the prologue after text', () => {
+  test('ends the prolog after text', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
     readInput('<?xml aaa?>aaa<!DOCTYPE html>', config);
@@ -1375,10 +1375,10 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(3, 'text', 11, 14);
   });
 
-  test('ends the prologue after text that follows DOCTYPE', () => {
+  test('ends the prolog after text that follows DOCTYPE', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
-    // Spaces after the processing instruction are text, since the prologue was ended
+    // Spaces after the processing instruction are text, since the prolog was ended
     readInput('<!DOCTYPE html>aaa<?xml aaa?>   ', config);
 
     expect(callbackMock).toHaveBeenCalledTimes(5);
@@ -1389,17 +1389,17 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(5, 'text', 29, 32);
   });
 
-  test('ends the prologue after a CDATA section', () => {
+  test('ends the prolog after a CDATA section', () => {
     const config = resolveTokenizerOptions({ areCDATASectionsRecognized: true });
 
     readInput('<![CDATA[aaa]]><!DOCTYPE html>', config);
 
-    // DOCTYPE after the prologue is ignored
+    // DOCTYPE after the prolog is ignored
     expect(callbackMock).toHaveBeenCalledTimes(1);
     expect(callbackMock).toHaveBeenNthCalledWith(1, 'cdata_section', 9, 12);
   });
 
-  test('reads spaces around a bogus comment as text after the prologue', () => {
+  test('reads spaces around a bogus comment as text after the prolog', () => {
     readInput('   <aaa>   <?xml bbb?>   </aaa>   ', defaultConfig);
 
     expect(callbackMock).toHaveBeenCalledTimes(7);
@@ -1412,7 +1412,7 @@ describe('readTokens', () => {
     expect(callbackMock).toHaveBeenNthCalledWith(7, 'text', 31, 34);
   });
 
-  test('reads spaces after comments and processing instructions as text after the prologue', () => {
+  test('reads spaces after comments and processing instructions as text after the prolog', () => {
     const config = resolveTokenizerOptions({ processingInstructionSyntax: 'xml' });
 
     readInput('<aaa><!--bbb-->   <?ccc ddd?>   </#>   </aaa>', config);
@@ -1866,7 +1866,7 @@ describe('readTokens', () => {
     );
   });
 
-  test('strict does not expect DOCTYPE after the prologue', () => {
+  test('strict does not expect DOCTYPE after the prolog', () => {
     expect(() => readInput('aaa<![CDATA[]]>', strictConfig)).toThrow(
       new MarkupSyntaxError("Expected a comment ('<!--').", 'aaa<![CDATA[]]>', 3, 5)
     );

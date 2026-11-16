@@ -76,15 +76,15 @@ export function createTokenizerWriter(handler: TokenHandler, config: TokenizerCo
 }
 
 // Before the first tag or text of a document: spaces are skipped and DOCTYPE is read
-const SCOPE_PROLOGUE = 0;
+const SCOPE_PROLOG = 0;
 
-// Content after the prologue, and all content of a fragment
+// Content after the prolog, and all content of a fragment
 const SCOPE_TEXT = 1;
 
 // Inside a start tag, after its name. Saved in the state only when a chunk ends inside a start tag.
 const SCOPE_START_TAG = 2;
 
-type Scope = typeof SCOPE_PROLOGUE | typeof SCOPE_TEXT | typeof SCOPE_START_TAG;
+type Scope = typeof SCOPE_PROLOG | typeof SCOPE_TEXT | typeof SCOPE_START_TAG;
 
 // The initial length of arrays of a tag stack that are indexed by tag
 const TAG_STACK_CAPACITY = 16;
@@ -222,7 +222,7 @@ export function createTagStack(config: TokenizerConfig): TagStack {
  */
 export function createTokenizerState(config: TokenizerConfig): TokenizerState {
   return {
-    scope: config.isFragment ? SCOPE_TEXT : SCOPE_PROLOGUE,
+    scope: config.isFragment ? SCOPE_TEXT : SCOPE_PROLOG,
     scannedLength: 0,
     inputOffset: 0,
   };
@@ -701,7 +701,7 @@ export function readTokens(
 
   let scope = state.scope;
 
-  let textStartIndex = scope === SCOPE_PROLOGUE ? skipSpaces(input, 0) : 0;
+  let textStartIndex = scope === SCOPE_PROLOG ? skipSpaces(input, 0) : 0;
 
   // On resume the innermost tag is the start tag being read, or the raw text tag whose text is being read, since raw
   // text contains no tags
@@ -762,7 +762,7 @@ export function readTokens(
       // Skip to the next tag
       // ----------------------------------------------------------
 
-      // Text ends the prologue, and the tag after it is read in the same iteration
+      // Text ends the prolog, and the tag after it is read in the same iteration
       if (charCode !== /* < */ 60) {
         scope = SCOPE_TEXT;
 
@@ -914,7 +914,7 @@ export function readTokens(
 
           // Skip ">"
           index = commentEndIndex + 1;
-          textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+          textStartIndex = index = scope === SCOPE_PROLOG ? skipSpaces(input, index) : index;
           continue;
         }
 
@@ -939,7 +939,7 @@ export function readTokens(
           break;
         }
 
-        // An end tag ends the prologue
+        // An end tag ends the prolog
         scope = SCOPE_TEXT;
 
         if (textStartIndex !== tokenStartIndex) {
@@ -1035,7 +1035,7 @@ export function readTokens(
 
         // Skip "?>"
         index = dataEndIndex + 2;
-        textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+        textStartIndex = index = scope === SCOPE_PROLOG ? skipSpaces(input, index) : index;
         continue;
       }
 
@@ -1044,11 +1044,11 @@ export function readTokens(
       // ----------------------------------------------------------
 
       // The char is checked first, so the call isn't made at the first tag of every document: with short documents V8
-      // would inline it in place of hotter calls. A strict tokenizer reads DOCTYPE only in the prologue, and rejects it
+      // would inline it in place of hotter calls. A strict tokenizer reads DOCTYPE only in the prolog, and rejects it
       // elsewhere as a bogus comment.
       if (
         charCode === /* ! */ 33 &&
-        (scope === SCOPE_PROLOGUE || !isStrict) &&
+        (scope === SCOPE_PROLOG || !isStrict) &&
         isCaseInsensitiveSubstringAt(input, index, '!doctype')
       ) {
         const doctypeClosingIndex = skipUntilTagClosing(input, index + 8);
@@ -1058,18 +1058,18 @@ export function readTokens(
           break;
         }
 
-        if (scope === SCOPE_PROLOGUE && !(tagStack.isDoctypeRead && !isStrict)) {
+        if (scope === SCOPE_PROLOG && !(tagStack.isDoctypeRead && !isStrict)) {
           tagStack.isDoctypeRead = true;
 
           readDoctype(input, index + 8, doctypeClosingIndex, isStrict, handler);
         } else if (textStartIndex !== tokenStartIndex) {
-          // A forgiving tokenizer ignores DOCTYPE after the prologue, and a second one in it
+          // A forgiving tokenizer ignores DOCTYPE after the prolog, and a second one in it
           handler.onText?.(input, textStartIndex, tokenStartIndex, false);
         }
 
         // Skip ">"
         index = doctypeClosingIndex + 1;
-        textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+        textStartIndex = index = scope === SCOPE_PROLOG ? skipSpaces(input, index) : index;
         continue;
       }
 
@@ -1155,7 +1155,7 @@ export function readTokens(
 
         // Skip ">"
         index = commentClosingIndex + 1;
-        textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+        textStartIndex = index = scope === SCOPE_PROLOG ? skipSpaces(input, index) : index;
         continue;
       }
 
@@ -1192,7 +1192,7 @@ export function readTokens(
 
           // Skip ">"
           index = commentEndIndex + 1;
-          textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+          textStartIndex = index = scope === SCOPE_PROLOG ? skipSpaces(input, index) : index;
           continue;
         }
 
@@ -1201,7 +1201,7 @@ export function readTokens(
             charCode === /* ? */ 63
               ? 'Processing instructions are forbidden.'
               : "Expected a comment ('<!--')" +
-                  (isFragment || scope !== SCOPE_PROLOGUE ? '' : ", a doctype declaration ('<!DOCTYPE')") +
+                  (isFragment || scope !== SCOPE_PROLOG ? '' : ", a doctype declaration ('<!DOCTYPE')") +
                   (tagStack.context.areCDATASectionsRecognized ? ", or a CDATA section ('<![CDATA[')" : '') +
                   '.',
             input,
@@ -1219,7 +1219,7 @@ export function readTokens(
 
         // Skip ">"
         index = commentEndIndex + 1;
-        textStartIndex = index = scope === SCOPE_PROLOGUE ? skipSpaces(input, index) : index;
+        textStartIndex = index = scope === SCOPE_PROLOG ? skipSpaces(input, index) : index;
         continue;
       }
 
@@ -1310,7 +1310,7 @@ export function readTokens(
           );
         }
 
-        // "<" is text, which ends the prologue
+        // "<" is text, which ends the prolog
         scope = SCOPE_TEXT;
         continue;
       }
