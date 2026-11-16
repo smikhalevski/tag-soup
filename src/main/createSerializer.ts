@@ -1,56 +1,15 @@
-import { Node } from 'flyweight-dom';
-import { type ResolvedSerializerOptions, serializeMarkup } from './serializeMarkup.ts';
-import { getCaseInsensitiveHashCode, getCaseSensitiveHashCode } from './tokenizeMarkup.ts';
-
-/**
- * Options of {@link createSerializer}.
- *
- * @group Serializer
- */
-export interface SerializerOptions {
-  /**
-   * The list of tags that can't have content. Void tags are written without an end tag, and their children are ignored.
-   *
-   * @example
-   * ['link', 'meta']
-   * @see [HTML5 Void Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#void-elements)
-   */
-  voidTags?: string[];
-
-  /**
-   * The list of tags whose text content is written as is, without {@link encodeText}.
-   *
-   * @example
-   * ['script', 'style']
-   * @see [HTML5 Raw Text Elements](https://www.w3.org/TR/2010/WD-html5-20101019/syntax.html#raw-text-elements)
-   */
-  rawTextTags?: string[];
-
-  /**
-   * If `true` then ASCII alpha characters are case-insensitive in tag names.
-   *
-   * @default false
-   */
-  areTagNamesCaseInsensitive?: boolean;
-
-  /**
-   * If `true` then elements without children are written as self-closing tags (`<a/>`), otherwise as a start tag
-   * followed by an end tag (`<a></a>`). Void tags are always written without an end tag.
-   *
-   * @default false
-   */
-  areSelfClosingTagsSupported?: boolean;
-
-  /**
-   * Encodes text content and attribute values. Use this method to encode HTML/XML entities. Comments, CDATA sections
-   * and processing instructions are written as is.
-   *
-   * By default, text content and attribute values aren't encoded.
-   *
-   * @param text The text to encode.
-   */
-  encodeText?: (text: string) => string;
-}
+import {
+  type CDATASection,
+  type Comment,
+  type DocumentType,
+  type Element,
+  Node,
+  type ProcessingInstruction,
+  type Text,
+} from 'flyweight-dom';
+import { resolveSerializerOptions, type SerializerConfig } from './resolveSerializerOptions.ts';
+import type { SerializerOptions } from './types.ts';
+import { toLowerCase } from './utils.ts';
 
 /**
  * Creates a serializer that converts a DOM node to an HTML/XML string.
@@ -60,8 +19,11 @@ export interface SerializerOptions {
  * import { escapeXML } from 'speedy-entities';
  *
  * const serialize = createSerializer({
- *   voidTags: ['br'],
+ *   tags: {
+ *     br: { kind: 'void' },
+ *   },
  *   encodeText: escapeXML,
+ *   encodeAttribute: escapeXML,
  * });
  *
  * serialize(HTMLDOMParser.parseFragment('<p>hello<br></p>'));
@@ -74,29 +36,131 @@ export interface SerializerOptions {
  * @group Serializer
  */
 export function createSerializer(options: SerializerOptions = {}): (node: Node) => string {
-  const resolvedOptions = resolveSerializerOptions(options);
+  const config = resolveSerializerOptions(options);
 
-  return node => serializeMarkup(node, resolvedOptions);
+  return node => serializeNode(config, node);
 }
 
 /**
- * Converts human-readable serializer options into options consumed by {@link serializeMarkup}.
- *
- * @param options Serializer options.
- * @internal
+ * Serializes a node. Functions append markup to the output and return it, so the output is concatenated in document
+ * order once, rather than each element building its own string that its parent appends.
  */
-export function resolveSerializerOptions(options: SerializerOptions): ResolvedSerializerOptions {
-  const { voidTags, rawTextTags, areTagNamesCaseInsensitive, areSelfClosingTagsSupported, encodeText } = options;
+const serializeNode = (config: SerializerConfig, node: Node): string => {
+  switch (node.nodeType) {
+    case Node.TEXT_NODE:
+      return config.encodeText((node as Text).data);
 
-  const getHashCode = areTagNamesCaseInsensitive ? getCaseInsensitiveHashCode : getCaseSensitiveHashCode;
+    case Node.ELEMENT_NODE:
+      return writeElement(config, node as Element, '');
 
-  const toHashCode = (str: string) => getHashCode(str, 0, str.length);
+    default:
+      return writeLeaf(config, node, '');
+  }
+};
 
-  return {
-    toHashCode,
-    voidTagSet: voidTags !== undefined ? new Set(voidTags.map(toHashCode)) : undefined,
-    rawTextTagSet: rawTextTags !== undefined ? new Set(rawTextTags.map(toHashCode)) : undefined,
-    areSelfClosingTagsSupported,
-    encodeText,
-  };
-}
+/**
+ * Writes children of a node to the output, and returns the output.
+ *
+ * @param config The serializer config.
+ * @param parentNode The node whose children are written.
+ * @param isRawText If `true` then text children aren't encoded.
+ * @param output The output written so far.
+ */
+const writeChildren = (config: SerializerConfig, parentNode: Node, isRawText: boolean, output: string): string => {
+  const { encodeText } = config;
+
+  for (let child = parentNode.firstChild; child !== null; child = child.nextSibling) {
+    switch (child.nodeType) {
+      // Text is the most common child, so it's written here, without a call
+      case Node.TEXT_NODE:
+        output += isRawText ? (child as Text).data : encodeText((child as Text).data);
+        break;
+
+      case Node.ELEMENT_NODE:
+        output = writeElement(config, child as Element, output);
+        break;
+
+      default:
+        output = writeLeaf(config, child, output);
+        break;
+    }
+  }
+
+  return output;
+};
+
+/**
+ * Writes an element and its descendants to the output, and returns the output.
+ */
+const writeElement = (config: SerializerConfig, element: Element, output: string): string => {
+  const { encodeAttribute } = config;
+  const { tagName, attributes } = element;
+
+  output += '<' + tagName;
+
+  for (const name in attributes) {
+    output += ' ' + name + '="' + encodeAttribute(attributes[name]) + '"';
+  }
+
+  const normalizedTagName = config.areTagNamesCaseInsensitive ? toLowerCase(tagName) : tagName;
+
+  if (element.firstChild === null) {
+    if (config.voidTagNameSet.has(normalizedTagName)) {
+      return output + '>';
+    }
+    return output + (config.areSelfClosingTagsSupported ? '/>' : '></' + tagName + '>');
+  }
+
+  output += '>';
+
+  return writeChildren(config, element, config.rawTextTagNameSet.has(normalizedTagName), output) + '</' + tagName + '>';
+};
+
+/**
+ * Writes a node that isn't an element or a text node to the output, and returns the output.
+ */
+const writeLeaf = (config: SerializerConfig, node: Node, output: string): string => {
+  switch (node.nodeType) {
+    case Node.COMMENT_NODE:
+      return output + '<!--' + (node as Comment).data + '-->';
+
+    case Node.CDATA_SECTION_NODE:
+      return output + '<![CDATA[' + (node as CDATASection).data + ']]>';
+
+    case Node.DOCUMENT_TYPE_NODE:
+      return writeDoctype(node as DocumentType, output);
+
+    case Node.PROCESSING_INSTRUCTION_NODE: {
+      const { target, data } = node as ProcessingInstruction;
+
+      return output + '<?' + target + (data.length !== 0 ? ' ' + data : '') + '?>';
+    }
+
+    case Node.DOCUMENT_NODE:
+    case Node.DOCUMENT_FRAGMENT_NODE:
+      return writeChildren(config, node, false, output);
+  }
+  return output;
+};
+
+/**
+ * Writes a DOCTYPE to the output, and returns the output. The system identifier follows `SYSTEM` only if there's no
+ * public identifier.
+ */
+const writeDoctype = (doctype: DocumentType, output: string): string => {
+  const { name, publicId, systemId } = doctype;
+
+  output += '<!DOCTYPE ' + name;
+
+  if (publicId.length !== 0) {
+    output += ' PUBLIC "' + publicId + '"';
+  } else if (systemId.length !== 0) {
+    output += ' SYSTEM';
+  }
+
+  if (systemId.length !== 0) {
+    output += ' "' + systemId + '"';
+  }
+
+  return output + '>';
+};
